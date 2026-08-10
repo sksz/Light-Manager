@@ -1,0 +1,30 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use LightManager\Infrastructure\Diagnostics\BenchmarkCli;
+use LightManager\Infrastructure\I18n\TranslatorService;
+
+$autoload = __DIR__ . '/../vendor/autoload.php';
+
+// Ten jeden napis nie może przejść przez katalog: bez autoloadera nie ma
+// jeszcze ani tłumacza, ani czym go wczytać.
+if (!is_file($autoload)) {
+    fwrite(STDERR, 'Composer dependencies are missing. Run: composer install' . PHP_EOL);
+
+    exit(1);
+}
+
+require $autoload;
+
+if (!extension_loaded('imagick')) {
+    fwrite(STDERR, TranslatorService::getInstance()->translate('problem.missingImagick') . PHP_EOL);
+
+    exit(1);
+}
+
+/** @var list<string> $arguments */
+$arguments = array_values(array_slice($argv, 1));
+
+exit((new BenchmarkCli())->run($arguments));

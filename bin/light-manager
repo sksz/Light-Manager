@@ -1,0 +1,42 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use LightManager\Domain\Exception\DomainException;
+use LightManager\Infrastructure\I18n\TranslatorService;
+use LightManager\Infrastructure\Support\InfrastructureException;
+use LightManager\Presentation\Cli\Bootstrap;
+
+$autoload = __DIR__ . '/../vendor/autoload.php';
+
+// Jedyny napis w całej aplikacji, który nie może przejść przez katalog: bez
+// autoloadera nie ma jeszcze ani tłumacza, ani czym go wczytać.
+if (!is_file($autoload)) {
+    fwrite(STDERR, 'Composer dependencies are missing. Run: composer install' . PHP_EOL);
+
+    exit(1);
+}
+
+require $autoload;
+
+if (!extension_loaded('imagick')) {
+    fwrite(STDERR, TranslatorService::getInstance()->translate('problem.missingImagick') . PHP_EOL);
+
+    exit(1);
+}
+
+try {
+    Bootstrap::boot();
+    Bootstrap::createGameLoop()->run();
+} catch (InfrastructureException|DomainException $exception) {
+    // Bez sprzątania w tym miejscu: gdy zawiódł sam bootstrap, usługa terminala
+    // może nie istnieć, a próba jej pobrania rzuciłaby ten sam wyjątek raz
+    // jeszcze — tym razem już nieprzechwycony. Gdy istnieje, terminal przywróci
+    // zarejestrowana przez nią funkcja zamknięcia procesu.
+    fwrite(STDERR, Bootstrap::problemPresenter()->startupText($exception) . PHP_EOL);
+
+    exit(1);
+}
+
+Bootstrap::shutdown();

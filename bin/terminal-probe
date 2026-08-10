@@ -1,0 +1,68 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use LightManager\Application\Dto\Key;
+use LightManager\Domain\ValueObject\RendererMode;
+use LightManager\Infrastructure\Imagick\ImagickCapabilityService;
+use LightManager\Infrastructure\Support\InfrastructureException;
+use LightManager\Infrastructure\Terminal\SixelCapabilityService;
+use LightManager\Infrastructure\Terminal\TerminalService;
+
+$autoload = __DIR__ . '/../vendor/autoload.php';
+
+if (!is_file($autoload)) {
+    fwrite(STDERR, 'Brak zależności Composera. Uruchom najpierw: composer install' . PHP_EOL);
+
+    exit(1);
+}
+
+require $autoload;
+
+echo 'Podgląd wejścia terminala — naciskaj klawisze, wyjście: q albo Ctrl+C.' . PHP_EOL;
+echo 'Każda sekwencja escape (strzałki, Home/End, PageUp/PageDown) powinna dać ' . PHP_EOL;
+echo 'dokładnie jeden wiersz, a nie serię pojedynczych znaków.' . PHP_EOL . PHP_EOL;
+
+try {
+    $terminal = TerminalService::getInstance();
+} catch (InfrastructureException $exception) {
+    fwrite(STDERR, $exception->getMessage() . PHP_EOL);
+
+    exit(1);
+}
+
+$mode = SixelCapabilityService::getInstance()->detect();
+
+printf(
+    'Tryb renderowania: %s (koder SIXEL w Imagicku: %s)%s',
+    $mode === RendererMode::Sixel ? 'Sixel' : 'tekstowy (fallback)',
+    ImagickCapabilityService::getInstance()->supportsSixelCoder() ? 'dostępny' : 'niedostępny',
+    PHP_EOL . PHP_EOL,
+);
+
+while (true) {
+    // Handler sygnału nie kończy już procesu (krok 09) — Ctrl+C zamyka tylko
+    // tam, gdzie ktoś sprawdza ten znacznik.
+    if ($terminal->shutdownRequested()) {
+        break;
+    }
+
+    $press = $terminal->readKey();
+
+    if ($press === null) {
+        usleep(2000);
+
+        continue;
+    }
+
+    printf('%-12s bajty: %s%s', $press->key->name, bin2hex($press->raw), PHP_EOL);
+
+    if ($press->key === Key::Character && $press->raw === 'q') {
+        break;
+    }
+}
+
+$terminal->restore();
+
+echo PHP_EOL . 'Terminal przywrócony do stanu sprzed uruchomienia.' . PHP_EOL;

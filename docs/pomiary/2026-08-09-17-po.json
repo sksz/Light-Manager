@@ -1,0 +1,89 @@
+{
+    "signature": "1000x600px 166x46 theme=grafit palette=64 textAA=0 strokeAA=1 font=auto",
+    "environment": {
+        "php": "8.3.11",
+        "imageMagick": "ImageMagick 6.9.12-98 Q16 x86_64 18038 https://legacy.imagemagick.org",
+        "font": "DejaVu-Sans-Mono",
+        "recordedAt": "2026-08-09T11:17:21+00:00"
+    },
+    "options": {
+        "widthPixels": 1000,
+        "heightPixels": 600,
+        "columns": 166,
+        "rows": 46,
+        "theme": "grafit",
+        "textAntialias": false,
+        "strokeAntialias": true,
+        "paletteColors": 64,
+        "font": null,
+        "iterations": 15,
+        "warmupIterations": 4
+    },
+    "scenarios": {
+        "empty": {
+            "draw": 0.031,
+            "quantize": 3.286,
+            "encode": 4.287,
+            "total": 7.589,
+            "bytes": 1469,
+            "unstable": false
+        },
+        "text": {
+            "draw": 12.163,
+            "quantize": 4.531,
+            "encode": 4.599,
+            "total": 21.402,
+            "bytes": 20829,
+            "unstable": false
+        },
+        "chrome": {
+            "draw": 2.207,
+            "quantize": 7.358,
+            "encode": 4.498,
+            "total": 13.985,
+            "bytes": 6080,
+            "unstable": false
+        },
+        "chrome-text": {
+            "draw": 21.135,
+            "quantize": 7.833,
+            "encode": 4.711,
+            "total": 33.865,
+            "bytes": 22120,
+            "unstable": false
+        },
+        "selection": {
+            "draw": 20.442,
+            "quantize": 4.749,
+            "encode": 4.901,
+            "total": 30.116,
+            "bytes": 25728,
+            "unstable": false
+        },
+        "scrollbar": {
+            "draw": 4.656,
+            "quantize": 3.516,
+            "encode": 4.322,
+            "total": 12.78,
+            "bytes": 3622,
+            "unstable": false
+        },
+        "thumbnail": {
+            "draw": 21.843,
+            "quantize": 43.183,
+            "encode": 15.087,
+            "total": 79.985,
+            "bytes": 29602,
+            "unstable": false
+        },
+        "popup": {
+            "draw": 34.353,
+            "quantize": 9.183,
+            "encode": 4.779,
+            "total": 48.676,
+            "bytes": 27981,
+            "unstable": false
+        }
+    },
+    "transfer": null
+}
