@@ -17,10 +17,16 @@ use LightManager\Application\Module\ModuleSetting;
  * Dwie pozycje, dwa nowe rodzaje (P14): liczba z listy i pole tekstowe. Jeden
  * moduł przeciera obie ścieżki, których krok 20 dokłada do ekranu ustawień.
  *
- * Krok 25 dokłada cztery kolejne. **Nie ma wśród nich `du` ani limitu czasu pracy
- * tłowej**, które przewidywał plan (P7): zajętość na dysku wymaga procesu
- * potomnego doglądanego między klatkami, a ten mechanizm dostał własny krok (26).
- * Pozycja, która nie ma czym sterować, byłaby obietnicą bez pokrycia.
+ * Krok 25 dokłada cztery kolejne, ale **bez `du` i bez limitu czasu pracy tłowej**,
+ * które przewidywał jego plan (P7): zajętość na dysku wymaga procesu potomnego
+ * doglądanego między klatkami, a ten mechanizm dostał własny krok. Pozycja, która
+ * nie ma czym sterować, byłaby obietnicą bez pokrycia.
+ *
+ * Krok 26 obie zaległe pozycje dopisuje. Limity czasu są **dwa i osobne**, i to
+ * jest różnica warta nazwania: `timeout` mierzy polecenie `file`, które trzyma
+ * klatkę, więc liczy się w sekundach pojedynczych; `backgroundTimeout` mierzy
+ * `du`, które nie trzyma niczego, więc wolno mu chodzić dziesięciokrotnie dłużej.
+ * Sekundy w tle bolą mniej.
  */
 final class FileInfoSettings
 {
@@ -76,6 +82,21 @@ final class FileInfoSettings
 
     public const DEFAULT_CHECKSUM_LIMIT = 256;
 
+    /**
+     * Zajętość katalogu na dysku — **domyślnie wyłączona**, bo za wierszem stoi
+     * proces potomny przechodzący całe drzewo.
+     */
+    public const DISK_USAGE = 'diskUsage';
+
+    public const DEFAULT_DISK_USAGE = false;
+
+    /** Sekundy, po których praca tłowa zostaje ubita. */
+    public const BACKGROUND_TIMEOUT = 'backgroundTimeout';
+
+    public const BACKGROUND_TIMEOUT_CHOICES = [5, 15, 30, 60];
+
+    public const DEFAULT_BACKGROUND_TIMEOUT = 15;
+
     /** @return list<ModuleSetting> */
     public static function declarations(): array
     {
@@ -114,6 +135,17 @@ final class FileInfoSettings
                 self::CHECKSUM_LIMIT_CHOICES,
                 self::DEFAULT_CHECKSUM_LIMIT,
             ),
+            ModuleSetting::toggle(
+                self::DISK_USAGE,
+                'module.' . self::ID . '.setting.' . self::DISK_USAGE,
+                self::DEFAULT_DISK_USAGE,
+            ),
+            ModuleSetting::number(
+                self::BACKGROUND_TIMEOUT,
+                'module.' . self::ID . '.setting.' . self::BACKGROUND_TIMEOUT,
+                self::BACKGROUND_TIMEOUT_CHOICES,
+                self::DEFAULT_BACKGROUND_TIMEOUT,
+            ),
         ];
     }
 
@@ -145,6 +177,22 @@ final class FileInfoSettings
         $value = self::declarations()[5]->valueFrom($settings->moduleValue(self::ID, self::CHECKSUM_LIMIT));
 
         return (is_int($value) ? $value : self::DEFAULT_CHECKSUM_LIMIT) * 1024 * 1024;
+    }
+
+    public static function diskUsage(Settings $settings): bool
+    {
+        $value = self::declarations()[6]->valueFrom($settings->moduleValue(self::ID, self::DISK_USAGE));
+
+        return is_bool($value) ? $value : self::DEFAULT_DISK_USAGE;
+    }
+
+    public static function backgroundTimeout(Settings $settings): int
+    {
+        $value = self::declarations()[7]->valueFrom(
+            $settings->moduleValue(self::ID, self::BACKGROUND_TIMEOUT),
+        );
+
+        return is_int($value) ? $value : self::DEFAULT_BACKGROUND_TIMEOUT;
     }
 
     public static function timeout(Settings $settings): int

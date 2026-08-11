@@ -26,6 +26,8 @@ return [
     'module.file-info.setting.inode' => 'Pokazuj i-węzeł i dowiązania',
     'module.file-info.setting.checksum' => 'Suma kontrolna sha256',
     'module.file-info.setting.checksumLimit' => 'Limit rozmiaru sumy (MiB)',
+    'module.file-info.setting.diskUsage' => 'Zajętość katalogu na dysku (du)',
+    'module.file-info.setting.backgroundTimeout' => 'Limit czasu pracy w tle (s)',
 
     // Nagłówki sekcji.
     'module.file-info.section.identity' => 'TOŻSAMOŚĆ',
@@ -43,6 +45,7 @@ return [
     'module.file-info.row.size' => 'Rozmiar',
     'module.file-info.row.sizeExact' => 'Dokładnie',
     'module.file-info.row.blocks' => 'Bloki i-węzła',
+    'module.file-info.row.diskUsage' => 'Zajęte na dysku',
     'module.file-info.row.checksum' => 'sha256',
     'module.file-info.row.mode' => 'Prawa',
     'module.file-info.row.owner' => 'Właściciel',
@@ -82,6 +85,16 @@ return [
     'module.file-info.checksum.tooLarge' => 'Plik przekracza ustawiony limit rozmiaru sumy kontrolnej.',
     'module.file-info.checksum.unreadable' => 'Nie udało się odczytać pliku.',
 
+    // Zajętość katalogu — liczona poleceniem `du` w procesie tłowym (krok 26).
+    // Powody wspólne dla każdej pracy tłowej (limit czasu, brak proc_open) idą
+    // przez klucze `process.*` rdzenia; tutaj zostaje to, co dotyczy `du`.
+    'module.file-info.diskUsage.idle' => '(klawisz d liczy)',
+    'module.file-info.diskUsage.working' => 'liczę zajętość',
+    'module.file-info.diskUsage.disabled' => 'Liczenie zajętości jest wyłączone w ustawieniach modułu.',
+    'module.file-info.diskUsage.notADirectory' => 'Zajętość liczymy tylko dla katalogów — dla pliku mówią '
+        . 'o niej bloki i-węzła.',
+    'module.file-info.diskUsage.failed' => 'Polecenie „du” nie podało wyniku.',
+
     // Prawy panel: miniatura albo powód jej braku.
     'module.file-info.preview.none' => '(brak podglądu)',
     'module.file-info.preview.unreadable' => 'Nie udało się odczytać obrazu.',
@@ -111,7 +124,9 @@ return [
 
     // Własna część zakładki pomocy — to, czego z deklaracji wyczytać się nie da.
     'module.file-info.help.checksum' => 'policz sumę kontrolną',
+    'module.file-info.help.diskUsage' => 'policz zajętość katalogu',
     'module.file-info.help.enter' => 'Opis dotyczy wpisu zaznaczonego na liście plików — także katalogu.',
     'module.file-info.help.sections' => 'Sekcje zwija się Enterem; suma kontrolna liczy się dopiero po '
-        . 'naciśnięciu s, bo czyta cały plik.',
+        . 'naciśnięciu s, bo czyta cały plik, a zajętość katalogu po naciśnięciu d, bo przechodzi całe '
+        . 'drzewo.',
 ];

@@ -36,6 +36,15 @@ return [
     // Napis mówi o panelach, a nie o osi: „pionowy” bywa czytane obiema
     // stronami — raz jako kierunek granicy, raz jako ułożenie paneli.
     'module.browser.setting.splitVertical' => 'Panele obok siebie',
+    'module.browser.setting.details' => 'Kolumny szczegółów (data, prawa)',
+    'module.browser.setting.columnHeader' => 'Nazwy kolumn nad listą',
+
+    // Nagłówki kolumn listy (krok 27). Widać je wyłącznie po włączeniu
+    // przełącznika „Nazwy kolumn nad listą” — sama treść kolumn mówi za siebie.
+    'module.browser.column.name' => 'Nazwa',
+    'module.browser.column.size' => 'Rozmiar',
+    'module.browser.column.modified' => 'Zmieniony',
+    'module.browser.column.permissions' => 'Prawa',
 
     // Pas podglądu miniatur.
     'module.browser.preview.unreadable' => 'Nie udało się odczytać obrazu.',

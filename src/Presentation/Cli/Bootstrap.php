@@ -25,6 +25,7 @@ use LightManager\Infrastructure\Config\CommandHistoryService;
 use LightManager\Infrastructure\Config\SettingsService;
 use LightManager\Infrastructure\I18n\TranslatorService;
 use LightManager\Infrastructure\Imagick\ImagePreviewService;
+use LightManager\Infrastructure\Process\BackgroundProcessService;
 use LightManager\Infrastructure\Rendering\RendererService;
 use LightManager\Infrastructure\Rendering\ThemeService;
 use LightManager\Infrastructure\Terminal\SixelCapabilityService;
@@ -198,7 +199,12 @@ final class Bootstrap
     ): array {
         return [
             new BrowserModule($state, $translator, $settings, ImagePreviewService::getInstance()),
-            new FileInfoModule($translator, $settings, ImagePreviewService::getInstance()),
+            new FileInfoModule(
+                $translator,
+                $settings,
+                ImagePreviewService::getInstance(),
+                BackgroundProcessService::getInstance(),
+            ),
         ];
     }
 
@@ -444,9 +450,18 @@ final class Bootstrap
      * Historia dopisuje się przy wyjściu — także wtedy, gdy bufor nie zdążył się
      * zapełnić. Zapis idzie **przed** przywróceniem terminala, bo to on jest
      * ostatnią czynnością, po której proces może zniknąć.
+     *
+     * Proces tłowy ubijamy **przed** jednym i drugim (krok 26): to jedyny byt
+     * w tej aplikacji, który przeżyłby proces macierzysty, a `du` puszczone na
+     * katalog domowy potrafi chodzić jeszcze długo po tym, jak użytkownik
+     * zobaczył z powrotem swoją powłokę. Usługa trzyma dla tej samej sprawy także
+     * funkcję zamknięcia procesu — wywołanie tutaj jest jawną ścieżką, tamta
+     * gwarancją ostatniej szansy dla wyjść, których ta ścieżka nie dosięga.
      */
     public static function shutdown(): void
     {
+        BackgroundProcessService::getInstance()->shutdown();
+
         self::$history?->flush();
 
         TerminalService::getInstance()->restore();

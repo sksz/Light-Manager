@@ -86,6 +86,7 @@ final class ScreenFixture
         public readonly InMemoryCommandHistory $history = new InMemoryCommandHistory(),
         public readonly StubFileStat $stats = new StubFileStat(),
         public readonly StubChecksums $checksums = new StubChecksums(),
+        public readonly StubBackgroundProcess $processes = new StubBackgroundProcess(),
     ) {
         $translator = new StubTranslator();
         $themes = new FixedThemes();
@@ -99,6 +100,7 @@ final class ScreenFixture
             $translator,
             $settingsStore,
             new StubImagePreview(),
+            $processes,
             $inspector,
             $stats,
             $checksums,

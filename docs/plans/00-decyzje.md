@@ -2302,3 +2302,289 @@ kontrakt i pomiar.
 **Dług z kroku 21 spłacony i pilnowany maszynowo.** `Bootstrap` widzi z każdego
 modułu wyłącznie jego klasę główną, a sprawdza to nowy test w
 `CoreKnowsNothingAboutFilesTest`.
+
+### D47 — Proces tłowy: jedna praca z uchwytem, sprzątanie dwiema drogami, a `du` tylko dla katalogów
+
+**Dotyczy:** kroku 26 (pełna treść: [26-proces-tlowy.md](26-proces-tlowy.md)).
+
+**Data:** 2026-08-11.
+
+Krok 26 dopisał do wzorca pracy kawałkowej (D46) jego **czwartą regułę** i pięć
+rozstrzygnięć, które plan zostawił na start. Wszystkie pięć rozstrzygnął
+użytkownik; poniżej każde wraz z tym, co za nim stoi.
+
+**1. Jedna praca naraz.** Usługa prowadzi jedną pracę, a nowe zamówienie
+przerywa poprzednie — dokładnie jak `ChecksumPort` w kroku 25 i z tego samego
+powodu: widoczny ekran jest jeden, pasek postępu jeden, a druga praca zaczęta bez
+przerwania pierwszej byłaby drugim procesem, o którym nikt już nie pamięta.
+Odrzucono rejestr wielu prac — kosztowałby przechodzenie po nim przy każdym
+sprzątaniu i pytanie o zachowanie przy limicie, czyli dokładnie tę klasę błędów,
+przed którą plan kroku ostrzegał.
+
+**2. Uchwyt jest obiektem** (`BackgroundHandle`), choć przy jednej pracy port
+mógłby go nie mieć wcale. Zarabia na siebie w jednej, konkretnej sytuacji:
+mechanizm jest **rdzeniowy**, więc pracę zamawia dowolny moduł, a kolejne
+zamówienie przerywa poprzednie. Bez uchwytu moduł, którego pracę wyparto,
+zobaczyłby cudzy stan i wziąłby go za swój — pokazałby wynik `du` w miejscu,
+w którym liczył co innego. Z uchwytem `poll()` nieaktualnej pracy oddaje `Idle`.
+
+**3. Sprzątanie dwiema drogami naraz** — i to jest najważniejsze rozstrzygnięcie
+kroku. Jawne `shutdown()` w `Bootstrap::shutdown()` **oraz**
+`register_shutdown_function` rejestrowana leniwie przy pierwszym uruchomieniu
+pracy. Pierwsza droga jest widoczna w kodzie i idzie tą samą ścieżką, którą
+terminal wraca do trybu normalnego; druga łapie to, czego pierwsza nie dosięga —
+błąd krytyczny i `exit()` z boku, czyli **dokładnie ten przypadek, w którym
+`bin/light-manager` wychodzi przez `exit(1)` bez wołania `shutdown()`**. Odrzucono
+destruktor Singletona: kolejność niszczenia obiektów przy zamykaniu procesu nie
+jest w PHP gwarantowana, więc sprzątanie zależałoby od rzeczy, na którą nie mamy
+wpływu. Układ jest zresztą **ten sam, którym `TerminalService` broni trybu
+surowego** — jedna droga czytelna, druga nieomylna.
+
+**4. `du` liczy się tylko dla katalogów.** Rozstrzygnięcie zapadło po znalezieniu
+w kodzie rzeczy, której plan nie przewidywał: sekcja „Rozmiar” **już** pokazuje
+wiersz „Bloki i-węzła” (`blocks × 512` z `lstat`), a dla zwykłego pliku to jest
+dokładnie zajętość na dysku — policzona natychmiast i bez procesu. Uruchamianie
+`du` na plik byłoby więc procesem potomnym po liczbę, którą użytkownik ma już na
+ekranie. Dla katalogu wiersz mówi to, czego `lstat` nie wie i wiedzieć nie może:
+sumę po całym drzewie.
+
+**5. Wiersz stoi od pierwszej klatki z podpowiedzią** „(klawisz d liczy)” — tak
+samo, jak suma kontrolna od kroku 25. Jedna zasada dla obu prac na żądanie zamiast
+dwóch, a wiersz dokładany dopiero po naciśnięciu klawisza przesuwałby układ pod
+kursorem przewijania — czyli robiłby to, czego krok 25 świadomie unikał, odbierając
+wiersz sekcjom na rzecz paska.
+
+**Czwarta reguła pracy kawałkowej**, zapisana w `docs/architecture.md`: *potomek
+nie ma prawa przeżyć procesu, który go uruchomił*. Towarzyszą jej trzy rzeczy
+niosące własne klasy błędów: **oba potoki czytane co klatkę** (nieczytany potok
+zatrzymuje potomka, gdy się zapełni — `du` na katalogu domowym wypisuje setki
+wierszy „brak dostępu” na strumień błędów; czytamy go i wyrzucamy, bo sklejenie
+strumieni zamieniłoby liczbę do odczytania w stertę do przeszukania), **kod
+wyjścia różny od zera nie jest sam z siebie niepowodzeniem** (`du` kończy się
+jedynką za każdy nieprzeczytany katalog, a mimo to podaje sumę tego, co
+przeczytało — niepowodzeniem jest dopiero brak liczby na wyjściu) i **`SIGKILL`
+zamiast `SIGTERM`**, bo przy wyjściu z aplikacji nie ma już komu poczekać, aż
+potomek rozmyśli się nad obsługą sygnału.
+
+**Pomiar sięgnął po raz pierwszy poza PHP.** Scenariusz `background` rysuje klatkę
+**co do prymitywu równą `chrome-text`** — potwierdza to identyczny rozmiar bloba —
+ale przy uruchomionym procesie potomnym, doglądanym raz na klatkę wewnątrz
+mierzonego czasu. Różnica między tymi dwoma wierszami jest więc w całości ceną
+pracy toczącej się obok pętli. Potomek **milczy przez cały pomiar** i to nie jest
+uproszczenie, tylko wierność: `du` nie mówi o sobie nic, aż skończy, więc dokładnie
+tak wyglądają te cztery sekundy, o które w kroku chodzi.
+
+**Dług spłacony przy okazji.** Rachunek zamieniający bajty na czytelny zapis stał
+jako prywatna metoda w `InspectSelectedEntryUseCase`; wiersz „zajęte na dysku”
+byłby jego trzecim wołającym w tym samym module, więc wyszedł do
+`Module\FileInfo\Application\SizeText`. Wyprowadzenie sięga **wyłącznie w obręb
+modułu** — przeglądarka ma własny, bliźniaczy rachunek w `EntryList` i on tam
+zostaje, bo moduł nigdy nie sięga do innego modułu (reguła 15). Wspólny formatownik
+musiałby najpierw zostać częścią rdzenia, a to osobna decyzja.
+
+### D48 — Sześć nowych komponentów rdzenia, rytm „jeden komponent — jeden krok” i otwarcie zamkniętego słownika prymitywów
+
+**Dotyczy:** Fazy VII planu, kroków 27–32
+([00-index.md](00-index.md)).
+
+**Data:** 2026-08-11.
+
+Po ukończeniu kroku 26 przejrzano rdzeń pod kątem braków: 18 komponentów,
+2 kontenery, 3 klasy stanu między klatkami i **zamknięty słownik 7 prymitywów**.
+Z przeglądu wyszło sześć propozycji; użytkownik przyjął **wszystkie sześć**.
+
+**Kryterium porządkujące — reguła 13, a nie atrakcyjność.** Propozycje ustawiono
+wedle jedynego pytania, które w tym projekcie naprawdę boli: *czy odbiorca już
+siedzi w kodzie*. Trzy pierwsze mają go dziś i to jest ich główna zaleta:
+
+- **27 `Table`** — `ListRow` ma dokładnie dwa pola, więc data i prawa nie mają
+  w liście plików gdzie stanąć; `EntryList` przechodzi na kolumny w tym samym
+  kroku.
+- **28 `ConfirmOverlay`** — „Przywróć ustawienia domyślne” jest **jedyną dziś
+  nieodwracalną akcją bez potwierdzenia**: kasuje konfigurację po jednym
+  `Enter`. Odbiorca gotowy, a przy okazji brama do operacji na plikach.
+- **29 `TextView`** — prawy panel opisu pliku pokazuje dla tekstu napis
+  „(brak podglądu)”, bo `ImageBox` umie tylko obraz.
+
+Trzy kolejne (**30** filtrowanie z podświetleniem, **31** drzewo, **32** menu
+kontekstowe) dowożą odbiorcę razem z komponentem i to jest **świadome odstępstwo
+od reguły 13**, przyjęte tak samo, jak przy `ProgressBar`ze w kroku 23 (D44):
+jawnie, z nazwiskiem i bez powoływania się na poprzedni wyjątek.
+
+**Rytm: jeden komponent — jeden krok.** Odrzucono jeden wspólny krok na
+wszystkie sześć oraz grupowanie po pokrewieństwie. Powód jest zmierzony, a nie
+estetyczny: **krok 13 pomylił się dokładnie na braku rozdziału** — koszt
+wygładzania podano łącznie dla tekstu i obrysów, więc obrysy wyłączono
+niepotrzebnie (D27). Sześć osobnych kroków to sześć osobnych pomiarów „przed
+i po”, a przy regresji od razu wiadomo, komu ją przypisać.
+
+**Słownik prymitywów zostaje otwarty — pierwszy raz od kroku 18.** To jest
+najcięższa część tego wpisu i dotyczy wyłącznie kroku **30**. Podświetlenie
+fragmentu wiersza dawało się zrobić dwiema drogami: wieloma `TextRun` o różnych
+rolach (słownik nietknięty, więcej prymitywów na wiersz) albo **nowym, ósmym
+prymitywem**. Użytkownik wybrał drugą.
+
+Konsekwencje, wszystkie zapisane w planie kroku 30, żeby nie zaskoczyły
+w trakcie:
+
+1. **Obowiązek dla obu rendererów naraz.** Prymityw przechodzi przez
+   `FrameRendererPort`, więc `SixelFrameEncoder` musi go narysować, a
+   `TextFrameRenderer` — zdegradować do atrybutu komórki. Krok 30 sięga przez to
+   do kodu kroków **7 i 8**, czego nie robił żaden krok od czasu 18.
+2. **Wejście do podpisu płaszczyzny.** `signature()` karmi wszystkie pamięci
+   podręczne z D34; podpis nieobejmujący dopasowania podałby z pamięci klatkę
+   z cudzym podświetleniem, a błąd objawiłby się nie wyjątkiem, tylko klatką,
+   która nie chce się odświeżyć.
+3. **Klatka bez filtra nie ma prawa zdrożeć** — i to jest najważniejsze kryterium
+   ukończenia tamtego kroku, ważniejsze od samego filtrowania.
+
+**Zastrzeżenie do kroku 32, przyjęte wbrew rekomendacji.** Menu kontekstowe
+odradzano: okno komend z kroku 19 **już jest** listą działań z podpowiedziami,
+a menu wnosi ponad nie dwie rzeczy — wybór bez pisania i zawężenie do
+zaznaczenia. Użytkownik przyjął krok mimo to, więc plan zapisuje warunek zamiast
+sprzeciwu: **menu ma być widokiem na `CommandRegistry`, a nie drugim rejestrem
+działań**, a rozstrzygnięcie „czy krok w ogóle wchodzi teraz” stoi jako **pierwsze**
+na jego liście startowej. Gdyby okazało się, że menu potrzebuje własnych pozycji
+i własnych etykiet — krok czeka na operacje na plikach, bo dopiero one dadzą mu
+treść, której okno komend nie ma.
+
+**Faza VII nie jest łańcuchem** i to odróżnia ją od wszystkich poprzednich.
+Kroki 27, 28 i 29 są wzajemnie niezależne — dotykają wiersza listy, okna
+nakładanego i prawego panelu opisu, czyli trzech rozłącznych miejsc — więc wolno
+je robić w dowolnej kolejności. Zbiegają się dopiero w trójce kolejnej:
+30 potrzebuje wiersza z 27, 31 potrzebuje wiersza z 27 i wzorca stanu z 22,
+a 32 potrzebuje drogi powrotnej decyzji z 28.
+
+**Trzy pozycje zeszły z listy „poza MVP”**: podgląd plików tekstowych (krok 29)
+i wyszukiwanie/filtrowanie (krok 30) weszły do planu, a operacje na plikach
+zyskały wreszcie prerekwizyt — bez okna potwierdzenia z kroku 28 usuwanie nie ma
+prawa powstać.
+
+### D49 — Wiersz wielokolumnowy: jedna reguła podziału na dwie osie, tabela obok listy i `stat` zamiast dwóch pytań
+
+**Dotyczy:** kroku 27 (pełna treść: [27-tabela-kolumn.md](27-tabela-kolumn.md)).
+
+**Data:** 2026-08-11.
+
+Krok zdjął z listy plików sufit dwóch pól. Sześć rozstrzygnięć, wszystkie
+użytkownika; poniżej te, które zmieniły kształt kodu.
+
+**1. `Table` stoi obok `ListView`, a nie zamiast niego.** Odrzucono wariant,
+w którym `ListRow` staje się przypadkiem szczególnym wiersza o N kolumnach.
+Powód jest nazewniczy, a nie techniczny: opis pliku to **etykieta i wartość**,
+a nie tabela o dwóch kolumnach, i zmuszanie sekcji z kroku 22 do myślenia
+kolumnami byłoby nazwaniem rzeczy nie po imieniu. Cena — pętla po wierszach
+w rdzeniu dwa razy — okazała się **niższa, niż zakładano przy pytaniu**: krok 18
+wydzielił już `Highlight::under()` właśnie po to, żeby zaznaczenie wyglądało
+identycznie u każdego, kto je rysuje, a `Scrollbar` jest prymitywem. Powtórzeniem
+jest sama pętla, nie mechanizm.
+
+**2. Rozdział miejsca wyprowadzony do `Distribution`, a miara do `Span`.**
+Rachunek istniał od kroku 18 w `VStack`, a `Slot` **już wtedy** deklarował
+w dokumentacji, że jego liczby są bezwymiarowe — „wiersze w kontenerze pionowym,
+kolumny w poziomym”. Zapowiedź czekała półtora kroku na drugą oś. Rozdzielenie
+miary od uczestnika było konieczne, bo `Slot` trzyma dziecko-komponent, a
+**kolumna żadnego dziecka nie ma**: komórka jest napisem. Bez tego kolumna
+musiałaby udawać szczelinę z pustym dzieckiem albo dostać własny rachunek — a ta
+sama reguła w dwóch plikach rozjeżdża się przy pierwszej zmianie. `VStack`
+zachował się co do wiersza, co potwierdziło 131 istniejących testów.
+
+**Wyprowadzenie ujawniło pułapkę, której nikt wcześniej nie widział**, i to jest
+najcenniejszy skutek uboczny tego kroku. `Slot::fixed()` ustawiał **minimum
+zero**, więc uczestnik o „stałej” mierze kurczył się stopniowo aż do zera.
+Dla pasa podglądu to jest właściwe — pas niższy o wiersz nadal jest pasem. Dla
+kolumny z datą jest błędem: zwężona o trzy znaki nie jest „węższą datą”, tylko
+napisem `2026-08-…`, a przy okazji zabiera te znaki nazwie. Stąd druga postać
+miary — **`Span::rigid()`: tyle albo nic** — i dwa sąsiadujące testy, które
+pokazują różnicę obok siebie. Bez testu pisanego wprost na rachunek różnica
+wyszłaby dopiero na ekranie użytkownika.
+
+**Druga pułapka wyszła w teście prymitywów**: przy dosunięciu do prawej odstęp
+od sąsiada musi leżeć po **prawej** stronie komórki, a nie po lewej. Pierwsza
+wersja dosuwała treść do brzegu kolumny, więc rozmiar sklejał się z datą
+dokładnie wtedy, gdy był najdłuższy — czyli w przypadku, w którym najbardziej
+potrzeba go odróżnić.
+
+**3. `Entry` zyskał czas zmiany i prawa, a repozytorium pyta system raz zamiast
+dwa razy.** To rozstrzygnięcie wyglądało na najdroższe, a okazało się **darmowe
+albo tańsze od stanu poprzedniego**: `FilesystemDirectoryRepository` wołał dotąd
+`is_dir()`, a potem `filesize()` — czyli dwa razy to samo `stat`. Jedno `stat()`
+w ich miejsce daje rodzaj, rozmiar, czas i prawa naraz. Kolumny nie kosztowały
+więc ani jednego dodatkowego wywołania systemowego, co przy katalogu
+o dziesięciu tysiącach wpisów jest różnicą wartą nazwania. `stat()`, a nie
+`lstat()`, i pilnuje tego osobny test: dowiązanie do katalogu ma się nadal
+zachowywać jak katalog.
+
+Nowe pola są **`null`-owalne** i to jest uczciwa odpowiedź, a nie wygoda: wpis,
+o który nie da się zapytać (zerwane dowiązanie, plik zniknięty między `scandir()`
+a `stat()`), naprawdę nie ma daty. Kolumna pokazuje wtedy pustkę zamiast zera
+udającego 1 stycznia 1970.
+
+**4. Kolejność ustępowania w kodzie, nie w ustawieniach.** Prawa ustępują
+pierwsze, po nich data, po niej rozmiar, a nazwa nie ustępuje nigdy. Odrzucono
+przełącznik na każdą kolumnę: ustępowanie i tak musi być zaprogramowane, więc
+cztery przełączniki dawałyby użytkownikowi władzę nad tym, co w wąskim oknie
+zniknie samo. Zostały dwa przełączniki — „kolumny szczegółów” (domyślnie
+**włączone**) i „nazwy kolumn nad listą” (domyślnie **wyłączone**, bo kosztują
+wiersz listy w każdym oknie).
+
+**Minimum kolumny nazwy okazało się ważniejsze od szerokości kolumn stałych.**
+To ono rozstrzyga, kiedy szczegóły zaczynają ustępować: dopóki suma minimów
+mieści się w prostokącie, nikt nie ustępuje, a elastyczna dostaje tylko resztę.
+Minimum równe czterem znaczyłoby „nazwa może zejść do czterech znaków, byle data
+została” — czyli układ, w którym najważniejsza kolumna ustępuje najmniej ważnym.
+Stąd dwadzieścia znaków i komentarz przy stałej, żeby następny czytelnik nie
+wziął jej za wartość dowolną.
+
+**5. Data zapisem `2026-08-11 18:45`, szesnaście znaków, poza katalogiem
+napisów.** Zapis rok-miesiąc-dzień jest sortowalny wzrokiem, ten sam w każdym
+języku i **ma stałą szerokość**, od której zależy rozdział kolumn. Zapis zależny
+od języka zmieniałby szerokość kolumny wraz z ustawieniem interfejsu — a to
+znaczy inny układ listy po przełączeniu na angielski.
+
+**`Align` leży w `Presentation`, a nie w `Application/Ui` obok `Role`.** Wartość
+opisująca obraz idzie do `Application/Ui` wtedy i tylko wtedy, gdy przechodzi
+przez port renderowania — a wyrównanie nie przechodzi: tabela liczy z niego
+dokładną kolumnę i oddaje `TextRun` gotowy do narysowania. Renderer nigdy się nie
+dowiaduje, że coś było dosunięte.
+
+### D50 — Krok 33: reakcja na zmianę rozmiaru okna wchodzi do planu jako osobna Faza VIII
+
+**Dotyczy:** kroku 33 (pełna treść: [33-reakcja-na-zmiane-rozmiaru.md](33-reakcja-na-zmiane-rozmiaru.md))
+i struktury planu ([00-index.md](00-index.md)).
+
+**Data:** 2026-08-11.
+
+Na polecenie użytkownika plan dostał krok znoszący założenie, które trzymało się
+od kroku 06: rozmiar okna terminala mierzony **raz, przy starcie**
+(`TerminalSizeService`, pole `readonly`). Założenie było jawne i uczciwe — ale
+menadżer plików to program, w którym użytkownik siedzi długo, a okno terminala
+zmienia rozmiar częściej niż jakiekolwiek inne.
+
+**Osobna faza, nie dopisek do Fazy VII.** Faza VII to sześć **komponentów**
+wybranych jednym przeglądem (D48) i spiętych wspólnym rytmem „jeden komponent —
+jeden krok”. Reakcja na rozmiar nie jest komponentem — jest mechanizmem rdzenia
+w warstwie terminala i pętli, jak proces tłowy z Fazy VI. Wciśnięcie jej do
+Fazy VII rozmyłoby granicę, którą D48 wyznaczyła; stąd Faza VIII, na razie
+jednokrokowa, wzorem Fazy VI.
+
+**Krok jest od Fazy VII niezależny w obie strony** — dotyka
+`TerminalService`, `TerminalSizeService` i `GameLoop`, czyli miejsc, których
+żaden z kroków 27–32 nie rusza. Kolejność względem nich pozostaje wolna.
+
+**Rozpoznanie zrobione przy pisaniu planu** (utrwalone w sekcji „Stan zastany”
+kroku): droga rozmiaru do klatki już jest per-klatkowa — `FrameComposer`
+i `SixelFrameRenderer` pytają o rozmiar przy każdym rysowaniu, zamrożona jest
+wyłącznie odpowiedź usługi. Pamięci podręczne z kroku 17 mają rozmiar w kluczu
+(D34: „pamięć odświeża się sama, bez ścieżki unieważnienia”), a stan między
+klatkami ścina się do pojemności przy rysowaniu (`ScrollWindow::clamp()`).
+Krok 33 jest więc pierwszym prawdziwym sprawdzianem obu tych obietnic — i
+dlatego jego najważniejszym kryterium ukończenia jest **niezdrożenie klatki
+w oknie o stałym rozmiarze**, a nie sama reakcja na zmianę.
+
+**Najcięższe rozstrzygnięcie odłożone na start kroku:** skąd wziąć piksele po
+zmianie. Zapytanie `ESC [ 14 t` w środku pętli konkuruje o STDIN z klawiszami
+(choć `WindowSizeParser` i `pushBackBytes()` z kroku 06 umieją oddać cudze
+bajty), a przeliczenie z zapamiętanego rozmiaru komórki nie kosztuje nic, lecz
+kłamie po zmianie fontu w locie. Wybór — jak wszystkie w tym projekcie —
+należy do użytkownika i stoi jako punkt 1 listy startowej kroku.

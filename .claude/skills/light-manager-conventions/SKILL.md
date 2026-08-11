@@ -132,8 +132,35 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     stąd bierze się wypełnienie `ProgressBar`); **praca ma właściciela, który ją
     przerywa** przy zmianie kontekstu i przy `reset()`. Praca zaczyna się
     **na żądanie**, bo zaznaczenie zmienia się przy przewijaniu 30 razy na
-    sekundę. Proces potomny dokłada do tego sprzątanie przy wyjściu z aplikacji
-    i **jeszcze go nie ma** — czeka na krok 26.
+    sekundę. **Proces potomny dokłada czwartą regułę: sprzątanie przy wyjściu**
+    (krok 26, D47). Mechanizm jest rdzeniowy — `Application\Port\BackgroundProcessPort`
+    i `Infrastructure\Process\BackgroundProcessService` — i moduł sięga po niego
+    jak po `ImagePreviewPort`. Sprzątanie idzie **dwiema drogami naraz**: jawnie
+    w `Bootstrap::shutdown()` i przez `register_shutdown_function` rejestrowaną
+    leniwie przy pierwszym uruchomieniu pracy; jedna jest czytelna, druga łapie
+    błąd krytyczny. Ponadto: **jedna praca naraz** (uchwyt `BackgroundHandle` jest
+    po to, żeby wyparty zamawiający zobaczył `Idle`, a nie cudzy stan), **oba
+    potoki czytane co klatkę** (nieczytany zatrzymuje potomka; strumień błędów
+    czytamy i wyrzucamy) i **kod wyjścia ≠ 0 nie jest sam z siebie
+    niepowodzeniem** — `du` kończy się jedynką za nieprzeczytany katalog, a wynik
+    mimo to podaje. Pierwszy odbiorca: wiersz „zajęte na dysku” w `FileInfo`,
+    tylko dla katalogów i tylko na klawisz `d`.
+11e. **Miejsce dzieli się jedną regułą na obie osie** (krok 27, D49):
+    `Container\Span` niesie minimum, rozmiar preferowany i kolejność ustępowania,
+    a `Container\Distribution` je dzieli — wiersze dla `VStack`, kolumny dla
+    `Table`. Trzy zdania reguły: stałe biorą swoje i elastyczne dzielą resztę;
+    brakuje — oddają wedle `yieldOrder`, każdy do swojego minimum; komu zostałoby
+    mniej niż minimum, **znika w całości**. Dwie postacie stałej miary i różnią
+    się dokładnie minimum: `Span::fixed()` **kurczy się stopniowo** (pas podglądu
+    niższy o wiersz nadal jest pasem podglądu), `Span::rigid()` to **tyle albo
+    nic** (data zwężona o trzy znaki nie jest węższą datą). Minimum uczestnika
+    elastycznego jest **progiem ustępowania sąsiadów**, a nie obietnicą — dopóki
+    suma minimów się mieści, nikt nie ustępuje. Wiersz o wielu kolumnach to
+    `Column` (dana: czego chce) + `TableRow` (dana: komórki) + `Table`
+    (komponent: liczy szerokości **raz na klatkę dla wszystkich wierszy naraz**).
+    `Table` stoi **obok** `ListView`, nie zamiast niego: `ListRow` z dwoma polami
+    zostaje dla opisu pliku, bo etykieta z wartością to nie tabela.
+
 11. **Nowy element interfejsu to nowy komponent w `Presentation/Ui/Component`**,
     a nie nowa metoda w rendererze. Komponent oddaje prymitywy z ról motywu i
     prostokątów w siatce znakowej — pikseli nie zna. Słownik prymitywów jest
@@ -154,10 +181,11 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     rodzaj `SuggestionSource::OnDemand` jest zadeklarowany, ale pierwszą
     implementację wnosi komenda modułu.
     **Jeden jawny wyjątek, świadomy i nazwany w planie: `ProgressBar`** (krok 23)
-    — jego prawdziwym odbiorcą jest dopiero krok 25 (`du`, `sha256`). Osłoną są
-    testy przypadków brzegowych i scenariusz `progress` w `bin/render-bench`.
-    To **nie jest precedens**: następny komponent bez użytkownika wymaga takiej
-    samej jawnej zgody, a nie powołania się na ten.
+    — jego prawdziwym odbiorcą był dopiero krok 25 (`sha256`), a **trybu „postęp
+    nieznany” dopiero krok 26** (`du`). Dług jest odtąd **spłacony w całości**:
+    oba tryby mają użytkownika w aplikacji. To **nie jest precedens**: następny
+    komponent bez użytkownika wymaga takiej samej jawnej zgody, a nie powołania
+    się na ten — a cena odroczenia wyniosła w tym wypadku trzy kroki planu.
 14. PHPStan `level: max`. Zamiast obniżać poziom — punktowy
     `@phpstan-ignore-line` z komentarzem uzasadniającym.
 15. **Nowa funkcja to moduł w `src/Module/`, nie zmiana w rdzeniu** (krok 20).

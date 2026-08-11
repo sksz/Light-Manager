@@ -37,10 +37,10 @@ src/
 │   └── Support/         # wspólna infrastruktura (AbstractSingleton)
 └── Presentation/
     ├── Ui/              # komponenty, kontenery, kontrakt ekranu, kursor
-    │   ├── Component/   # Panel, Label, ListView, Tabs, Choice, Toggle,
+    │   ├── Component/   # Panel, Label, ListView, Table, Tabs, Choice, Toggle,
     │   │                # Button, Dialog, StatusBar, ImageBox, Spacer,
     │   │                # TextInput (krok 19)
-    │   ├── Container/   # VStack, Slot
+    │   ├── Container/   # VStack, Slot, Span, Distribution
     │   ├── Module/      # zdolności modułu dotykające interfejsu (krok 20)
     │   └── Overlay/     # okna nakładane: CommandOverlay, MessageOverlay
     └── Cli/             # bootstrap, pętla gry, składanie klatki, ekrany,
@@ -164,7 +164,9 @@ komunikat, podgląd, tryb renderowania i położenie okna listy.
 | Zwijana sekcja | `Section`, `SectionList` | Presentation | `Presentation/Ui/Component` | Grupa wierszy z etykietą i znacznikiem `▼`/`▶`. `Section` jest **daną** (jak `ListRow`), `SectionList` — komponentem: spłaszcza sekcje do wierszy, wycina okno i oddaje rysowanie `ListView`owi. Sekcje przewijają się **jak jedna lista**, więc wycinanie okna musi widzieć je wszystkie naraz. |
 | Podział | `Split`, `SplitAxis` | Presentation | `Presentation/Ui` | Dzieli prostokąt na dwa i oddaje je dwojgu dzieciom, wzdłuż osi pionowej albo poziomej. **Nie tworzy drugiego ekranu** — widoczny ekran jest nadal jeden, a `F1`, `F2` i skrót modułu zastępują go razem z podziałem. Progi (`MINIMUM_COLUMNS`, `MINIMUM_ROWS`) mają tę samą naturę, co progi wysokości w `HudLayout`: mówią, co się jeszcze da czytać, a nie co się mieści. |
 | Pasek postępu | `ProgressBar` | Presentation | `Presentation/Ui/Component` | Wypełniany tor z napisem w środku, w **dwóch trybach**: postęp znany (wypełnienie od lewej plus liczba procent) i nieznany (odcinek wędrujący tam i z powrotem, **bez liczby**). Tor rysuje się rolą `Surface`, wypełnienie `Accent`, a napis zmienia rolę tam, gdzie przechodzi przez wypełnienie. |
-| Kontener | `VStack`, `Slot` | Presentation | `Presentation/Ui/Container` | Rozdziela miejsce między dzieci; `Slot` niesie rozmiar minimalny, preferowany i kolejność ustępowania. |
+| Kontener | `VStack`, `Slot` | Presentation | `Presentation/Ui/Container` | Rozdziela miejsce między dzieci; `Slot` to **miara wraz z dzieckiem**. |
+| Rozdział miejsca | `Span`, `Distribution` | Presentation | `Presentation/Ui/Container` | Jedna reguła na **obie osie** (krok 27): `Span` niesie minimum, rozmiar preferowany i kolejność ustępowania, `Distribution` je dzieli. Wołają ją `VStack` (wiersze) i `Table` (kolumny). |
+| Tabela | `Column`, `TableRow`, `Table` | Presentation | `Presentation/Ui/Component` | Lista o wielu kolumnach wyrównanych w pionie. `Column` mówi, **czego chce**; szerokości liczy tabela raz na klatkę, dla wszystkich wierszy naraz. Stoi **obok** `ListView`, nie zamiast niego. |
 | Kursor | `FocusableInterface` | Presentation | `Presentation/Ui` | Komponent przyjmujący klawisze; `handle()` oddaje `bool`, więc nieobsłużony klawisz wędruje wyżej. |
 | Wiązanie klawisza | `KeyBinding` | Presentation | `Presentation/Ui` | Klawisz wraz z kluczem opisu — jedno źródło dla obsługi, podpowiedzi w stopce i spisu w pomocy. |
 | Ekran | `ScreenInterface` | Presentation | `Presentation/Ui` | Treść **trzech stref** klatki wraz z obsługą klawiszy: górnego pasa (`header()`), środkowego panelu (`draw()`) i pasa podglądu (`preview()`). Rdzeniowi zostają oprawa stref i pasek stanu. |
@@ -259,7 +261,39 @@ ogniska albo zmiana katalogu zmienia podpis i oprawa powstaje na nowo raz.
 Zasada ogólniejsza, którą to wyraża: **wszystko, co między klatkami się nie
 zmienia, należy do płaszczyzny spodniej — niezależnie od tego, kto to narysował.**
 
-#### Praca dłuższa od klatki (od kroku 25)
+#### Rozdział miejsca: jedna reguła na dwie osie (od kroku 27)
+
+Miejsce dzieli się w tej aplikacji **wszędzie tak samo**, niezależnie od osi:
+wiersze między strefami klatki, kolumny między polami wiersza listy. Regułę
+niesie `Container\Distribution`, a to, czego chce uczestnik podziału — `Span`:
+minimum, rozmiar preferowany i kolejność ustępowania.
+
+Reguła ma trzy zdania i wszystkie trzy obowiązują obie osie:
+
+1. uczestnicy o podanej mierze biorą swoje, elastyczni dzielą resztę;
+2. gdy brakuje, oddają miejsce w kolejności `yieldOrder` — każdy do swojego
+   minimum, dopiero potem ustępuje następny;
+3. uczestnik, któremu zostałoby mniej niż minimum, **znika w całości**.
+
+Punkt trzeci jest sednem i był rozstrzygany trzy razy niezależnie, zanim dostał
+jedno miejsce w kodzie: pas podglądu w kroku 12, drabinka stref w 13, kolumny
+w 27. Za każdym razem odpowiedź brzmiała tak samo — **element przycięty w połowie
+jest gorszy niż nieobecny**.
+
+Miara ma dwie postacie stałe i różnią się dokładnie minimum:
+
+- `Span::fixed()` — **kurczy się stopniowo** do zera. Pas podglądu niższy o wiersz
+  jest nadal pasem podglądu.
+- `Span::rigid()` — **tyle albo nic**. Kolumna z datą zwężona o trzy znaki nie
+  jest „węższą datą”, tylko napisem `2026-08-…`, a przy okazji zabiera te znaki
+  nazwie, która by je wykorzystała.
+
+Minimum uczestnika elastycznego jest przy tym **progiem ustępowania sąsiadów**,
+a nie obietnicą: dopóki suma minimów mieści się w prostokącie, nikt nie ustępuje.
+Kolumna nazwy z minimum równym czterem znaczyłaby więc „nazwa może zejść do
+czterech znaków, byle data została” — czyli odwrotność tego, czego chce lista.
+
+#### Praca dłuższa od klatki (od kroku 25, proces potomny od 26)
 
 Pętla główna nie ma prawa czekać. Wszystko, co trwa dłużej niż jedna klatka —
 liczenie sumy kontrolnej, przejście po drzewie katalogów — dzieli się więc na
@@ -281,10 +315,44 @@ przewijaniu trzydzieści razy na sekundę, a praca uruchamiana odruchowo byłaby
 wtedy trzydziestoma pracami przerwanymi w tej samej sekundzie. Wiersz stoi więc
 od pierwszej klatki z podpowiedzią, którym klawiszem go policzyć.
 
-Praca w **procesie potomnym** podlega tym samym trzem regułom, ale dokłada
-czwartą — sprzątanie przy wyjściu z aplikacji, bo osierocony potomek przeżywa
-proces, który go uruchomił. Mechanizmu tego jeszcze nie ma: dostał własny krok
-planu (26), a do tego czasu opis pliku nie pokazuje zajętości na dysku.
+Praca w **procesie potomnym** podlega tym samym trzem regułom i dokłada
+**czwartą: sprzątanie przy wyjściu z aplikacji**. Od kroku 26 mechanizm jest
+rdzeniowy — `Application\Port\BackgroundProcessPort` (start, doglądanie,
+przerwanie) i `Infrastructure\Process\BackgroundProcessService` za nim. Moduł
+sięga po niego tak samo, jak po `ImagePreviewPort`, a `Bootstrap` podaje go
+w jednej linii.
+
+Czwarta reguła brzmi: **potomek nie ma prawa przeżyć procesu, który go
+uruchomił**, a ponieważ dróg wyjścia z aplikacji jest więcej niż jedna, drogi
+sprzątania są dwie i obie obowiązują:
+
+- **jawna** — `Bootstrap::shutdown()` woła `shutdown()` usługi przed zapisem
+  historii i przywróceniem terminala, czyli tą samą ścieżką, którą terminal
+  wraca do trybu normalnego;
+- **gwarancja ostatniej szansy** — `register_shutdown_function` zarejestrowana
+  leniwie przy pierwszym uruchomieniu pracy, dla wyjść, których pierwsza droga
+  nie dosięga: błędu krytycznego i `exit()` z boku.
+
+To jest ten sam układ, którym `TerminalService` broni trybu surowego, i z tego
+samego powodu: jedna droga jest czytelna, druga nieomylna.
+
+Trzy rzeczy ponadto, każda niosąca własną klasę błędów:
+
+- **usługa prowadzi jedną pracę naraz**, a uchwyt (`BackgroundHandle`) służy
+  temu, żeby zamawiający, którego pracę wyparto, zobaczył `Idle` zamiast cudzego
+  stanu wziętego za swój;
+- **potoki są nieblokujące i czytane co klatkę** — także strumień błędów, którego
+  wynik nie zawiera: nieczytany potok zatrzymuje potomka, gdy się zapełni;
+- **kod wyjścia różny od zera nie jest sam z siebie niepowodzeniem** — `du`
+  kończy się jedynką za każdy nieprzeczytany katalog, a mimo to podaje sumę tego,
+  co przeczytać zdołało. Co z kodu wynika, rozstrzyga zamawiający; rdzeń go tylko
+  podaje.
+
+Pierwszym odbiorcą jest wiersz „zajęte na dysku” w module `FileInfo` — liczony
+poleceniem `du` **tylko dla katalogów** (dla zwykłego pliku tę samą liczbę podają
+bloki i-węzła z `lstat`, bez uruchamiania czegokolwiek) i **na żądanie klawiszem
+`d`**, jak suma kontrolna. Postępu `du` nie zna, więc pasek chodzi w trybie
+„nieznany” — pierwsze prawdziwe użycie tego trybu od kroku 23.
 
 ## 3. Wzorzec Singleton, porty i bootstrap
 

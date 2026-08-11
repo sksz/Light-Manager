@@ -18,9 +18,17 @@ use LightManager\Presentation\Ui\ComponentInterface;
  *
  * Miary są bezwymiarowe — wiersze w kontenerze pionowym, kolumny w poziomym.
  * Ta sama szczelina opisuje więc oba kierunki, a kontener nadaje jej znaczenie.
+ *
+ * Od kroku 27 te trzy liczby mieszkają w `Span`, a szczelina jest **miarą wraz
+ * z dzieckiem**. Rozdzielenie nastąpiło, gdy zapowiedź z akapitu wyżej wreszcie
+ * się spełniła: kolumna tabeli dzieli miejsce tą samą regułą, ale dziecka nie ma
+ * żadnego — komórka jest napisem. Pola `minimum`, `preferred` i `yieldOrder`
+ * zostają na miejscu jako odczyt wprost, więc dla wołających nic się nie zmieniło.
  */
 final class Slot
 {
+    public readonly Span $span;
+
     public function __construct(
         public readonly ComponentInterface $child,
         /** Poniżej tylu miar dziecko nie ma sensu; 0 znaczy „może zniknąć”. */
@@ -30,6 +38,7 @@ final class Slot
         /** Kolejność ustępowania: im mniejsza, tym wcześniej oddaje miejsce. */
         public readonly int $yieldOrder = 0,
     ) {
+        $this->span = new Span($minimum, $preferred, $yieldOrder);
     }
 
     /** Szczelina elastyczna — bierze wszystko, co zostanie po pozostałych. */

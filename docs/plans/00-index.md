@@ -131,7 +131,34 @@ Pełne uzasadnienia i odrzucone alternatywy: zobacz [00-decyzje.md](00-decyzje.m
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 26 | Proces tłowy jako mechanizm rdzenia | [26-proces-tlowy.md](26-proces-tlowy.md) | 25 | Opus | high | Nie rozpoczęty |
+| 26 | Proces tłowy jako mechanizm rdzenia | [26-proces-tlowy.md](26-proces-tlowy.md) | 25 | Opus | high | Ukończony |
+
+### Faza VII — Rozbudowa rdzenia o nowe komponenty
+
+Sześć komponentów wybranych 2026-08-11 z przeglądu braków rdzenia
+([00-decyzje.md](00-decyzje.md), D48). Rytm: **jeden komponent — jeden krok**,
+każdy z własnymi rozstrzygnięciami na starcie, własnym pomiarem „przed i po”
+i własnym wpisem w dzienniku. Trzy pierwsze mają odbiorcę **już w kodzie**, trzy
+kolejne dowożą go razem z komponentem.
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 27 | Wiersz wielokolumnowy (`Table`) | [27-tabela-kolumn.md](27-tabela-kolumn.md) | 17, 18, 21, 24 | Opus | high | Ukończony |
+| 28 | Okno potwierdzenia (`ConfirmOverlay`) | [28-okno-potwierdzenia.md](28-okno-potwierdzenia.md) | 14, 18, 19 | Opus | high | Nie rozpoczęty |
+| 29 | Widok tekstu (`TextView`) | [29-podglad-tekstu.md](29-podglad-tekstu.md) | 12, 18, 25 | Opus | high | Nie rozpoczęty |
+| 30 | Filtrowanie i podświetlenie dopasowania | [30-filtrowanie-i-podswietlenie.md](30-filtrowanie-i-podswietlenie.md) | 7, 8, 18, 19, 21, 27 | Opus | xhigh | Nie rozpoczęty |
+| 31 | Drzewo (`TreeView`) | [31-drzewo-katalogow.md](31-drzewo-katalogow.md) | 18, 21, 22, 24, 27 | Opus | xhigh | Nie rozpoczęty |
+| 32 | Menu kontekstowe (`MenuOverlay`) | [32-menu-kontekstowe.md](32-menu-kontekstowe.md) | 19, 20, 21, 28 | Opus | high | Nie rozpoczęty |
+
+### Faza VIII — Okno terminala
+
+Rozmiar okna przestaje być stałą uruchomienia. Krok od Fazy VII niezależny
+w obie strony — wolno go zrobić przed nią, po niej albo pomiędzy
+([00-decyzje.md](00-decyzje.md), D50).
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 33 | Reakcja na zmianę rozmiaru okna | [33-reakcja-na-zmiane-rozmiaru.md](33-reakcja-na-zmiane-rozmiaru.md) | 6, 9, 17, 18 | Fable | xhigh | Nie rozpoczęty |
 
 ### Dokumenty towarzyszące (praca projektowa)
 
@@ -141,7 +168,9 @@ Pełne uzasadnienia i odrzucone alternatywy: zobacz [00-decyzje.md](00-decyzje.m
 
 ## Graf zależności
 
-Kolejność realizacji pokrywa się z numeracją (01…26). Poza prostym
+Kolejność realizacji pokrywa się z numeracją (01…33) **do kroku 26 włącznie**;
+Faza VII łańcuchem już nie jest, a krok 33 stoi poza nią zupełnie (patrz opisy
+na końcu tej listy). Poza prostym
 łańcuchem `01→02→…→26` istnieją węzły zbiegające się z dwóch gałęzi:
 
 - **04** (dokumentacja + Skill) zależy od **01, 02 i 03** — potrzebuje
@@ -224,6 +253,48 @@ Kolejność realizacji pokrywa się z numeracją (01…26). Poza prostym
   na dysku”, którego krok 25 świadomie nie pokazał, bo nie miał czym go policzyć.
   Krok powstał **w trakcie** kroku 25, na rozstrzygnięcie użytkownika, który
   oddzielił odczyt własny (wchodzi od razu) od procesu potomnego (osobny krok).
+  Wykonany rozliczył się z obu długów naraz: wiersz `du` stanął w sekcji „Rozmiar”,
+  a dwie odłożone pozycje ustawień weszły do zakładki modułu. Sięgnął ponadto do
+  kodu kroku **23** — tryb „postęp nieznany” w `ProgressBar` dostał wreszcie
+  prawdziwego użytkownika, co było warunkiem zdjęcia wyjątku od reguły 13 (D44) —
+  oraz do **16**: scenariusz `background` jest pierwszym w `bin/render-bench`,
+  który sięga poza PHP.
+
+- **27–32** (Faza VII) tworzą **dwie gałęzie, nie łańcuch**, i to jest ich główna
+  właściwość: kroki **27**, **28** i **29** są od siebie niezależne i wolno je
+  robić w dowolnej kolejności — każdy dotyka innego miejsca w kodzie (wiersz
+  listy, okno nakładane, prawy panel opisu). Zbiegają się dopiero w trójce
+  kolejnej:
+  - **30** (filtrowanie) zależy od **27** twardo, bo podświetlenie jest
+    własnością wiersza, a wiersz zmienia tam kształt — robienie odwrotnie
+    znaczyłoby przepisywać tę samą klasę dwa razy. Zależy ponadto od **7 i 8**,
+    i to jest zależność, której nie miał **żaden** krok od czasu kroku 18: nowy
+    prymityw obowiązuje **oba renderery naraz**, więc krok sięga do sixelowego
+    i do tekstowego jednocześnie.
+  - **31** (drzewo) zależy od **22** wzorcowo — `SectionState` już raz rozwiązał
+    „co zwinięte, przeżywa klatkę i pamięta się pod kluczem, nie pod numerem”,
+    a drzewo jest tym samym problemem o wymiar głębiej. Zależy od **27**, bo
+    wiersz drzewa to wiersz listy z wcięciem.
+  - **32** (menu) zależy od **28** twardo: tam rozstrzyga się, **jak okno oddaje
+    decyzję**, a menu jest drugim oknem, które czegoś chce od wołającego.
+    Zależy od **19** podwójnie — `OverlayInterface` i `CommandRegistry`, czyli
+    jedyne uczciwe źródło jego pozycji.
+
+  Krok **32** ma ponadto **zastrzeżenie rozstrzygane przed pierwszą linią kodu**:
+  menu nakłada się z oknem komend i ma sens wyłącznie jako **widok na rejestr
+  komend**, a nie drugi rejestr działań. Jeśli po rozpisaniu okaże się, że
+  potrzebuje własnej listy pozycji — należy go odłożyć do czasu, aż powstaną
+  operacje na plikach.
+
+- **33** (reakcja na zmianę rozmiaru) zależy od **06** twardo i podwójnie —
+  `SIGWINCH` wchodzi wzorcem znacznika obok czterech obsługiwanych sygnałów,
+  a ewentualne ponowne pytanie o piksele korzysta z `WindowSizeParser`
+  i `pushBackBytes()` — oraz od **09** (znacznik czytany w jednym miejscu taktu,
+  jak `shutdownRequested`). Od **17** i **18** zależy jako od **tez do
+  sprawdzenia**, nie prac do wykonania: pamięci podręczne mają rozmiar w kluczu
+  (D34), a układ i komponenty liczą się co klatkę z prostokątów — jeśli oba
+  zdania są prawdziwe, krok kończy się na warstwie terminala i pętli. Od Fazy
+  VII nie zależy i ona nie zależy od niego.
 
 Żaden krok nie da się sensownie zacząć przed ukończeniem swoich zależności
 z tabel powyżej.
@@ -244,9 +315,13 @@ zakończeniu pracy nad krokiem:
 ## Zakres poza MVP (do rozważenia w kolejnych iteracjach)
 
 - Operacje na plikach (kopiuj / przenieś / usuń / zmień nazwę / nowy katalog) —
-  krok 24 dowiózł do nich wstęp: dwupanelową przeglądarkę
-- Podgląd plików tekstowych
+  krok 24 dowiózł do nich wstęp: dwupanelową przeglądarkę, a krok **28** dowozi
+  okno potwierdzenia, bez którego usuwanie nie ma prawa powstać
+- ~~Podgląd plików tekstowych~~ — wszedł do planu jako krok **29** (D48)
 - ~~Widok dwupanelowy~~ — wszedł do planu jako krok **24** (D43)
-- Wyszukiwanie / filtrowanie
+- ~~Wyszukiwanie / filtrowanie~~ — weszło do planu jako krok **30** (D48)
 - Zakładki / historia odwiedzonych katalogów
+- Kolorowanie składni w podglądzie tekstu — wyłączone z kroku 29
+- Sortowanie listy po kolumnie — wyłączone z kroku 27
+- Zaznaczenie wielokrotne — wyłączone z kroku 32
 - Inicjalizacja repozytorium git

@@ -14,6 +14,9 @@ use LightManager\Application\Ui\Role;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\FileInfo\Application\Dto\ChecksumStage;
 use LightManager\Module\FileInfo\Application\Dto\DescriptionSection;
+use LightManager\Module\FileInfo\Application\Dto\DiskUsageStage;
+use LightManager\Module\FileInfo\Application\Dto\EntryKind;
+use LightManager\Module\FileInfo\Application\SizeText;
 use LightManager\Module\FileInfo\Presentation\Component\PreviewPane;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\ListRow;
@@ -25,6 +28,7 @@ use LightManager\Presentation\Ui\Component\Split;
 use LightManager\Presentation\Ui\DrawsOwnFrame;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\Module\ReadsContext;
+use LightManager\Presentation\Ui\NeedsTime;
 use LightManager\Presentation\Ui\Resettable;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
@@ -51,12 +55,22 @@ use LightManager\Presentation\Ui\SplitAxis;
  * `FileInfoState` pilnuje, żeby proces `file` ruszał wyłącznie przy zmianie
  * ścieżki. Stąd też bierze się jedyne wywołanie robiące pracę w `draw()` —
  * kawałek sumy kontrolnej przypadający na tę klatkę.
+ *
+ * Krok 26 dokłada `NeedsTime`, i to nie z powodu zmiany wyglądu: pasek postępu
+ * pokazujący pracę `du` nie zna postępu, więc jego wypełnienie **wędruje**, a do
+ * wędrowania potrzebny jest zegar. Ekran bierze go z pętli, nie z `microtime()` —
+ * tą samą drogą, którą od kroku 19 chodzi do karetki w polu tekstowym (reguła 11b).
  */
-final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable, DrawsOwnFrame
+final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable, DrawsOwnFrame, NeedsTime
 {
     private readonly ScrollWindow $window;
 
     private readonly SectionState $sections;
+
+    /** Czas bieżącej klatki — dla paska postępu, który nie zna postępu. */
+    private float $now = 0.0;
+
+    private readonly SizeText $sizes;
 
     public function __construct(
         private readonly FileInfoState $state,
@@ -65,6 +79,7 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
     ) {
         $this->window = new ScrollWindow();
         $this->sections = new SectionState();
+        $this->sizes = new SizeText($translator);
     }
 
     public function id(): string
@@ -101,6 +116,11 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
     {
         $this->state->reset();
         $this->window->scrollBy(-PHP_INT_MAX);
+    }
+
+    public function useTime(float $now): void
+    {
+        $this->now = $now;
     }
 
     public function useContext(ModuleContext $context): void
@@ -178,26 +198,55 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
             return [];
         }
 
-        $checksum = $this->state->checksum();
-        $working = $checksum->isRunning();
-        $list = $working ? $bounds->rowsFrom(0, $bounds->rows - 1) : $bounds;
+        $bar = $this->workBar();
+        $list = $bar === null ? $bounds : $bounds->rowsFrom(0, $bounds->rows - 1);
         $primitives = $this->sectionList($list->rows)->draw($list);
 
-        if (!$working) {
+        if ($bar === null) {
             return $primitives;
         }
-
-        $bar = new ProgressBar(
-            $checksum->fraction,
-            $this->translator->translate('module.file-info.checksum.working'),
-            translator: $this->translator,
-        );
 
         foreach ($bar->draw($bounds->line($bounds->rows - 1)) as $primitive) {
             $primitives[] = $primitive;
         }
 
         return $primitives;
+    }
+
+    /**
+     * Pasek trwającej pracy albo `null`, gdy nic nie trwa.
+     *
+     * Praca jest najwyżej jedna, więc pasek też: sumę liczymy tylko dla zwykłych
+     * plików, zajętość tylko dla katalogów, a jedno wyklucza drugie. Kolejność
+     * `if`ów jest mimo to rozstrzygnięciem, nie przypadkiem — gdyby kiedyś obie
+     * prace mogły trwać naraz, pierwszeństwo ma ta, która **zna postęp**, bo
+     * pasek z prawdziwym wypełnieniem mówi więcej niż wędrujący.
+     */
+    private function workBar(): ?ProgressBar
+    {
+        $checksum = $this->state->checksum();
+
+        if ($checksum->isRunning()) {
+            return new ProgressBar(
+                $checksum->fraction,
+                $this->translator->translate('module.file-info.checksum.working'),
+                translator: $this->translator,
+            );
+        }
+
+        if (!$this->state->diskUsage()->isRunning()) {
+            return null;
+        }
+
+        // Postępu nie ma i nie ma go skąd wziąć: `du` milczy, aż skończy. Pasek
+        // dostaje `null` zamiast zmyślonego ułamka i wędruje — pierwszy raz
+        // w aplikacji, bo od kroku 23 ten tryb miał wyłącznie test i pomiar.
+        return new ProgressBar(
+            null,
+            $this->translator->translate('module.file-info.diskUsage.working'),
+            $this->now,
+            $this->translator,
+        );
     }
 
     /**
@@ -254,6 +303,10 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
             $rows = $this->rowsOf($section);
 
             if ($section->key === 'size') {
+                if ($description->kind === EntryKind::Directory) {
+                    $rows[] = $this->diskUsageRow();
+                }
+
                 $rows[] = $this->checksumRow();
             }
 
@@ -313,12 +366,50 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
         };
     }
 
+    /**
+     * Wiersz zajętości na dysku — w tych samych czterech odsłonach, co suma
+     * kontrolna, bo to ta sama praca widziana z drugiej strony.
+     *
+     * Wiersz powstaje **tylko dla katalogu** i stoi **przed** sumą kontrolną,
+     * zaraz po blokach i-węzła, bo to z nimi rozmawia: bloki mówią, ile waży sam
+     * katalog, ten wiersz — ile waży wszystko, co w nim leży.
+     */
+    private function diskUsageRow(): ListRow
+    {
+        $usage = $this->state->diskUsage();
+        $label = $this->translator->translate('module.file-info.row.diskUsage');
+
+        return match ($usage->stage) {
+            DiskUsageStage::Running => new ListRow(
+                $label,
+                $this->translator->translate('module.file-info.diskUsage.working'),
+                Role::Muted,
+            ),
+            DiskUsageStage::Done => new ListRow(
+                $label,
+                $this->sizes->format($usage->bytes ?? 0),
+                Role::Muted,
+            ),
+            DiskUsageStage::Failed => new ListRow(
+                $label,
+                $this->translator->translate($usage->problemKey ?? '', $usage->problemParameters),
+                Role::Warning,
+            ),
+            DiskUsageStage::Idle => new ListRow(
+                $label,
+                $this->translator->translate('module.file-info.diskUsage.idle'),
+                Role::Muted,
+            ),
+        };
+    }
+
     public function bindings(): array
     {
         return [
             KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move'),
             KeyBinding::of([Key::Enter], 'help.key.collapse'),
             KeyBinding::character('s', 'module.file-info.help.checksum'),
+            KeyBinding::character('d', 'module.file-info.help.diskUsage'),
             KeyBinding::of([Key::Escape], 'help.key.back'),
         ];
     }
@@ -340,6 +431,8 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
                 return $this->toggleSection();
             case $key->key === Key::Character && $key->raw === 's':
                 return $this->startChecksum();
+            case $key->key === Key::Character && $key->raw === 'd':
+                return $this->startDiskUsage();
             default:
                 return ScreenOutcome::stay();
         }
@@ -359,8 +452,17 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
 
     private function startChecksum(): ScreenOutcome
     {
-        $refusal = $this->state->startChecksum();
+        return $this->started($this->state->startChecksum());
+    }
 
+    private function startDiskUsage(): ScreenOutcome
+    {
+        return $this->started($this->state->startDiskUsage());
+    }
+
+    /** Odmowa idzie na pasek stanu, zgoda nie mówi nic — mówi za nią pasek postępu. */
+    private function started(?string $refusal): ScreenOutcome
+    {
         return $refusal === null
             ? ScreenOutcome::stay()
             : ScreenOutcome::stay(Message::warning($this->translator->translate($refusal)));

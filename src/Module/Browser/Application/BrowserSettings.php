@@ -44,6 +44,25 @@ final class BrowserSettings
 
     public const DEFAULT_SPLIT_VERTICAL = true;
 
+    /**
+     * Kolumny szczegółów: data zmiany i prawa dostępu (krok 27).
+     *
+     * Jeden przełącznik na obie, a nie po jednym na kolumnę, i to jest
+     * rozstrzygnięcie: kolejność ustępowania w wąskim oknie i tak musi być
+     * zaprogramowana, więc cztery przełączniki dawałyby użytkownikowi władzę
+     * nad tym, co i tak zniknie samo. Domyślnie **włączone** — kolumny są
+     * głównym powodem, dla którego krok powstał, a w wąskim panelu ustąpią bez
+     * pytania.
+     */
+    public const DETAILS = 'details';
+
+    public const DEFAULT_DETAILS = true;
+
+    /** Wiersz z nazwami kolumn nad listą — kosztuje wiersz, więc domyślnie go nie ma. */
+    public const COLUMN_HEADER = 'columnHeader';
+
+    public const DEFAULT_COLUMN_HEADER = false;
+
     /** @return list<ModuleSetting> */
     public static function declarations(): array
     {
@@ -63,6 +82,16 @@ final class BrowserSettings
                 'module.' . self::ID . '.setting.' . self::SPLIT_VERTICAL,
                 self::DEFAULT_SPLIT_VERTICAL,
             ),
+            ModuleSetting::toggle(
+                self::DETAILS,
+                'module.' . self::ID . '.setting.' . self::DETAILS,
+                self::DEFAULT_DETAILS,
+            ),
+            ModuleSetting::toggle(
+                self::COLUMN_HEADER,
+                'module.' . self::ID . '.setting.' . self::COLUMN_HEADER,
+                self::DEFAULT_COLUMN_HEADER,
+            ),
         ];
     }
 
@@ -80,6 +109,17 @@ final class BrowserSettings
     public static function splitVertical(Settings $settings): bool
     {
         return self::flag($settings, self::declarations()[2], self::DEFAULT_SPLIT_VERTICAL);
+    }
+
+    /** Czy lista pokazuje datę zmiany i prawa dostępu obok nazwy i rozmiaru. */
+    public static function details(Settings $settings): bool
+    {
+        return self::flag($settings, self::declarations()[3], self::DEFAULT_DETAILS);
+    }
+
+    public static function columnHeader(Settings $settings): bool
+    {
+        return self::flag($settings, self::declarations()[4], self::DEFAULT_COLUMN_HEADER);
     }
 
     private static function flag(Settings $settings, ModuleSetting $setting, bool $default): bool

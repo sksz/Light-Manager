@@ -10,6 +10,8 @@ use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
 use LightManager\Domain\ValueObject\ScrollPosition;
+use LightManager\Presentation\Ui\Component\Align;
+use LightManager\Presentation\Ui\Component\Column;
 use LightManager\Presentation\Ui\Component\Dialog;
 use LightManager\Presentation\Ui\Component\ImageBox;
 use LightManager\Presentation\Ui\Component\Label;
@@ -21,6 +23,8 @@ use LightManager\Presentation\Ui\Component\Section;
 use LightManager\Presentation\Ui\Component\SectionList;
 use LightManager\Presentation\Ui\Component\Split;
 use LightManager\Presentation\Ui\Component\StatusBar;
+use LightManager\Presentation\Ui\Component\Table;
+use LightManager\Presentation\Ui\Component\TableRow;
 use LightManager\Presentation\Ui\Component\TextInput;
 use LightManager\Presentation\Ui\HudLayout;
 use LightManager\Presentation\Ui\SplitAxis;
@@ -142,6 +146,7 @@ final class ScenarioFactory
             Scenario::Scrollbar => $this->list($list, selected: null, scroll: $this->scroll($list->rows)),
             Scenario::Sections => $this->sections($list),
             Scenario::Progress => $this->progress($list),
+            Scenario::Columns => $this->columns($list),
             Scenario::Split => $this->splitLists($layout),
             default => $this->fullContent($layout, $list, $scenario),
         };
@@ -314,6 +319,52 @@ final class ScenarioFactory
         }
 
         return $primitives;
+    }
+
+    /**
+     * Lista o czterech kolumnach — dokładnie takich, jakie od kroku 27 pokazuje
+     * przeglądarka plików: nazwa, rozmiar, data zmiany i prawa dostępu.
+     *
+     * Szerokości i kolejność ustępowania są **przepisane z `EntryList`**, a nie
+     * wymyślone na potrzeby pomiaru. Gdyby się rozjechały, scenariusz mierzyłby
+     * tabelę, której nikt nie ogląda — a to jest dokładnie ten rodzaj pomiaru,
+     * który wygląda na wiarygodny i nie znaczy nic.
+     *
+     * Data jest **stała dla wszystkich wierszy**, jak wszystko w tym narzędziu:
+     * ta sama konfiguracja ma dawać bajt w bajt tę samą klatkę, a `date()` bez
+     * podanego znacznika czasu robiłaby z pomiaru ruchomy cel.
+     *
+     * @return list<Primitive>
+     */
+    private function columns(Rect $bounds): array
+    {
+        $rows = [];
+        $count = max(0, $bounds->rows);
+
+        for ($index = 0; $index < $count; ++$index) {
+            $directory = $index % 6 === 0;
+            $rows[] = new TableRow(
+                [
+                    sprintf('%s-%04d%s', $directory ? 'katalog' : 'plik', $index, $directory ? '/' : '.txt'),
+                    $directory ? '' : sprintf('%d,%d kB', 1 + $index % 900, $index % 10),
+                    sprintf('2026-%02d-%02d %02d:%02d', 1 + $index % 12, 1 + $index % 28, $index % 24, $index % 60),
+                    $index % 3 === 0 ? 'rwxr-xr-x' : 'rw-r--r--',
+                ],
+                $directory ? Role::Accent : Role::Text,
+            );
+        }
+
+        return (new Table(
+            [
+                Column::flexible(20),
+                Column::fixed(9, yieldOrder: 3, align: Align::Right, role: Role::Muted),
+                Column::fixed(17, yieldOrder: 2, role: Role::Muted),
+                Column::fixed(9, yieldOrder: 1, role: Role::Muted),
+            ],
+            $rows,
+            2,
+            $this->scroll($bounds->rows),
+        ))->draw($bounds);
     }
 
     /**

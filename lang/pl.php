@@ -165,6 +165,12 @@ return [
         . 'zbudować klatki ekranu.',
     'problem.unexpected' => 'Nie udało się wykonać tej operacji.',
 
+    // Praca tłowa (krok 26). Powody należą do rdzenia, bo mówią o procesie,
+    // a nie o tym, po co go uruchomiono — moduł dokłada do nich własne.
+    'process.unavailable' => 'Uruchamianie procesów jest w tym środowisku wyłączone.',
+    'process.failed' => 'Nie udało się uruchomić procesu.',
+    'process.timedOut' => 'Praca w tle przekroczyła limit {seconds} s i została przerwana.',
+
     // Narzędzie pomiarowe `bin/render-bench` (krok 16). Napisy narzędzia idą
     // przez katalog jak reszta interfejsu — ale treść mierzonych klatek już nie,
     // bo jej długość w znakach jest częścią pomiaru (patrz `ScenarioFactory`).
@@ -196,6 +202,8 @@ return [
     'bench.scenario.sections' => 'zwijane sekcje',
     'bench.scenario.progress' => 'paski postępu',
     'bench.scenario.split' => 'klatka podzielona',
+    'bench.scenario.background' => 'klatka z pracą w tle',
+    'bench.scenario.columns' => 'lista w kolumnach',
 
     'bench.transfer.title' => 'Przesył klatki do terminala',
     'bench.transfer.blob' => '  rozmiar klatki:     {kilobytes} kB',

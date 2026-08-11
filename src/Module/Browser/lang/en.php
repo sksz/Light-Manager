@@ -24,6 +24,14 @@ return [
     'module.browser.setting.showHidden' => 'Show hidden entries',
     'module.browser.setting.split' => 'Split into two panes',
     'module.browser.setting.splitVertical' => 'Panes side by side',
+    'module.browser.setting.details' => 'Detail columns (date, permissions)',
+    'module.browser.setting.columnHeader' => 'Column names above the list',
+
+    // Column headings (step 27), shown only when the toggle above is on.
+    'module.browser.column.name' => 'Name',
+    'module.browser.column.size' => 'Size',
+    'module.browser.column.modified' => 'Modified',
+    'module.browser.column.permissions' => 'Perms',
 
     // Thumbnail strip.
     'module.browser.preview.unreadable' => 'The image could not be read.',

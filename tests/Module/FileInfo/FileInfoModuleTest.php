@@ -77,9 +77,9 @@ final class FileInfoModuleTest extends TestCase
         );
 
         self::assertSame(
-            ['timeout', 'arguments', 'timeFormat', 'inode', 'checksum', 'checksumLimit'],
+            ['timeout', 'arguments', 'timeFormat', 'inode', 'checksum', 'checksumLimit', 'diskUsage', 'backgroundTimeout'],
             $keys,
-            'krok 25 dokłada cztery pozycje; du i limit pracy tłowej czekają na krok 26',
+            'krok 26 domyka listę dwiema pozycjami, które krok 25 świadomie odłożył',
         );
     }
 

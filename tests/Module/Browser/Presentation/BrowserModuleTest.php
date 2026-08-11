@@ -86,7 +86,13 @@ final class BrowserModuleTest extends TestCase
         );
 
         self::assertSame(
-            [BrowserSettings::SHOW_HIDDEN, BrowserSettings::SPLIT, BrowserSettings::SPLIT_VERTICAL],
+            [
+                BrowserSettings::SHOW_HIDDEN,
+                BrowserSettings::SPLIT,
+                BrowserSettings::SPLIT_VERTICAL,
+                BrowserSettings::DETAILS,
+                BrowserSettings::COLUMN_HEADER,
+            ],
             $keys,
         );
     }

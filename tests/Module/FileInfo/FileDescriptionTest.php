@@ -21,6 +21,7 @@ use LightManager\Module\FileInfo\Application\UseCase\InspectSelectedEntryUseCase
 use LightManager\Module\FileInfo\Presentation\FileInfoModule;
 use LightManager\Module\FileInfo\Presentation\FileInfoScreen;
 use LightManager\Tests\Support\InMemorySettings;
+use LightManager\Tests\Support\StubBackgroundProcess;
 use LightManager\Tests\Support\StubChecksums;
 use LightManager\Tests\Support\StubFileInspector;
 use LightManager\Tests\Support\StubFileStat;
@@ -261,6 +262,7 @@ final class FileDescriptionTest extends TestCase
             new StubTranslator(),
             $settings,
             new StubImagePreview(),
+            new StubBackgroundProcess(),
             new StubFileInspector('ASCII text'),
             $stats ?? new StubFileStat(),
             $checksums,

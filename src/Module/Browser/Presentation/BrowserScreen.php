@@ -167,7 +167,13 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
         if (!$this->splitsIn($bounds)) {
             [$state, $window] = $this->panes->pane($this->panes->focusesSecond() ? 1 : 0);
 
-            return (new EntryList($state->directory(), $window, $this->translator))->draw($bounds);
+            return (new EntryList(
+                $state->directory(),
+                $window,
+                $this->translator,
+                details: $this->details(),
+                header: $this->columnHeader(),
+            ))->draw($bounds);
         }
 
         return (new Split($this->list(0), $this->list(1), $this->axis()))->draw($bounds);
@@ -178,7 +184,14 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
     {
         [$state, $window] = $this->panes->pane($index);
 
-        return new EntryList($state->directory(), $window, $this->translator, framed: true);
+        return new EntryList(
+            $state->directory(),
+            $window,
+            $this->translator,
+            framed: true,
+            details: $this->details(),
+            header: $this->columnHeader(),
+        );
     }
 
     /**
@@ -253,6 +266,23 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
         $this->panes->useSplit($enabled);
 
         return $enabled;
+    }
+
+    /**
+     * Czy lista pokazuje kolumny szczegółów i nazwy kolumn (krok 27).
+     *
+     * Obie odpowiedzi czyta się **co klatkę**, a nie zapamiętuje przy budowie
+     * ekranu, i jest to ta sama zasada, co przy podziale: zmiana ustawienia ma
+     * być widoczna w następnej klatce, a nie po ponownym otwarciu przeglądarki.
+     */
+    private function details(): bool
+    {
+        return BrowserSettings::details($this->state->settings());
+    }
+
+    private function columnHeader(): bool
+    {
+        return BrowserSettings::columnHeader($this->state->settings());
     }
 
     private function axis(): SplitAxis

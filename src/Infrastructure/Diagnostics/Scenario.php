@@ -76,6 +76,41 @@ enum Scenario: string
      */
     case Split = 'split';
 
+    /**
+     * Ta sama klatka, co `chrome-text`, ale **z żywym procesem potomnym obok**
+     * (krok 26).
+     *
+     * Pierwszy scenariusz w tym narzędziu, który sięga poza PHP, i jedyny, w
+     * którym treść klatki nie jest tematem: co do prymitywu jest bliźniaczo
+     * równa `chrome-text`, więc **różnica między nimi jest w całości ceną pracy
+     * tłowej**. To jest ta sama reguła rozdzielności, którą kierują się pozostałe
+     * scenariusze — tylko że rzeczą odejmowaną nie jest tu element interfejsu,
+     * lecz sąsiad pętli.
+     *
+     * Potomek **milczy przez cały pomiar** i to nie jest uproszczenie, tylko
+     * wierność: `du` nie mówi o sobie nic, aż skończy, więc dokładnie tak wygląda
+     * te cztery sekundy, o które w tym kroku chodzi. Mierzony jest zatem ten
+     * koszt, który aplikacja ponosi naprawdę — dwa puste potoki i pytanie o stan
+     * procesu, trzydzieści razy na sekundę.
+     */
+    case Background = 'background';
+
+    /**
+     * Pełna klatka listy plików o **czterech kolumnach** zamiast dwóch (krok 27).
+     *
+     * Mierzy dokładnie jedno: cenę kolumn. Treść jest ta sama, co w `chrome-text`,
+     * i te same są panele — różni się liczba napisów w wierszu, bo rozdział
+     * szerokości wypuszcza cztery `TextRun` tam, gdzie wcześniej wychodziły dwa.
+     * Różnica między tymi scenariuszami jest więc kosztem rozdziału i dwóch
+     * dodatkowych napisów na wiersz, a nie „ogólnym wrażeniem, że lista
+     * zdrożała”.
+     *
+     * Osobny scenariusz jest tu potrzebny z konkretnego powodu: klucz pamięci
+     * podręcznej wierszy (D34) buduje się z ich treści, a wiersz z datą i prawami
+     * jest treścią dłuższą i **rzadziej powtarzalną** niż sama nazwa z rozmiarem.
+     */
+    case Columns = 'columns';
+
     /** @return list<self> kolejność wydruku: od najtańszego do najbogatszego */
     public static function all(): array
     {
@@ -116,8 +151,20 @@ enum Scenario: string
     {
         return match ($this) {
             self::Chrome, self::ChromeWithText, self::Thumbnail, self::Popup,
-            self::Command, self::Sections, self::Progress, self::Split => true,
+            self::Command, self::Sections, self::Progress, self::Split,
+            self::Background, self::Columns => true,
             default => false,
         };
+    }
+
+    /**
+     * Czy pomiar ma toczyć się przy uruchomionym procesie potomnym.
+     *
+     * Odpowiedź twierdząca kosztuje przebieg jeden proces — uruchamiany przed
+     * rozgrzewką i ubijany po ostatniej próbce — oraz jedno doglądanie na klatkę.
+     */
+    public function needsBackgroundWork(): bool
+    {
+        return $this === self::Background;
     }
 }

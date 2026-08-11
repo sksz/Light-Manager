@@ -145,6 +145,12 @@ return [
         . 'frame cannot be built.',
     'problem.unexpected' => 'This operation could not be completed.',
 
+    // Background work (step 26). The reasons belong to the core because they
+    // speak about the process, not about what it was started for.
+    'process.unavailable' => 'Starting processes is disabled in this environment.',
+    'process.failed' => 'The process could not be started.',
+    'process.timedOut' => 'The background work exceeded its {seconds}s limit and was stopped.',
+
     // The `bin/render-bench` measurement tool (step 16). Tool strings go through
     // the catalog like the rest of the interface — but the content of the
     // measured frames does not, because its length in characters is part of the
@@ -177,6 +183,8 @@ return [
     'bench.scenario.sections' => 'collapsible sections',
     'bench.scenario.progress' => 'progress bars',
     'bench.scenario.split' => 'split frame',
+    'bench.scenario.background' => 'frame with background work',
+    'bench.scenario.columns' => 'list with columns',
 
     'bench.transfer.title' => 'Frame transfer to the terminal',
     'bench.transfer.blob' => '  frame size:         {kilobytes} kB',

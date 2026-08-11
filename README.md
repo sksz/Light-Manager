@@ -187,12 +187,16 @@ i palecie nie trzeba kasować pliku konfiguracyjnego.
 | Przeglądarka plików | Pokazuj wpisy ukryte | tak / nie | nie |
 | Przeglądarka plików | Podział na dwa panele | tak / nie | nie |
 | Przeglądarka plików | Panele obok siebie | tak / nie | tak |
+| Przeglądarka plików | Kolumny szczegółów (data, prawa) | tak / nie | **tak** |
+| Przeglądarka plików | Nazwy kolumn nad listą | tak / nie | nie |
 | Opis pliku | Limit czasu polecenia (s) | 1, 2, 5, 10 | 2 |
 | Opis pliku | Dodatkowe argumenty | tekst | *(puste)* |
 | Opis pliku | Zapis czasu | absolute, relative | absolute |
 | Opis pliku | Pokazuj i-węzeł i dowiązania | tak / nie | nie |
 | Opis pliku | Suma kontrolna sha256 | tak / nie | **nie** |
 | Opis pliku | Limit rozmiaru sumy (MiB) | 16, 64, 256, 1024 | 256 |
+| Opis pliku | Zajętość katalogu na dysku (du) | tak / nie | **nie** |
+| Opis pliku | Limit czasu pracy w tle (s) | 5, 15, 30, 60 | 15 |
 
 Każda zmiana działa natychmiast — motyw i jakość rysowania widać w następnej
 klatce, bez restartu — i od razu ląduje w pliku, więc przeżywa nawet zabicie
@@ -233,13 +237,19 @@ Wbudowane są dziś dwa:
   rdzeniem z doklejonymi modułami, tylko modułem jak każdy inny: cała domena
   katalogu, nawigacja, ekran i komenda `browser.jump` leżą w `src/Module/Browser/`,
   a w rdzeniu nie została ani jedna klasa wiedząca, czym jest plik.
+
+  Lista ma **cztery kolumny**: nazwa, rozmiar, data zmiany i prawa dostępu.
+  W wąskim oknie — na przykład w panelu podziału — kolumny **ustępują po kolei**:
+  najpierw prawa, potem data, potem rozmiar, a nazwa nie ustępuje nigdy. Kolumna,
+  która nie mieści się w całości, **znika w całości**: przycięta data (`2026-08-…`)
+  nie mówi nic, a zabiera znaki nazwie, która by je wykorzystała.
 - **Opis pliku** (`file-info`, `Ctrl+D`) — **pełny obraz stanu zaznaczonego
   wpisu**, także katalogu: cztery zwijane sekcje po lewej i miniatura po prawej.
 
   | Sekcja | Co pokazuje |
   |---|---|
   | Tożsamość | nazwa, rodzaj z `lstat`, opis od polecenia `file`, cel dowiązania wraz z informacją, czy istnieje, liczba wpisów katalogu |
-  | Rozmiar | rozmiar w jednostkach i co do bajta, bloki i-węzła, suma kontrolna `sha256` |
+  | Rozmiar | rozmiar w jednostkach i co do bajta, bloki i-węzła, zajętość katalogu na dysku (`du`), suma kontrolna `sha256` |
   | Uprawnienia | prawa `rwx` i ósemkowo, właściciel, grupa, opcjonalnie i-węzeł i liczba dowiązań |
   | Czasy | zmiana treści, zmiana i-węzła, odczyt — datą albo jako „ile temu” |
 
@@ -250,8 +260,15 @@ Wbudowane są dziś dwa:
   gdy zaznaczenie się zmieni. Powyżej ustawionego limitu rozmiaru nie startuje
   i mówi dlaczego.
 
-  Czego moduł **jeszcze** nie pokazuje: zajętości na dysku (`du`). Wymaga procesu
-  potomnego doglądanego między klatkami, a ten mechanizm ma własny krok planu (26).
+  **Zajętość katalogu na dysku liczy się po naciśnięciu `d`** i też domyślnie jest
+  wyłączona. Stoi za nią polecenie `du` uruchomione w tle i doglądane między
+  klatkami — pętla w tym czasie nie czeka ani chwili. Wiersz powstaje **tylko dla
+  katalogu**: dla zwykłego pliku tę samą liczbę podają stojące obok bloki i-węzła,
+  odczytane z `lstat` bez uruchamiania czegokolwiek. Postępu `du` nie zna, więc
+  pasek nie udaje, że go zna — jego wypełnienie wędruje tam i z powrotem. Praca
+  ma własny limit czasu, osobny i hojniejszy od limitu polecenia `file`, bo
+  sekundy spędzone w tle nie kosztują ani jednej klatki. Po zamknięciu aplikacji
+  — także `Ctrl+C` — nie zostaje po niej ani jeden proces.
 
 #### Moduł domyślny
 
@@ -430,6 +447,15 @@ Klatka rozbita jest na trzy fazy — **rysowanie**, **kwantyzację** i **kodowan
 do Sixela** — mierzone osobno, a każdy scenariusz izoluje inny element klatki
 (sam tekst, same ramki, zaznaczenie, suwak, miniatura, okienko). Dzięki temu
 koszt elementu da się *odjąć*, zamiast zgadywać z sumy.
+
+Dwa scenariusze wyłamują się z tej reguły i robią to celowo. **`background`
+rysuje klatkę co do prymitywu równą `chrome-text`, ale przy uruchomionym procesie
+potomnym**, doglądanym raz na klatkę tak samo, jak dogląda go aplikacja. Odjęcie
+jednego od drugiego daje więc nie koszt elementu interfejsu, lecz cenę pracy
+toczącej się obok pętli — a twierdzenie, że praca tłowa nie kosztuje klatki, jest
+dzięki temu sprawdzalne, a nie deklarowane. **`columns`** rysuje z kolei tę samą
+listę, co `chrome-text`, ale w czterech kolumnach zamiast dwóch — różnica jest
+ceną rozdziału szerokości i dwóch dodatkowych napisów w każdym wierszu.
 
 #### Jak czytać wynik
 

@@ -120,6 +120,69 @@ final class FilesystemDirectoryRepositoryTest extends TestCase
     }
 
     /**
+     * Czas i prawa doszły w kroku 27, bo lista pokazuje je w kolumnach.
+     *
+     * Prawa sprawdzamy przez `chmod` z wartością nietypową (`0o640`), a nie
+     * domyślną — domyślne zależą od `umask` maszyny, na której test akurat biegnie.
+     */
+    public function testEntriesCarryTheirModificationTimeAndPermissions(): void
+    {
+        chmod($this->root . '/notatka.txt', 0o640);
+
+        $entries = $this->repository->get(new DirectoryPath($this->root), false)->entries();
+
+        self::assertSame(0o640, $entries[1]->permissions);
+        self::assertSame('rw-r-----', $entries[1]->permissionsAsText());
+        self::assertNotNull($entries[1]->modifiedAt);
+        self::assertEqualsWithDelta(time(), $entries[1]->modifiedAt, 60);
+    }
+
+    /** Katalog też ma czas i prawa — kolumny nie robią wyjątku dla wpisu bez rozmiaru. */
+    public function testDirectoriesCarryThemToo(): void
+    {
+        chmod($this->root . '/podkatalog', 0o750);
+
+        $entries = $this->repository->get(new DirectoryPath($this->root), false)->entries();
+
+        self::assertTrue($entries[0]->isDirectory());
+        self::assertSame('rwxr-x---', $entries[0]->permissionsAsText());
+        self::assertNotNull($entries[0]->modifiedAt);
+    }
+
+    /**
+     * Wpis, o który nie da się zapytać, oddaje `null` — a nie zmyśloną datę.
+     * Kolumna pokazuje wtedy pustkę i to jest właściwa odpowiedź.
+     */
+    public function testABrokenSymlinkHasNoTimeAndNoPermissions(): void
+    {
+        symlink($this->root . '/nie-ma-celu', $this->root . '/zerwane-dowiazanie');
+
+        $entries = $this->repository->get(new DirectoryPath($this->root), false)->entries();
+        $index = array_search('zerwane-dowiazanie', $this->names($entries), true);
+
+        self::assertIsInt($index);
+        self::assertNull($entries[$index]->modifiedAt);
+        self::assertNull($entries[$index]->permissions);
+        self::assertSame('', $entries[$index]->permissionsAsText());
+    }
+
+    /**
+     * Dowiązanie do katalogu jest **katalogiem** — tak było przed krokiem 27
+     * i tak ma zostać. Zamiana `is_dir()` na jedno `stat()` mogłaby to po cichu
+     * odwrócić, gdyby ktoś sięgnął po `lstat()`.
+     */
+    public function testASymlinkToADirectoryStillCountsAsADirectory(): void
+    {
+        symlink($this->root . '/podkatalog', $this->root . '/skrot');
+
+        $entries = $this->repository->get(new DirectoryPath($this->root), false)->entries();
+        $index = array_search('skrot', $this->names($entries), true);
+
+        self::assertIsInt($index);
+        self::assertTrue($entries[$index]->isDirectory());
+    }
+
+    /**
      * @param list<Entry> $entries
      *
      * @return list<string>

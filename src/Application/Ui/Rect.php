@@ -75,6 +75,25 @@ final class Rect
         return $this->rowsFrom($offset, 1);
     }
 
+    /**
+     * To samo w poziomie: prostokąt przesunięty w prawo i zwężony.
+     *
+     * Bliźniak `rowsFrom()`, dopisany w kroku 27 — kolumna tabeli jest pierwszym
+     * miejscem, w którym prostokąt trzeba pociąć wzdłuż drugiej osi. Że powstał
+     * dopiero teraz, mówi coś o samej aplikacji: do kroku 27 wszystko dzieliło
+     * się w pionie, a jedyny podział poziomy (krok 24) liczył połówki własnym
+     * rachunkiem, bo połówki są dwie i znane z góry.
+     */
+    public function columnsFrom(int $offset, int $columns): self
+    {
+        return new self(
+            $this->row,
+            $this->column + $offset,
+            $this->rows,
+            max(0, min($columns, $this->columns - $offset)),
+        );
+    }
+
     public function equals(self $other): bool
     {
         return $this->row === $other->row

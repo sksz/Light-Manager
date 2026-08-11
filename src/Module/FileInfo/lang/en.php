@@ -20,6 +20,8 @@ return [
     'module.file-info.setting.inode' => 'Show inode and links',
     'module.file-info.setting.checksum' => 'sha256 checksum',
     'module.file-info.setting.checksumLimit' => 'Checksum size limit (MiB)',
+    'module.file-info.setting.diskUsage' => 'Directory disk usage (du)',
+    'module.file-info.setting.backgroundTimeout' => 'Background work limit (s)',
 
     'module.file-info.section.identity' => 'IDENTITY',
     'module.file-info.section.size' => 'SIZE',
@@ -35,6 +37,7 @@ return [
     'module.file-info.row.size' => 'Size',
     'module.file-info.row.sizeExact' => 'Exactly',
     'module.file-info.row.blocks' => 'Inode blocks',
+    'module.file-info.row.diskUsage' => 'On disk',
     'module.file-info.row.checksum' => 'sha256',
     'module.file-info.row.mode' => 'Mode',
     'module.file-info.row.owner' => 'Owner',
@@ -70,6 +73,16 @@ return [
     'module.file-info.checksum.tooLarge' => 'The file exceeds the configured checksum size limit.',
     'module.file-info.checksum.unreadable' => 'The file could not be read.',
 
+    // Directory disk usage — computed by `du` in a background process (step 26).
+    // Reasons shared by every background job (time limit, no proc_open) travel
+    // through the core `process.*` keys; what stays here is specific to `du`.
+    'module.file-info.diskUsage.idle' => '(press d to compute)',
+    'module.file-info.diskUsage.working' => 'measuring disk usage',
+    'module.file-info.diskUsage.disabled' => 'Disk usage is switched off in the module settings.',
+    'module.file-info.diskUsage.notADirectory' => 'Disk usage is measured for directories only — for a file '
+        . 'the inode blocks already say it.',
+    'module.file-info.diskUsage.failed' => 'The "du" command returned no result.',
+
     'module.file-info.preview.none' => '(no preview)',
     'module.file-info.preview.unreadable' => 'The image could not be read.',
     'module.file-info.preview.tooLarge' => 'The file exceeds the {limit} MB limit — no preview.',
@@ -93,8 +106,10 @@ return [
     'module.file-info.jump.failed' => 'Could not open the directory "{path}".',
 
     'module.file-info.help.checksum' => 'compute the checksum',
+    'module.file-info.help.diskUsage' => 'measure the directory disk usage',
     'module.file-info.help.enter' => 'The description covers the entry selected in the file list — '
         . 'directories included.',
     'module.file-info.help.sections' => 'Enter collapses a section; the checksum starts only after you '
-        . 'press s, because it reads the whole file.',
+        . 'press s, because it reads the whole file, and the directory disk usage after you press d, '
+        . 'because it walks the whole tree.',
 ];

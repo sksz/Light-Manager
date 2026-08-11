@@ -9,6 +9,7 @@ use LightManager\Application\Module\ModuleSettingsTab;
 use LightManager\Application\Module\ModuleShortcut;
 use LightManager\Application\Module\ProvidesCommands;
 use LightManager\Application\Module\ProvidesSettingsTab;
+use LightManager\Application\Port\BackgroundProcessPort;
 use LightManager\Application\Port\ImagePreviewPort;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
@@ -17,6 +18,7 @@ use LightManager\Module\FileInfo\Application\Port\ChecksumPort;
 use LightManager\Module\FileInfo\Application\Port\FileInspectorPort;
 use LightManager\Module\FileInfo\Application\Port\FileStatPort;
 use LightManager\Module\FileInfo\Application\UseCase\InspectSelectedEntryUseCase;
+use LightManager\Module\FileInfo\Application\UseCase\MeasureDiskUsageUseCase;
 use LightManager\Module\FileInfo\Application\UseCase\PreviewEntryUseCase;
 use LightManager\Module\FileInfo\Infrastructure\ChecksumService;
 use LightManager\Module\FileInfo\Infrastructure\FileInspectorService;
@@ -62,6 +64,14 @@ final class FileInfoModule implements
     private ?FileInfoScreen $assembled = null;
 
     /**
+     * `BackgroundProcessPort` stoi wśród zależności **obowiązkowych**, a nie
+     * wśród wstrzyknięć testowych poniżej, i jest to różnica z rozmysłu: to port
+     * rdzenia, taki sam jak podgląd obrazów, więc podaje go `Bootstrap` w jedynej
+     * linii, którą rdzeń o tym module wie. Domyślnej wartości nie ma także
+     * dlatego, że test, który zapomniałby podać atrapę, uruchomiłby prawdziwe
+     * `du` — a test uruchamiający procesy jest testem, który kiedyś zawiesi
+     * potok ciągłej integracji.
+     *
      * @param FileInspectorPort|null $inspector wstrzyknięcie istnieje dla testów,
      *                                          które składają moduł bez uruchamiania
      *                                          procesu potomnego; `null` znaczy
@@ -71,6 +81,7 @@ final class FileInfoModule implements
         private readonly TranslatorPort $translator,
         private readonly SettingsPort $settings,
         private readonly ImagePreviewPort $images,
+        private readonly BackgroundProcessPort $processes,
         private readonly ?FileInspectorPort $inspector = null,
         private readonly ?FileStatPort $stats = null,
         private readonly ?ChecksumPort $checksums = null,
@@ -144,6 +155,7 @@ final class FileInfoModule implements
             ),
             new PreviewEntryUseCase($this->images, $this->translator),
             $this->checksums ?? ChecksumService::getInstance(),
+            new MeasureDiskUsageUseCase($this->processes),
             $this->settings,
         );
 

@@ -15,6 +15,7 @@ use LightManager\Module\FileInfo\Application\Dto\FileStat;
 use LightManager\Module\FileInfo\Application\FileInfoSettings;
 use LightManager\Module\FileInfo\Application\Port\FileInspectorPort;
 use LightManager\Module\FileInfo\Application\Port\FileStatPort;
+use LightManager\Module\FileInfo\Application\SizeText;
 
 /**
  * Obraz stanu wpisu — treść ekranu modułu.
@@ -31,15 +32,14 @@ use LightManager\Module\FileInfo\Application\Port\FileStatPort;
  * `file` tylko dla zwykłych plików, bo za nim stoi proces potomny, a dla katalogu
  * powiedziałby wyłącznie, że jest katalogiem.
  *
- * Czego tu **nie ma**: sumy kontrolnej i zajętości na dysku. Pierwsza liczy się
- * między klatkami i dokłada ją ekran, druga czeka na krok 26. Przypadek użycia
- * wykonuje się raz na zaznaczenie i wszystko, co w nim stoi, musi być gotowe
- * w tej jednej chwili.
+ * Czego tu **nie ma**: sumy kontrolnej i zajętości na dysku. Obie liczą się
+ * między klatkami i obie dokłada do sekcji ekran — pierwsza od kroku 25, druga
+ * od 26. Przypadek użycia wykonuje się raz na zaznaczenie i wszystko, co w nim
+ * stoi, musi być gotowe w tej jednej chwili; praca trwająca cztery sekundy nie
+ * jest gotowa w żadnej.
  */
 final class InspectSelectedEntryUseCase
 {
-    private const SIZE_UNITS = ['B', 'kB', 'MB', 'GB', 'TB'];
-
     private const SECONDS_PER_UNIT = [
         ['module.file-info.ago.years', 31_536_000],
         ['module.file-info.ago.months', 2_592_000],
@@ -47,6 +47,8 @@ final class InspectSelectedEntryUseCase
         ['module.file-info.ago.hours', 3_600],
         ['module.file-info.ago.minutes', 60],
     ];
+
+    private ?SizeText $sizes = null;
 
     public function __construct(
         private readonly FileInspectorPort $inspector,
@@ -204,21 +206,14 @@ final class InspectSelectedEntryUseCase
         return $this->translator->translate('module.file-info.principal', ['name' => $name, 'id' => $id]);
     }
 
+    /**
+     * Rachunek wyprowadzono w kroku 26 do `SizeText`, gdy wiersz „zajęte na
+     * dysku” miał zostać jego trzecim wołającym w tym module. Zapis liczb się
+     * nie zmienił — to było przeniesienie, nie poprawka.
+     */
     private function formatSize(int $bytes): string
     {
-        $value = (float) $bytes;
-        $unit = 0;
-
-        while ($value >= 1024.0 && $unit < count(self::SIZE_UNITS) - 1) {
-            $value /= 1024.0;
-            ++$unit;
-        }
-
-        if ($unit === 0) {
-            return $this->translator->number($value) . ' ' . self::SIZE_UNITS[0];
-        }
-
-        return $this->translator->number($value, 1) . ' ' . self::SIZE_UNITS[$unit];
+        return ($this->sizes ??= new SizeText($this->translator))->format($bytes);
     }
 
     /**
