@@ -25,6 +25,12 @@ use LightManager\Presentation\Ui\Container\VStack;
  * pierwszy, lista ostatnia — i przy dzisiejszych progach nie uruchamia się
  * nigdy poza oknem niższym niż trzy wiersze. Zostaje jako siatka bezpieczeństwa
  * na progi, których nikt nie przewidział.
+ *
+ * Od kroku 21 obie strefy skrajne są **zamawiane przez ekran**: `$withHeader`
+ * i `$withPreview` mówią, czy ekran w ogóle wystawił `ScreenZone`. Progi zostają
+ * nietknięte — zmienia się wyłącznie źródło odpowiedzi „czy strefa ma powstać”.
+ * Strefa niezamówiona nie dostaje ani jednego wiersza, a jej miejsce zabiera
+ * szczelina elastyczna, czyli lista.
  */
 final class HudLayout
 {
@@ -54,14 +60,14 @@ final class HudLayout
 
     private readonly int $rows;
 
-    public function __construct(int $rows, int $columns, bool $withPreview)
+    public function __construct(int $rows, int $columns, bool $withHeader = true, bool $withPreview = false)
     {
         $this->rows = max(1, $rows);
         $columns = max(1, $columns);
 
         $spacer = new Spacer();
         $heights = (new VStack([
-            Slot::fixed($spacer, $this->headerRows(), 2),
+            Slot::fixed($spacer, $withHeader ? $this->headerRows() : 0, 2),
             Slot::flexible($spacer),
             Slot::fixed($spacer, $withPreview ? $this->previewRows() : 0, 0),
             Slot::fixed($spacer, $this->statusRows(), 3),

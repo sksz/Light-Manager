@@ -44,6 +44,38 @@ enum Scenario: string
     /** Pełna klatka z otwartym oknem komend: pasek podpowiedzi i pole wpisywania. */
     case Command = 'command';
 
+    /**
+     * Pełna klatka z listą zwijanych sekcji zamiast płaskiej listy (krok 22).
+     *
+     * Mierzy to, czego `chrome-text` nie mierzy: nagłówki w akcencie i znaczniki
+     * spoza ASCII, czyli **litery, których nie ma w żadnym innym scenariuszu**.
+     * Znak spoza podstawowej strony kodowej rasteryzuje się osobno i osobno ląduje
+     * w pamięci podręcznej wierszy — więc gdyby kosztował, ma to być widać tutaj.
+     */
+    case Sections = 'sections';
+
+    /**
+     * Pełna klatka wypełniona paskami postępu — oba tryby naraz (krok 23).
+     *
+     * Mierzy to, czego nie mierzy żaden inny scenariusz: **wypełnione prostokąty
+     * o zmiennej szerokości** wraz z napisem pociętym na kolumnie wypełnienia.
+     * Każdy pasek to prostokąt inny niż w poprzedniej klatce, więc pamięć
+     * podręczna wierszy nie ma tu czego trafić — i to jest właśnie treść pomiaru:
+     * ile kosztuje element, który z założenia zmienia się co klatkę.
+     */
+    case Progress = 'progress';
+
+    /**
+     * Klatka podzielona na dwa panele plików (krok 24).
+     *
+     * Mierzy to, czego nie mierzy `chrome-text`: **obwódki narysowane na
+     * płaszczyźnie treści**. Przy jednym panelu cała oprawa leży w płaszczyźnie
+     * spodniej i renderer podaje ją z pamięci, więc kosztuje zero; przy podziale
+     * rysuje ją ekran, bo tylko on wie, który panel jest czynny — i wtedy powstaje
+     * na nowo w każdej klatce. Różnica wobec `chrome-text` jest ceną tej decyzji.
+     */
+    case Split = 'split';
+
     /** @return list<self> kolejność wydruku: od najtańszego do najbogatszego */
     public static function all(): array
     {
@@ -83,7 +115,8 @@ enum Scenario: string
     public function needsChrome(): bool
     {
         return match ($this) {
-            self::Chrome, self::ChromeWithText, self::Thumbnail, self::Popup, self::Command => true,
+            self::Chrome, self::ChromeWithText, self::Thumbnail, self::Popup,
+            self::Command, self::Sections, self::Progress, self::Split => true,
             default => false,
         };
     }

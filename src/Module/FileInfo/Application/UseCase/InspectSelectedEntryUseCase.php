@@ -4,30 +4,55 @@ declare(strict_types=1);
 
 namespace LightManager\Module\FileInfo\Application\UseCase;
 
-use LightManager\Application\Module\ContextEntryKind;
 use LightManager\Application\Module\ModuleContext;
 use LightManager\Application\Port\SettingsPort;
+use LightManager\Application\Port\TranslatorPort;
+use LightManager\Module\FileInfo\Application\Dto\DescriptionRow;
+use LightManager\Module\FileInfo\Application\Dto\DescriptionSection;
 use LightManager\Module\FileInfo\Application\Dto\EntryDescription;
+use LightManager\Module\FileInfo\Application\Dto\EntryKind;
+use LightManager\Module\FileInfo\Application\Dto\FileStat;
 use LightManager\Module\FileInfo\Application\FileInfoSettings;
 use LightManager\Module\FileInfo\Application\Port\FileInspectorPort;
+use LightManager\Module\FileInfo\Application\Port\FileStatPort;
 
 /**
- * Opis zaznaczonego pliku — treść ekranu modułu.
+ * Obraz stanu wpisu — treść ekranu modułu.
  *
  * Do kroku 20 przypadek użycia przyjmował `Directory` i sam wyciągał z niego
  * zaznaczenie. Dziś dostaje `ModuleContext`, czyli **dane pierwotne**: ścieżkę,
- * nazwę i rodzaj. Zmiana nie jest kosmetyczna — to ona sprawia, że moduł nie
- * zna agregatu, który w kroku 21 zejdzie z rdzenia do modułu przeglądarki
- * (D40, P5).
+ * nazwę i rodzaj. Zmiana nie jest kosmetyczna — to ona sprawia, że moduł nie zna
+ * agregatu, który w kroku 21 zszedł z rdzenia do modułu przeglądarki (D40, P5).
  *
- * Katalogi pomija: opis `file` dla katalogu mówi tylko tyle, że jest katalogiem,
- * a użytkownik widzi to już na liście.
+ * Krok 25 zmienia w nim trzy rzeczy. **Katalogów już nie pomija** (P3): katalog
+ * ma uprawnienia, właściciela, czasy i liczbę wpisów, a to wszystko jest opisem
+ * tak samo dobrym jak dla pliku. **Składa sekcje, a nie wiersze** (P4). I
+ * **rozdziela źródła po koszcie**: `lstat` idzie zawsze, bo kosztuje tyle, co nic;
+ * `file` tylko dla zwykłych plików, bo za nim stoi proces potomny, a dla katalogu
+ * powiedziałby wyłącznie, że jest katalogiem.
+ *
+ * Czego tu **nie ma**: sumy kontrolnej i zajętości na dysku. Pierwsza liczy się
+ * między klatkami i dokłada ją ekran, druga czeka na krok 26. Przypadek użycia
+ * wykonuje się raz na zaznaczenie i wszystko, co w nim stoi, musi być gotowe
+ * w tej jednej chwili.
  */
 final class InspectSelectedEntryUseCase
 {
+    private const SIZE_UNITS = ['B', 'kB', 'MB', 'GB', 'TB'];
+
+    private const SECONDS_PER_UNIT = [
+        ['module.file-info.ago.years', 31_536_000],
+        ['module.file-info.ago.months', 2_592_000],
+        ['module.file-info.ago.days', 86_400],
+        ['module.file-info.ago.hours', 3_600],
+        ['module.file-info.ago.minutes', 60],
+    ];
+
     public function __construct(
         private readonly FileInspectorPort $inspector,
+        private readonly FileStatPort $stats,
         private readonly SettingsPort $settings,
+        private readonly TranslatorPort $translator,
     ) {
     }
 
@@ -35,17 +60,200 @@ final class InspectSelectedEntryUseCase
     {
         $path = $context->selectionPath();
 
-        if ($path === null || $context->kind !== ContextEntryKind::File) {
+        if ($path === null) {
+            return null;
+        }
+
+        $stat = $this->stats->stat($path);
+
+        if ($stat === null) {
             return null;
         }
 
         $settings = $this->settings->current();
-        $description = $this->inspector->describe(
-            $path,
-            FileInfoSettings::timeout($settings),
-            FileInfoSettings::arguments($settings),
-        );
+        $sections = [
+            $this->identity($path, $stat, $context->selection ?? ''),
+            $this->size($stat),
+            $this->permissions($stat, FileInfoSettings::inode($settings)),
+            $this->times($stat, FileInfoSettings::relativeTime($settings), $this->now()),
+        ];
 
-        return new EntryDescription($context->selection ?? '', explode("\n", $description));
+        return new EntryDescription($context->selection ?? '', $sections, $stat->kind, $stat->sizeInBytes);
+    }
+
+    /**
+     * Czym wpis jest: rodzaj z `lstat`, opis od `file` i cel dowiązania.
+     *
+     * `file` pytamy **wyłącznie o zwykłe pliki**. Dla katalogu, gniazda czy
+     * kolejki nazwanej polecenie powtórzyłoby rodzaj, który stoi wiersz wyżej —
+     * a kosztuje proces potomny wraz z limitem czasu.
+     */
+    private function identity(string $path, FileStat $stat, string $name): DescriptionSection
+    {
+        $settings = $this->settings->current();
+        $rows = [
+            new DescriptionRow('module.file-info.row.name', $name),
+            new DescriptionRow('module.file-info.row.kind', $this->translator->translate($stat->kind->labelKey())),
+        ];
+
+        if ($stat->kind === EntryKind::File) {
+            $rows[] = new DescriptionRow(
+                'module.file-info.row.content',
+                $this->inspector->describe(
+                    $path,
+                    FileInfoSettings::timeout($settings),
+                    FileInfoSettings::arguments($settings),
+                ),
+            );
+        }
+
+        if ($stat->linkTarget !== null) {
+            $rows[] = new DescriptionRow('module.file-info.row.target', $stat->linkTarget);
+            $rows[] = new DescriptionRow(
+                'module.file-info.row.targetState',
+                $this->translator->translate(
+                    $stat->linkTargetExists === true
+                        ? 'module.file-info.target.exists'
+                        : 'module.file-info.target.missing',
+                ),
+            );
+        }
+
+        if ($stat->entryCount !== null) {
+            $rows[] = new DescriptionRow(
+                'module.file-info.row.entries',
+                $this->translator->plural('module.file-info.entries', $stat->entryCount),
+            );
+        }
+
+        return new DescriptionSection('identity', 'module.file-info.section.identity', $rows);
+    }
+
+    /**
+     * Rozmiar w bajtach i w jednostkach — obie postacie naraz, bo pierwsza jest
+     * dokładna, a druga czytelna, i żadna nie zastępuje drugiej.
+     *
+     * Zajętości na dysku tu **nie ma**: wymaga procesu potomnego doglądanego
+     * między klatkami, a ten mechanizm dostał własny krok planu (26). Wiersz
+     * pokazany z wartością „nie wiadomo” byłby gorszy niż jego brak.
+     */
+    private function size(FileStat $stat): DescriptionSection
+    {
+        $rows = [
+            new DescriptionRow('module.file-info.row.size', $this->formatSize($stat->sizeInBytes)),
+            new DescriptionRow(
+                'module.file-info.row.sizeExact',
+                $this->translator->plural('module.file-info.bytes', $stat->sizeInBytes),
+            ),
+        ];
+
+        if ($stat->blocks !== null) {
+            $rows[] = new DescriptionRow(
+                'module.file-info.row.blocks',
+                $this->formatSize($stat->blocks * 512),
+            );
+        }
+
+        return new DescriptionSection('size', 'module.file-info.section.size', $rows);
+    }
+
+    private function permissions(FileStat $stat, bool $withInode): DescriptionSection
+    {
+        $rows = [
+            new DescriptionRow(
+                'module.file-info.row.mode',
+                $stat->permissionsAsText() . '  ' . $stat->permissionsAsOctal(),
+            ),
+            new DescriptionRow('module.file-info.row.owner', $this->principal($stat->ownerName, $stat->ownerId)),
+            new DescriptionRow('module.file-info.row.group', $this->principal($stat->groupName, $stat->groupId)),
+        ];
+
+        if ($withInode) {
+            $rows[] = new DescriptionRow('module.file-info.row.inode', (string) $stat->inode);
+            $rows[] = new DescriptionRow(
+                'module.file-info.row.links',
+                $this->translator->number($stat->links),
+            );
+        }
+
+        return new DescriptionSection('permissions', 'module.file-info.section.permissions', $rows);
+    }
+
+    private function times(FileStat $stat, bool $relative, int $now): DescriptionSection
+    {
+        return new DescriptionSection('times', 'module.file-info.section.times', [
+            new DescriptionRow('module.file-info.row.modified', $this->formatTime($stat->modifiedAt, $relative, $now)),
+            new DescriptionRow('module.file-info.row.changed', $this->formatTime($stat->changedAt, $relative, $now)),
+            new DescriptionRow('module.file-info.row.accessed', $this->formatTime($stat->accessedAt, $relative, $now)),
+        ]);
+    }
+
+    /**
+     * Nazwa właściciela, a przy jej braku sam numer wraz z powodem.
+     *
+     * Pustki nie pokazujemy nigdy: brak nazwy jest informacją o **systemie**
+     * (nie ma rozszerzenia `posix`), a nie o pliku, więc ma być powiedziany
+     * wprost, a nie zgadywany z pustego wiersza.
+     */
+    private function principal(?string $name, int $id): string
+    {
+        if ($name === null) {
+            return $this->translator->translate('module.file-info.principal.numeric', ['id' => $id]);
+        }
+
+        return $this->translator->translate('module.file-info.principal', ['name' => $name, 'id' => $id]);
+    }
+
+    private function formatSize(int $bytes): string
+    {
+        $value = (float) $bytes;
+        $unit = 0;
+
+        while ($value >= 1024.0 && $unit < count(self::SIZE_UNITS) - 1) {
+            $value /= 1024.0;
+            ++$unit;
+        }
+
+        if ($unit === 0) {
+            return $this->translator->number($value) . ' ' . self::SIZE_UNITS[0];
+        }
+
+        return $this->translator->number($value, 1) . ' ' . self::SIZE_UNITS[$unit];
+    }
+
+    /**
+     * Czas bezwzględny albo „ile temu” — wedle ustawienia modułu.
+     *
+     * Zapis bezwzględny idzie **stałym wzorem ISO**, a nie wzorem z katalogu
+     * napisów: data w opisie pliku ma dać się porównać z tym, co pokazuje
+     * powłoka, a nie czytać jak zdanie.
+     */
+    private function formatTime(int $timestamp, bool $relative, int $now): string
+    {
+        if (!$relative) {
+            return date('Y-m-d H:i:s', $timestamp);
+        }
+
+        $seconds = max(0, $now - $timestamp);
+
+        foreach (self::SECONDS_PER_UNIT as [$key, $unit]) {
+            if ($seconds >= $unit) {
+                return $this->translator->plural($key, intdiv($seconds, $unit));
+            }
+        }
+
+        return $this->translator->translate('module.file-info.ago.now');
+    }
+
+    /**
+     * Chwila bieżąca — wyłącznie dla zapisu „ile temu”.
+     *
+     * Zegar klatki tu nie dociera i nie ma potrzeby, żeby docierał: różnica
+     * jednej klatki nie zmienia zdania „3 dni temu”, a przeciąganie czasu przez
+     * trzy warstwy tylko po to kosztowałoby więcej, niż jest warte.
+     */
+    private function now(): int
+    {
+        return time();
     }
 }

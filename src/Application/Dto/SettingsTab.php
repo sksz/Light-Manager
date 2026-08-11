@@ -56,10 +56,19 @@ final class SettingsTab
      * Dokładana **zawsze**, także przy zerze modułów: pusty spis mówi wprost, że
      * mechanizm istnieje, a jego brak kazałby się domyślać, czy moduły są
      * wyłączone, czy nie ma ich w tej wersji wcale.
+     *
+     * Od kroku 21 pierwszym wierszem zakładki jest **moduł domyślny**
+     * (`startupModule`), a spis zaczyna się pod nim. Pozycja stoi tutaj, a nie na
+     * „Wyglądzie”, bo jej wartości to identyfikatory z tego właśnie spisu.
      */
     public static function modules(int $moduleCount = 0): self
     {
-        return new self(SettingsTabKind::Modules, 'settings.tab.modules', moduleCount: $moduleCount);
+        return new self(
+            SettingsTabKind::Modules,
+            'settings.tab.modules',
+            [SettingKey::StartupModule],
+            moduleCount: $moduleCount,
+        );
     }
 
     public static function ofModule(string $moduleId, ModuleSettingsTab $tab): self
@@ -78,7 +87,6 @@ final class SettingsTab
             self::core('settings.tab.appearance', [
                 SettingKey::Language,
                 SettingKey::Theme,
-                SettingKey::ShowHiddenEntries,
             ]),
             self::core('settings.tab.graphics', [
                 SettingKey::TextAntialias,
@@ -100,13 +108,19 @@ final class SettingsTab
         return $this->kind === SettingsTabKind::Core;
     }
 
-    /** Ile pozycji ma zakładka **bez** wiersza czynności. */
+    /**
+     * Ile pozycji ma zakładka **bez** wiersza czynności.
+     *
+     * Spis modułów liczy się razem z pozycją „moduł domyślny”, która stoi nad nim:
+     * kursor ma odwiedzić jedno i drugie, a numeracja wierszy w `SettingsScreen`
+     * bierze się z tej samej liczby.
+     */
     public function itemCount(): int
     {
         return match ($this->kind) {
             SettingsTabKind::Core => count($this->keys),
             SettingsTabKind::Module => count($this->settings),
-            SettingsTabKind::Modules => $this->moduleCount,
+            SettingsTabKind::Modules => count($this->keys) + $this->moduleCount,
         };
     }
 

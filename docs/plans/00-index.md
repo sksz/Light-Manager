@@ -44,7 +44,7 @@ planu:
   powyższe dwa miejsca (zabezpieczenie na wypadek, gdy opis Skilla nie
   dopasuje się do nietypowego polecenia — [00-decyzje.md](00-decyzje.md), D13).
 
-Kroki 05–21 mają się kierować tymi materiałami, nie odtwarzać ustaleń od
+Kroki od 05 wzwyż mają się kierować tymi materiałami, nie odtwarzać ustaleń od
 zera z pamięci.
 
 ## Decyzje wstępne
@@ -67,7 +67,7 @@ Pełne uzasadnienia i odrzucone alternatywy: zobacz [00-decyzje.md](00-decyzje.m
 
 ## Zasady przydziału modelu i wysiłku
 
-- **Każdy krok (01–21):** minimalny wysiłek to **medium** — żaden krok nie
+- **Każdy krok (od 01):** minimalny wysiłek to **medium** — żaden krok nie
   schodzi poniżej tego progu, niezależnie od pozornej prostoty zadania.
 - **Prace projektowe** (ten dokument oraz [00-decyzje.md](00-decyzje.md) —
   czyli utrzymanie samego planu i dziennika decyzji, w odróżnieniu od
@@ -116,7 +116,22 @@ Pełne uzasadnienia i odrzucone alternatywy: zobacz [00-decyzje.md](00-decyzje.m
 | 18 | Komponenty interfejsu i płaszczyzny | [18-komponenty-i-plaszczyzny.md](18-komponenty-i-plaszczyzny.md) | 13, 14, 15, 16, 17 | Opus | high | Ukończony z zastrzeżeniem |
 | 19 | Okno komend | [19-okno-komend.md](19-okno-komend.md) | 18 | Opus | xhigh | Ukończony z zastrzeżeniem |
 | 20 | Moduły (plugins) | [20-moduly-plugins.md](20-moduly-plugins.md) | 14, 15, 18, 19 | Opus | high | Ukończony |
-| 21 | Przeglądarka plików jako moduł domyślny | [21-przegladarka-jako-modul.md](21-przegladarka-jako-modul.md) | 20 | Opus | xhigh | Nie rozpoczęty (plan gotowy) |
+| 21 | Przeglądarka plików jako moduł domyślny | [21-przegladarka-jako-modul.md](21-przegladarka-jako-modul.md) | 20 | Opus | xhigh | Ukończony |
+
+### Faza V — Komponenty rdzenia i rozwój modułów
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 22 | Zwijana sekcja jako komponent rdzenia | [22-zwijana-sekcja.md](22-zwijana-sekcja.md) | 18 | Opus | high | Ukończony |
+| 23 | Pasek postępu z tekstem jako komponent rdzenia | [23-pasek-postepu.md](23-pasek-postepu.md) | 18 | Opus | high | Ukończony |
+| 24 | Podział ekranu: dwa panele w jednym ekranie | [24-podzial-ekranu.md](24-podzial-ekranu.md) | 21 | Opus | xhigh | Ukończony |
+| 25 | Pełny obraz stanu pliku w module `FileInfo` | [25-pelny-obraz-pliku.md](25-pelny-obraz-pliku.md) | 21, 22, 23, 24 | Opus | high | Ukończony z zastrzeżeniem |
+
+### Faza VI — Praca poza klatką
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 26 | Proces tłowy jako mechanizm rdzenia | [26-proces-tlowy.md](26-proces-tlowy.md) | 25 | Opus | high | Nie rozpoczęty |
 
 ### Dokumenty towarzyszące (praca projektowa)
 
@@ -126,8 +141,8 @@ Pełne uzasadnienia i odrzucone alternatywy: zobacz [00-decyzje.md](00-decyzje.m
 
 ## Graf zależności
 
-Kolejność realizacji pokrywa się z numeracją (01…21). Poza prostym
-łańcuchem `01→02→…→21` istnieją węzły zbiegające się z dwóch gałęzi:
+Kolejność realizacji pokrywa się z numeracją (01…26). Poza prostym
+łańcuchem `01→02→…→26` istnieją węzły zbiegające się z dwóch gałęzi:
 
 - **04** (dokumentacja + Skill) zależy od **01, 02 i 03** — potrzebuje
   kompletnej treści całej Fazy I.
@@ -182,6 +197,34 @@ Kolejność realizacji pokrywa się z numeracją (01…21). Poza prostym
   (`ScreenInterface` po raz pierwszy zmienia kształt) i **14** (klucz
   `showHiddenEntries` wychodzi z rdzenia do ustawień modułu).
 
+- **22** (zwijana sekcja) i **23** (pasek postępu) zależą od **18** — stamtąd
+  pochodzi `ComponentInterface`, `ListView` i reguła, że stan przeżywający klatkę
+  mieszka **obok** komponentu, a nie w nim (`ScrollWindow`). Od siebie nawzajem
+  ani od kroków 20–21 **nie zależą**: są komponentami rdzenia i o modułach nie
+  wiedzą. Stoją za nimi wyłącznie w kolejce.
+- **24** (podział ekranu) zależy od **21**, ale **nie tak, jak zakładano przy
+  planowaniu**. Rozstrzygnięcie użytkownika ze startu kroku (D45) postawiło podział
+  **wewnątrz ekranu**, a nie nad nim: widoczny ekran jest nadal jeden, więc
+  `ScreenStack`, `ScreenInterface` i `InputHandler` zostały nietknięte. Wykluczenie
+  z kroku 21 („dwa moduły widoczne naraz”) **zostaje w mocy** — obydwa panele
+  należą do tego samego modułu. Z kroku 21 pochodzi za to zasada, która o kształcie
+  tego kroku przesądziła: moduł sam składa swój interfejs z komponentów rdzenia.
+- **25** (pełny obraz stanu pliku) zależy od **21** z dwóch powodów naraz.
+  Pierwszy jest formalny: `file-info.jump` przeniosła się tam do przeglądarki,
+  więc dopiero po kroku 21 wiadomo, co modułowi `FileInfo` zostaje. Drugi jest
+  istotny: krok 21 jest sprawdzianem kontraktu modułu na **głównej funkcji
+  aplikacji**, a rozbudowywać `FileInfo` warto dopiero na kontrakcie, który ten
+  sprawdzian przeszedł. Zależy ponadto od **22, 23 i 24** — obraz stanu pliku
+  składa się ze zwijanych sekcji, a `du` i `sha256` mówią o sobie paskiem postępu
+  (D43). Odbiorca nie może wyprzedzić tego, co odbiera, i to dlatego krok nosił
+  wcześniej numer 22.
+
+- **26** (proces tłowy) zależy od **25** i to zależność podwójna: stamtąd pochodzi
+  wzorzec pracy kawałkowej (D46) oraz jej **pierwszy odbiorca** — wiersz „zajęte
+  na dysku”, którego krok 25 świadomie nie pokazał, bo nie miał czym go policzyć.
+  Krok powstał **w trakcie** kroku 25, na rozstrzygnięcie użytkownika, który
+  oddzielił odczyt własny (wchodzi od razu) od procesu potomnego (osobny krok).
+
 Żaden krok nie da się sensownie zacząć przed ukończeniem swoich zależności
 z tabel powyżej.
 
@@ -200,9 +243,10 @@ zakończeniu pracy nad krokiem:
 
 ## Zakres poza MVP (do rozważenia w kolejnych iteracjach)
 
-- Operacje na plikach (kopiuj / przenieś / usuń / zmień nazwę / nowy katalog)
+- Operacje na plikach (kopiuj / przenieś / usuń / zmień nazwę / nowy katalog) —
+  krok 24 dowiózł do nich wstęp: dwupanelową przeglądarkę
 - Podgląd plików tekstowych
-- Widok dwupanelowy
+- ~~Widok dwupanelowy~~ — wszedł do planu jako krok **24** (D43)
 - Wyszukiwanie / filtrowanie
 - Zakładki / historia odwiedzonych katalogów
 - Inicjalizacja repozytorium git

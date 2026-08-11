@@ -38,11 +38,14 @@ final class Settings
     /** Poniżej tylu kolorów kwantyzator poświęca odcień obwódki paneli (D27). */
     public const SAFE_PALETTE_COLORS = 64;
 
+    /** Moduł otwierany przy starcie, dopóki konfiguracja nie wskaże innego. */
+    public const DEFAULT_STARTUP_MODULE = 'browser';
+
     /** @param array<string, array<string, bool|int|string>> $modules `id modułu` → klucz → wartość */
     public function __construct(
         public readonly string $language = Language::Auto->value,
         public readonly string $theme = self::DEFAULT_THEME,
-        public readonly bool $showHiddenEntries = false,
+        public readonly string $startupModule = self::DEFAULT_STARTUP_MODULE,
         public readonly bool $textAntialias = false,
         public readonly bool $strokeAntialias = true,
         public readonly int $paletteColors = self::DEFAULT_PALETTE_COLORS,
@@ -55,18 +58,23 @@ final class Settings
      * ignorują kierunek — obie strzałki robią z nich to samo, bo „poprzednie
      * nie” i „następne nie” to ta sama wartość.
      *
-     * @param list<string> $themeNames motywy dostępne w tym uruchomieniu; lista
-     *                                 przychodzi z portu, bo katalog palet zna
-     *                                 wyłącznie warstwa renderowania
+     * @param list<string> $themeNames     motywy dostępne w tym uruchomieniu; lista
+     *                                     przychodzi z portu, bo katalog palet zna
+     *                                     wyłącznie warstwa renderowania
+     * @param list<string> $startupModules identyfikatory modułów z ekranem, przyjętych
+     *                                     w tym uruchomieniu; lista liczona przy
+     *                                     starcie, nie wpisana w kod (krok 21)
      */
-    public function shifted(SettingKey $key, int $direction, array $themeNames): self
+    public function shifted(SettingKey $key, int $direction, array $themeNames, array $startupModules = []): self
     {
         return match ($key) {
             SettingKey::Language => $this->withLanguage(
                 self::next(self::languageCodes(), $this->language, $direction),
             ),
             SettingKey::Theme => $this->withTheme(self::next($themeNames, $this->theme, $direction)),
-            SettingKey::ShowHiddenEntries => $this->withShowHiddenEntries(!$this->showHiddenEntries),
+            SettingKey::StartupModule => $this->withStartupModule(
+                self::next($startupModules, $this->startupModule, $direction),
+            ),
             SettingKey::TextAntialias => $this->withTextAntialias(!$this->textAntialias),
             SettingKey::StrokeAntialias => $this->withStrokeAntialias(!$this->strokeAntialias),
             SettingKey::PaletteColors => $this->withPaletteColors(
@@ -85,9 +93,9 @@ final class Settings
         return $this->copy(theme: $theme);
     }
 
-    public function withShowHiddenEntries(bool $showHiddenEntries): self
+    public function withStartupModule(string $startupModule): self
     {
-        return $this->copy(showHiddenEntries: $showHiddenEntries);
+        return $this->copy(startupModule: $startupModule);
     }
 
     public function withTextAntialias(bool $textAntialias): self
@@ -135,7 +143,7 @@ final class Settings
     {
         return $this->language === $other->language
             && $this->theme === $other->theme
-            && $this->showHiddenEntries === $other->showHiddenEntries
+            && $this->startupModule === $other->startupModule
             && $this->textAntialias === $other->textAntialias
             && $this->strokeAntialias === $other->strokeAntialias
             && $this->paletteColors === $other->paletteColors
@@ -155,7 +163,7 @@ final class Settings
     private function copy(
         ?string $language = null,
         ?string $theme = null,
-        ?bool $showHiddenEntries = null,
+        ?string $startupModule = null,
         ?bool $textAntialias = null,
         ?bool $strokeAntialias = null,
         ?int $paletteColors = null,
@@ -164,7 +172,7 @@ final class Settings
         return new self(
             $language ?? $this->language,
             $theme ?? $this->theme,
-            $showHiddenEntries ?? $this->showHiddenEntries,
+            $startupModule ?? $this->startupModule,
             $textAntialias ?? $this->textAntialias,
             $strokeAntialias ?? $this->strokeAntialias,
             $paletteColors ?? $this->paletteColors,

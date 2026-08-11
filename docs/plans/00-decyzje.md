@@ -1947,3 +1947,358 @@ w `TextInput` (okno komend musiałoby trzymać go stale włączonym); przeniesie
 biała lista znaków w argumentach polecenia `file`; podawanie kontekstu ekranowi
 dopiero po zmianie zaznaczenia; `exec()` zachowany w narzędziu opisującym plik
 (limit czasu bez możliwości przerwania procesu jest limitem tylko z nazwy).
+
+## Decyzje z realizacji kroku 21 (2026-08-10)
+
+### D42 — Przeglądarka jako moduł: trzy strefy ekranu, wyjątek przedstawiający się sam i dno stosu z konfiguracji
+
+**Dotyczy:** kroku 21 (pełna treść: sekcje „Rozstrzygnięcia wykonawcze ze startu
+kroku” i „Odstępstwa od planu” w [21-przegladarka-jako-modul.md](21-przegladarka-jako-modul.md)).
+
+**Decyzja** — osiem rozstrzygnięć wykonawczych podjętych przez użytkownika na
+starcie kroku i dziesięć odstępstw wynikłych z otwarcia edytora. Warte
+odnotowania poza samą listą są cztery:
+
+- **Górny pas klatki jest polem ekranu, a nie stałym paskiem ścieżki.** Plan
+  pytał, co widać na ekranie pomocy i ustawień po tym, jak rdzeń straci katalog;
+  użytkownik odwrócił pytanie: pas ma być **strefą do obsłużenia przez moduł**,
+  a każdy ekran stawia w nim to, co ma własnego — przeglądarka ścieżkę wraz
+  z numerem zaznaczenia, pomoc nazwę i wersję aplikacji, ustawienia położenie
+  pliku konfiguracyjnego. Klatka nie zmienia przez to kształtu na żadnym ekranie,
+  a zasada „rdzeń rysuje wyłącznie to, co ekran zamówił” obowiązuje bez wyjątku.
+  Odrzucono: znikanie strefy na ekranach rdzenia (zmiana wyglądu) i wypełnianie
+  jej przez rdzeń z kontekstu sesji (rdzeń rysowałby coś, czego nikt nie zamówił).
+- **Wyjątek modułu przedstawia się sam** — nowy interfejs
+  `Domain\Exception\DescribesProblem` (klucz katalogu plus parametry). Problemu
+  nie było w planie, a blokował główne kryterium kroku: `ProblemPresenter`
+  rozpoznawał wyjątki **po klasie** i wymieniał dwa wyjątki katalogu, więc rdzeń
+  wciąż wiedziałby, czym jest katalog. Reguła ze SKILL-a obowiązuje odtąd
+  wyłącznie dla wyjątków rdzenia. Odrzucono: nową zdolność modułu (kryterium
+  kroku mówiło wprost, że kontrakt nie ma urosnąć) oraz łapanie własnych wyjątków
+  przez moduł (krok 20 ustalił odwrotnie — wyjątek modułu jedzie istniejącą
+  obsługą w `InputHandler`).
+- **Wybór dna stosu wyszedł z `Bootstrapu` do `StartupScreen`.** Cztery drogi
+  awaryjne (moduł domyślny wyłączony, odrzucony, nieobecny, bez ekranu) to cztery
+  komunikaty i cztery testy, a `Bootstrap` nie daje się wywołać bez terminala
+  i Imagicka. Komunikat mówi o **jednej** przyczynie i nie musi zgadywać, bo
+  przypadki się nie nakładają: moduł nieobecny na liście nie ma jak być wyłączony,
+  a wyłączony nie jest przez rejestr sprawdzany, więc nie ma jak być odrzucony.
+- **Moduł może mieć własne komponenty, a przeglądarka składa się sama.**
+  `PathLine` powstał, bo ścieżkę skraca się od lewej, a `Label::fit()` ucina
+  koniec — postawiony w komponentach rdzenia przywróciłby mu `DirectoryPath`.
+  `PreviewBox` powstał, bo ekran pytany o strefy **przed** podziałem okna nie wie,
+  czy pas podglądu powstanie; liczenie podglądu dopiero przy rysowaniu odtwarza
+  dawne zachowanie co do taktu. `BrowserModule` buduje repozytorium, przypadki
+  użycia, ekran i komendę sam — inaczej `Bootstrap` poznałby
+  `FilesystemDirectoryRepository` i `DirectoryPath` — a robi to **leniwie**, bo
+  napisy modułu wchodzą do katalogu dopiero po zbudowaniu rejestru i moduł
+  składany zachłannie wypisałby użytkownikowi surowy klucz.
+
+Ponadto: **stary klucz `showHiddenEntries` jest przepisywany raz** do
+`modules.browser.showHidden`, wbrew regule kroku 14 o milczącym pomijaniu
+nieznanych kluczy — ceną są trzy stałe, przez które usługa konfiguracji zna nazwę
+jednego modułu; **`FileInfo` zostaje przy `ProvidesCommands` z pustą listą**, bo
+moduł ma się rozrastać (krok 25, wtedy numerowany jako 22 — D43); **klawisze
+przeglądarki przeniosły się w oknie
+pomocy** z ogólnego spisu na jej własną zakładkę i jest to jedyne miejsce,
+w którym przenosiny widać w interfejsie.
+
+**Uzasadnienie:** dwie rzeczy sprawdziły się same z siebie i warto to zapisać.
+**Kontrakt modułu z kroku 20 udźwignął główną funkcję aplikacji bez jednej nowej
+metody** — a to był cały sprawdzian tego kroku; zmienił się wyłącznie kontrakt
+ekranu, i to było w planie (D40, P6). **`ChangeModuleSettingUseCase` udźwignął
+ustawienie zmieniane klawiszem**, w środku klatki, wraz z ponownym odczytem
+katalogu: `shift()` napisany dla strzałki na ekranie ustawień obsłużył `.`
+w przeglądarce bez różnicy. Plan kazał zapisać, gdyby nie udźwignął — udźwignął.
+
+**Odrzucone alternatywy:** kontrakt stref jako pięć metod bliższych dzisiejszemu
+kształtowi (`headerLabelKey()`, `drawHeader()`, `usesPreview()`…); katalog modułu
+w polu ekranu zamiast w osobnym `BrowserState` (komenda `browser.jump` zależałaby
+od ekranu, a publikacja kontekstu miałaby dwa wejścia); milczące pominięcie
+starego klucza `showHiddenEntries`; jeden ogólny komunikat „moduł nie mógł zostać
+uruchomiony” zamiast czterech konkretnych; `FileInfo` tracący `ProvidesCommands`
+po oddaniu komendy skoku; rozbudowa `FileInfo` w tym samym kroku, co przenosiny
+(krok 21 zmienia naraz kontrakt ekranu, warstwę domeny, stan pętli, stos ekranów,
+bootstrap i konfigurację — siódma zmienna zamieniłaby błąd w jednym w błąd
+udający drugi; rozbudowa dostała numer 22).
+
+### D43 — Pełny obraz pliku wymusza trzy komponenty rdzenia: przenumerowanie kroków 22–25
+
+**Dotyczy:** kroków 22, 23, 24 i 25 (pełna treść: [22-zwijana-sekcja.md](22-zwijana-sekcja.md),
+[23-pasek-postepu.md](23-pasek-postepu.md), [24-podzial-ekranu.md](24-podzial-ekranu.md),
+[25-pelny-obraz-pliku.md](25-pelny-obraz-pliku.md)).
+
+**Data:** 2026-08-10.
+
+**Decyzja** — dziewięć rozstrzygnięć użytkownika na starcie kroku „pełny obraz
+stanu pliku” (P1–P9 w [25-pelny-obraz-pliku.md](25-pelny-obraz-pliku.md)), z których
+**trzy wyszły poza moduł** i przewróciły kolejność planu.
+
+Rozstrzygnięcia dotyczące samego modułu:
+
+- **Wchodzą wszystkie cztery źródła**: `stat`/`lstat`, dowiązanie symboliczne,
+  `du` i `sha256` — obok istniejącego `file`. `sha256` wchodzi mimo zastrzeżenia
+  planu („koszt rośnie z rozmiarem pliku bez ograniczenia”), ale **za
+  przełącznikiem domyślnie wyłączonym i z konfigurowalnym limitem rozmiaru**.
+- **`du` i `sha256` liczą się w tle, a praca tłowa zostaje prywatną sprawą
+  modułu.** Kontrakt modułu z kroku 20 **nie rośnie** — i to jest sprawdzian
+  kroku 25, tak samo jak dla kroku 21 był nim kontrakt nietknięty przez główną
+  funkcję aplikacji. Odrzucono: twardy limit czasu z blokowaniem klatki
+  (`du` na katalogu domowym kończyłby się przerwaniem, nie wynikiem) oraz nową
+  zdolność kontraktu (krok 20 wykluczał „moduł działający w tle” wprost, więc
+  byłoby to rozszerzenie zakresu, a nie zapełnienie luki).
+- **Moduł zaczyna opisywać także katalogi.** Bez tego `du` traci połowę sensu.
+- **Wolne źródło ma wiersz od pierwszej klatki, z wartością „liczę…”.** Układ
+  ekranu nie skacze, a użytkownik widzi różnicę między „liczy się” a „nie da się
+  policzyć”. Odrzucono: wiersz pojawiający się dopiero z wynikiem (rosnąca lista
+  przesuwa treść pod kursorem przewijania).
+- **`Bootstrap` przestaje wiązać wnętrze `FileInfo`** — moduł składa się sam
+  i leniwie, jak `BrowserModule` po kroku 21. Spłaca to dług zapisany wprost
+  w dzienniku kroku 21 („do wyrównania przy okazji rozbudowy”).
+
+**Trzy rozstrzygnięcia, które wyszły poza moduł** — i to one są istotą tego
+wpisu:
+
+- **Zwijana sekcja jest komponentem rdzenia**, nie modułu (krok 22). Pytanie planu
+  brzmiało „sekcje czy jeden strumień wierszy”; użytkownik wybrał sekcje
+  **zwijane** i od razu wskazał ich miejsce. Pierwszy prawdziwy użytkownik już
+  istnieje i nie jest nim `FileInfo`: spis klawiszy w oknie pomocy grupuje wiersze
+  po ekranach i po dołożeniu modułów urósł ponad wysokość okna.
+- **Pasek postępu z tekstem jest komponentem rdzenia** (krok 23), a `du`
+  i `sha256` mają nim mówić o sobie. Komponent powstaje **przed** swoim
+  użytkownikiem i jest to świadoma cena; osłoną są testy przypadków brzegowych
+  i scenariusz `bin/render-bench` dowożone w tym samym kroku.
+- **Podział ekranu jest komponentem rdzenia** (krok 24), w znaczeniu
+  najmocniejszym z trzech przedstawionych: **dwa niezależne ekrany widoczne
+  naraz, każdy z własnym `handle()`**. Znosi to wykluczenie z kroku 21 („dwa
+  moduły widoczne naraz”) i wyjmuje „widok dwupanelowy” z listy „Zakres poza
+  MVP”. Odrzucono: sam komponent układu ze stałą granicą oraz granicę ruchomą
+  bez niezależnych ekranów.
+
+**Skutek dla numeracji: kroki zostały przenumerowane.** „Pełny obraz stanu pliku”
+nosił numer 22; komponenty, których jest odbiorcą, dostały 22, 23 i 24, a on sam
+— **25**. Zasada z [00-index.md](00-index.md), że kolejność realizacji pokrywa się
+z numeracją, zostaje przez to prawdziwa; precedens jest dwukrotny (D9, D35).
+Odrzucono: zostawienie numeru 22 i dopisanie komponentów jako 23–25 wykonywanych
+przed nim — numeracja przestałaby wtedy znaczyć kolejność, a jedynym miejscem
+mówiącym prawdę byłby graf zależności.
+
+**Skutek dla podziału na kroki:** trzy komponenty to **trzy osobne kroki**, nie
+jeden. Każdy ma własny kontrakt, własny pomiar klatki i własne testy, a krok 18
+pokazał, że zmiana kilku kontraktów naraz jest tym rodzajem zmiany, w której błąd
+w jednym udaje błąd w drugim (stąd jego status „Ukończony z zastrzeżeniem”).
+
+**Uzasadnienie kolejności:** krok 25 czeka na **wszystkie trzy** komponenty, także
+na podział ekranu, mimo że opis pliku mógłby się bez niego obejść. Powód podał
+użytkownik: opis może użyć podziału (sekcje po lewej, coś innego po prawej),
+a wtedy `FileInfo` jest użytkownikiem wszystkich trzech i żaden nie powstaje na
+domysł. Gdyby z podziału ostatecznie nie skorzystał, dziennik kroku 25 ma
+powiedzieć wprost, że zależność była wyłącznie kolejnościowa.
+
+## Decyzje z realizacji kroku 23 (2026-08-10)
+
+### D44 — Pasek postępu: takt bez wymuszania, zegar dla ekranu i pierwszy użytkownik `Weight::Fill`
+
+**Dotyczy:** kroku 23 (pełna treść: [23-pasek-postepu.md](23-pasek-postepu.md)).
+
+**Data:** 2026-08-10.
+
+**Decyzja** — pięć rozstrzygnięć, z których **dwa ostatnie postawił kod, a nie
+plan**.
+
+Rozstrzygnięcia użytkownika przed otwarciem edytora:
+
+- **Postęp nieznany rysuje się wędrującym wypełnieniem** — odcinek szerokości
+  ¼ toru, trójkątna fala, 1,2 s w jedną stronę. Odrzucono pulsujące tło:
+  wymagałoby półcieni, a klatka bez bitmapy zawiera dziś wyłącznie czyste kolory
+  motywu i na tym stoi szybka ścieżka palety (D34, D37). Odrzucono też sam tekst
+  bez ruchu — pasek, który stoi, czyta się jako zawieszony.
+- **Tor rysuje się rolą `Surface`, wypełnienie `Accent`, napis `Background` na
+  wypełnieniu i `Text` poza nim.** Paleta nietknięta; nowa rola znaczyłaby nowy
+  kolor w każdym z czterech motywów i jeden wpis więcej w liczonej palecie (D37).
+- **Pasek wypełnia prostokąt, który dostał** — nie ma własnej wysokości, więc nie
+  wystawia `height()`. Napis stoi wyśrodkowany w środkowym wierszu, a zbyt długi
+  kończy się wielokropkiem przez istniejące `Label::fit()`.
+- **Liczbę procent dokłada pasek**, nie wołający. To czyni `ProgressBar`
+  **pierwszym komponentem znającym tłumacza** — dotąd napisy tłumaczyły ekrany
+  i okna, a komponenty dostawały gotowe. Port jest opcjonalny i jego brak znaczy
+  zapis surowy, dokładnie dla jednego wołającego: `ScenarioFactory`, którego treść
+  nie przechodzi przez katalog z rozmysłu (D33).
+
+**Rozstrzygnięcie o takcie klatki postawił stan pętli, a nie wybór.** Plan
+przewidywał trzy drogi (pętla rysuje zawsze / ekran mówi „jestem żywy” /
+pasek nie wymusza nic) i kazał wybrać po przeczytaniu kodu. Kod pokazał, że
+pierwsza z nich **obowiązuje od kroku 09**: `GameLoop` przerysowuje klatkę
+w każdym takcie, niezależnie od tego, czy cokolwiek się zmieniło. Wymuszanie nie
+ma więc czego wymuszać i `GameLoop` zostaje **nietknięty**. Zostało pytanie,
+którego plan nie zadał: **skąd ekran bierze zegar**. Odpowiedź — istniejącym
+`NeedsTime`, o który `FrameComposer` zaczyna pytać także ekran, tą samą drogą
+i w tym samym miejscu, co `ReadsContext`. `ScreenInterface` **nie rośnie po raz
+drugi od kroku 18**, bo `NeedsTime` jest interfejsem deklarowanym osobno.
+
+Cena zapisana wprost: element ruchomy z założenia **nie trafia do pamięci
+podręcznej wierszy** (D34) — jego wiersz jest w każdej klatce inny. Dlatego pasek
+dostał własny scenariusz pomiaru, a nie doklejkę do istniejącego.
+
+**Pomiar znalazł błąd starszy od tego kroku.** Pierwszy przebieg pokazał
+scenariusz `progress` kosztujący **85,3 ms**, z czego 73,4 ms samo rysowanie —
+czterokrotność najdroższej dotąd klatki. Powód: `Weight::Fill` szedł przez
+`ImagickDraw::drawImage()`, którego koszt zależy od **wielkości płótna, a nie
+kształtu** — czyli wpadał w pułapkę opisaną trzy metody niżej w tym samym pliku
+(krok 17, dźwignia 5; krok 18, krawędź zaznaczenia, +17 ms). Nie zauważono tego
+wcześniej, bo **`Weight::Fill` nie miał w aplikacji ani jednego użytkownika**:
+pasek zaznaczenia rysuje się `RoundRect`iem, przegroda w pasku stanu włosem,
+krawędź zaznaczenia krawędzią. Pasek postępu jest pierwszym i od razu trafił na
+minę. Naprawa jest tą samą, którą projekt stosuje od kroku 17: bitmapa
+z `RowBitmapCache` składana przez `compositeImage()`. Wynik: **85,3 → 23,5 ms**,
+rysowanie 73,4 → 11,5 ms, przy nietkniętych pikselach (zrzut przed i po co do
+znaku ten sam).
+
+Wniosek szerszy niż jeden prymityw: **gałąź kodu bez użytkownika nie jest
+zmierzona, choćby leżała w najlepiej rozliczonym pliku projektu.** Reguła 13
+(„żaden komponent bez prawdziwego użytkownika”) mówiła dotąd o projektowaniu API
+na domysł; ten krok pokazuje jej drugą stronę — o wydajności takiej gałęzi też
+nic nie wiadomo.
+
+**Świadome złamanie reguły 13.** `ProgressBar` powstaje przed swoim prawdziwym
+odbiorcą (krok 25: `du` i `sha256`) — plan przewidział to wprost i nazwał osłonę:
+21 testów przypadków brzegowych oraz scenariusz pomiaru, dowiezione w tym samym
+kroku. Zapisano w `SKILL.md` jako **jawny wyjątek, nie precedens**: następny
+komponent bez użytkownika wymaga takiej samej zgody, a nie powołania się na ten.
+Ta sama uwaga dotyczy `NeedsTime` na ekranie — ścieżka ma dziś wyłącznie
+użytkownika testowego i istnieje po to, żeby krok 25 miał czym poruszyć pasek.
+
+## Decyzje z realizacji kroku 24 (2026-08-10)
+
+### D45 — Podział ekranu należy do modułu: dwa panele w jednym ekranie, oprawa w płaszczyźnie spodniej
+
+**Dotyczy:** kroku 24 (pełna treść: [24-podzial-ekranu.md](24-podzial-ekranu.md)).
+
+**Data:** 2026-08-10.
+
+**Decyzja** — podział ekranu **nie znosi zasady „jeden ekran naraz”**, tylko
+dzieli prostokąt **wewnątrz** ekranu. To rozstrzygnięcie użytkownika ze startu
+kroku i zdejmuje ono z planu dwie trzecie zakresu.
+
+Pytanie brzmiało: „podział włączony, ognisko po prawej, naciskasz `F1` — gdzie
+pojawi się pomoc?”. Odpowiedź: **„zastąpić ekran, na którym jest podział; `F1`
+zastępuje całość i rysuje swoją treść ekranu”**, wraz z regułą ogólniejszą:
+**„każdy moduł sam definiuje, jak ma wyglądać jego interfejs z dostępnych
+komponentów”**. Wynika z tego wszystko pozostałe:
+
+- **Rdzeń nie wie o podziale.** `ScreenStack` ma nadal dno i jedno piętro,
+  `ScreenInterface` ma nadal sześć metod, `InputHandler` oddaje klawisz jednemu
+  ekranowi, `LoopState` i `HudLayout` są nietknięte, a w `Settings` nie przybył
+  ani jeden klucz. Plan przewidywał zmiany we wszystkich tych miejscach.
+- **Rdzeń wnosi klocek, nie mechanizm**: `Split` (geometria dwóch prostokątów,
+  obie osie, progi czytelności 72 kolumny i 14 wierszy) oraz `SplitState` (trzecia
+  klasa stanu między klatkami, po `ScrollWindow` i `SectionState`).
+- **Podział jest ustawieniem modułu**, w podprzestrzeni `modules.browser`, a nie
+  kluczem rdzenia. Przełącznikiem, a nie wyborem z listy, bo wartości wyboru ekran
+  ustawień pokazuje surowo — „vertical” zostałoby w polskim interfejsie po
+  angielsku.
+- **Ognisko nie przekracza granicy ekranu**, więc rozważany wcześniej `NeedsFocus`
+  **nie powstał**. Wewnątrz ekranu wędrówkę klawisza obsługuje `FocusableInterface`,
+  który istnieje od kroku 18.
+- **Pierwszym i jedynym użytkownikiem jest przeglądarka**: dwa niezależne katalogi,
+  dwa kursory, `Tab` między nimi. Reguła 13 jest spełniona bez wyjątku — inaczej
+  niż w kroku 23.
+
+**Jeden wyłom był konieczny i ma własny interfejs.** Użytkownik wybrał **dwie
+osobne ramki** jako sposób pokazania ogniska, a to znaczy, że rdzeń musi
+**przestać** oprawiać strefę środkową: wie o jednej strefie i nie wie, który panel
+jest czynny. Powstał `Presentation\Ui\DrawsOwnFrame` — osobny interfejs
+z **metodą**, bo odpowiedź zależy od ustawień i od szerokości okna. `ScreenInterface`
+nie urósł po raz trzeci (po krokach 18 i 21), a wybór drogi „osobny interfejs
+zamiast metody w kontrakcie” jest powtórzeniem rozstrzygnięcia, które użytkownik
+podjął w tej samej rozmowie przy `NeedsFocus`.
+
+**Pomiar wymusił drugą wersję tego interfejsu i to jest najcenniejsza treść
+kroku.** Pierwsza wersja odpowiadała `bool` i kazała ekranowi rysować oprawę
+w `draw()`, czyli na płaszczyźnie **treści**. Klatka podzielona kosztowała wtedy
+**62,2 ms** przy budżecie 33 ms. Rozbiór przez usuwanie prymitywów pokazał, że
+**dwie obwódki to 27 ms** — obrys z wygładzaniem idzie przez
+`ImagickDraw::drawImage()`, którego koszt zależy od wielkości płótna, a nie
+kształtu. Nikt tego wcześniej nie zmierzył, bo obwódki rysowały się **wyłącznie na
+płaszczyźnie spodniej**, pamiętanej między klatkami — w tabeli pomiaru pokazywały
+się jako 0,0 ms.
+
+Poprawka nie tknęła renderera: metoda **oddaje prymitywy**, a `FrameComposer`
+kładzie je na płaszczyźnie spodniej. Klatka spadła z 62,2 do 25,0 ms przy zrzucie
+piksel w piksel takim samym. Stąd reguła zapisana w `architecture.md`
+i w `SKILL.md`: **co się między klatkami nie zmienia, należy do płaszczyzny
+spodniej — niezależnie od tego, kto to narysował.**
+
+To jest druga z rzędu decyzja, w której pomiar znalazł koszt ukryty za pamięcią
+podręczną (poprzednia: D44, `Weight::Fill`). Wspólny mianownik obu: **gałąź, która
+dotąd wykonywała się raz na uruchomienie, po przeniesieniu do klatki kosztuje
+tyle, ile nikt nie sprawdził.**
+
+## Decyzje z realizacji kroku 25 (2026-08-10)
+
+### D46 — Praca dłuższa od klatki: kawałek na klatkę, na żądanie, z właścicielem — a proces potomny osobnym krokiem
+
+**Dotyczy:** kroków 25 i 26 (pełna treść:
+[25-pelny-obraz-pliku.md](25-pelny-obraz-pliku.md), [26-proces-tlowy.md](26-proces-tlowy.md)).
+
+**Data:** 2026-08-10.
+
+**Decyzja** — praca, która nie mieści się w jednej klatce, dzieli się na kawałki
+po jednym na klatkę, a **proces potomny w tle dostaje własny krok planu**.
+
+Rozstrzygnięcie użytkownika ze startu kroku 25 brzmiało: *„`hash_init()` +
+`hash_update_stream()` w procesie w tle, który przekazuje dane do procesu
+głównego. Komponent procesu robimy jako osobny krok planu. Teraz jedynie własny
+odczyt po kawałku.”* Rozcina to pracę tłową na dwie i obie mają inną naturę:
+
+- **odczyt własny** (`sha256`) — dzieje się w procesie aplikacji, kawałkami
+  w klatce; zna postęp co do bajta, przerywa się zamknięciem uchwytu i nie ma
+  czego osierocić przy wyjściu. **Wchodzi w kroku 25.**
+- **proces potomny** (`du`) — dzieje się poza aplikacją; postępu nie zna, wymaga
+  doglądania, przerywania i sprzątania po sobie przy wyjściu z aplikacji.
+  **Wchodzi w kroku 26.**
+
+Skutek dla kroku 25 jest bolesny i zapisany wprost: **wiersza „zajęte na dysku”
+nie ma wcale**, choć P1 planu żądał wszystkich czterech źródeł. Pokazanie go
+z wartością, której nie ma jak policzyć, byłoby gorsze niż jego brak. Razem z nim
+przesunęły się dwie pozycje ustawień.
+
+**Wzorzec pracy kawałkowej** — trzy części, wszystkie obowiązkowe:
+
+1. **Port mówi o pracy, a nie o wyniku.** Nie ma `checksum(path): string` — są
+   `begin()`, `advance($bytes)` i `stop()`. Kształt kontraktu wymusza to, że
+   wynik nie jest dostępny od razu, więc nikt nie napisze przypadkiem kodu, który
+   na niego czeka.
+2. **Stan pracy jest daną oglądaną co klatkę** (`ChecksumState`: etap, ułamek,
+   wynik albo powód niepowodzenia). To z niej bierze się wypełnienie paska
+   postępu — i dlatego postęp jest **prawdziwy**. Ten sam argument przesądził
+   o odrzuceniu `sha256sum` jako procesu potomnego: polecenie nie mówi o sobie
+   nic, aż skończy, więc pasek chodziłby w trybie „nie wiadomo ile jeszcze”
+   akurat dla źródła, które postęp zna z natury.
+3. **Praca ma właściciela, który ją przerywa** — `FileInfoState`, przy zmianie
+   zaznaczenia i przy `reset()`.
+
+**Praca zaczyna się na żądanie, nie sama z siebie** (rozstrzygnięcie nr 7).
+Zaznaczenie zmienia się przy przewijaniu trzydzieści razy na sekundę; praca
+uruchamiana odruchowo byłaby trzydziestoma pracami przerwanymi w tej samej
+sekundzie. Wiersz stoi więc od pierwszej klatki z podpowiedzią, którym klawiszem
+go policzyć — co jest zarazem **odstępstwem od P5** („wiersz z wartością
+«liczę…»”), wprowadzonym świadomie: „liczę…” bez liczenia byłoby nieprawdą.
+
+**Trzy porty zamiast jednego** (rozstrzygnięcie nr 1): każdy prosi o dokładnie to,
+czego potrzebuje. `describe()` przyjmuje limit czasu i argumenty, bo za nim stoi
+proces, który potrafi się zawiesić; `stat()` nie przyjmuje ani jednego i nie ma
+po co ich znać.
+
+**Skutek dla kroków 22–24, i to jest najcenniejsza treść tego wpisu.** Sekcje,
+pasek postępu i podział ekranu powstały osobno, każdy z własnym pomiarem, a pasek
+**bez użytkownika w aplikacji** — świadome złamanie reguły 13, zapisane wtedy
+jako jawny wyjątek (D44). Krok 25 złożył wszystkie trzy w jednym ekranie i **nie
+wymagał ani jednej poprawki w rdzeniu**. To jest dowód, którego tamte kroki nie
+mogły dostarczyć same, i zarazem miara tego, ile wolno projektować na domysł:
+trzy klocki naraz — tak, ale tylko dlatego, że każdy miał wcześniej rozpisany
+kontrakt i pomiar.
+
+**Dług z kroku 21 spłacony i pilnowany maszynowo.** `Bootstrap` widzi z każdego
+modułu wyłącznie jego klasę główną, a sprawdza to nowy test w
+`CoreKnowsNothingAboutFilesTest`.

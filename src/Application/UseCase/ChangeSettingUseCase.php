@@ -26,10 +26,20 @@ use LightManager\Domain\ValueObject\Message;
  */
 final class ChangeSettingUseCase
 {
+    /**
+     * @param list<string> $startupModules identyfikatory modułów z ekranem, przyjętych
+     *                                     w tym uruchomieniu — jedyne dopuszczalne
+     *                                     wartości klucza `startupModule` (krok 21).
+     *                                     Lista przychodzi z zewnątrz, bo powstaje
+     *                                     dopiero z rejestru modułów; motywy mają na
+     *                                     to swój port, moduły portu nie mają i mieć
+     *                                     nie muszą — to zwykłe napisy
+     */
     public function __construct(
         private readonly SettingsPort $settings,
         private readonly ThemePort $themes,
         private readonly TranslatorPort $translator,
+        private readonly array $startupModules = [],
     ) {
     }
 
@@ -40,7 +50,7 @@ final class ChangeSettingUseCase
      */
     public function execute(Settings $current, SettingKey $key, int $direction): array
     {
-        $changed = $current->shifted($key, $direction, $this->themes->names());
+        $changed = $current->shifted($key, $direction, $this->themes->names(), $this->startupModules);
 
         if ($changed->equals($current)) {
             return [$current, null];

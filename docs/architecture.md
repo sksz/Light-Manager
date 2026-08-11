@@ -17,13 +17,9 @@ podgląd systemu plików w terminalu.
 
 ```
 src/
-├── Domain/
-│   ├── Aggregate/       # korzenie agregatów (encje z tożsamością)
-│   ├── ValueObject/     # niemutowalne wartości, w tym natywne enum'y
-│   ├── Repository/      # interfejsy repozytoriów (bez implementacji)
-│   ├── Service/         # serwisy domenowe (obecnie: brak — zarezerwowane)
-│   ├── Event/           # zdarzenia domenowe (obecnie: brak — zarezerwowane)
-│   └── Exception/       # wyjątki domenowe
+├── Domain/              # od kroku 21 **słownik powłoki terminalowej**, nie plików
+│   ├── ValueObject/     # Message, MessageTone, Preview, RendererMode, ScrollPosition
+│   └── Exception/       # korzeń hierarchii, trzy wyjątki klatki, DescribesProblem
 ├── Application/
 │   ├── UseCase/         # przypadki użycia orkiestrujące Domain przez Porty
 │   ├── Ui/              # klatka, płaszczyzna, prymitywy, geometria (krok 18)
@@ -32,7 +28,6 @@ src/
 │   ├── Dto/             # obiekty transferu danych wejście/wyjście
 │   └── Port/             # interfejsy portów wyjściowych
 ├── Infrastructure/
-│   ├── Filesystem/      # implementacje repozytoriów Domain
 │   ├── Terminal/        # implementacje portów terminala
 │   ├── Rendering/       # implementacje portu renderowania
 │   ├── Imagick/         # adaptery na bibliotekę Imagick
@@ -52,10 +47,20 @@ src/
                          # komendy rdzenia (Command/)
 
 src/Module/              # moduły (krok 20) — po katalogu na moduł
-└── FileInfo/
-    ├── Application/     # UseCase/, Port/, Dto/ modułu
-    ├── Infrastructure/  # usługi modułu (Singletony na zasadach rdzenia)
-    ├── Presentation/    # klasa modułu, jego ekran, jego komendy
+├── Browser/             # menadżer plików: moduł domyślny i ostatniej szansy
+│   ├── Domain/          # Directory, DirectoryPath, Entry, EntryType, Selection,
+│   │                    # repozytorium katalogów, cztery wyjątki katalogu
+│   ├── Application/     # sześć przypadków użycia nawigacji i podglądu
+│   ├── Infrastructure/  # FilesystemDirectoryRepository, EntryComparator
+│   ├── Presentation/    # BrowserModule, BrowserScreen, BrowserState,
+│   │                    # Component/ (PathLine, PreviewBox), Command/ (jump)
+│   └── lang/            # napisy modułu (pl.php, en.php)
+└── FileInfo/            # pełny obraz stanu wpisu (krok 25)
+    ├── Application/     # Dto/ (FileStat, sekcje, stan sumy), Port/ (inspektor,
+    │                    # stat, suma kontrolna), UseCase/ (opis, miniatura)
+    ├── Infrastructure/  # FileInspectorService, FileStatService, ChecksumService
+    ├── Presentation/    # FileInfoModule, FileInfoScreen, FileInfoState,
+    │                    # Component/ (PreviewPane)
     └── lang/            # napisy modułu (pl.php, en.php)
 ```
 
@@ -63,7 +68,23 @@ src/Module/              # moduły (krok 20) — po katalogu na moduł
 którego rdzeń nie ma prawa sięgnąć inaczej niż przez kontrakt modułu. Moduł
 powtarza wewnątrz podział rdzenia, ale **katalog warstwy pustej po prostu nie
 powstaje** — `FileInfo` nie ma własnego słownika domenowego, więc nie ma
-katalogu `Domain/`.
+katalogu `Domain/`. Jego `Application/Dto` opisuje za to **wynik wywołania
+systemowego** (`FileStat`), a nie regułę biznesową, i to jest różnica między
+danymi a domeną.
+
+**Moduł może mieć własną warstwę `Domain/`** (krok 21) i przeglądarka plików
+jest pierwszym, który ją ma: `Directory` wraz z całym słownikiem katalogu zszedł
+tam z rdzenia. Wyjątki takiego modułu **dziedziczą dalej po rdzeniowym
+`DomainException`** — korzeń hierarchii zostaje w rdzeniu, bo to on ją łapie —
+ale poza tym korzeniem domena modułu nie widzi domeny rdzenia. Może za to
+zadeklarować `Domain\Exception\DescribesProblem` i podać klucz zdania dla
+użytkownika; bez tego `ProblemPresenter` musiałby znać jej klasy z nazwy.
+
+**Rdzeń nie wie, czym jest katalog ani wpis w systemie plików** i pilnuje tego
+test chodzący po przestrzeniach nazw (`CoreKnowsNothingAboutFilesTest`).
+`Domain/` rdzenia jest przez to chudy — pięć obiektów wartości i hierarchia
+wyjątków — i **to nie jest niedopatrzenie**: to słownik powłoki terminalowej,
+czyli tego, czym aplikacja jest po odjęciu wszystkich modułów.
 
 **Reguła zależności** — strzałki tylko „do środka”:
 
@@ -93,6 +114,10 @@ typ z `Presentation`:
 | `Application/Module` | `ModuleInterface`, `ModuleShortcut`, `ModuleContext`, `ContextEntryKind`, `ModuleSettingsTab`, `ModuleSetting`, `ModuleSettingKind`, `ProvidesSettingsTab`, `ProvidesCommands`, `ModuleRegistry`, `ModuleRejection` |
 | `Presentation/Ui/Module` | `ProvidesScreen`, `ProvidesHelpTab`, `ReadsContext` |
 
+**Kontrakt modułu nie zyskał w kroku 21 ani jednej metody.** Przeglądarka plików
+— główna funkcja aplikacji — weszła w niego takim, jaki wyszedł z kroku 20, i to
+był jego sprawdzian.
+
 Powód podziału jest ten sam, co przy komendach: interfejs opisany
 w `Application`, który wymieniałby `ScreenInterface`, sięgałby po klasę z warstwy
 leżącej **na zewnątrz** niego. Stąd też skrót modułu jest daną (`ModuleShortcut`),
@@ -101,23 +126,30 @@ porównać dwa skróty, nie widząc `Presentation`.
 
 ## 2. Słownik domenowy (ubiquitous language)
 
+Domena **rdzenia** — słownik powłoki, w której moduły się rysują:
+
 | Termin (PL) | Identyfikator | Blok DDD | Katalog | Opis |
 |---|---|---|---|---|
-| Ścieżka katalogu | `DirectoryPath` | Value Object | `Domain/ValueObject` | Zwalidowana, bezwzględna ścieżka; rzuca `InvalidDirectoryPathException`. |
-| Wpis | `Entry` | Value Object | `Domain/ValueObject` | Niemutowalny opis elementu katalogu (nazwa, `EntryType`, rozmiar). |
-| Rodzaj wpisu | `EntryType` | Value Object (`enum`) | `Domain/ValueObject` | `Directory` \| `File`. |
-| Zaznaczenie | `Selection` | Value Object | `Domain/ValueObject` | Nieujemny indeks zaznaczonego `Entry`. |
-| Katalog | `Directory` | **Agregat, Encja** | `Domain/Aggregate` | Tożsamość = `DirectoryPath`. Agreguje `Entry` i `Selection`; mutowalny w miejscu (encje ≠ Value Objects). |
 | Tryb renderowania | `RendererMode` | Value Object (`enum`) | `Domain/ValueObject` | `Sixel` \| `TextFallback`. |
 | Komunikat | `Message` | Value Object | `Domain/ValueObject` | Treść paska stanu wraz z tonem; `marked()` dokleja znak wiodący. |
 | Ton komunikatu | `MessageTone` | Value Object (`enum`) | `Domain/ValueObject` | `Info` \| `Warning` \| `Error`; każdy ma własny znak (`·`, `!`, `×`). |
 | Położenie okna | `ScrollPosition` | Value Object | `Domain/ValueObject` | Pierwszy widoczny wpis, liczba widocznych i liczba wszystkich — wejście do suwaka. |
 | Podgląd miniatury | `ThumbnailPreview` | Value Object | `Domain/ValueObject` | Wygenerowana miniatura (dane + wymiary); `null` = brak podglądu. |
 
-Od kroku 18 (D36) **`Domain` nie zna już słownictwa rysowania**. Klatka,
-wiersz, styl wiersza i okienko wyprowadziły się stamtąd: klatka do
-`Application/Ui`, reszta zniknęła na rzecz komponentów i prymitywów. Domena
-menadżera plików opisuje pliki, katalogi i zaznaczenie — nie to, jak wyglądają.
+Domena **modułu przeglądarki** — słownik katalogu, od kroku 21 poza rdzeniem:
+
+| Termin (PL) | Identyfikator | Blok DDD | Katalog | Opis |
+|---|---|---|---|---|
+| Ścieżka katalogu | `DirectoryPath` | Value Object | `Module/Browser/Domain/ValueObject` | Zwalidowana, bezwzględna ścieżka; rzuca `InvalidDirectoryPathException`. |
+| Wpis | `Entry` | Value Object | `Module/Browser/Domain/ValueObject` | Niemutowalny opis elementu katalogu (nazwa, `EntryType`, rozmiar). |
+| Rodzaj wpisu | `EntryType` | Value Object (`enum`) | `Module/Browser/Domain/ValueObject` | `Directory` \| `File`. |
+| Zaznaczenie | `Selection` | Value Object | `Module/Browser/Domain/ValueObject` | Nieujemny indeks zaznaczonego `Entry`. |
+| Katalog | `Directory` | **Agregat, Encja** | `Module/Browser/Domain/Aggregate` | Tożsamość = `DirectoryPath`. Agreguje `Entry` i `Selection`; mutowalny w miejscu (encje ≠ Value Objects). |
+
+Od kroku 18 (D36) **`Domain` nie zna słownictwa rysowania**, a od kroku 21 — także
+słownictwa plików. Pierwsze wyprowadziło się do `Application/Ui` i do komponentów,
+drugie do modułu przeglądarki. Zostało to, co przeżywa każdą zmianę modułów:
+komunikat, podgląd, tryb renderowania i położenie okna listy.
 
 ### Słownik interfejsu (od kroku 18)
 
@@ -128,11 +160,16 @@ menadżera plików opisuje pliki, katalogi i zaznaczenie — nie to, jak wygląd
 | Prymityw | `Primitive` | Application | `Application/Ui/Primitive` | Kształt gotowy do narysowania: `TextRun`, `RoundRect`, `CornerBrackets`, `Bar`, `Bitmap`, `Scrollbar`. Zamknięty słownik. |
 | Rola koloru | `Role` | Application | `Application/Ui` | Rola motywu (tło, obwódka, akcent, …). Prymityw niesie rolę, nie kolor. |
 | Prostokąt | `Rect` | Application | `Application/Ui` | Obszar w **siatce znakowej**; piksele zaczynają się dopiero w rendererze. |
-| Komponent | `ComponentInterface` | Presentation | `Presentation/Ui` | Element interfejsu, który rysuje się w zadanym prostokącie: `Panel`, `Label`, `ListView`, `Tabs`, `Choice`, `Toggle`, `Button`, `Dialog`, `StatusBar`, `ImageBox`, `Spacer`. |
+| Komponent | `ComponentInterface` | Presentation | `Presentation/Ui` | Element interfejsu, który rysuje się w zadanym prostokącie: `Panel`, `Label`, `ListView`, `SectionList`, `ProgressBar`, `Tabs`, `Choice`, `Toggle`, `Button`, `Dialog`, `StatusBar`, `ImageBox`, `Spacer`. |
+| Zwijana sekcja | `Section`, `SectionList` | Presentation | `Presentation/Ui/Component` | Grupa wierszy z etykietą i znacznikiem `▼`/`▶`. `Section` jest **daną** (jak `ListRow`), `SectionList` — komponentem: spłaszcza sekcje do wierszy, wycina okno i oddaje rysowanie `ListView`owi. Sekcje przewijają się **jak jedna lista**, więc wycinanie okna musi widzieć je wszystkie naraz. |
+| Podział | `Split`, `SplitAxis` | Presentation | `Presentation/Ui` | Dzieli prostokąt na dwa i oddaje je dwojgu dzieciom, wzdłuż osi pionowej albo poziomej. **Nie tworzy drugiego ekranu** — widoczny ekran jest nadal jeden, a `F1`, `F2` i skrót modułu zastępują go razem z podziałem. Progi (`MINIMUM_COLUMNS`, `MINIMUM_ROWS`) mają tę samą naturę, co progi wysokości w `HudLayout`: mówią, co się jeszcze da czytać, a nie co się mieści. |
+| Pasek postępu | `ProgressBar` | Presentation | `Presentation/Ui/Component` | Wypełniany tor z napisem w środku, w **dwóch trybach**: postęp znany (wypełnienie od lewej plus liczba procent) i nieznany (odcinek wędrujący tam i z powrotem, **bez liczby**). Tor rysuje się rolą `Surface`, wypełnienie `Accent`, a napis zmienia rolę tam, gdzie przechodzi przez wypełnienie. |
 | Kontener | `VStack`, `Slot` | Presentation | `Presentation/Ui/Container` | Rozdziela miejsce między dzieci; `Slot` niesie rozmiar minimalny, preferowany i kolejność ustępowania. |
 | Kursor | `FocusableInterface` | Presentation | `Presentation/Ui` | Komponent przyjmujący klawisze; `handle()` oddaje `bool`, więc nieobsłużony klawisz wędruje wyżej. |
 | Wiązanie klawisza | `KeyBinding` | Presentation | `Presentation/Ui` | Klawisz wraz z kluczem opisu — jedno źródło dla obsługi, podpowiedzi w stopce i spisu w pomocy. |
-| Ekran | `ScreenInterface` | Presentation | `Presentation/Ui` | Treść środkowego panelu wraz z obsługą klawiszy. Ścieżka, pasek stanu i pas podglądu należą do rdzenia. |
+| Ekran | `ScreenInterface` | Presentation | `Presentation/Ui` | Treść **trzech stref** klatki wraz z obsługą klawiszy: górnego pasa (`header()`), środkowego panelu (`draw()`) i pasa podglądu (`preview()`). Rdzeniowi zostają oprawa stref i pasek stanu. |
+| Strefa ekranu | `ScreenZone` | Presentation | `Presentation/Ui` | Zamówienie strefy skrajnej: klucz etykiety obwódki plus komponent z treścią. `null` znaczy „strefa nie powstaje, jej wiersze idą do środka”. |
+| Kontekst sesji | `ModuleContext` | Application | `Application/Module` | Gdzie użytkownik stoi i co ma zaznaczone — **dane pierwotne** (napis, napis, enum). Publikuje go ten, kto zna bieżące miejsce; czyta każdy ekran z `ReadsContext`. |
 | Okno nakładane | `OverlayInterface` | Presentation | `Presentation/Ui` | Płaszczyzna **nad** ekranem, która sama mówi, gdzie stanąć, i **zużywa albo przepuszcza** klawisz. Przepuszczony trafia wyłącznie do klawiszy globalnych — nigdy do ekranu pod spodem. |
 | Karetka | `TextInput` | Presentation | `Presentation/Ui/Component` | Miejsce wpisywania **wewnątrz** komponentu — w odróżnieniu od kursora, który wędruje **między** komponentami. |
 | Komenda | `CommandInterface` | Application | `Application/Command` | Czynność wywoływana po nazwie wraz z deklaracją argumentów. Nazwa nosi przestrzeń właściciela (`core.*`), a wynik wskazuje ekran **identyfikatorem**, bo `Application` nie widzi `ScreenInterface`. |
@@ -142,6 +179,112 @@ zależności: **komponent wie, jak wyglądać; prymityw jest tym, co z tej wiedz
 zostaje po przekroczeniu portu**. Renderery leżą w `Infrastructure` i
 implementują port z `Application`, więc nie wolno im zobaczyć klasy
 z `Presentation` — a prymityw musi być dla nich widoczny.
+
+#### Stan żyjący między klatkami
+
+**Komponent jest bezstanowy i powstaje na nowo w każdej klatce**, więc nie
+zapamięta niczego, co użytkownik zrobił przed chwilą. Co ma przeżyć klatkę,
+mieszka **obok** komponentu, a właścicielem jest ekran:
+
+| Klasa | Katalog | Co pamięta | Od kroku |
+|---|---|---|---|
+| `ScrollWindow` | `Presentation/Ui` | Który wycinek listy jest widoczny i jak podąża za kursorem. | 18 |
+| `SectionState` | `Presentation/Ui` | Które sekcje są zwinięte i na której stoi kursor. | 22 |
+| `SplitState` | `Presentation/Ui` | Który panel podziału jest czynny — wraz z regułą, że wyłączony podział sprowadza ognisko na pierwszy. | 24 |
+
+Obie mają tę samą metodę `useContext(string)` i to nie jest przypadek: zmiana
+kontekstu — inny katalog, inna zakładka, inny opisywany plik — zaczyna oglądanie
+od początku. `SectionState` trzyma przy tym zwinięcie **pod kluczem sekcji, a nie
+pod jej numerem**, żeby sekcja, która zniknęła z listy i wróciła, wróciła w tym
+samym stanie.
+
+#### Element żyjący własnym rytmem a takt pętli (od kroku 23)
+
+Niektóre elementy zmieniają wygląd **bez udziału użytkownika**: karetka mruga,
+a wypełnienie paska postępu wędruje. Reguła jest jedna i ma dwie części.
+
+**Nikt nie wymusza przerysowania, bo nie ma czego wymuszać.** Pętla główna
+rysuje klatkę w każdym takcie — 30 razy na sekundę — niezależnie od tego, czy
+cokolwiek się zmieniło, i tak jest od kroku 09. Element ruchomy nie potrzebuje
+więc żadnej ścieżki „obudź pętlę”: wystarczy, że w kolejnej klatce narysuje się
+inaczej. Gdyby pętla kiedykolwiek zaczęła oszczędzać klatki przy bezruchu, to
+**ta** zmiana musiałaby przynieść taką ścieżkę ze sobą — i rozliczyć ją wobec
+elementów ruchomych, a nie odwrotnie.
+
+**Zegar przychodzi z zewnątrz, nigdy z `microtime()` w środku.** Czas klatki zna
+pętla i tylko ona (`LoopState::tick()`); do elementu wędruje przez
+`Presentation\Ui\NeedsTime` — interfejs deklarowany osobno, jak `Resettable`,
+więc ekran i okno bez ruchomej treści nie deklarują niczego. Składanie klatki
+pyta o niego **ekran** i **okno nakładane**, zawsze przed narysowaniem. Powód
+jest testowy: `microtime()` w komponencie zamieniłby ruch w coś, czego nie da się
+sprawdzić bez czekania, a tak test podaje własną chwilę i ogląda element
+w dowolnym miejscu cyklu.
+
+Cena jest jedna i trzeba ją znać: **element ruchomy z założenia nie trafia do
+pamięci podręcznej wierszy** (D34) — jego wiersz jest w każdej klatce inny, więc
+rasteryzuje się od nowa. Dlatego pasek postępu ma własny scenariusz pomiaru.
+
+#### Jeden ekran, dwa panele (od kroku 24)
+
+Podział ekranu **nie znosi zasady „jeden ekran naraz”** i to jest jego
+najważniejsze rozstrzygnięcie. `ScreenStack` ma nadal dno i jedno piętro nad nim,
+`ScreenInterface` ma nadal sześć metod, a `InputHandler` nadal oddaje klawisz
+jednemu ekranowi. Podział dzieje się **wewnątrz** ekranu: `F1`, `F2` i skrót
+modułu zastępują go w całości, razem z oboma panelami.
+
+Wynika z tego reguła własności: **podział należy do modułu, nie do rdzenia.**
+Rdzeń daje klocek (`Split`) i pamięć ogniska (`SplitState`); to, czy dwa panele
+w ogóle powstaną, co w nich stoi i którym klawiszem chodzi ognisko, rozstrzyga
+ekran — a ustawienia podziału leżą w podprzestrzeni modułu, nie w kluczach
+rdzenia.
+
+Jeden wyjątek od podziału obowiązków musiał przy tym powstać i ma własny
+interfejs: **`Presentation\Ui\DrawsOwnFrame`**. Rdzeń rysuje obwódki stref (reguła
+kroku 21), ale ekran podzielony potrzebuje **dwóch** obwódek zamiast jednej,
+a rdzeń nie wie, który panel jest czynny, więc nie ma czym pokazać ogniska.
+Ekran deklarujący ten interfejs dostaje **cały** prostokąt strefy i oddaje własną
+oprawę; odpowiedź zależy od ustawień i od szerokości okna, więc jest metodą,
+a nie samą deklaracją klasy. `ScreenInterface` zostaje przez to nietknięty po raz
+trzeci — tą samą drogą, którą idą `Resettable`, `ReadsContext` i `NeedsTime`.
+
+**Metoda oddaje prymitywy, a nie rysuje na miejscu, i to jest w niej
+najważniejsze.** Rdzeń kładzie je na płaszczyźnie **spodniej** — tej samej, którą
+renderer pamięta między klatkami (krok 17, dźwignia 4). Powód jest zmierzony,
+a nie estetyczny: obwódka z wygładzanym obrysem kosztuje **około 13 ms**, więc
+dwie ramki rysowane co klatkę zabierały 27 ms z 33 ms budżetu. Po przeniesieniu
+na płaszczyznę spodnią kosztują tyle, co pierwsza klatka po zmianie — a pamięć
+odświeża się sama, bo podpis płaszczyzny obejmuje każdy prymityw: przeniesienie
+ogniska albo zmiana katalogu zmienia podpis i oprawa powstaje na nowo raz.
+
+Zasada ogólniejsza, którą to wyraża: **wszystko, co między klatkami się nie
+zmienia, należy do płaszczyzny spodniej — niezależnie od tego, kto to narysował.**
+
+#### Praca dłuższa od klatki (od kroku 25)
+
+Pętla główna nie ma prawa czekać. Wszystko, co trwa dłużej niż jedna klatka —
+liczenie sumy kontrolnej, przejście po drzewie katalogów — dzieli się więc na
+kawałki, a jeden kawałek przypada na klatkę. Wzorzec ma trzy części i wszystkie
+trzy są obowiązkowe:
+
+1. **Port mówi o pracy, a nie o wyniku.** Nie ma metody `checksum(path): string`
+   — są `begin()`, `advance($bytes)` i `stop()`. Kształt kontraktu wymusza to,
+   że wynik nie jest dostępny od razu.
+2. **Stan pracy jest daną, którą ekran ogląda co klatkę** (`ChecksumState`:
+   etap, ułamek, wynik albo powód niepowodzenia). To z niej bierze się wypełnienie
+   paska postępu — i dlatego postęp jest **prawdziwy**, a nie udawany.
+3. **Praca ma właściciela, który ją przerywa.** Stan modułu (`FileInfoState`)
+   zatrzymuje ją przy zmianie zaznaczenia i przy `reset()`. Bez tego przewinięcie
+   listy zostawiałoby za sobą tyle otwartych plików, ile pozycji minięto.
+
+**Praca zaczyna się na żądanie, nie sama z siebie.** Zaznaczenie zmienia się przy
+przewijaniu trzydzieści razy na sekundę, a praca uruchamiana odruchowo byłaby
+wtedy trzydziestoma pracami przerwanymi w tej samej sekundzie. Wiersz stoi więc
+od pierwszej klatki z podpowiedzią, którym klawiszem go policzyć.
+
+Praca w **procesie potomnym** podlega tym samym trzem regułom, ale dokłada
+czwartą — sprzątanie przy wyjściu z aplikacji, bo osierocony potomek przeżywa
+proces, który go uruchomił. Mechanizmu tego jeszcze nie ma: dostał własny krok
+planu (26), a do tego czasu opis pliku nie pokazuje zajętości na dysku.
 
 ## 3. Wzorzec Singleton, porty i bootstrap
 
@@ -219,8 +362,10 @@ infrastruktury i nie różnią się niczym od usług rdzenia.
 | `SettingsPort` | `Config\SettingsService` | Tak | Tak — kolejność 3, **przed** rendererem |
 | `ThemePort` | `Rendering\ThemeService` | Tak | Nie — leniwa inicjalizacja |
 
-`Domain/Repository`: `DirectoryRepositoryInterface` → `FilesystemDirectoryRepository`
-(nie jest portem aplikacyjnym, lecz domenową abstrakcją dostępu do danych).
+`Module/Browser/Domain/Repository`: `DirectoryRepositoryInterface` →
+`Module/Browser/Infrastructure/FilesystemDirectoryRepository` (nie jest portem
+aplikacyjnym, lecz domenową abstrakcją dostępu do danych — i od kroku 21 należy
+do modułu, nie do rdzenia).
 
 **Motyw i układ** (krok 13): kolory interfejsu opisane rolami żyją w
 `Infrastructure/Rendering/Theme`, wydawane przez `ThemeService`; podział okna na
@@ -249,13 +394,18 @@ trakcie** działania pętli:
    i wynik `save()`), który warstwa wyżej stawia w pasku stanu. `ConfigException`
    istnieje, ale żyje wyłącznie wewnątrz `Infrastructure/Config`.
 
-**Klatka i ekrany** (krok 14): `FrameRendererPort::render()` dostaje `Frame`
-**wraz z** `FrameLayout`. Wcześniej renderer liczył układ po raz drugi, po swojej
-stronie; od kroku 14 rozminąłby się z warstwą aplikacji na pewno, bo o kształcie
-stref decyduje pokazywany ekran (`Application/Dto/Screen`), którego renderer sam
-z siebie nie zna. Ekran ustawień i pomocy podmieniają wyłącznie środkowy panel —
-mają własną etykietę i przejmują wiersze pasa podglądu, bo miniatura nie ma tam
-czego pokazywać.
+**Klatka i strefy** (kroki 14, 18 i 21): przez port przechodzi sam `Frame` —
+stos płaszczyzn — a podział okna na strefy liczy `HudLayout` po stronie
+`Presentation`. O tym, które strefy w ogóle powstaną, decyduje **pokazywany
+ekran**: `header()` i `preview()` oddające `?ScreenZone`. Strefa niezamówiona nie
+dostaje ani jednego wiersza, a jej miejsce zabiera lista.
+
+Do kroku 20 pasek ścieżki i pas podglądu rysował rdzeń, bo miał czym: katalog
+leżał w stanie pętli. Krok 21 zabrał mu ten katalog, więc obie strefy przeszły do
+ekranu razem z danymi, z których powstają. Rdzeniowi zostały **oprawa i stopka** —
+obwódki, nawiasy narożne, etykiety stref oraz pasek stanu z komunikatem
+i podpowiedziami klawiszy globalnych. Ekran nie rysuje ramek i nie zna motywu od
+tej strony.
 
 Nie każdy Singleton musi implementować port. Usługa używana wyłącznie wewnątrz
 `Infrastructure` — jak `Imagick/ImagickCapabilityService`, odpowiadająca na
@@ -285,6 +435,26 @@ final class Bootstrap
 Usługa trafia do `Bootstrap::boot()` tylko, gdy jej konstruktor ma efekt
 uboczny wymagany przed pętlą gry (np. wejście w tryb raw terminala).
 Pozostałe usługi inicjalizują się leniwie przy pierwszym `getInstance()`.
+
+**Dno stosu ekranów** (krok 21) przestało być wpisane w kod. Wskazuje je klucz
+rdzenia `startupModule`, którego dopuszczalne wartości pochodzą **z rejestru
+modułów** — to pierwszy klucz konfiguracji, którego zakresu nie zna się w czasie
+pisania kodu. Wybór robi `Presentation\Cli\StartupScreen`; `Bootstrap` podaje mu
+wyłącznie identyfikator **modułu ostatniej szansy** (`LAST_RESORT_MODULE`), a ten
+moduł:
+
+- jest sprawdzany przez rejestr **pierwszy**, więc przy kolizji skrótu odrzucony
+  zostaje ten drugi moduł,
+- **nie da się go wyłączyć** — przełącznik na zakładce „Moduły” stoi, ale mówi
+  tylko, dlaczego nie działa,
+- przejmuje dno w czterech przypadkach: moduł domyślny wyłączony, odrzucony,
+  nieobecny na liście albo bez ekranu. Każdy z nich ma **własny komunikat**, bo
+  każdy prowadzi do innej poprawki.
+
+Nazwa modułu ostatniej szansy stoi w `Bootstrap`, a nie w `ModuleRegistry`:
+warstwa `Application/Module` nie zna nazwy żadnego konkretnego modułu. Jego brak
+na liście modułów jest **błędem programistycznym**, nie sytuacją użytkownika —
+kończy się wyjątkiem i łapie go test.
 
 **Reset w testach** — wyłącznie przez Reflection, zero publicznego API w
 kodzie produkcyjnym: trait `tests/Support/ResetsSingletons` zeruje
@@ -350,6 +520,16 @@ klasy.
   wnoszą (`Provides…`) albo czego potrzebują (`Reads…`). Komenda modułu, która
   dostaje stan pętli, leży w jego `Presentation/Command` — tą samą zasadą, którą
   komendy rdzenia leżą w `Presentation/Cli/Command`, a nie w `Application`.
+  Moduł może mieć **własne komponenty** w swoim `Presentation/Component` (krok 21:
+  `PathLine`, `PreviewBox`), gdy element interfejsu zna typ jego domeny —
+  postawiony w katalogu komponentów rdzenia przywróciłby rdzeniowi wiedzę, którą
+  właśnie mu odebrano. Słownik prymitywów zostaje przy tym **zamknięty**: komponent
+  modułu składa się z komponentów rdzenia, a nie z nowych kształtów.
+- **Wyjątki modułu** (krok 21) dziedziczą po rdzeniowym `DomainException`
+  i mogą zadeklarować `Domain\Exception\DescribesProblem` — parę „klucz katalogu
+  plus parametry”, z której `ProblemPresenter` składa zdanie dla użytkownika.
+  Rozpoznawanie po klasie zostaje wyłącznie dla wyjątków rdzenia; wyjątek modułu
+  przedstawia się sam, bo rdzeń nie ma prawa znać jego nazwy.
 - PHPDoc tylko tam, gdzie typy PHP nie wystarczają (kształt kolekcji:
   `list<Entry>`). Komentarze tylko dla nieoczywistego „dlaczego”.
 

@@ -27,6 +27,11 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
    P2): dane i rejestr w `Application/Module`, zdolności wymieniające typy
    z `Presentation/Ui` — w `Presentation/Ui/Module`. Stąd `ModuleShortcut` jest
    daną, a nie `KeyBinding`iem: rejestr żyje w `Application`.
+   **Rdzeń nie wie, czym jest katalog ani wpis w systemie plików** (krok 21, D42):
+   cała domena plikowa leży w `src/Module/Browser/`, a pilnuje tego
+   `CoreKnowsNothingAboutFilesTest`. `Domain/` rdzenia jest przez to chudy —
+   `Message`, `MessageTone`, `Preview`, `RendererMode`, `ScrollPosition` plus
+   hierarchia wyjątków — i **tak ma być**: to słownik powłoki terminalowej.
 2. **`Domain` nigdy nie odwołuje się do Singletonów ani do żadnej biblioteki
    zewnętrznej** (Imagick, `pcntl`, terminal). Musi dać się testować bez
    I/O.
@@ -68,6 +73,10 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
    **Wyjątek infrastruktury nie przekracza granicy portu** — jeśli
    `Application` ma się o awarii dowiedzieć, port oddaje ją opisem
    (`?string`, DTO wyniku), a nie rzuca (krok 14, `SettingsPort`).
+   **Wyjątek modułu przedstawia się sam** (krok 21): dziedziczy po rdzeniowym
+   `DomainException` i deklaruje `Domain\Exception\DescribesProblem` — klucz
+   katalogu plus parametry. Rozpoznawanie po klasie w `ProblemPresenter` zostaje
+   wyłącznie dla wyjątków rdzenia, bo rdzeń nie ma prawa znać nazw modułu.
 9. Testy w `tests/`, lustrzane wobec `src/`. `Domain`/`Application`:
    testy jednostkowe obowiązkowe, zero I/O. Reset Singletonów w testach
    wyłącznie przez `tests/Support/ResetsSingletons` (Reflection) — nigdy
@@ -81,21 +90,80 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     klawiszy globalnych, nigdy do ekranu pod spodem (krok 19). Płaszczyznę
     takiego okna składa się z `opaque: true` — **warstwa ma zakrywać to, co pod
     nią**, a `Panel` rysuje samą obwódkę, bez tła.
+11a. **Komponent jest bezstanowy** — powstaje na nowo w każdej klatce, więc co ma
+    przeżyć klatkę, mieszka **obok** niego, a właścicielem jest ekran. Dwie takie
+    klasy: `Presentation\Ui\ScrollWindow` (wycinek listy, krok 18) i
+    `Presentation\Ui\SectionState` (zwinięcia i kursor sekcji, krok 22). Obie mają
+    `useContext(string)` — zmiana kontekstu zaczyna oglądanie od początku —
+    a `SectionState` trzyma zwinięcie **pod kluczem sekcji, nie pod numerem**, żeby
+    sekcja znikająca i wracająca wracała w tym samym stanie. Zwijana sekcja to
+    para `Section` (dana, jak `ListRow`) i `SectionList` (komponent, spłaszcza
+    i wycina okno, rysowanie oddaje `ListView`owi); `ListView` sekcji nie zna.
+11b. **Element zmieniający się sam z siebie niczego nie wymusza** (krok 23) —
+    pętla rysuje klatkę w **każdym** takcie (30 kl./s), niezależnie od tego, czy
+    coś się zmieniło, więc wystarczy, że w następnej klatce narysuje się inaczej.
+    Zegar bierze **z zewnątrz**, nigdy z `microtime()` w środku: czas klatki zna
+    `LoopState`, a niesie go `Presentation\Ui\NeedsTime` — interfejs deklarowany
+    osobno, jak `Resettable`, o który `FrameComposer` pyta **ekran i okno
+    nakładane**, zawsze przed rysowaniem. Dwaj użytkownicy: karetka w `TextInput`
+    i wędrujące wypełnienie `ProgressBar`. Cena, którą trzeba znać: taki element
+    z założenia **nie trafia do pamięci podręcznej wierszy** (D34), więc każda
+    zmiana z nim związana rozlicza się osobnym scenariuszem pomiaru.
+11c. **Podział ekranu nie znosi zasady „jeden ekran naraz”** (krok 24, D45).
+    `Split` (komponent, dwie osie) i `SplitState` (trzecia klasa stanu między
+    klatkami, po `ScrollWindow` i `SectionState`) dzielą prostokąt **wewnątrz**
+    ekranu; `ScreenStack`, `ScreenInterface` i `InputHandler` zostają nietknięte,
+    a `F1`/`F2`/skrót modułu zastępują ekran razem z podziałem. **Podział należy
+    do modułu**: rdzeń daje klocek, moduł rozstrzyga, czy i jak go użyć, a jego
+    ustawienia leżą w podprzestrzeni `modules.<id>`. Jedyny wyłom w zasadzie
+    „ekran nie rysuje ramek” to `Presentation\Ui\DrawsOwnFrame` — ekran podzielony
+    potrzebuje dwóch obwódek, a rdzeń nie wie, który panel jest czynny; deklaracja
+    jest osobnym interfejsem z **metodą** (odpowiedź zależy od ustawień i od
+    szerokości okna), więc kontrakt ekranu nie rośnie po raz trzeci. Metoda
+    **oddaje prymitywy, a nie rysuje**: rdzeń kładzie je na płaszczyźnie spodniej,
+    bo obwódka z wygładzanym obrysem kosztuje ~13 ms i dwie ramki rysowane co
+    klatkę zabierały 27 ms z 33 ms budżetu (zmierzone). Reguła ogólna: **co się
+    między klatkami nie zmienia, należy do płaszczyzny spodniej — niezależnie od
+    tego, kto to narysował.**
+11d. **Praca dłuższa od klatki dzieli się na kawałki po jednym na klatkę**
+    (krok 25, D46). Trzy części, wszystkie obowiązkowe: **port mówi o pracy, nie
+    o wyniku** (`begin()`/`advance($bytes)`/`stop()`, nigdy `checksum(path)`);
+    **stan pracy jest daną oglądaną co klatkę** (etap, ułamek, wynik albo powód —
+    stąd bierze się wypełnienie `ProgressBar`); **praca ma właściciela, który ją
+    przerywa** przy zmianie kontekstu i przy `reset()`. Praca zaczyna się
+    **na żądanie**, bo zaznaczenie zmienia się przy przewijaniu 30 razy na
+    sekundę. Proces potomny dokłada do tego sprzątanie przy wyjściu z aplikacji
+    i **jeszcze go nie ma** — czeka na krok 26.
 11. **Nowy element interfejsu to nowy komponent w `Presentation/Ui/Component`**,
     a nie nowa metoda w rendererze. Komponent oddaje prymitywy z ról motywu i
     prostokątów w siatce znakowej — pikseli nie zna. Słownik prymitywów jest
     **zamknięty**; jego rozszerzenie to obowiązek dla obu rendererów naraz i
-    wymaga zgody użytkownika.
-12. **Żaden komponent nie powstaje bez prawdziwego użytkownika w aplikacji**
+    wymaga zgody użytkownika. Komponent znający typ domeny **modułu** leży
+    w `Presentation/Component` tego modułu, nie w katalogu rdzenia (krok 21:
+    `PathLine`, `PreviewBox`).
+12. **Ekran rysuje trzy strefy, nie jedną** (krok 21, D42): `header()`
+    i `preview()` oddają `?ScreenZone` — klucz etykiety obwódki plus komponent
+    z treścią — a `null` znaczy „strefa nie powstaje, jej wiersze idą do środka”.
+    Rdzeniowi zostają **oprawa stref i pasek stanu**; ekran nie rysuje ramek —
+    z jednym wyjątkiem, którym jest ekran podzielony (`DrawsOwnFrame`, reguła 11c).
+    Zasada kroku 20 „moduł dostaje środkowy panel i nic poza nim” **nie
+    obowiązuje**. `headerSuffix()` i `usesPreview()` nie istnieją.
+13. **Żaden komponent nie powstaje bez prawdziwego użytkownika w aplikacji**
     (krok 18, P5) — komponent pokryty samym testem to API zaprojektowane na
     domysł. Ta sama zasada odsunęła podpowiadanie ścieżek z kroku 19 do 20:
     rodzaj `SuggestionSource::OnDemand` jest zadeklarowany, ale pierwszą
     implementację wnosi komenda modułu.
-13. PHPStan `level: max`. Zamiast obniżać poziom — punktowy
+    **Jeden jawny wyjątek, świadomy i nazwany w planie: `ProgressBar`** (krok 23)
+    — jego prawdziwym odbiorcą jest dopiero krok 25 (`du`, `sha256`). Osłoną są
+    testy przypadków brzegowych i scenariusz `progress` w `bin/render-bench`.
+    To **nie jest precedens**: następny komponent bez użytkownika wymaga takiej
+    samej jawnej zgody, a nie powołania się na ten.
+14. PHPStan `level: max`. Zamiast obniżać poziom — punktowy
     `@phpstan-ignore-line` z komentarzem uzasadniającym.
-14. **Nowa funkcja to moduł w `src/Module/`, nie zmiana w rdzeniu** (krok 20).
+15. **Nowa funkcja to moduł w `src/Module/`, nie zmiana w rdzeniu** (krok 20).
     Moduł powtarza wewnątrz podział na warstwy (katalog warstwy pustej nie
-    powstaje), a reguła zależności zyskuje jedną strzałkę:
+    powstaje) i **może mieć własną warstwę `Domain/`** (krok 21 — przeglądarka
+    plików ma), a reguła zależności zyskuje jedną strzałkę:
     `Module → Presentation → Application → Domain`. Dwa zakazy ponad to: moduł
     **nigdy** nie sięga do `Infrastructure` rdzenia inaczej niż przez port
     i **nigdy** nie sięga do innego modułu. Klasa modułu to **zwykły obiekt**
@@ -105,6 +173,26 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     Dopisanie modułu ma kosztować **jedną zmianę w rdzeniu**: pozycję na liście
     w `Bootstrap`. Jeśli kosztuje więcej — to jest błąd do naprawienia, a nie
     powód, żeby dotknąć rdzenia.
+16. **Dno stosu ekranów wskazuje konfiguracja, nie kod** (krok 21, D42). Klucz
+    rdzenia `startupModule` bierze wartości **z rejestru modułów**, a wybór robi
+    `Presentation\Cli\StartupScreen`. `Bootstrap` podaje mu identyfikator
+    **modułu ostatniej szansy** (`LAST_RESORT_MODULE = 'browser'`): sprawdzanego
+    przez rejestr pierwszym, niewyłączalnego i przejmującego dno w czterech
+    przypadkach — moduł domyślny wyłączony, odrzucony, nieobecny albo bez ekranu
+    — każdy z własnym komunikatem. `Application/Module` nie zna nazwy żadnego
+    konkretnego modułu i nie ma jej poznać.
+17. **Przed pomiarem i przed oglądaniem klatki poproś o zwolnienie maszyny.**
+    Każdy krok zmieniający potok rysowania rozlicza klatkę `bin/render-bench`
+    „przed i po” (od kroku 16), a wygląd sprawdza się w prawdziwym terminalu.
+    Jedno i drugie **wymaga spokojnej maszyny**: przed uruchomieniem
+    `bin/render-bench` (zwłaszcza z `--save` albo `--compare`) oraz przed
+    zrzutami ekranu i sprawdzeniem klatki pod XTermem poproś użytkownika
+    o zatrzymanie zadań zjadających procesor — kompilacji, kontenerów,
+    przeglądarki — i **poczekaj na potwierdzenie**. Narzędzie ma własnego
+    strażnika: rozrzut powyżej 1,35× oznacza wiersz z „!” i **odmowę zapisu
+    wzorca**. W kroku 22 odmówiło czterokrotnie i wzorzec trzeba było odłożyć,
+    więc to nie jest ostrożność teoretyczna. Wyniki z obciążonej maszyny nie
+    trafiają do `docs/pomiary/` ani do dziennika kroku.
 
 ## Nazewnictwo (skrót)
 
@@ -121,7 +209,8 @@ więc muszą być widoczne dla `Infrastructure`. Wartości opisujące
 `SettingsCursor`, `Language`) leżą w `Application/Dto`. Kontrakt modułu —
 `ModuleInterface`, `ModuleShortcut`, `ModuleContext`, `ModuleSetting`,
 `ModuleRegistry` i spółka — w `Application/Module`; zdolności `ProvidesScreen`,
-`ProvidesHelpTab` i `ReadsContext` w `Presentation/Ui/Module`. Klasa modułu ma
+`ProvidesHelpTab` i `ReadsContext` w `Presentation/Ui/Module`. `ScreenZone`
+(zamówienie strefy skrajnej) — w `Presentation/Ui`, obok `ScreenInterface`. Klasa modułu ma
 sufiks `Module` i leży w warstwie `Presentation` swojego katalogu; jego komenda,
 skoro dostaje stan pętli, leży w `Presentation/Command` modułu. Komendy — kontrakt, argumenty, parser
 wiersza, rejestr i historia — w `Application/Command`; komendy rdzenia

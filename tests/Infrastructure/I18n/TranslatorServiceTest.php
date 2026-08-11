@@ -180,11 +180,8 @@ final class TranslatorServiceTest extends TestCase
         $this->pinLanguage(Language::Polish);
 
         self::assertSame(
-            'Nie można odczytać katalogu "/tmp/zamknięty".',
-            TranslatorService::getInstance()->translate(
-                'problem.directory.unreadable',
-                ['path' => '/tmp/zamknięty'],
-            ),
+            'Nie ma modułu „drzewo” — otwarto przeglądarkę plików.',
+            TranslatorService::getInstance()->translate('module.startup.unknown', ['module' => 'drzewo']),
         );
     }
 

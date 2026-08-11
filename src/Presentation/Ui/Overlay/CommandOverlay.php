@@ -129,7 +129,7 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
         // Pasek stanu należy do rdzenia i okno nie ma prawa go zasłonić; jego
         // wysokość zależy wyłącznie od wysokości terminala, więc pas podglądu
         // niczego tu nie zmienia.
-        $bottom = (new HudLayout($rows, $columns, false))->status->row - 1;
+        $bottom = (new HudLayout($rows, $columns))->status->row - 1;
 
         if ($bottom < 0) {
             $bottom = max(0, $rows - 1);

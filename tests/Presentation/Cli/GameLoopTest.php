@@ -6,9 +6,8 @@ namespace LightManager\Tests\Presentation\Cli;
 
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
-use LightManager\Application\UseCase\PreviewSelectedEntryUseCase;
-use LightManager\Domain\ValueObject\DirectoryPath;
-use LightManager\Domain\ValueObject\Entry;
+use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
+use LightManager\Module\Browser\Domain\ValueObject\Entry;
 use LightManager\Presentation\Cli\FrameComposer;
 use LightManager\Presentation\Cli\GameLoop;
 use LightManager\Presentation\Cli\InputHandler;
@@ -17,7 +16,6 @@ use LightManager\Tests\Support\InMemoryDirectoryRepository;
 use LightManager\Tests\Support\RecordingRenderer;
 use LightManager\Tests\Support\ScreenFixture;
 use LightManager\Tests\Support\ScriptedTerminal;
-use LightManager\Tests\Support\StubImagePreview;
 use LightManager\Tests\Support\StubTranslator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -50,7 +48,6 @@ final class GameLoopTest extends TestCase
                 $this->renderer,
                 new FixedViewport(30, 80),
                 new StubTranslator(),
-                new PreviewSelectedEntryUseCase(new StubImagePreview(), new StubTranslator()),
                 InputHandler::globalBindings(),
             ),
             $this->app->screens,
@@ -167,7 +164,7 @@ final class GameLoopTest extends TestCase
             null,
         ], shutdownAfterReads: 4))->run();
 
-        self::assertSame(1, $this->app->state->directory()->selection()?->index, 'pierwszy klawisz zadziałał');
+        self::assertSame('notatka.txt', $this->app->state->context()->selection, 'pierwszy klawisz zadziałał');
         self::assertNotNull($this->app->state->overlays()->current(), 'oba klawisze z jednego taktu zadziałały');
     }
 

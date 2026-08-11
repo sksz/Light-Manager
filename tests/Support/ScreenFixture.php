@@ -16,26 +16,21 @@ use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Application\UseCase\ChangeSettingUseCase;
-use LightManager\Application\UseCase\MoveSelectionUseCase;
-use LightManager\Application\UseCase\NavigateIntoDirectoryUseCase;
-use LightManager\Application\UseCase\NavigateUpUseCase;
 use LightManager\Application\UseCase\RestoreDefaultSettingsUseCase;
-use LightManager\Application\UseCase\ToggleHiddenEntriesUseCase;
-use LightManager\Domain\Aggregate\Directory;
-use LightManager\Module\FileInfo\Application\UseCase\InspectSelectedEntryUseCase;
-use LightManager\Module\FileInfo\Presentation\Command\JumpCommand;
+use LightManager\Module\Browser\Domain\Aggregate\Directory;
+use LightManager\Module\Browser\Presentation\BrowserModule;
 use LightManager\Module\FileInfo\Presentation\FileInfoModule;
-use LightManager\Module\FileInfo\Presentation\FileInfoScreen;
+use LightManager\Presentation\Cli\Bootstrap;
 use LightManager\Presentation\Cli\Command\QuitCommand;
 use LightManager\Presentation\Cli\Command\ScreenCommand;
 use LightManager\Presentation\Cli\Command\SettingCommand;
 use LightManager\Presentation\Cli\InputHandler;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Cli\ProblemPresenter;
-use LightManager\Presentation\Cli\Screen\BrowserScreen;
 use LightManager\Presentation\Cli\Screen\HelpScreen;
 use LightManager\Presentation\Cli\Screen\SettingsScreen;
 use LightManager\Presentation\Cli\ScreenStack;
+use LightManager\Presentation\Cli\StartupScreen;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
 use LightManager\Presentation\Ui\Overlay\CommandOverlay;
 use LightManager\Presentation\Ui\ScreenInterface;
@@ -50,15 +45,18 @@ use LightManager\Presentation\Ui\ScreenInterface;
  * samej listy.
  *
  * Od kroku 20 składa też **moduły** — wraz z rejestrem, zakładkami ustawień
- * i mapą skrótów. Dzięki temu test przechodzi tę samą drogę, co aplikacja:
- * gdyby moduł dało się podłączyć wyłącznie ręcznym obejściem w `Bootstrap`,
- * ten podwójny by tego nie ukrył.
+ * i mapą skrótów. Od kroku 21 jednym z nich jest **przeglądarka plików**, i to
+ * prawdziwy `BrowserModule`, a nie sobowtór: dostaje repozytorium w pamięci
+ * i katalog startowy, więc składa się bez dotykania dysku, ale przechodzi tę samą
+ * drogę, co w aplikacji. Dzięki temu test widzi także dno stosu wybrane
+ * z konfiguracji.
  */
 final class ScreenFixture
 {
     public readonly LoopState $state;
 
-    public readonly BrowserScreen $browser;
+    /** Ekran przeglądarki — od kroku 21 pochodzi z modułu, więc widziany kontraktem. */
+    public readonly ScreenInterface $browser;
 
     public readonly SettingsScreen $settings;
 
@@ -72,9 +70,13 @@ final class ScreenFixture
 
     public readonly ModuleRegistry $modules;
 
-    public readonly FileInfoScreen $fileInfo;
+    /** Ekran opisu pliku — od kroku 25 pochodzi z modułu, więc widziany kontraktem. */
+    public readonly ScreenInterface $fileInfo;
 
     public readonly CommandRegistry $commandRegistry;
+
+    /** Ekran, który stanął na dnie stosu — i powód, gdy nie ten, o który proszono. */
+    public readonly StartupScreen $startup;
 
     public function __construct(
         Directory $directory,
@@ -82,47 +84,63 @@ final class ScreenFixture
         public readonly InMemorySettings $settingsStore = new InMemorySettings(),
         public readonly StubFileInspector $inspector = new StubFileInspector('PDF document, version 1.7'),
         public readonly InMemoryCommandHistory $history = new InMemoryCommandHistory(),
+        public readonly StubFileStat $stats = new StubFileStat(),
+        public readonly StubChecksums $checksums = new StubChecksums(),
     ) {
         $translator = new StubTranslator();
         $themes = new FixedThemes();
 
-        $this->state = new LoopState($directory, $settingsStore->load($themes->names())->settings);
+        $this->state = new LoopState($settingsStore->load($themes->names())->settings);
 
-        $this->fileInfo = new FileInfoScreen(
-            new InspectSelectedEntryUseCase($inspector, $settingsStore),
+        // Moduł opisu pliku składa się sam (krok 25), więc zestaw podaje mu
+        // wyłącznie porty — a testy dostają ekran przez ten sam `screen()`,
+        // którym dostaje go aplikacja.
+        $fileInfo = new FileInfoModule(
             $translator,
+            $settingsStore,
+            new StubImagePreview(),
+            $inspector,
+            $stats,
+            $checksums,
+        );
+        $this->fileInfo = $fileInfo->screen();
+
+        // Katalog podany przez test jest katalogiem startowym modułu; repozytorium
+        // musi go znać, bo moduł otwiera go tak samo, jak zrobiłby to na dysku.
+        $directories->add($directory->path()->value, $directory->entries());
+
+        $browser = new BrowserModule(
+            $this->state,
+            $translator,
+            $settingsStore,
+            new StubImagePreview(),
+            $directories,
+            $directory->path(),
         );
 
         $this->modules = new ModuleRegistry(
-            [new FileInfoModule($this->fileInfo, new JumpCommand($this->state, $directories, $translator))],
+            [$browser, $fileInfo],
             $settingsStore->current()->modules,
+            Bootstrap::LAST_RESORT_MODULE,
         );
 
-        $this->browser = new BrowserScreen(
-            $this->state,
-            new MoveSelectionUseCase(),
-            new NavigateIntoDirectoryUseCase($directories),
-            new NavigateUpUseCase($directories),
-            new ToggleHiddenEntriesUseCase($directories),
-            new ChangeSettingUseCase($settingsStore, $themes, $translator),
-            $translator,
-        );
-        $this->browser->publishContext();
+        $this->browser = $browser->screen();
 
         $this->settings = new SettingsScreen(
             $this->state,
-            new ChangeSettingUseCase($settingsStore, $themes, $translator),
+            new ChangeSettingUseCase($settingsStore, $themes, $translator, self::startupModules($this->modules)),
             new RestoreDefaultSettingsUseCase($settingsStore, $translator),
             new ChangeModuleSettingUseCase($settingsStore, $translator),
             $translator,
+            $settingsStore,
             self::settingsTabs($this->modules),
             $this->modules,
         );
 
-        $this->help = new HelpScreen($settingsStore, $translator, '0.20.0', 'Sixel');
+        $this->help = new HelpScreen($settingsStore, $translator, Bootstrap::VERSION, 'Sixel');
 
         $this->commandRegistry = new CommandRegistry();
-        $change = new ChangeSettingUseCase($settingsStore, $themes, $translator);
+        $change = new ChangeSettingUseCase($settingsStore, $themes, $translator, self::startupModules($this->modules));
         $this->commandRegistry->add(CommandRegistry::CORE, [
             new ScreenCommand('core.help', 'help'),
             new ScreenCommand('core.settings', 'settings'),
@@ -145,13 +163,19 @@ final class ScreenFixture
         $this->commands->prepare();
 
         $this->help->knowAbout(
-            [$this->browser, $this->settings, $this->help],
+            [$this->settings, $this->help],
             InputHandler::globalBindings(),
             ['layout.zone.command' => $this->commands->bindings()],
         );
         $this->help->knowAboutModules($this->modules->accepted());
 
-        $this->screens = new ScreenStack($this->browser);
+        $this->startup = StartupScreen::choose(
+            $this->modules,
+            $this->state->settings()->startupModule,
+            Bootstrap::LAST_RESORT_MODULE,
+        );
+
+        $this->screens = new ScreenStack($this->startup->screen);
         $this->input = new InputHandler(
             $this->screens,
             $this->help,
@@ -194,6 +218,25 @@ final class ScreenFixture
         }
 
         return $screens;
+    }
+
+    /**
+     * Dopuszczalne wartości klucza `startupModule` — tak samo liczone, jak
+     * w `Bootstrap`.
+     *
+     * @return list<string>
+     */
+    public static function startupModules(ModuleRegistry $modules): array
+    {
+        $ids = [];
+
+        foreach ($modules->accepted() as $module) {
+            if ($module instanceof ProvidesScreen) {
+                $ids[] = $module->id();
+            }
+        }
+
+        return $ids;
     }
 
     /** Moduł o podanym identyfikatorze — dla testów, które sprawdzają deklarację. */

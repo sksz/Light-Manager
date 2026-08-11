@@ -61,12 +61,13 @@ do stanu sprzed uruchomienia.
 | `↑` / `↓` | zmiana zaznaczenia |
 | `Enter` / `→` | wejście do katalogu (na pliku `Enter` nie robi nic) |
 | `Backspace` / `←` | katalog wyżej |
-| `.` | pokaż lub ukryj wpisy ukryte (ustawienie trwałe) |
+| `.` | pokaż lub ukryj wpisy ukryte (ustawienie trwałe, dotyczy obu paneli) |
+| `Tab` | przejście do drugiego panelu — tylko przy włączonym podziale |
 | `F1` | ekran pomocy — pełna lista klawiszy |
 | `F2` | ekran ustawień |
 | `F12` | okno komend |
-| `Ctrl`+litera | okno modułu — `Ctrl+D` otwiera opis zaznaczonego pliku |
-| `Esc` | powrót z ekranu pomocy, ustawień albo modułu; zamknięcie okna komend |
+| `Ctrl`+litera | okno modułu — `Ctrl+B` przeglądarka plików, `Ctrl+D` opis zaznaczonego pliku |
+| `Esc` | powrót do modułu domyślnego z każdego ekranu; zamknięcie okna komend |
 | `F10` | wyjście (działa na każdym ekranie) |
 
 `Enter` jest w całej aplikacji klawiszem **zatwierdzania**: na katalogu wchodzi
@@ -83,6 +84,22 @@ wolny dla komend i skrótów modułów.
 Pasek stanu u dołu wypisuje tylko klawisze rdzenia (`F1 pomoc · F2 ustawienia ·
 F12 okno komend · F10 wyjście`) — pełna ściągawka mieszka na ekranie pomocy. Nie jest tam
 przepisana ręcznie: powstaje z tych samych wiązań, które klawisze obsługują.
+
+Przeglądarkę można podzielić na **dwa panele** — dwa katalogi, dwa kursory,
+niezależne od siebie. Włącza się to w ustawieniach modułu („Podział na dwa
+panele”), a `Tab` przenosi ognisko z jednego panelu do drugiego. Panel czynny
+poznaje się po akcencie w obwódce i po ścieżce, którą pokazuje górny pas klatki;
+katalog panelu nieczynnego widać w etykiecie jego ramki. Panele stają domyślnie
+obok siebie — pozycja „Panele obok siebie” przestawia je jeden nad drugi.
+
+Podział **nie powstaje w oknie węższym niż 72 kolumny** (a przy układzie
+poziomym — niższym niż 14 wierszy w strefie listy). Poniżej progu widać jeden
+panel i klatka wygląda dokładnie tak, jak przed włączeniem. To ta sama zasada,
+którą kieruje się pas podglądu: dwa panele w wąskim oknie **mieszczą się**
+arytmetycznie, ale nazw plików nie da się w nich przeczytać.
+
+Podział jest sprawą modułu, a nie okna: `F1`, `F2` i skrót modułu zastępują cały
+ekran razem z podziałem, bo widoczny ekran jest zawsze jeden.
 
 Zaznaczenie pliku graficznego pokazuje jego miniaturę w pasie u dołu klatki,
 wraz z wymiarami i formatem. Pas pojawia się w oknie wysokim na co najmniej
@@ -120,9 +137,9 @@ między modułami jest niemożliwa z konstrukcji. Dziś dostępne są:
 | `core.theme` | nazwa motywu | ustawia motyw graficzny |
 | `core.language` | kod języka | ustawia język interfejsu |
 | `core.quit` | — | kończy pracę |
-| `file-info.jump` | ścieżka | przechodzi do wskazanego katalogu |
+| `browser.jump` | ścieżka | przechodzi do wskazanego katalogu |
 
-`file-info.jump` podpowiada katalogi **z dysku**, w miarę wpisywania: to
+`browser.jump` podpowiada katalogi **z dysku**, w miarę wpisywania: to
 pierwsza w projekcie komenda z podpowiedziami liczonymi na żądanie, a nie
 policzonymi przy starcie. Ścieżka względna liczy się od bieżącego miejsca.
 
@@ -137,12 +154,15 @@ bo jest śladem pracy, a nie ustawieniem.
 
 ### Ustawienia
 
-`F2` otwiera ekran ustawień w miejscu listy plików. Ścieżka u góry i pasek stanu
-u dołu zostają, więc widać, dokąd się wraca.
+`F2` otwiera ekran ustawień w miejscu listy plików. Pasek stanu u dołu zostaje,
+a w górnym pasie ekran ustawień stawia **położenie pliku konfiguracyjnego** —
+jedynej rzeczy, której nie da się z niego wyczytać.
 
 Zakładek jest tyle, ile ich wnosi ta wersja: dwie rdzeniowe (**Wygląd**,
 **Grafika**), spis **Moduły** i po jednej na każdy moduł, który wnosi własne
-ustawienia. Kursor zaczyna na pasku zakładek: `←` / `→` przełączają wtedy
+ustawienia. Pierwszym wierszem spisu **Moduły** jest **moduł otwierany przy
+starcie** — jego wartości to identyfikatory modułów, które naprawdę wnoszą okno,
+a lista powstaje przy starcie, nie w kodzie. Kursor zaczyna na pasku zakładek: `←` / `→` przełączają wtedy
 zakładkę, a `↓` wchodzi w pozycje. Na pozycji `←` / `→` zmieniają wartość,
 `↑` / `↓` chodzą po liście, `Esc` wraca do plików.
 
@@ -159,17 +179,26 @@ i palecie nie trzeba kasować pliku konfiguracyjnego.
 |---|---|---|---|
 | Wygląd | Język | Automatyczny, Polski, English | Automatyczny |
 | Wygląd | Motyw | Grafit, Nordyk, Papier, Indygo | Grafit |
-| Wygląd | Pokazuj wpisy ukryte | tak / nie | nie |
 | Grafika | Wygładzanie tekstu | tak / nie | nie |
 | Grafika | Wygładzanie obrysów | tak / nie | tak |
 | Grafika | Kolory palety Sixela | 16, 32, 64, 128 | 64 |
+| Moduły | Moduł otwierany przy starcie | identyfikatory modułów z oknem | `browser` |
 | Moduły | *(moduł)* | włączony / wyłączony | włączony |
+| Przeglądarka plików | Pokazuj wpisy ukryte | tak / nie | nie |
+| Przeglądarka plików | Podział na dwa panele | tak / nie | nie |
+| Przeglądarka plików | Panele obok siebie | tak / nie | tak |
 | Opis pliku | Limit czasu polecenia (s) | 1, 2, 5, 10 | 2 |
 | Opis pliku | Dodatkowe argumenty | tekst | *(puste)* |
+| Opis pliku | Zapis czasu | absolute, relative | absolute |
+| Opis pliku | Pokazuj i-węzeł i dowiązania | tak / nie | nie |
+| Opis pliku | Suma kontrolna sha256 | tak / nie | **nie** |
+| Opis pliku | Limit rozmiaru sumy (MiB) | 16, 64, 256, 1024 | 256 |
 
 Każda zmiana działa natychmiast — motyw i jakość rysowania widać w następnej
 klatce, bez restartu — i od razu ląduje w pliku, więc przeżywa nawet zabicie
-procesu sygnałem.
+procesu sygnałem. Dwa wyjątki, o których ekran mówi wprost: przełącznik modułu
+i moduł otwierany przy starcie działają **po ponownym uruchomieniu**, bo mapa
+skrótów, lista ekranów i lista zakładek powstają raz.
 
 **Paleta poniżej 64 kolorów**: kwantyzator poświęca wtedy odcień obwódki na
 rzecz liczniejszych pikseli tekstu i panele znikają z ekranu, zostawiając same
@@ -185,7 +214,9 @@ poprawione.
 Funkcję dopisuje się do aplikacji **modułem**, nie zmianą w rdzeniu. Moduł ma
 pięć punktów zaczepienia i deklaruje tylko te, których naprawdę potrzebuje:
 
-1. własne okno (ekran zajmujący środkowy panel) wraz ze skrótem `Ctrl`+litera,
+1. własne okno wraz ze skrótem `Ctrl`+litera. Okno to **trzy strefy klatki**:
+   górny pas, środkowy panel i pas podglądu — moduł zamawia te, które ma czym
+   wypełnić, a rdzeń rysuje ich oprawę i pasek stanu,
 2. własną zakładkę w oknie konfiguracji, opisaną danymi — rdzeń ją rysuje,
    prowadzi po niej kursor i zapisuje wartości,
 3. własną zakładkę w oknie pomocy: część automatyczną rdzeń składa z deklaracji
@@ -196,9 +227,43 @@ pięć punktów zaczepienia i deklaruje tylko te, których naprawdę potrzebuje:
 Dopisanie modułu ze wszystkimi pięcioma punktami kosztuje **jedną zmianę
 w rdzeniu**: dopisanie klasy do listy w `Presentation\Cli\Bootstrap`.
 
-Dziś wbudowany jest jeden moduł — **Opis pliku** (`file-info`, `Ctrl+D`), który
-pokazuje, czym jest zaznaczony plik według polecenia `file`. Deklaruje wszystkie
-pięć punktów naraz, więc jest zarazem sprawdzianem kontraktu.
+Wbudowane są dziś dwa:
+
+- **Przeglądarka plików** (`browser`, `Ctrl+B`) — sam menadżer plików. Nie jest
+  rdzeniem z doklejonymi modułami, tylko modułem jak każdy inny: cała domena
+  katalogu, nawigacja, ekran i komenda `browser.jump` leżą w `src/Module/Browser/`,
+  a w rdzeniu nie została ani jedna klasa wiedząca, czym jest plik.
+- **Opis pliku** (`file-info`, `Ctrl+D`) — **pełny obraz stanu zaznaczonego
+  wpisu**, także katalogu: cztery zwijane sekcje po lewej i miniatura po prawej.
+
+  | Sekcja | Co pokazuje |
+  |---|---|
+  | Tożsamość | nazwa, rodzaj z `lstat`, opis od polecenia `file`, cel dowiązania wraz z informacją, czy istnieje, liczba wpisów katalogu |
+  | Rozmiar | rozmiar w jednostkach i co do bajta, bloki i-węzła, suma kontrolna `sha256` |
+  | Uprawnienia | prawa `rwx` i ósemkowo, właściciel, grupa, opcjonalnie i-węzeł i liczba dowiązań |
+  | Czasy | zmiana treści, zmiana i-węzła, odczyt — datą albo jako „ile temu” |
+
+  Sekcje zwija się `Enter`em, a `↑`/`↓` chodzą po ich nagłówkach. **Suma kontrolna
+  liczy się dopiero po naciśnięciu `s`** i domyślnie jest wyłączona: czyta cały
+  plik, więc nie ma prawa startować sama przy przewijaniu listy. Liczy się po
+  kawałku na klatkę, pokazuje prawdziwy postęp paskiem i przerywa się natychmiast,
+  gdy zaznaczenie się zmieni. Powyżej ustawionego limitu rozmiaru nie startuje
+  i mówi dlaczego.
+
+  Czego moduł **jeszcze** nie pokazuje: zajętości na dysku (`du`). Wymaga procesu
+  potomnego doglądanego między klatkami, a ten mechanizm ma własny krok planu (26).
+
+#### Moduł domyślny
+
+Aplikacja startuje z oknem modułu wskazanego kluczem `startupModule`; domyślnie
+jest to przeglądarka. Wskazanie innego uruchamia aplikację z jego oknem jako dnem
+— tym, do którego wraca `Esc`.
+
+**Przeglądarka jest modułem ostatniej szansy.** Nie da się jej wyłączyć ani
+odrzucić (przy kolizji skrótu odpada ten drugi moduł), a aplikacja wraca do niej
+w czterech przypadkach: moduł domyślny jest wyłączony, został odrzucony przy
+starcie, nie ma go na liście albo nie wnosi okna. Za każdym razem powód widać
+w pasku stanu — bo każdy z nich prowadzi do innej poprawki.
 
 Zasady, które obowiązują moduły:
 
@@ -247,12 +312,15 @@ zmianie ustawienia — sam start aplikacji niczego nie tworzy na dysku.
 {
     "language": "auto",
     "theme": "grafit",
-    "showHiddenEntries": false,
+    "startupModule": "browser",
     "textAntialias": false,
     "strokeAntialias": true,
     "paletteColors": 64,
     "modules": {
-        "file-info": { "enabled": true, "timeout": 2, "arguments": "" }
+        "browser": { "enabled": true, "showHidden": false },
+        "file-info": { "enabled": true, "timeout": 2, "arguments": "",
+                       "timeFormat": "absolute", "inode": false,
+                       "checksum": false, "checksumLimit": 256 }
     }
 }
 ```
@@ -273,6 +341,12 @@ odczytu:
   straszyć).
 - **Znany klucz z wartością spoza zakresu** — wartość domyślna dla tego klucza,
   reszta pliku zostaje, plus ostrzeżenie z nazwą pozycji.
+- **`startupModule` bez pokrycia w rejestrze** — aplikacja startuje
+  z przeglądarką i mówi w pasku stanu, dlaczego. Zakresu tego klucza nie da się
+  sprawdzić przy odczycie: znają go dopiero moduły przyjęte w tym uruchomieniu.
+- **`showHiddenEntries` z pliku sprzed wersji 0.21** — przepisywany raz do
+  `modules.browser.showHidden`, żeby ustawienie przeżyło aktualizację. Ze starego
+  miejsca znika przy najbliższym zapisie.
 
 Zapis idzie przez plik tymczasowy i `rename()` w tym samym katalogu, więc
 przerwany zapis zostawia poprzednią, poprawną wersję zamiast obciętego JSON-a.
@@ -310,6 +384,7 @@ przy prawej i dolnej krawędzi.
 bin/         skrypty wejściowe CLI (aplikacja i narzędzia diagnostyczne)
 src/         kod aplikacji (PSR-4, namespace LightManager\)
 src/Module/  moduły — każdy z własnymi warstwami i własnymi napisami
+             (Browser — menadżer plików, FileInfo — opis zaznaczonego pliku)
 tests/       testy PHPUnit (namespace LightManager\Tests\)
 lang/        katalogi napisów interfejsu (rdzeń)
 docs/        architektura, plany wdrożenia i wzorce pomiarów

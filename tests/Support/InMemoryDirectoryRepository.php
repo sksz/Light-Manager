@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace LightManager\Tests\Support;
 
-use LightManager\Domain\Aggregate\Directory;
-use LightManager\Domain\Exception\DirectoryNotReadableException;
-use LightManager\Domain\Repository\DirectoryRepositoryInterface;
-use LightManager\Domain\ValueObject\DirectoryPath;
-use LightManager\Domain\ValueObject\Entry;
+use LightManager\Module\Browser\Domain\Aggregate\Directory;
+use LightManager\Module\Browser\Domain\Exception\DirectoryNotReadableException;
+use LightManager\Module\Browser\Domain\Repository\DirectoryRepositoryInterface;
+use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
+use LightManager\Module\Browser\Domain\ValueObject\Entry;
 
 /**
  * Drzewo katalogów trzymane w pamięci — pozwala testować nawigację bez

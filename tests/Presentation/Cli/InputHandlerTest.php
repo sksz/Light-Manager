@@ -7,13 +7,16 @@ namespace LightManager\Tests\Presentation\Cli;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Ui\Rect;
-use LightManager\Domain\ValueObject\Entry;
 use LightManager\Domain\ValueObject\MessageTone;
+use LightManager\Module\Browser\Application\BrowserSettings;
+use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
+use LightManager\Module\Browser\Domain\ValueObject\Entry;
 use LightManager\Presentation\Ui\Module\ReadsContext;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Tests\Support\InMemoryDirectoryRepository;
 use LightManager\Tests\Support\InMemorySettings;
 use LightManager\Tests\Support\ScreenFixture;
+use LightManager\Tests\Support\StubFileStat;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -40,7 +43,7 @@ final class InputHandlerTest extends TestCase
             ->add('/home/obrazy', []);
 
         $this->app = new ScreenFixture(
-            $directories->get(new \LightManager\Domain\ValueObject\DirectoryPath('/home'), false),
+            $directories->get(new DirectoryPath('/home'), false),
             $directories,
             new InMemorySettings(),
         );
@@ -61,9 +64,14 @@ final class InputHandlerTest extends TestCase
         return $this->press(KeyPress::special($key, ''));
     }
 
-    private function selectedIndex(): ?int
+    /**
+     * Zaznaczenie widziane **kontekstem sesji** — jedyną drogą, którą rdzeń o nim
+     * słyszy od kroku 21. Wcześniej test sięgał po katalog w stanie pętli; katalog
+     * należy dziś do modułu przeglądarki i rdzeń go nie widzi.
+     */
+    private function selectedName(): ?string
     {
-        return $this->app->state->directory()->selection()?->index;
+        return $this->app->state->context()->selection;
     }
 
     public function testQuitKeyIsReported(): void
@@ -78,13 +86,13 @@ final class InputHandlerTest extends TestCase
 
     public function testArrowsMoveSelection(): void
     {
-        self::assertSame(0, $this->selectedIndex());
+        self::assertSame('dokumenty', $this->selectedName());
 
         $this->special(Key::ArrowDown);
-        self::assertSame(1, $this->selectedIndex());
+        self::assertSame('obrazy', $this->selectedName());
 
         $this->special(Key::ArrowUp);
-        self::assertSame(0, $this->selectedIndex());
+        self::assertSame('dokumenty', $this->selectedName());
     }
 
     /** @return array<string, array{Key}> */
@@ -98,7 +106,7 @@ final class InputHandlerTest extends TestCase
     {
         $this->special($key);
 
-        self::assertSame('/home/dokumenty', $this->app->state->directory()->path()->value);
+        self::assertSame('/home/dokumenty', $this->app->state->context()->path);
     }
 
     /** @return array<string, array{Key}> */
@@ -112,8 +120,8 @@ final class InputHandlerTest extends TestCase
     {
         $this->special($key);
 
-        self::assertSame('/', $this->app->state->directory()->path()->value);
-        self::assertSame('home', $this->app->state->directory()->selectedEntry()?->name);
+        self::assertSame('/', $this->app->state->context()->path);
+        self::assertSame('home', $this->app->state->context()->selection);
     }
 
     /**
@@ -127,7 +135,7 @@ final class InputHandlerTest extends TestCase
         $this->special(Key::Enter);
 
         self::assertNull($this->app->state->overlays()->current());
-        self::assertSame('/home', $this->app->state->directory()->path()->value);
+        self::assertSame('/home', $this->app->state->context()->path);
         self::assertSame([], $this->app->inspector->inspectedPaths);
     }
 
@@ -164,27 +172,47 @@ final class InputHandlerTest extends TestCase
         self::assertSame('browser', $this->app->screens->current()->id());
     }
 
-    /** Moduł bez zaznaczonego pliku mówi o tym własnym napisem, a nie pustym panelem. */
-    public function testModuleScreenSaysWhenThereIsNothingToDescribe(): void
+    /**
+     * Katalog **jest** opisywany od kroku 25 (P3) — ale bez pytania polecenia
+     * `file`, bo powiedziałoby ono tylko to, co i tak stoi wiersz wyżej.
+     */
+    public function testModuleScreenDescribesADirectoryWithoutRunningTheInspector(): void
     {
+        $this->app->stats->add('/home/dokumenty', StubFileStat::directory());
         $this->press(KeyPress::ctrl('d'));
 
-        $texts = $this->drawCurrentScreen();
+        $texts = implode("\n", $this->drawCurrentScreen());
 
-        self::assertContains('module.file-info.nothing', $texts, 'zaznaczony jest katalog');
-        self::assertSame([], $this->app->inspector->inspectedPaths);
+        self::assertStringContainsString('module.file-info.section.identity', $texts);
+        self::assertStringContainsString('module.file-info.kind.directory', $texts);
+        self::assertSame([], $this->app->inspector->inspectedPaths, 'katalog nie uruchamia polecenia');
     }
 
+    /** Wpis, którego nie ma — jedyny przypadek, w którym opisu nie ma wcale. */
+    public function testModuleScreenSaysWhenThereIsNothingToDescribe(): void
+    {
+        $this->app->stats->deny('/home/dokumenty');
+        $this->press(KeyPress::ctrl('d'));
+
+        self::assertContains('module.file-info.nothing', $this->drawCurrentScreen());
+    }
+
+    /**
+     * Widoczność wpisów ukrytych jest od kroku 21 ustawieniem **modułu**, więc
+     * klawisz `.` kończy w kluczu `modules.browser.showHidden`. Sprawdzamy przy tym
+     * to, co widzi użytkownik — listę — a nie stan agregatu: katalog należy dziś
+     * do modułu i rdzeń go nie widzi.
+     */
     public function testDotTogglesHiddenEntriesAndPersistsTheSetting(): void
     {
         $this->special(Key::Enter);
-        self::assertCount(1, $this->app->state->directory()->entries());
+        self::assertNotContains('.szkic', $this->drawCurrentScreen());
 
         $this->character('.');
 
-        self::assertCount(2, $this->app->state->directory()->entries());
-        self::assertTrue($this->app->state->showsHiddenEntries());
-        self::assertTrue($this->app->settingsStore->saved[0]->showHiddenEntries);
+        self::assertContains('.szkic', $this->drawCurrentScreen());
+        self::assertTrue(BrowserSettings::showHidden($this->app->state->settings()));
+        self::assertTrue($this->app->settingsStore->saved[0]->moduleValue('browser', 'showHidden'));
     }
 
     public function testFailedReloadLeavesHiddenEntriesSettingUntouched(): void
@@ -193,7 +221,7 @@ final class InputHandlerTest extends TestCase
 
         $this->character('.');
 
-        self::assertFalse($this->app->state->showsHiddenEntries());
+        self::assertFalse(BrowserSettings::showHidden($this->app->state->settings()));
         self::assertSame([], $this->app->settingsStore->saved);
         self::assertSame(MessageTone::Error, $this->app->state->message()?->tone);
     }
@@ -242,23 +270,25 @@ final class InputHandlerTest extends TestCase
         self::assertNotSame([], $this->app->settingsStore->saved);
     }
 
-    public function testChangingHiddenEntriesFromSettingsReloadsNothingButPersists(): void
+    /**
+     * Druga droga do tego samego klucza: zakładka ustawień modułu przeglądarki.
+     * Obie — klawisz `.` i ta pozycja — kończą w `modules.browser.showHidden`.
+     */
+    public function testChangingHiddenEntriesFromSettingsPersistsToTheModuleKey(): void
     {
-        $this->special(Key::F2);
-        $this->special(Key::ArrowDown);
-        $this->special(Key::ArrowDown);
+        $this->openBrowserTab();
         $this->special(Key::ArrowDown);
         $this->special(Key::ArrowRight);
 
-        self::assertTrue($this->app->settingsStore->saved[0]->showHiddenEntries);
+        self::assertTrue($this->app->settingsStore->saved[0]->moduleValue('browser', 'showHidden'));
     }
 
     public function testRestoreButtonSitsUnderTheLastPositionAndReportsWhatItDid(): void
     {
         $this->special(Key::F2);
 
-        // Trzy pozycje zakładki „Wygląd”, a czwarte zejście staje na przycisku.
-        for ($step = 0; $step < 4; ++$step) {
+        // Dwie pozycje zakładki „Wygląd”, a trzecie zejście staje na przycisku.
+        for ($step = 0; $step < 3; ++$step) {
             $this->special(Key::ArrowDown);
         }
 
@@ -273,28 +303,55 @@ final class InputHandlerTest extends TestCase
      */
     public function testModulesTabListsTheModuleWithItsShortcut(): void
     {
-        $this->special(Key::F2);
-        $this->special(Key::ArrowRight);
-        $this->special(Key::ArrowRight);
+        $this->openModulesTab();
 
         // Szerzej niż zwykle: podwójny tłumacza oddaje klucze, a te są dłuższe
         // od napisów, którymi pasek zakładek żyje w aplikacji.
         $texts = $this->drawCurrentScreen(10, 120);
 
         self::assertContains('settings.tab.modules', $texts, 'zakładka jest na pasku');
+        self::assertContains('settings.key.startupModule', $texts, 'moduł domyślny nad spisem');
         self::assertContains('module.file-info.name   Ctrl+D', $texts);
+        self::assertContains('module.browser.name   Ctrl+B', $texts);
     }
 
+    /**
+     * Pierwszy wiersz spisu to moduł domyślny, drugi — przeglądarka, dopiero
+     * trzeci daje się wyłączyć. Przeglądarka jest modułem ostatniej szansy, więc
+     * jej przełącznik stoi, ale mówi wyłącznie, dlaczego nie działa.
+     */
     public function testSwitchingAModuleOffPersistsAndSaysItNeedsARestart(): void
     {
-        $this->special(Key::F2);
-        $this->special(Key::ArrowRight);
-        $this->special(Key::ArrowRight);
+        $this->openModulesTab();
+        $this->special(Key::ArrowDown);
+        $this->special(Key::ArrowDown);
         $this->special(Key::ArrowDown);
         $this->special(Key::ArrowRight);
 
         self::assertFalse($this->app->settingsStore->saved[0]->moduleValue('file-info', 'enabled'));
         self::assertSame(MessageTone::Info, $this->app->state->message()?->tone);
+    }
+
+    public function testTheLastResortModuleCannotBeSwitchedOff(): void
+    {
+        $this->openModulesTab();
+        $this->special(Key::ArrowDown);
+        $this->special(Key::ArrowDown);
+        $this->special(Key::ArrowRight);
+
+        self::assertSame([], $this->app->settingsStore->saved, 'nic się nie zapisało');
+        self::assertSame(MessageTone::Warning, $this->app->state->message()?->tone);
+        self::assertSame('settings.modules.essential.reason', $this->app->state->message()->text);
+    }
+
+    /** Moduł domyślny zmienia się strzałką, a jego wartości pochodzą z rejestru. */
+    public function testStartupModuleCyclesThroughModulesWithAScreen(): void
+    {
+        $this->openModulesTab();
+        $this->special(Key::ArrowDown);
+        $this->special(Key::ArrowRight);
+
+        self::assertSame('file-info', $this->app->settingsStore->saved[0]->startupModule);
     }
 
     public function testModuleTabChangesItsOwnSettingWithArrows(): void
@@ -363,17 +420,34 @@ final class InputHandlerTest extends TestCase
 
         self::assertStringContainsString('module.file-info.description', $texts, 'część automatyczna');
         self::assertStringContainsString('Ctrl+D', $texts, 'skrót z deklaracji');
-        self::assertStringContainsString('help.key.scroll', $texts, 'klawisze ekranu modułu');
+        self::assertStringContainsString('module.file-info.help.checksum', $texts, 'klawisze ekranu modułu');
         self::assertStringContainsString('module.file-info.setting.timeout', $texts, 'pozycje ustawień');
         self::assertStringContainsString('module.file-info.help.enter', $texts, 'część własna');
     }
 
-    /** Otwiera zakładkę modułu: dwie rdzeniowe, spis modułów, dopiero potem ona. */
+    /** Spis modułów: trzecia zakładka, za dwiema rdzeniowymi. */
+    private function openModulesTab(): void
+    {
+        $this->openTab(2);
+    }
+
+    /** Zakładka przeglądarki — pierwsza modułowa, bo taka jest kolejność deklaracji. */
+    private function openBrowserTab(): void
+    {
+        $this->openTab(3);
+    }
+
+    /** Zakładka modułu `FileInfo` — druga modułowa. */
     private function openModuleTab(): void
+    {
+        $this->openTab(4);
+    }
+
+    private function openTab(int $index): void
     {
         $this->special(Key::F2);
 
-        for ($step = 0; $step < 3; ++$step) {
+        for ($step = 0; $step < $index; ++$step) {
             $this->special(Key::ArrowRight);
         }
     }
@@ -398,8 +472,12 @@ final class InputHandlerTest extends TestCase
         $texts = implode("\n", self::textsOf($this->app->screens->current()->draw(new Rect(0, 2, 40, 60))));
 
         self::assertStringContainsString('F10', $texts, 'wiązania rdzenia');
-        self::assertStringContainsString('Backspace / ←', $texts, 'wiązania przeglądarki');
         self::assertStringContainsString('help.key.change', $texts, 'wiązania ekranu ustawień');
+
+        // Klawisze przeglądarki od kroku 21 stoją na **jej** zakładce, a nie
+        // w ogólnym spisie: jest modułem, a moduł dostaje własną zakładkę (P8
+        // kroku 20). To jedyne miejsce, w którym przenosiny widać w interfejsie.
+        self::assertStringNotContainsString('module.browser.help.up', $texts);
     }
 
     public function testBrowsingKeysDoNothingOnTheHelpScreen(): void
@@ -407,7 +485,7 @@ final class InputHandlerTest extends TestCase
         $this->special(Key::F1);
         $this->special(Key::Enter);
 
-        self::assertSame('/home', $this->app->state->directory()->path()->value);
+        self::assertSame('/home', $this->app->state->context()->path);
     }
 
     public function testQuitKeyWorksOnEveryScreen(): void

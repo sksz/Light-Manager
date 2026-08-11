@@ -21,7 +21,7 @@ final class SettingsTest extends TestCase
 
         self::assertSame(Language::Auto->value, $settings->language);
         self::assertSame('grafit', $settings->theme);
-        self::assertFalse($settings->showHiddenEntries);
+        self::assertSame('browser', $settings->startupModule);
         self::assertFalse($settings->textAntialias);
         self::assertTrue($settings->strokeAntialias);
         self::assertSame(64, $settings->paletteColors);
@@ -50,11 +50,42 @@ final class SettingsTest extends TestCase
         self::assertSame('grafit', $broken->shifted(SettingKey::Theme, 1, self::THEMES)->theme);
     }
 
+    /**
+     * Moduł domyślny jest pierwszym kluczem rdzenia, którego dopuszczalne wartości
+     * nie są znane w czasie pisania kodu — przychodzą z rejestru modułów.
+     */
+    public function testStartupModuleCyclesThroughTheListItIsGiven(): void
+    {
+        $settings = new Settings();
+        $modules = ['browser', 'file-info'];
+
+        self::assertSame(
+            'file-info',
+            $settings->shifted(SettingKey::StartupModule, 1, self::THEMES, $modules)->startupModule,
+        );
+        self::assertSame(
+            'browser',
+            $settings->shifted(SettingKey::StartupModule, 1, self::THEMES, $modules)
+                ->shifted(SettingKey::StartupModule, 1, self::THEMES, $modules)
+                ->startupModule,
+        );
+    }
+
+    /** Bez listy z rejestru przełącznik nie ma dokąd pójść i zostawia wartość. */
+    public function testStartupModuleWithoutChoicesStaysWhereItIs(): void
+    {
+        $settings = new Settings();
+
+        self::assertSame(
+            'browser',
+            $settings->shifted(SettingKey::StartupModule, 1, self::THEMES)->startupModule,
+        );
+    }
+
     /** @return array<string, array{SettingKey, int}> */
     public static function switches(): array
     {
         return [
-            'wpisy ukryte' => [SettingKey::ShowHiddenEntries, 1],
             'wygładzanie tekstu' => [SettingKey::TextAntialias, 1],
             'wygładzanie obrysów, w lewo' => [SettingKey::StrokeAntialias, -1],
         ];

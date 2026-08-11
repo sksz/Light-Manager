@@ -15,7 +15,10 @@ use LightManager\Application\Ui\Role;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\ListRow;
 use LightManager\Presentation\Ui\Component\ListView;
+use LightManager\Presentation\Ui\Component\Section;
+use LightManager\Presentation\Ui\Component\SectionList;
 use LightManager\Presentation\Ui\Component\Tabs;
+use LightManager\Presentation\Ui\ComponentInterface;
 use LightManager\Presentation\Ui\Container\Slot;
 use LightManager\Presentation\Ui\Container\VStack;
 use LightManager\Presentation\Ui\KeyBinding;
@@ -24,7 +27,9 @@ use LightManager\Presentation\Ui\Module\ProvidesScreen;
 use LightManager\Presentation\Ui\Resettable;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
+use LightManager\Presentation\Ui\ScreenZone;
 use LightManager\Presentation\Ui\ScrollWindow;
+use LightManager\Presentation\Ui\SectionState;
 
 /**
  * Okno pomocy: zakładka ze spisem klawiszy i zakładka o aplikacji.
@@ -40,6 +45,16 @@ use LightManager\Presentation\Ui\ScrollWindow;
  * w kroku 20 — i wtedy okazało się, że pasek przełączał zakładki **binarnie**
  * (dwie, na przemian), a musi chodzić po liście dowolnej długości, cyklicznie,
  * jak `Tabs` w ustawieniach.
+ *
+ * Od kroku 22 zakładka „Sterowanie” jest **listą zwijanych sekcji**, a nie jednym
+ * strumieniem wierszy. Powód jest w niej samej: grupy już tam były — po jednej na
+ * ekran plus „spoza ekranów” — a po dołożeniu modułów spis urósł ponad wysokość
+ * okna. Kursor chodzi po **nagłówkach**, `Enter` zwija i rozwija. Klawisze `←`/`→`,
+ * które w innych ekranach będą zwijać i rozwijać wprost, są tu zajęte przez zmianę
+ * zakładki i dlatego zostaje sam `Enter`.
+ *
+ * Pozostałe zakładki zostają płaskie i to nie jest niedokończona robota: „Aplikacja”
+ * ma pięć wierszy, a zakładka modułu — kilkanaście, więc nie ma tam czego chować.
  *
  * Zakładka modułu składa się z dwóch części (P8). Część **automatyczna** powstaje
  * z deklaracji: opis, skrót otwierający, klawisze jego ekranu i pozycje jego
@@ -62,6 +77,9 @@ final class HelpScreen implements ScreenInterface, Resettable
     private int $tab = self::TAB_KEYS;
 
     private readonly ScrollWindow $window;
+
+    /** Co zwinięte i na której sekcji stoi kursor — wyłącznie dla zakładki „Sterowanie”. */
+    private readonly SectionState $sectionState;
 
     /** @var list<ScreenInterface> ekrany, których wiązania trafiają do spisu */
     private array $screens = [];
@@ -90,6 +108,7 @@ final class HelpScreen implements ScreenInterface, Resettable
         private readonly string $rendererMode,
     ) {
         $this->window = new ScrollWindow();
+        $this->sectionState = new SectionState();
     }
 
     /**
@@ -131,37 +150,42 @@ final class HelpScreen implements ScreenInterface, Resettable
         return 'layout.zone.help';
     }
 
-    public function usesPreview(): bool
+    /**
+     * Górny pas ekranu pomocy: nazwa aplikacji wraz z wersją.
+     *
+     * Do kroku 20 stała tu ścieżka bieżącego katalogu, bo rdzeń rysował ją
+     * bezwarunkowo dla każdego ekranu. Po przenosinach katalogu do modułu nie ma
+     * z czego — a zostawienie pustego pasa byłoby zmianą wyglądu klatki. Pomoc
+     * stawia więc w nim to, co ma własnego i co pasuje do jej roli.
+     */
+    public function header(): ScreenZone
     {
-        return false;
+        return new ScreenZone(
+            'layout.zone.about',
+            new Label($this->translator->translate('app.name') . '  ' . $this->version),
+        );
     }
 
-    public function headerSuffix(): string
+    public function preview(): ?ScreenZone
     {
-        return '';
+        return null;
     }
 
     public function reset(): void
     {
         $this->tab = self::TAB_KEYS;
         $this->window->useContext('');
+        $this->sectionState->useContext('');
     }
 
     public function draw(Rect $bounds): array
     {
-        $rows = $this->rows();
         $capacity = max(0, $bounds->rows - 2);
-
-        $this->window->clamp(count($rows), $capacity);
 
         return (new VStack([
             Slot::fixed(new Tabs($this->tabLabels(), $this->tab, true), 1),
             Slot::fixed(new Label(''), 1),
-            Slot::flexible(new ListView(
-                array_slice($rows, $this->window->offset(), max(0, $capacity)),
-                null,
-                $this->window->position(count($rows), $capacity),
-            )),
+            Slot::flexible($this->content($capacity)),
         ]))->draw($bounds);
     }
 
@@ -170,6 +194,7 @@ final class HelpScreen implements ScreenInterface, Resettable
         return [
             KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.scroll'),
             KeyBinding::of([Key::ArrowLeft, Key::ArrowRight], 'help.key.tab'),
+            KeyBinding::of([Key::Enter], 'help.key.collapse'),
             KeyBinding::of([Key::Escape], 'help.key.back'),
         ];
     }
@@ -181,13 +206,11 @@ final class HelpScreen implements ScreenInterface, Resettable
             case Key::F1:
                 return ScreenOutcome::close();
             case Key::ArrowUp:
-                $this->window->scrollBy(-1);
-
-                return ScreenOutcome::stay();
+                return $this->moved(-1);
             case Key::ArrowDown:
-                $this->window->scrollBy(1);
-
-                return ScreenOutcome::stay();
+                return $this->moved(1);
+            case Key::Enter:
+                return $this->toggled();
             case Key::ArrowLeft:
                 return $this->switchedTab(-1);
             case Key::ArrowRight:
@@ -195,6 +218,98 @@ final class HelpScreen implements ScreenInterface, Resettable
             default:
                 return ScreenOutcome::stay();
         }
+    }
+
+    /**
+     * Treść aktywnej zakładki jako komponent.
+     *
+     * Rozgałęzienie jest **jedno i jest tutaj**: zakładka „Sterowanie” składa się
+     * z sekcji, reszta zostaje płaską listą. Rozsypanie tego warunku po `handle()`
+     * i `draw()` rozjechałoby się przy pierwszej nowej zakładce.
+     */
+    private function content(int $capacity): ComponentInterface
+    {
+        if ($this->tab === self::TAB_KEYS) {
+            return $this->keyList($capacity);
+        }
+
+        $rows = $this->rows();
+        $this->window->clamp(count($rows), $capacity);
+
+        return new ListView(
+            array_slice($rows, $this->window->offset(), max(0, $capacity)),
+            null,
+            $this->window->position(count($rows), $capacity),
+        );
+    }
+
+    /**
+     * Zakładka „Sterowanie”: sekcje wraz z oknem podążającym za kursorem.
+     *
+     * `keepVisible()` wołane jest **dwa razy i to nie jest pomyłka**. Pierwsze
+     * ściąga okno tak, by widać było **koniec** sekcji pod kursorem — inaczej
+     * rozwinięta sekcja pokazywałaby sam nagłówek, a treść zostawałaby pod dolną
+     * krawędzią. Drugie pilnuje **nagłówka** i wygrywa, gdy sekcja jest wyższa od
+     * okna: lepiej stracić jej koniec niż miejsce, w którym stoi kursor.
+     */
+    private function keyList(int $capacity): SectionList
+    {
+        $this->sectionState->useContext((string) $this->tab);
+
+        $sections = $this->keySections();
+        $this->sectionState->moveBy(0, count($sections));
+
+        $cursor = $this->sectionState->cursor();
+        $total = SectionList::rowCount($sections);
+        $current = $sections[$cursor] ?? null;
+
+        if ($current !== null) {
+            $first = SectionList::rowOf($sections, $cursor);
+            $this->window->keepVisible($first + $current->height() - 1, $total, $capacity);
+            $this->window->keepVisible($first, $total, $capacity);
+        }
+
+        return new SectionList(
+            $sections,
+            $this->window->offset(),
+            $current === null ? null : $cursor,
+            $this->window->position($total, $capacity),
+        );
+    }
+
+    /**
+     * `↑`/`↓` znaczą co innego na każdej zakładce i tak ma być: tam, gdzie są
+     * sekcje, przenoszą kursor między nimi, a tam, gdzie jest płaska lista —
+     * przewijają ją. Opis wiązania mówi „przewijanie” w obu przypadkach, bo dla
+     * użytkownika skutek jest ten sam: treść jedzie w górę albo w dół.
+     */
+    private function moved(int $delta): ScreenOutcome
+    {
+        if ($this->tab === self::TAB_KEYS) {
+            $this->sectionState->moveBy($delta, count($this->keySections()));
+
+            return ScreenOutcome::stay();
+        }
+
+        $this->window->scrollBy($delta);
+
+        return ScreenOutcome::stay();
+    }
+
+    private function toggled(): ScreenOutcome
+    {
+        if ($this->tab !== self::TAB_KEYS) {
+            return ScreenOutcome::stay();
+        }
+
+        $sections = $this->keySections();
+        $current = $sections[$this->sectionState->cursor()] ?? null;
+
+        if ($current !== null) {
+            $this->sectionState->toggle($current->key);
+        }
+
+        return ScreenOutcome::stay();
     }
 
     /**
@@ -228,16 +343,13 @@ final class HelpScreen implements ScreenInterface, Resettable
     }
 
     /**
-     * Treść aktywnej zakładki.
+     * Treść aktywnej zakładki **płaskiej**. Zakładka „Sterowanie” tu nie trafia —
+     * ma sekcje i własną drogę (`keySections()`).
      *
      * @return list<ListRow>
      */
     private function rows(): array
     {
-        if ($this->tab === self::TAB_KEYS) {
-            return $this->keyRows();
-        }
-
         if ($this->tab === self::TAB_ABOUT) {
             return $this->aboutRows();
         }
@@ -342,39 +454,45 @@ final class HelpScreen implements ScreenInterface, Resettable
      * jego własną nazwą. Podział jest po ekranach, bo ten sam klawisz znaczy na
      * nich co innego — i właśnie o tym użytkownik przychodzi się dowiedzieć.
      *
-     * @return list<ListRow>
+     * Do kroku 22 grupy były płaskie: nagłówek w akcencie i pusty wiersz przed
+     * nim. Zmieniło się jedno — grupa jest teraz `Section`, więc **da się ją
+     * zwinąć**. Wiązania rdzenia dostały przy tym własny nagłówek, którego
+     * wcześniej nie miały: sekcja bez etykiety nie ma czego pokazać na znaczniku,
+     * a „Wszędzie” mówi o nich prawdę, której płaski spis nie mówił.
+     *
+     * Klucz sekcji jest **trwały** — identyfikator ekranu albo klucz etykiety —
+     * więc zwinięcie przeżywa zmianę zakładki i wyłączenie modułu.
+     *
+     * @return list<Section>
      */
-    private function keyRows(): array
+    private function keySections(): array
     {
-        $rows = [];
-
-        foreach ($this->global as $binding) {
-            $rows[] = $this->keyRow($binding);
-        }
+        $sections = [$this->section('global', 'help.section.global', $this->global)];
 
         foreach ($this->screens as $screen) {
-            $rows[] = new ListRow('', '', Role::Muted);
-            $rows[] = new ListRow(
-                $this->translator->translate($screen->labelKey()),
-                '',
-                Role::Accent,
+            $sections[] = $this->section(
+                'screen.' . $screen->id(),
+                $screen->labelKey(),
+                $screen->bindings(),
             );
-
-            foreach ($screen->bindings() as $binding) {
-                $rows[] = $this->keyRow($binding);
-            }
         }
 
         foreach ($this->sections as $labelKey => $bindings) {
-            $rows[] = new ListRow('', '', Role::Muted);
-            $rows[] = new ListRow($this->translator->translate($labelKey), '', Role::Accent);
-
-            foreach ($bindings as $binding) {
-                $rows[] = $this->keyRow($binding);
-            }
+            $sections[] = $this->section($labelKey, $labelKey, $bindings);
         }
 
-        return $rows;
+        return $sections;
+    }
+
+    /** @param list<KeyBinding> $bindings */
+    private function section(string $key, string $labelKey, array $bindings): Section
+    {
+        return new Section(
+            $key,
+            $this->translator->translate($labelKey),
+            array_map($this->keyRow(...), $bindings),
+            $this->sectionState->isCollapsed($key),
+        );
     }
 
     private function keyRow(KeyBinding $binding): ListRow

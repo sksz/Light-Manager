@@ -16,6 +16,7 @@ use LightManager\Application\Module\ModuleInterface;
 use LightManager\Application\Module\ModuleRegistry;
 use LightManager\Application\Module\ModuleSetting;
 use LightManager\Application\Module\ModuleSettingKind;
+use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
@@ -37,6 +38,7 @@ use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\Resettable;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
+use LightManager\Presentation\Ui\ScreenZone;
 
 /**
  * Ekran ustawień: pasek zakładek u góry, pod nim pozycje aktywnej zakładki.
@@ -84,13 +86,18 @@ final class SettingsScreen implements ScreenInterface, Resettable
      */
     private ?Message $pending = null;
 
-    /** @param list<SettingsTab> $tabs zakładki tego uruchomienia, złożone w `Bootstrap` */
+    /**
+     * @param SettingsPort      $configuration źródło **położenia** pliku; wartości
+     *                                         czyta się ze stanu pętli, nie stąd
+     * @param list<SettingsTab> $tabs          zakładki tego uruchomienia, złożone w `Bootstrap`
+     */
     public function __construct(
         private readonly LoopState $state,
         private readonly ChangeSettingUseCase $changeSetting,
         private readonly RestoreDefaultSettingsUseCase $restoreDefaults,
         private readonly ChangeModuleSettingUseCase $changeModuleSetting,
         private readonly TranslatorPort $translator,
+        private readonly SettingsPort $configuration,
         private readonly array $tabs = [],
         private readonly ?ModuleRegistry $modules = null,
     ) {
@@ -107,14 +114,22 @@ final class SettingsScreen implements ScreenInterface, Resettable
         return 'layout.zone.settings';
     }
 
-    public function usesPreview(): bool
+    /**
+     * Górny pas ekranu ustawień: położenie pliku konfiguracyjnego.
+     *
+     * Ekran, który ten plik zmienia, jest jedynym miejscem, w którym ścieżka do
+     * niego naprawdę się przydaje — a użytkownik, który chce go ruszyć ręcznie,
+     * nie ma skąd jej wziąć. Zakładka „Aplikacja” w pomocy podaje ją dalej,
+     * bo tam stoi w towarzystwie wersji i trybu renderowania.
+     */
+    public function header(): ScreenZone
     {
-        return false;
+        return new ScreenZone('layout.zone.settings.file', new Label($this->configuration->location()));
     }
 
-    public function headerSuffix(): string
+    public function preview(): ?ScreenZone
     {
-        return '';
+        return null;
     }
 
     /** Wejście na ekran zaczyna go od początku — kursor wraca na pasek zakładek. */
@@ -189,26 +204,33 @@ final class SettingsScreen implements ScreenInterface, Resettable
     }
 
     /**
-     * Spis modułów: nazwa, skrót otwierający i przełącznik.
+     * Zakładka „Moduły”: moduł domyślny, pod nim spis — nazwa, skrót otwierający
+     * i przełącznik.
+     *
+     * Moduł domyślny stoi **nad** spisem, bo jego wartości to identyfikatory
+     * z tego właśnie spisu; postawiony pod nim czytałby się jak podsumowanie,
+     * a jest wyborem.
      *
      * Moduł odrzucony przy starcie stoi na liście wraz z powodem **zamiast**
      * przełącznika i włączyć się nie da — kolizji skrótu nie usunie przełącznik,
-     * tylko poprawka w kodzie.
+     * tylko poprawka w kodzie. Tak samo moduł ostatniej szansy: przełącznik stoi,
+     * ale zablokowany wraz z powodem.
      *
      * @return list<ComponentInterface>
      */
     private function moduleListRows(): array
     {
+        $rows = [$this->position($this->state->settings(), SettingKey::StartupModule, $this->cursor->item === 0)];
         $modules = $this->modules?->declared() ?? [];
 
         if ($modules === []) {
-            return [new Label($this->translator->translate('settings.modules.empty'))];
+            $rows[] = new Label($this->translator->translate('settings.modules.empty'));
+
+            return $rows;
         }
 
-        $rows = [];
-
         foreach ($modules as $index => $module) {
-            $rows[] = $this->moduleListRow($module, $index === $this->cursor->item);
+            $rows[] = $this->moduleListRow($module, $index + 1 === $this->cursor->item);
         }
 
         return $rows;
@@ -227,6 +249,10 @@ final class SettingsScreen implements ScreenInterface, Resettable
 
         if ($rejection !== null) {
             return new Choice($label, $this->translator->translate($rejection->reasonKey), $selected);
+        }
+
+        if ($this->modules?->isEssential($module->id()) ?? false) {
+            return new Choice($label, $this->translator->translate('settings.modules.essential'), $selected);
         }
 
         return new Toggle(
@@ -400,7 +426,12 @@ final class SettingsScreen implements ScreenInterface, Resettable
         return match ($tab->kind) {
             SettingsTabKind::Core => $this->shiftCore($direction),
             SettingsTabKind::Module => $this->shiftModule($tab->moduleId, $direction),
-            SettingsTabKind::Modules => $this->toggleModule($this->cursor->item),
+            // Pierwszy wiersz zakładki „Moduły” to ustawienie **rdzenia** (moduł
+            // domyślny), a dopiero pod nim zaczyna się spis — stąd przesunięcie
+            // o jeden.
+            SettingsTabKind::Modules => $this->cursor->item === 0
+                ? $this->shiftCore($direction)
+                : $this->toggleModule($this->cursor->item - 1),
         };
     }
 
@@ -439,7 +470,10 @@ final class SettingsScreen implements ScreenInterface, Resettable
         return ScreenOutcome::stay($message);
     }
 
-    /** Przełącznik ze spisu modułów; moduł odrzucony mówi tylko, dlaczego odpadł. */
+    /**
+     * Przełącznik ze spisu modułów; moduł odrzucony mówi tylko, dlaczego odpadł,
+     * a moduł ostatniej szansy — dlaczego wyłączyć się nie da.
+     */
     private function toggleModule(int $item): ScreenOutcome
     {
         $module = ($this->modules?->declared() ?? [])[$item] ?? null;
@@ -452,6 +486,12 @@ final class SettingsScreen implements ScreenInterface, Resettable
 
         if ($rejection !== null) {
             return ScreenOutcome::stay(Message::warning($this->translator->translate($rejection->reasonKey)));
+        }
+
+        if ($this->modules?->isEssential($module->id()) ?? false) {
+            return ScreenOutcome::stay(
+                Message::warning($this->translator->translate('settings.modules.essential.reason')),
+            );
         }
 
         [$settings, $message] = $this->changeModuleSetting->enable(
@@ -503,7 +543,10 @@ final class SettingsScreen implements ScreenInterface, Resettable
             ),
             SettingKey::Theme => new Choice($label, ucfirst($settings->theme), $selected),
             SettingKey::PaletteColors => new Choice($label, (string) $settings->paletteColors, $selected),
-            SettingKey::ShowHiddenEntries => new Toggle($label, $settings->showHiddenEntries, $yes, $no, $selected),
+            // Wartość pokazujemy tak, jak leży w pliku — identyfikatorem, a nie
+            // nazwą modułu: to ona jest tym, co użytkownik wpisze, gdy zechce
+            // ruszyć plik ręcznie, a nazwa modułu stoi wiersz niżej, w spisie.
+            SettingKey::StartupModule => new Choice($label, $settings->startupModule, $selected),
             SettingKey::TextAntialias => new Toggle($label, $settings->textAntialias, $yes, $no, $selected),
             SettingKey::StrokeAntialias => new Toggle($label, $settings->strokeAntialias, $yes, $no, $selected),
         };

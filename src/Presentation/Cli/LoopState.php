@@ -6,21 +6,22 @@ namespace LightManager\Presentation\Cli;
 
 use LightManager\Application\Dto\Settings;
 use LightManager\Application\Module\ModuleContext;
-use LightManager\Domain\Aggregate\Directory;
 use LightManager\Domain\ValueObject\Message;
 
 /**
- * Dane przenoszone między iteracjami pętli: bieżący katalog wraz z zaznaczeniem,
- * ustawienia, komunikat, okna nakładane i czas bieżącej klatki.
+ * Dane przenoszone między iteracjami pętli: ustawienia, komunikat, okna
+ * nakładane, czas bieżącej klatki i kontekst sesji.
  *
- * Który ekran jest aktywny — **nie** jest już częścią tego stanu. Ekrany są od
+ * Czyli **stan powłoki**, a nie stan menadżera plików. Do kroku 20 leżał tu
+ * jeszcze bieżący katalog wraz z zaznaczeniem — i to on kazał rdzeniowi znać
+ * pojęcie pliku. Krok 21 wyprowadził go do `BrowserState` w module przeglądarki,
+ * bo katalog jest stanem jednej konkretnej funkcji, a nie czymś, co przeżywa
+ * klatkę niezależnie od tego, kto ją rysuje.
+ *
+ * Który ekran jest aktywny — **nie** jest częścią tego stanu. Ekrany są od
  * kroku 18 obiektami, a te muszą powstać po `LoopState`, bo z niego czytają;
  * trzymanie ich tutaj wymagałoby ekranu pustego na czas budowy. Aktywnym
  * ekranem zarządza `ScreenStack`.
- *
- * Widoczność wpisów ukrytych nie jest osobnym znacznikiem, bo od kroku 14 jest
- * ustawieniem jak każde inne — jedno miejsce prawdy zamiast dwóch, które
- * musiałyby się pilnować nawzajem.
  */
 final class LoopState
 {
@@ -41,15 +42,13 @@ final class LoopState
     /**
      * Kontekst sesji dla modułów: gdzie użytkownik stoi i co ma zaznaczone.
      *
-     * Stan go **trzyma**, ale nie **wypełnia**: publikuje go ekran, który zna
-     * bieżące miejsce — w tym kroku jeszcze rdzeniowy `BrowserScreen`, od kroku
-     * 21 ekran modułu przeglądarki. Brak wydawcy daje kontekst pusty, nie `null`:
-     * odbiorca ma czytać, a nie sprawdzać istnienie.
+     * Stan go **trzyma**, ale nie **wypełnia**: publikuje go ten, kto zna bieżące
+     * miejsce — od kroku 21 `BrowserState` modułu przeglądarki. Brak wydawcy daje
+     * kontekst pusty, nie `null`: odbiorca ma czytać, a nie sprawdzać istnienie.
      */
     private ModuleContext $context;
 
     public function __construct(
-        private Directory $directory,
         private Settings $settings = new Settings(),
     ) {
         $this->overlays = new OverlayStack();
@@ -66,16 +65,6 @@ final class LoopState
         $this->context = $context;
     }
 
-    public function directory(): Directory
-    {
-        return $this->directory;
-    }
-
-    public function enterDirectory(Directory $directory): void
-    {
-        $this->directory = $directory;
-    }
-
     public function settings(): Settings
     {
         return $this->settings;
@@ -84,11 +73,6 @@ final class LoopState
     public function applySettings(Settings $settings): void
     {
         $this->settings = $settings;
-    }
-
-    public function showsHiddenEntries(): bool
-    {
-        return $this->settings->showHiddenEntries;
     }
 
     public function message(): ?Message

@@ -19,25 +19,25 @@ declare(strict_types=1);
  */
 
 return [
+    // Nazwa aplikacji — jedyny napis, którego się nie tłumaczy, a który mimo to stoi
+    // w katalogu: pokazuje go nagłówek ekranu pomocy, a napisów w kodzie nie ma.
+    'app.name' => 'Light Manager',
+
     // Formatowanie liczb — ścieżka awaryjna, gdy brakuje rozszerzenia `intl`.
     'format.decimal' => ',',
 
+    // Zapis liczby procent w pasku postępu. Osobny klucz, bo odstęp przed znakiem
+    // procenta jest sprawą języka, a nie komponentu.
+    'format.percent' => '{value}%',
+
     // Etykiety stref układu HUD, wpięte w krawędź obwódki panelu.
     'layout.zone.path' => 'ŚCIEŻKA',
-    'layout.zone.files' => 'PLIKI',
+    'layout.zone.about' => 'APLIKACJA',
+    'layout.zone.settings.file' => 'PLIK KONFIGURACYJNY',
     'layout.zone.settings' => 'USTAWIENIA',
     'layout.zone.help' => 'POMOC',
     'layout.zone.preview' => 'PODGLĄD',
     'layout.zone.command' => 'KOMENDY',
-
-    // Przeglądarka plików.
-    'browser.empty' => '(katalog jest pusty)',
-    'browser.hidden' => '• ukryte',
-
-    // Pas podglądu miniatur.
-    'preview.unreadable' => 'Nie udało się odczytać obrazu.',
-    'preview.tooLarge' => 'Plik przekracza limit {limit} MB — bez podglądu.',
-    'preview.tooManyPixels' => '{dimensions} — obraz przekracza limit {limit} Mpx.',
 
     // Ekran ustawień.
     'settings.hints' => '↑↓ ruch · ←→ zmiana · Esc powrót',
@@ -45,9 +45,11 @@ return [
     'settings.tab.graphics' => 'GRAFIKA',
     'settings.tab.modules' => 'MODUŁY',
     'settings.modules.empty' => '(żaden moduł nie jest zadeklarowany)',
+    'settings.modules.essential' => 'zawsze włączony',
+    'settings.modules.essential.reason' => 'Tego modułu nie da się wyłączyć — to do niego aplikacja wraca, gdy moduł domyślny jest niedostępny.',
     'settings.key.language' => 'Język',
     'settings.key.theme' => 'Motyw',
-    'settings.key.showHiddenEntries' => 'Pokazuj wpisy ukryte',
+    'settings.key.startupModule' => 'Moduł otwierany przy starcie',
     'settings.key.textAntialias' => 'Wygładzanie tekstu',
     'settings.key.strokeAntialias' => 'Wygładzanie obrysów',
     'settings.key.paletteColors' => 'Kolory palety Sixela',
@@ -66,9 +68,6 @@ return [
     // Ekran pomocy. Same nazwy klawiszy zostają w kodzie — ich lokalizacja leży
     // poza zakresem kroku 15.
     'help.key.move' => 'zmiana zaznaczenia',
-    'help.key.open' => 'wejście do katalogu',
-    'help.key.up' => 'katalog wyżej',
-    'help.key.hidden' => 'pokaż lub ukryj wpisy ukryte',
     'help.key.help' => 'pomoc',
     'help.key.settings' => 'ustawienia',
     'help.key.back' => 'powrót do listy plików',
@@ -81,6 +80,7 @@ return [
     'help.key.edit' => 'edycja wartości',
     'help.key.commit' => 'zatwierdź wartość',
     'help.key.cancel' => 'porzuć zmianę',
+    'help.key.collapse' => 'zwiń lub rozwiń sekcję',
 
     // Zakładka modułu w oknie pomocy — nagłówki części składanej z deklaracji.
     'help.module.shortcut' => 'Skrót',
@@ -112,6 +112,7 @@ return [
     'command.core.language' => 'ustaw język interfejsu',
     'command.argument.theme' => 'motyw',
     'command.argument.language' => 'język',
+    'help.section.global' => 'Wszędzie',
     'help.tab.keys' => 'Sterowanie',
     'help.tab.about' => 'Aplikacja',
     'help.about.version' => 'Wersja',
@@ -147,11 +148,12 @@ return [
     ],
     'module.setting.invalid' => 'Wartość odrzucona — „{name}” nie przyjmuje tego, co wpisano.',
     'module.restart' => 'Zmiana zadziała po ponownym uruchomieniu.',
+    'module.startup.unknown' => 'Nie ma modułu „{module}” — otwarto przeglądarkę plików.',
+    'module.startup.disabled' => 'Moduł „{module}” jest wyłączony — otwarto przeglądarkę plików.',
+    'module.startup.rejected' => 'Moduł „{module}” został odrzucony przy starcie — otwarto przeglądarkę plików.',
+    'module.startup.screenless' => 'Moduł „{module}” nie wnosi własnego okna — otwarto przeglądarkę plików.',
 
     // Problemy pokazywane użytkownikowi — pasek stanu i wyjście awaryjne.
-    'problem.directory.unreadable' => 'Nie można odczytać katalogu "{path}".',
-    'problem.directory.invalidPath' => '"{path}" nie jest bezwzględną ścieżką katalogu.',
-    'problem.directory.fallback' => 'Nie można odczytać katalogu "{requested}" — otwarto "{opened}".',
     'problem.terminal.notInteractive' => 'Standardowe wejście nie jest terminalem — menadżer plików '
         . 'wymaga interaktywnej sesji (bez przekierowania z pliku lub potoku).',
     'problem.terminal.missingPcntl' => 'Rozszerzenie PHP "pcntl" nie jest dostępne — bez obsługi sygnałów '
@@ -191,6 +193,9 @@ return [
     'bench.scenario.thumbnail' => 'klatka z miniaturą',
     'bench.scenario.popup' => 'klatka z okienkiem',
     'bench.scenario.command' => 'okno komend',
+    'bench.scenario.sections' => 'zwijane sekcje',
+    'bench.scenario.progress' => 'paski postępu',
+    'bench.scenario.split' => 'klatka podzielona',
 
     'bench.transfer.title' => 'Przesył klatki do terminala',
     'bench.transfer.blob' => '  rozmiar klatki:     {kilobytes} kB',

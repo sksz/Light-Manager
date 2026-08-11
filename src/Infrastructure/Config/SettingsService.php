@@ -41,6 +41,22 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
     /** Podobiekt z ustawieniami modułów, obok kluczy rdzenia. */
     private const MODULES_KEY = 'modules';
 
+    /**
+     * Klucz rdzenia, który w kroku 21 zszedł do modułu przeglądarki.
+     *
+     * Przepisujemy go **raz**, przy odczycie, i tylko wtedy, gdy w podprzestrzeni
+     * modułu nic jeszcze nie stoi. Reguła kroku 14 kazałaby go po prostu pominąć
+     * jak każdy nieznany klucz — świadomie z niej tu rezygnujemy, żeby ustawienie
+     * przeżyło aktualizację. Ceną są trzy stałe, przez które usługa konfiguracji
+     * zna nazwę jednego modułu; wolno je usunąć, gdy przestanie być prawdopodobne,
+     * że ktoś ma jeszcze plik sprzed tej wersji.
+     */
+    private const LEGACY_HIDDEN_KEY = 'showHiddenEntries';
+
+    private const LEGACY_HIDDEN_MODULE = 'browser';
+
+    private const LEGACY_HIDDEN_SETTING = 'showHidden';
+
     /** Właściciel czyta i pisze, reszta świata nic — plik opisuje wyłącznie jego środowisko. */
     private const FILE_MODE = 0o600;
 
@@ -169,7 +185,37 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
             $settings = $applied;
         }
 
-        return [$settings->withModules(self::modulesFrom($values[self::MODULES_KEY] ?? null)), $rejected];
+        $modules = self::modulesFrom($values[self::MODULES_KEY] ?? null);
+
+        return [$settings->withModules(self::migrated($modules, $values)), $rejected];
+    }
+
+    /**
+     * Widoczność wpisów ukrytych z pliku sprzed kroku 21, przepisana do
+     * podprzestrzeni modułu przeglądarki.
+     *
+     * Wartość zapisana już przez moduł ma pierwszeństwo: plik z obydwoma kluczami
+     * naraz powstaje wyłącznie wtedy, gdy użytkownik zdążył ruszyć ustawienie po
+     * aktualizacji, a wtedy to ono jest prawdą. Sam stary klucz z pliku nie
+     * znika — wypadnie z niego przy najbliższym zapisie, bo `toArray()` już go
+     * nie wypisuje.
+     *
+     * @param array<string, array<string, bool|int|string>> $modules
+     * @param array<array-key, mixed>                       $values
+     *
+     * @return array<string, array<string, bool|int|string>>
+     */
+    private static function migrated(array $modules, array $values): array
+    {
+        $legacy = $values[self::LEGACY_HIDDEN_KEY] ?? null;
+
+        if (!is_bool($legacy) || isset($modules[self::LEGACY_HIDDEN_MODULE][self::LEGACY_HIDDEN_SETTING])) {
+            return $modules;
+        }
+
+        $modules[self::LEGACY_HIDDEN_MODULE][self::LEGACY_HIDDEN_SETTING] = $legacy;
+
+        return $modules;
     }
 
     /**
@@ -255,7 +301,13 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
             SettingKey::Theme => is_string($value) && ($themeNames === [] || in_array($value, $themeNames, true))
                 ? $settings->withTheme($value)
                 : null,
-            SettingKey::ShowHiddenEntries => is_bool($value) ? $settings->withShowHiddenEntries($value) : null,
+            // Dopuszczalne wartości modułu domyślnego zna dopiero rejestr, a ten
+            // powstaje po odczycie konfiguracji. Tu sprawdzamy więc sam typ;
+            // wartość bez pokrycia w rejestrze rozliczy `Bootstrap`, wracając do
+            // modułu ostatniej szansy wraz z komunikatem (krok 21).
+            SettingKey::StartupModule => is_string($value) && $value !== ''
+                ? $settings->withStartupModule($value)
+                : null,
             SettingKey::TextAntialias => is_bool($value) ? $settings->withTextAntialias($value) : null,
             SettingKey::StrokeAntialias => is_bool($value) ? $settings->withStrokeAntialias($value) : null,
             SettingKey::PaletteColors => is_int($value) && in_array($value, Settings::PALETTE_CHOICES, true)
@@ -306,7 +358,7 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
         $values = [
             SettingKey::Language->value => $settings->language,
             SettingKey::Theme->value => $settings->theme,
-            SettingKey::ShowHiddenEntries->value => $settings->showHiddenEntries,
+            SettingKey::StartupModule->value => $settings->startupModule,
             SettingKey::TextAntialias->value => $settings->textAntialias,
             SettingKey::StrokeAntialias->value => $settings->strokeAntialias,
             SettingKey::PaletteColors->value => $settings->paletteColors,

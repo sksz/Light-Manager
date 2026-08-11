@@ -8,8 +8,13 @@
 
 ## Status
 
-**Nie rozpoczęty; plan kompletny** (2026-08-09). Wszystkie pytania planistyczne
-zamknięte (P1–P12 poniżej, [00-decyzje.md](00-decyzje.md), D40).
+**Ukończony** (2026-08-10). Kod, testy i dokumentacja gotowe: PHPStan `max` bez
+błędów, PHP-CS-Fixer bez uwag, **819 testów** (1880 asercji) zielonych, klatka
+zmierzona i rozliczona „przed i po”, wygląd sprawdzony pod prawdziwym XTermem.
+
+Pytania planistyczne były zamknięte przed startem (P1–P12 poniżej,
+[00-decyzje.md](00-decyzje.md), D40); rozstrzygnięcia wykonawcze zapadły na
+starcie kroku i są zapisane w D42 oraz w „Dzienniku realizacji”.
 
 ## Ustalenia (decyzje użytkownika, 2026-08-09)
 
@@ -526,6 +531,164 @@ Poniższe to rozstrzygnięcia wykonawcze:
   zgodnie ze sobą.
 - `README.md` opisuje moduł domyślny, jego wybór w konfiguracji i `Ctrl+B`.
 
+## Rozstrzygnięcia wykonawcze ze startu kroku (2026-08-10)
+
+Siedem pytań z sekcji wyżej, rozstrzygniętych przez użytkownika przed otwarciem
+edytora, plus jedno ósme, którego plan nie przewidział.
+
+| # | Pytanie | Wybór |
+|---|---|---|
+| 1 | Kształt kontraktu stref | **`header()`/`preview()` oddające `?ScreenZone`** — propozycja planu |
+| 2 | Pasek ścieżki na ekranach rdzenia | **Górny pas to pole ekranu, nie stały pasek ścieżki**; pomoc stawia w nim nazwę i wersję aplikacji, ustawienia — położenie pliku konfiguracyjnego |
+| 3 | Gdzie mieszka katalog modułu | **Osobny `BrowserState`** wstrzykiwany do ekranu i do komendy |
+| 4 | Stary klucz `showHiddenEntries` | **Przepisać raz** do `modules.browser.showHidden` |
+| 5 | `FileInfo` a `ProvidesCommands` | **Zostaje z pustą listą** — moduł ma się rozrastać (krok 25, wtedy numerowany jako 22) |
+| 6 | Komunikat przy powrocie do przeglądarki | **Konkretna przyczyna — cztery klucze napisów** |
+| 7 | Koszt pasa podglądu | Rozliczony pomiarem (niżej) |
+| 8 | **Wyjątki katalogu w `ProblemPresenter`** (poza planem) | **Wyjątek sam się przedstawia** — nowy interfejs `Domain\Exception\DescribesProblem` |
+
+Rozstrzygnięcie nr 8 powstało w trakcie: `ProblemPresenter` dobierał zdanie dla
+użytkownika **po klasie wyjątku** i rozpoznawał `DirectoryNotReadableException`
+oraz `InvalidDirectoryPathException`. Po przenosinach oba należą do modułu, więc
+rdzeń wciąż wiedziałby, czym jest katalog — czyli główne kryterium kroku nie
+byłoby spełnione. Odrzucono: nową zdolność modułu (kontrakt miał nie urosnąć)
+i łapanie własnych wyjątków przez moduł (krok 20 ustalił odwrotnie).
+
+## Odstępstwa od planu
+
+Dziesięć, każde z powodem. Żadne nie dotyka kontraktu modułu.
+
+1. **`Domain\Exception\DescribesProblem`** — nowy, jednometodowy interfejs
+   w domenie rdzenia (rozstrzygnięcie nr 8). Reguła ze SKILL-a „napis dobiera
+   presenter po klasie wyjątku” obowiązuje odtąd **wyłącznie dla wyjątków
+   rdzenia**; wyjątek modułu podaje klucz katalogu i parametry sam.
+2. **`Presentation\Cli\StartupScreen`** — plan zostawiał wybór dna w `Bootstrap`.
+   Cztery drogi awaryjne to cztery testy, a `Bootstrap` nie daje się wywołać bez
+   terminala i Imagicka. Wybór wyprowadzony do osobnej klasy; `Bootstrap` stawia
+   już tylko komunikat, bo to on trzyma stan pętli.
+3. **Dwa komponenty własne modułu** (`Presentation/Component/`), których plan nie
+   przewidywał. `PathLine` — bo ścieżkę skraca się **od lewej**
+   (`DirectoryPath::shortenedTo()`), a `Label::fit()` ucina koniec: postawienie
+   go w komponentach rdzenia przywróciłoby rdzeniowi `DirectoryPath`.
+   `PreviewBox` — bo ekran pytany o strefy **przed** podziałem okna nie wie, czy
+   pas podglądu powstanie; liczenie podglądu dopiero w `draw()` odtwarza dawne
+   zachowanie `FrameComposer` co do taktu (patrz „Pomiar”).
+4. **`BrowserModule` składa się sam i leniwie.** Plan sugerował wiązanie
+   w `Bootstrap` (tak powstaje `FileInfo`), ale wtedy rdzeń poznałby
+   `FilesystemDirectoryRepository` i `DirectoryPath`. Leniwość ma z kolei jedną
+   twardą przyczynę: otwarcie katalogu startowego potrafi skończyć się
+   komunikatem, a napisy modułu wchodzą do katalogu **po** zbudowaniu rejestru —
+   moduł składany zachłannie wypisałby użytkownikowi surowy klucz.
+5. **`HudLayout` zyskał `withHeader`** obok `withPreview`. Skoro `header()` może
+   oddać `null`, podział okna musi to zobaczyć. Progi ustępowania nietknięte.
+6. **`SettingsScreen` dostał `SettingsPort`** — żeby postawić w swoim nagłówku
+   położenie pliku konfiguracyjnego (rozstrzygnięcie nr 2).
+7. **`ChangeSettingUseCase` dostał listę `startupModules`.** `startupModule` jest
+   pierwszym kluczem rdzenia, którego zakresu nie zna się w czasie pisania kodu;
+   motywy mają na to port, moduły portu nie mają i mieć nie muszą — to napisy.
+8. **`SettingsTab::modules()` niesie klucz `StartupModule`**, więc spis modułów
+   ma o jeden wiersz więcej niż modułów. Pozycja stoi **nad** spisem, bo jej
+   wartości to identyfikatory z tego właśnie spisu.
+9. **`FileInfo` zmienił się bardziej niż „tylko wydawca kontekstu”**: stracił
+   `JumpCommand` z konstruktora, dostał `header()`/`preview()` z nowego kontraktu
+   i zapamiętuje kontekst, żeby postawić ścieżkę w górnym pasie. Bez tego
+   ostatniego jego klatka straciłaby pasek ścieżki — a to byłaby zmiana wyglądu.
+10. **Klawisze przeglądarki przeniosły się w oknie pomocy** z ogólnego spisu
+    „Klawisze” na **jej własną zakładkę**. To jedyne miejsce, w którym przenosiny
+    widać w interfejsie, i wynika wprost z P8 kroku 20: moduł dostaje zakładkę,
+    a jego klawisze idą tam z deklaracji. Klatki samej przeglądarki nie dotyczy.
+
+**Czego nie zrobiono:** `Bootstrap` nadal wiąże wnętrze modułu `FileInfo`
+(ekran, przypadek użycia, usługa) zamiast dostać gotowy moduł. Nie łamie to
+kryterium kroku — żadna z tych klas nie wie, czym jest katalog — ale obietnica
+„jedna pozycja na liście” jest dla `FileInfo` spełniona słabiej niż dla
+przeglądarki. Pilnuje tego test `CoreKnowsNothingAboutFilesTest`, który dla
+przeglądarki jest twardy, a dla reszty modułów wymaga tylko, żeby nikt poza
+`Bootstrapem` ich nie widział. Do wyrównania w kroku **25**, przy okazji
+rozbudowy (krok nosił wtedy numer 22 — przenumerowanie: D43).
+
+## Pomiar
+
+Wzorce: [2026-08-10-przed-krokiem-21.json](../pomiary/2026-08-10-przed-krokiem-21.json)
+i [2026-08-10-po-kroku-21.json](../pomiary/2026-08-10-po-kroku-21.json).
+
+| Scenariusz | Przed | Po | Zmiana |
+|---|---|---|---|
+| puste płótno | 7,4 ms | 7,2 ms | −2,1% |
+| sam tekst | 12,6 ms | 12,6 ms | −0,3% |
+| same ramki | 12,2 ms | 11,2 ms | −8,2% |
+| ramki z tekstem | 19,1 ms | 19,9 ms | +4,3% |
+| zaznaczenie | 20,7 ms | 20,5 ms | −0,7% |
+| suwak | 16,6 ms | 16,0 ms | −3,9% |
+| klatka z miniaturą | 29,1 ms | 28,3 ms | −2,9% |
+| klatka z okienkiem | 25,1 ms | 25,2 ms | +0,4% |
+| okno komend | 30,0 ms | 30,0 ms | −0,2% |
+
+**Bez regresji powyżej progu**, a rozrzut wyników mieści się w szumie pomiaru.
+Wynik trzeba jednak czytać z zastrzeżeniem, bo inaczej obiecywałby więcej, niż
+mierzy: scenariusze `bin/render-bench` powstają w `ScenarioFactory` i idą prosto
+do renderera, **z pominięciem `FrameComposer`**. Zgodność liczb mówi więc tyle,
+że przebudowa stref nie zmieniła ani jednego prymitywu docierającego do
+renderera — i to jest prawdziwa treść tego pomiaru.
+
+Na pytanie z rozstrzygnięcia nr 7 („czy pas podglądu rysowany przez moduł zmienia
+koszt klatki”) odpowiada za to **konstrukcja**, nie tabela: `PreviewBox` liczy
+podgląd raz na klatkę, tak jak dawne `FrameComposer::previewOf()`, i **później niż
+ono** — dopiero gdy strefa dostała wiersze. Okno niższe od progu pasa podglądu
+robi po zmianie ściśle mniej roboty niż przed nią.
+
 ## Dziennik realizacji
 
-*(pusty — krok nierozpoczęty)*
+**2026-08-10 — krok wykonany w całości.**
+
+Co powstało i co zniknęło:
+
+- **Domena katalogu zeszła do modułu**: `Directory`, `DirectoryPath`, `Entry`,
+  `EntryType`, `Selection`, `DirectoryRepositoryInterface` i cztery wyjątki
+  katalogu leżą w `src/Module/Browser/Domain/`. Razem z nimi sześć przypadków
+  użycia, `FilesystemDirectoryRepository`, `EntryComparator`, ekran i komenda
+  skoku. `Domain/` rdzenia to dziś pięć obiektów wartości plus hierarchia
+  wyjątków.
+- **`ScreenInterface` zmienił kształt po raz pierwszy od kroku 18**:
+  `header()` i `preview()` oddające `?ScreenZone` zastąpiły `headerSuffix()`
+  i `usesPreview()`. Zasada kroku 20 „moduł dostaje środkowy panel i nic poza
+  nim” **została uchylona**, zgodnie z D40/P6.
+- **`LoopState` stracił katalog**, `ScreenStack` — wpisane dno, `Bootstrap` —
+  `startingPath()` i wszystkie sześć przypadków użycia nawigacji.
+- **`startupModule` wszedł do konfiguracji**, `showHiddenEntries` z niej wyszedł
+  do `modules.browser.showHidden` wraz z jednorazowym przepisaniem starego klucza.
+- **Przeglądarka jest modułem ostatniej szansy**: rejestr sprawdza ją pierwszą,
+  `isEnabled()` zawsze oddaje dla niej prawdę, a przełącznik na zakładce „Moduły”
+  mówi tylko, dlaczego nie działa.
+
+**Kontrakt modułu z kroku 20 nie zyskał ani jednej metody** — i to jest główny
+wynik tego kroku, bo taki był jego sprawdzian. Główna funkcja aplikacji weszła
+w `ModuleInterface`, `ProvidesScreen`, `ProvidesSettingsTab`, `ProvidesHelpTab`
+i `ProvidesCommands` takie, jakie zastała. Zmienił się za to **kontrakt ekranu**,
+i to było w planie.
+
+Trzy zdania, którymi krok mierzył swoje powodzenie, sprawdzają testy:
+
+1. `CoreKnowsNothingAboutFilesTest` — w `src/Domain`, `src/Application`,
+   `src/Infrastructure` i `src/Presentation` nie ma ani jednego odwołania do
+   `LightManager\Module\Browser\…`; jedyne, co widzi `Bootstrap`, to klasa
+   `BrowserModule` i napis `'browser'` jako identyfikator modułu ostatniej szansy.
+2. `BrowserModuleTest::testAnotherModuleNamedInTheConfigurationBecomesTheFloor` —
+   `startupModule` wskazujący `file-info` uruchamia aplikację z jego ekranem jako
+   dnem, bez zmiany w kodzie rdzenia.
+3. `BrowserModuleTest` i `InputHandlerTest` — klawisze, napisy, pasek ścieżki
+   wraz z numerem zaznaczenia i znacznikiem wpisów ukrytych oraz zachowanie pasa
+   podglądu zostały co do znaku. Sprawdzone dodatkowo pod prawdziwym XTermem:
+   klatka po zmianie wygląda tak, jak przed nią.
+
+Cztery drogi awaryjne wyboru dna mają cztery osobne komunikaty i cztery testy
+(`StartupScreenTest`). Przypadki się nie nakładają i wynika to z rejestru: moduł
+nieobecny na liście nie ma jak być wyłączony, a wyłączony **nie jest sprawdzany**,
+więc nie ma jak być zarazem odrzucony.
+
+**Co sprawdziło się samo z siebie i warto to zapisać.** `ChangeModuleSettingUseCase`
+z kroku 20 udźwignął ustawienie zmieniane **klawiszem**, w środku klatki, wraz
+z ponownym odczytem katalogu — a to był jego pierwszy poważny sprawdzian i plan
+kazał zapisać, gdyby go nie udźwignął. Nie trzeba było w nim zmienić nic:
+`shift()` napisany dla strzałki na ekranie ustawień obsłużył `.` w przeglądarce
+bez różnicy.

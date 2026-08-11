@@ -6,8 +6,9 @@ namespace LightManager\Tests\Presentation\Cli;
 
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
-use LightManager\Domain\ValueObject\DirectoryPath;
-use LightManager\Domain\ValueObject\Entry;
+use LightManager\Module\Browser\Application\BrowserSettings;
+use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
+use LightManager\Module\Browser\Domain\ValueObject\Entry;
 use LightManager\Presentation\Ui\Component\Dialog;
 use LightManager\Presentation\Ui\Overlay\MessageOverlay;
 use LightManager\Tests\Support\InMemoryDirectoryRepository;
@@ -57,13 +58,13 @@ final class CommandWindowFlowTest extends TestCase
      */
     public function testTypingDoesNotReachTheScreenUnderneath(): void
     {
-        $before = $this->app->state->directory()->selection()?->index;
+        $before = $this->app->state->context()->selection;
 
         $this->special(Key::F12);
         $this->character('c');
         $this->special(Key::ArrowDown);
 
-        self::assertSame($before, $this->app->state->directory()->selection()?->index);
+        self::assertSame($before, $this->app->state->context()->selection);
     }
 
     /** Kropka przełącza wpisy ukryte na liście — ale nie wtedy, gdy się ją wpisuje. */
@@ -72,7 +73,7 @@ final class CommandWindowFlowTest extends TestCase
         $this->special(Key::F12);
         $this->character('.');
 
-        self::assertFalse($this->app->state->showsHiddenEntries());
+        self::assertFalse(BrowserSettings::showHidden($this->app->state->settings()));
     }
 
     public function testGlobalKeyStillWorksAndClosesTheWindow(): void

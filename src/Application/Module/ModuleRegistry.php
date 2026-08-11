@@ -22,6 +22,13 @@ namespace LightManager\Application\Module;
  * Moduł kolizyjny odpada **w całości**, a nie tylko jego skrót: moduł, do którego
  * nie da się wejść, a który dokłada zakładki do konfiguracji i pomocy, myliłby
  * bardziej, niż pomagał.
+ *
+ * Od kroku 21 jeden z modułów bywa **modułem ostatniej szansy** — tym, do którego
+ * aplikacja wraca, gdy moduł domyślny okaże się niedostępny. Rejestr sprawdza go
+ * pierwszym (więc przy kolizji skrótu odrzucony zostaje ten drugi) i nie pozwala
+ * go wyłączyć. Jego identyfikator podaje **z zewnątrz** `Bootstrap`: dzięki temu
+ * `Application/Module` nie zna nazwy żadnego konkretnego modułu, a test może
+ * podstawić inny.
  */
 final class ModuleRegistry
 {
@@ -57,17 +64,72 @@ final class ModuleRegistry
     private array $rejections = [];
 
     /**
-     * @param list<ModuleInterface>                            $modules
-     * @param array<string, array<string, bool|int|string>>    $configuration podprzestrzeń `modules` konfiguracji
+     * Kolejność **deklaracji** i kolejność **sprawdzania** to dwie różne rzeczy.
+     * Spis na zakładce „Moduły” idzie w tej pierwszej, bo tak wpisano je
+     * w `Bootstrapie`; wpuszczanie zaczyna się od modułu ostatniej szansy, bo to
+     * on ma wygrać każdą kolizję skrótu.
+     *
+     * @param list<ModuleInterface>                         $modules
+     * @param array<string, array<string, bool|int|string>> $configuration podprzestrzeń `modules` konfiguracji
+     * @param string|null                                   $lastResort    identyfikator modułu ostatniej szansy;
+     *                                                                     `null` — żaden moduł nie jest uprzywilejowany
      */
     public function __construct(
         array $modules,
         private readonly array $configuration = [],
+        private readonly ?string $lastResort = null,
     ) {
-        foreach ($modules as $module) {
-            $this->declared[] = $module;
+        $this->declared = $modules;
+
+        foreach (self::checkedFirst($modules, $lastResort) as $module) {
             $this->admit($module);
         }
+    }
+
+    /** Identyfikator modułu, do którego aplikacja wraca; `null`, gdy nikt taki nie został wskazany. */
+    public function lastResort(): ?string
+    {
+        return $this->lastResort;
+    }
+
+    /**
+     * Czy modułu nie wolno wyłączyć.
+     *
+     * Przełącznik na zakładce „Moduły” stoi dla niego tak samo jak dla reszty, ale
+     * jest zablokowany wraz z powodem — dokładnie jak dla modułu odrzuconego.
+     * Wyłączony moduł ostatniej szansy zostawiłby aplikację bez ekranu przy
+     * pierwszym błędzie w kluczu `startupModule`.
+     */
+    public function isEssential(string $id): bool
+    {
+        return $this->lastResort !== null && $id === $this->lastResort;
+    }
+
+    /**
+     * @param list<ModuleInterface> $modules
+     *
+     * @return list<ModuleInterface>
+     */
+    private static function checkedFirst(array $modules, ?string $lastResort): array
+    {
+        if ($lastResort === null) {
+            return $modules;
+        }
+
+        $first = [];
+        $rest = [];
+
+        foreach ($modules as $module) {
+            if ($module->id() === $lastResort) {
+                $first[] = $module;
+
+                continue;
+            }
+
+            $rest[] = $module;
+        }
+
+        return [...$first, ...$rest];
     }
 
     /**
@@ -121,6 +183,10 @@ final class ModuleRegistry
      */
     public function isEnabled(string $id): bool
     {
+        if ($this->isEssential($id)) {
+            return true;
+        }
+
         $value = $this->configuration[$id][self::ENABLED_KEY] ?? true;
 
         return is_bool($value) ? $value : true;

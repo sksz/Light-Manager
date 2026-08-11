@@ -138,6 +138,36 @@ final class ScenarioFactoryTest extends TestCase
         self::assertNull($bitmaps[0]->path);
     }
 
+    /**
+     * Scenariusz paska postępu mierzy **oba tryby naraz** — inaczej nie mierzy
+     * tego, po co powstał: tryb z liczbą i tryb bez niej rysują inną liczbę
+     * napisów, bo ten pierwszy tnie tekst na krawędzi wypełnienia.
+     */
+    public function testProgressScenarioCarriesBothModes(): void
+    {
+        $texts = [];
+
+        foreach (self::ofType($this->factory->build(Scenario::Progress), TextRun::class) as $run) {
+            self::assertInstanceOf(TextRun::class, $run);
+            $texts[] = $run->text;
+        }
+
+        $joined = implode("\n", $texts);
+
+        self::assertStringContainsString('%', $joined, 'postęp znany pokazuje liczbę');
+        self::assertStringContainsString('licze rozmiar', $joined, 'a nieznany sam napis');
+    }
+
+    /** Wędrujące wypełnienie stoi w miejscu wziętym z wiersza, nie z zegara. */
+    public function testProgressScenarioDoesNotDependOnTheWallClock(): void
+    {
+        $first = $this->factory->build(Scenario::Progress);
+        usleep(1000);
+        $second = $this->factory->build(Scenario::Progress);
+
+        self::assertSame($first->frame->signature(), $second->frame->signature());
+    }
+
     public function testPopupScenarioAddsAThirdPlane(): void
     {
         $built = $this->factory->build(Scenario::Popup);

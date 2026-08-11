@@ -52,6 +52,27 @@ final class Panel implements ComponentInterface
      * zostaje oddech na tyle szeroki, by pasek zaznaczenia kończył się tam,
      * gdzie zaczyna się ramka, a nie za nią.
      */
+    /**
+     * Ile znaków etykiety zmieści się na górnej krawędzi panelu tej szerokości.
+     *
+     * Rachunek nie jest odejmowaniem kolumn i to jest cała jego treść: napis
+     * wpięty w linię obwódki renderer rysuje **z rozstrzeleniem** — dokłada około
+     * 0,3 kolumny na znak — a po obu stronach wycina jeszcze po kolumnie tła, żeby
+     * kreska nie przechodziła przez litery. Etykieta na trzydzieści znaków zajmuje
+     * więc czterdzieści kolumn, a nie trzydzieści.
+     *
+     * Do kroku 24 nikt tego nie potrzebował, bo etykiety były jednym słowem
+     * (`PLIKI`, `POMOC`). Podział daje im **ścieżkę katalogu**, a ta bywa dłuższa
+     * od panelu — i wtedy różnica między jedną liczbą a drugą to napis wychodzący
+     * poza łuk obwódki.
+     */
+    public static function labelRoom(Rect $bounds): int
+    {
+        $columns = $bounds->columns - self::LABEL_COLUMN - 2 * self::MARGIN_COLUMNS - 2;
+
+        return max(0, (int) floor($columns / 1.3));
+    }
+
     public static function inner(Rect $bounds): Rect
     {
         return new Rect(

@@ -78,4 +78,25 @@ final class Label implements ComponentInterface
             ? mb_substr($text, 0, max(0, $columns - 1)) . '…'
             : $text;
     }
+
+    /**
+     * To samo, ale ucięte od **początku**: wielokropek staje z przodu, a koniec
+     * treści zostaje.
+     *
+     * Dla ścieżki jest to jedyne sensowne cięcie — `…/projekty/lm/src` mówi, gdzie
+     * się stoi, a `/home/uzytkownik/pro…` nie mówi nic. Metoda leży obok `fit()`,
+     * bo obie są tą samą regułą prezentacji treści widzianą z dwóch stron, a dwa
+     * warianty tego rachunku w dwóch plikach rozjechałyby się co do znaku
+     * wielokropka.
+     */
+    public static function fitEnd(string $text, int $columns): string
+    {
+        if ($columns < 1) {
+            return '';
+        }
+
+        return mb_strlen($text) > $columns
+            ? '…' . mb_substr($text, -max(0, $columns - 1))
+            : $text;
+    }
 }

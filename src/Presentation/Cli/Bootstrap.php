@@ -13,25 +13,16 @@ use LightManager\Application\Dto\SettingKey;
 use LightManager\Application\Dto\SettingsTab;
 use LightManager\Application\Module\ModuleInterface;
 use LightManager\Application\Module\ModuleRegistry;
+use LightManager\Application\Module\ModuleRejection;
 use LightManager\Application\Module\ProvidesCommands;
 use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Application\UseCase\ChangeSettingUseCase;
 use LightManager\Application\UseCase\LoadSettingsUseCase;
-use LightManager\Application\UseCase\MoveSelectionUseCase;
-use LightManager\Application\UseCase\NavigateIntoDirectoryUseCase;
-use LightManager\Application\UseCase\NavigateUpUseCase;
-use LightManager\Application\UseCase\OpenStartingDirectoryUseCase;
-use LightManager\Application\UseCase\PreviewSelectedEntryUseCase;
 use LightManager\Application\UseCase\RestoreDefaultSettingsUseCase;
-use LightManager\Application\UseCase\ToggleHiddenEntriesUseCase;
-use LightManager\Domain\Repository\DirectoryRepositoryInterface;
-use LightManager\Domain\ValueObject\DirectoryPath;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Infrastructure\Config\CommandHistoryService;
 use LightManager\Infrastructure\Config\SettingsService;
-use LightManager\Infrastructure\Filesystem\EntryComparator;
-use LightManager\Infrastructure\Filesystem\FilesystemDirectoryRepository;
 use LightManager\Infrastructure\I18n\TranslatorService;
 use LightManager\Infrastructure\Imagick\ImagePreviewService;
 use LightManager\Infrastructure\Rendering\RendererService;
@@ -39,15 +30,11 @@ use LightManager\Infrastructure\Rendering\ThemeService;
 use LightManager\Infrastructure\Terminal\SixelCapabilityService;
 use LightManager\Infrastructure\Terminal\TerminalService;
 use LightManager\Infrastructure\Terminal\TerminalSizeService;
-use LightManager\Module\FileInfo\Application\UseCase\InspectSelectedEntryUseCase;
-use LightManager\Module\FileInfo\Infrastructure\FileInspectorService;
-use LightManager\Module\FileInfo\Presentation\Command\JumpCommand;
+use LightManager\Module\Browser\Presentation\BrowserModule;
 use LightManager\Module\FileInfo\Presentation\FileInfoModule;
-use LightManager\Module\FileInfo\Presentation\FileInfoScreen;
 use LightManager\Presentation\Cli\Command\QuitCommand;
 use LightManager\Presentation\Cli\Command\ScreenCommand;
 use LightManager\Presentation\Cli\Command\SettingCommand;
-use LightManager\Presentation\Cli\Screen\BrowserScreen;
 use LightManager\Presentation\Cli\Screen\HelpScreen;
 use LightManager\Presentation\Cli\Screen\SettingsScreen;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
@@ -62,10 +49,26 @@ use LightManager\Presentation\Ui\ScreenInterface;
  * Od kroku 18 składa też **ekrany**. Kolejność jest tu wymuszona: stan pętli
  * musi powstać przed nimi, bo z niego czytają, a okno pomocy musi powstać po
  * nich, bo składa spis z ich wiązań klawiszy.
+ *
+ * Od kroku 21 nie stoi tu ani jeden ekran przeglądarki plików i ani jedna klasa
+ * wiedząca, czym jest katalog. Menadżer plików jest modułem i wchodzi tą samą
+ * jedną linijką, co każdy inny; różni się od pozostałych wyłącznie tym, że jego
+ * identyfikator idzie do rejestru jako **moduł ostatniej szansy**.
  */
 final class Bootstrap
 {
-    public const VERSION = '0.20.0';
+    public const VERSION = '0.21.0';
+
+    /**
+     * Moduł, do którego aplikacja wraca, gdy moduł domyślny okaże się
+     * niedostępny — wyłączony, odrzucony, nieobecny albo bez ekranu.
+     *
+     * Identyfikator stoi **tutaj**, a nie w `ModuleRegistry`: warstwa
+     * `Application/Module` nie zna nazwy żadnego konkretnego modułu i nie ma
+     * powodu jej poznać. Nieobecność tego modułu na liście poniżej jest błędem
+     * programistycznym, nie sytuacją użytkownika — łapie go test.
+     */
+    public const LAST_RESORT_MODULE = 'browser';
 
     /**
      * Historia komend żyje tak długo, jak proces, a zapisuje się przy jego
@@ -94,37 +97,32 @@ final class Bootstrap
 
     public static function createGameLoop(): GameLoop
     {
-        $directories = self::createDirectoryRepository();
         $settings = SettingsService::getInstance();
         $translator = TranslatorService::getInstance();
-        $state = self::createInitialState($directories);
+        $state = self::createInitialState();
 
         // Moduły powstają **przed** ekranami rdzenia, bo ich napisy muszą wejść
         // do katalogu przed pierwszym tłumaczeniem, a ich zakładki — trafić do
         // ekranu ustawień w chwili jego budowy.
-        $modules = new ModuleRegistry(self::createModules($state, $directories, $translator), $settings->current()->modules);
-        self::registerTranslations($modules, $translator);
-
-        $browser = new BrowserScreen(
-            $state,
-            new MoveSelectionUseCase(),
-            new NavigateIntoDirectoryUseCase($directories),
-            new NavigateUpUseCase($directories),
-            new ToggleHiddenEntriesUseCase($directories),
-            new ChangeSettingUseCase($settings, ThemeService::getInstance(), $translator),
-            $translator,
+        $modules = new ModuleRegistry(
+            self::createModules($state, $translator, $settings),
+            $settings->current()->modules,
+            self::LAST_RESORT_MODULE,
         );
-
-        // Ekran modułu otwarty pierwszym naciśnięciem skrótu ma zastać kontekst
-        // wypełniony, a nie pusty — a pierwsza klatka jeszcze nie padła.
-        $browser->publishContext();
+        self::registerTranslations($modules, $translator);
 
         $settingsScreen = new SettingsScreen(
             $state,
-            new ChangeSettingUseCase($settings, ThemeService::getInstance(), $translator),
+            new ChangeSettingUseCase(
+                $settings,
+                ThemeService::getInstance(),
+                $translator,
+                self::startupModules($modules),
+            ),
             new RestoreDefaultSettingsUseCase($settings, $translator),
             new ChangeModuleSettingUseCase($settings, $translator),
             $translator,
+            $settings,
             self::settingsTabs($modules),
             $modules,
         );
@@ -137,19 +135,20 @@ final class Bootstrap
         );
 
         $commands = self::createCommandOverlay($state, $settings, $translator, $modules);
+        $floor = self::floor($modules, $state, $translator);
 
         // Pomoc składa spis klawiszy z wiązań, więc musi poznać pozostałe ekrany
         // — wraz ze sobą, bo własne klawisze też są częścią spisu — oraz okno
-        // komend, które ekranem nie jest, a klawisze ma. Moduły dostają własne
-        // zakładki, więc idą osobno.
+        // komend, które ekranem nie jest, a klawisze ma. Ekrany modułów idą przez
+        // `knowAboutModules()`, bo dostają własne zakładki.
         $help->knowAbout(
-            [$browser, $settingsScreen, $help],
+            [$settingsScreen, $help],
             InputHandler::globalBindings(),
             ['layout.zone.command' => $commands->bindings()],
         );
         $help->knowAboutModules($modules->accepted());
 
-        $screens = new ScreenStack($browser);
+        $screens = new ScreenStack($floor);
 
         self::reportModuleProblems($modules, $state, $translator);
 
@@ -159,7 +158,6 @@ final class Bootstrap
                 RendererService::getInstance(),
                 TerminalSizeService::getInstance(),
                 $translator,
-                new PreviewSelectedEntryUseCase(ImagePreviewService::getInstance(), $translator),
                 InputHandler::globalBindings(),
             ),
             $screens,
@@ -187,25 +185,64 @@ final class Bootstrap
      * zależnościami; nie jest Singletonem i nie woła `getInstance()`. Singletonem
      * pozostaje usługa w jego własnej warstwie `Infrastructure`.
      *
+     * Przeglądarka dostaje wyłącznie rzeczy rdzenia i resztę składa sobie sama —
+     * inaczej `Bootstrap` musiałby poznać repozytorium katalogów i ścieżkę
+     * katalogu, czyli dokładnie tę wiedzę, którą krok 21 z rdzenia wyjmuje.
+     *
      * @return list<ModuleInterface>
      */
     private static function createModules(
         LoopState $state,
-        DirectoryRepositoryInterface $directories,
         TranslatorService $translator,
+        SettingsService $settings,
     ): array {
         return [
-            new FileInfoModule(
-                new FileInfoScreen(
-                    new InspectSelectedEntryUseCase(
-                        FileInspectorService::getInstance(),
-                        SettingsService::getInstance(),
-                    ),
-                    $translator,
-                ),
-                new JumpCommand($state, $directories, $translator),
-            ),
+            new BrowserModule($state, $translator, $settings, ImagePreviewService::getInstance()),
+            new FileInfoModule($translator, $settings, ImagePreviewService::getInstance()),
         ];
+    }
+
+    /**
+     * Ekran, na którym stoi dno stosu — czyli to, co widać po starcie i dokąd
+     * wraca `Esc`. Sam wybór robi `StartupScreen`; tutaj zostaje wyłącznie
+     * postawienie komunikatu, bo to `Bootstrap` trzyma stan pętli.
+     */
+    private static function floor(
+        ModuleRegistry $modules,
+        LoopState $state,
+        TranslatorService $translator,
+    ): ScreenInterface {
+        $startup = StartupScreen::choose($modules, $state->settings()->startupModule, self::LAST_RESORT_MODULE);
+
+        if ($startup->problemKey !== null) {
+            $state->report(
+                Message::warning($translator->translate($startup->problemKey, ['module' => $startup->requested])),
+                microtime(true),
+            );
+        }
+
+        return $startup->screen;
+    }
+
+    /**
+     * Dopuszczalne wartości klucza `startupModule`: moduły przyjęte, które
+     * naprawdę wnoszą ekran. Lista powstaje przy starcie, bo w czasie pisania
+     * kodu nikt jej nie zna — i to jest jedyna nowość tego klucza wobec `Theme`
+     * i `Language`.
+     *
+     * @return list<string>
+     */
+    private static function startupModules(ModuleRegistry $modules): array
+    {
+        $ids = [];
+
+        foreach ($modules->accepted() as $module) {
+            if ($module instanceof ProvidesScreen) {
+                $ids[] = $module->id();
+            }
+        }
+
+        return $ids;
     }
 
     /** Napisy modułów wchodzą do katalogu przed pierwszym tłumaczeniem. */
@@ -225,7 +262,8 @@ final class Bootstrap
      * poszczególnych modułów.
      *
      * Spis stoi **przed** zakładkami modułów, bo działa jak nagłówek sekcji:
-     * najpierw „co jest włączone”, potem ustawienia każdego z osobna.
+     * najpierw „co jest włączone”, potem ustawienia każdego z osobna. Od kroku 21
+     * jego pierwszą pozycją jest moduł domyślny.
      *
      * @return list<SettingsTab>
      */
@@ -262,9 +300,9 @@ final class Bootstrap
      * komunikat w tonie ostrzeżenia, w pasku stanu przy starcie.
      *
      * Pasek stanu niesie jeden komunikat, więc ostrzeżenie o modułach ustępuje
-     * temu, co powiedział o sobie start aplikacji: nieotwartemu katalogowi i
-     * uwadze do pliku konfiguracji. Moduł, który odpadł, nie jest pilniejszy od
-     * katalogu, którego użytkownik właśnie nie widzi.
+     * temu, co powiedział o sobie start aplikacji: nieotwartemu katalogowi, uwadze
+     * do pliku konfiguracji i niedostępnemu modułowi domyślnemu. Moduł, który
+     * odpadł, nie jest pilniejszy od tego, czego użytkownik właśnie nie widzi.
      */
     private static function reportModuleProblems(
         ModuleRegistry $modules,
@@ -280,7 +318,7 @@ final class Bootstrap
 
         if ($rejections !== []) {
             $names = array_map(
-                static fn (\LightManager\Application\Module\ModuleRejection $rejection): string => $rejection->id
+                static fn (ModuleRejection $rejection): string => $rejection->id
                     . ' (' . $translator->translate($rejection->reasonKey) . ')',
                 $rejections,
             );
@@ -320,7 +358,7 @@ final class Bootstrap
         ModuleRegistry $modules,
     ): CommandOverlay {
         $themes = ThemeService::getInstance();
-        $change = new ChangeSettingUseCase($settings, $themes, $translator);
+        $change = new ChangeSettingUseCase($settings, $themes, $translator, self::startupModules($modules));
         $registry = new CommandRegistry();
 
         $registry->add(CommandRegistry::CORE, [
@@ -381,51 +419,25 @@ final class Bootstrap
         ))->execute();
     }
 
-    private static function createDirectoryRepository(): DirectoryRepositoryInterface
-    {
-        return new FilesystemDirectoryRepository(EntryComparator::create());
-    }
-
-    private static function createInitialState(DirectoryRepositoryInterface $directories): LoopState
+    /**
+     * Stan pętli powstaje **przed** modułami i nic już o katalogu nie wie.
+     *
+     * Uwaga do pliku konfiguracji stoi tu jako pierwsza, ale nie jako
+     * najważniejsza: moduł przeglądarki, budowany zaraz potem, nadpisze ją
+     * komunikatem o nieotwartym katalogu, jeśli będzie miał co powiedzieć. Ta
+     * kolejność jest tą samą hierarchią ważności, którą do kroku 20 wymuszało
+     * `return` w środku tej metody.
+     */
+    private static function createInitialState(): LoopState
     {
         $loaded = self::loadSettings();
-        $requested = self::startingPath();
-        $opened = (new OpenStartingDirectoryUseCase($directories))
-            ->execute($requested, $loaded->settings->showHiddenEntries);
-
-        $state = new LoopState($opened, $loaded->settings);
-        $now = microtime(true);
-
-        // Nieotwarty katalog jest ważniejszy od uwag do pliku konfiguracji:
-        // pasek stanu niesie jeden komunikat, więc pierwszeństwo ma ten, który
-        // mówi o tym, co użytkownik właśnie widzi.
-        if (!$opened->path()->equals($requested)) {
-            $state->reportProblem(
-                TranslatorService::getInstance()->translate('problem.directory.fallback', [
-                    'requested' => $requested->value,
-                    'opened' => $opened->path()->value,
-                ]),
-                $now,
-            );
-
-            return $state;
-        }
+        $state = new LoopState($loaded->settings);
 
         if ($loaded->problem !== null) {
-            $state->report(Message::warning($loaded->problem), $now);
+            $state->report(Message::warning($loaded->problem), microtime(true));
         }
 
         return $state;
-    }
-
-    /** Katalog roboczy procesu; gdy nie da się go ustalić — korzeń systemu plików. */
-    private static function startingPath(): DirectoryPath
-    {
-        $workingDirectory = getcwd();
-
-        return $workingDirectory === false
-            ? DirectoryPath::root()
-            : new DirectoryPath($workingDirectory);
     }
 
     /**

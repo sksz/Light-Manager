@@ -4,27 +4,26 @@ declare(strict_types=1);
 
 namespace LightManager\Tests\Module\FileInfo;
 
-use LightManager\Application\Command\CommandInput;
-use LightManager\Application\Command\CommandTransition;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Dto\Settings;
 use LightManager\Application\Module\ContextEntryKind;
 use LightManager\Application\Module\ModuleContext;
+use LightManager\Application\Module\ProvidesCommands;
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Primitive\TextRun;
 use LightManager\Application\Ui\Rect;
-use LightManager\Domain\ValueObject\DirectoryPath;
-use LightManager\Domain\ValueObject\Entry;
+use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
+use LightManager\Module\Browser\Domain\ValueObject\Entry;
 use LightManager\Module\FileInfo\Application\FileInfoSettings;
 use LightManager\Module\FileInfo\Application\UseCase\InspectSelectedEntryUseCase;
-use LightManager\Module\FileInfo\Presentation\Command\JumpCommand;
 use LightManager\Module\FileInfo\Presentation\FileInfoScreen;
 use LightManager\Presentation\Ui\Transition;
 use LightManager\Tests\Support\InMemoryDirectoryRepository;
 use LightManager\Tests\Support\InMemorySettings;
 use LightManager\Tests\Support\ScreenFixture;
 use LightManager\Tests\Support\StubFileInspector;
+use LightManager\Tests\Support\StubFileStat;
 use LightManager\Tests\Support\StubTranslator;
 use PHPUnit\Framework\TestCase;
 
@@ -38,22 +37,17 @@ use PHPUnit\Framework\TestCase;
  */
 final class FileInfoModuleTest extends TestCase
 {
-    private InMemoryDirectoryRepository $directories;
-
     private ScreenFixture $app;
 
     protected function setUp(): void
     {
-        $this->directories = (new InMemoryDirectoryRepository())
+        $directories = (new InMemoryDirectoryRepository())
             ->add('/', [Entry::directory('home')])
             ->add('/home', [Entry::directory('dokumenty'), Entry::directory('dane'), Entry::file('notatka.txt', 12)])
             ->add('/home/dokumenty', [Entry::file('umowa.pdf', 2048)])
             ->add('/home/dane', []);
 
-        $this->app = new ScreenFixture(
-            $this->directories->get(new DirectoryPath('/home'), false),
-            $this->directories,
-        );
+        $this->app = new ScreenFixture($directories->get(new DirectoryPath('/home'), false), $directories);
     }
 
     public function testModuleDeclaresEveryHookOfTheContract(): void
@@ -71,7 +65,7 @@ final class FileInfoModuleTest extends TestCase
         self::assertDirectoryExists((string) $module->translations(), 'napisy leżą w katalogu modułu');
     }
 
-    public function testSettingsTabDeclaresBothPositions(): void
+    public function testSettingsTabDeclaresEveryPosition(): void
     {
         $module = $this->app->module('file-info');
 
@@ -82,35 +76,59 @@ final class FileInfoModuleTest extends TestCase
             $module->settingsTab()->settings,
         );
 
-        self::assertSame(['timeout', 'arguments'], $keys);
-    }
-
-    public function testCommandsStayInsideTheModuleNamespace(): void
-    {
-        $command = $this->app->commandRegistry->find('file-info.jump');
-
-        self::assertNotNull($command);
-        self::assertSame('module.file-info.command.jump', $command->descriptionKey());
-    }
-
-    /** Ekran modułu opisuje **plik**; katalog mówi tylko, że nie ma czego opisać. */
-    public function testScreenDescribesOnlyFiles(): void
-    {
-        $inspector = new StubFileInspector('ASCII text');
-        $screen = new FileInfoScreen(
-            new InspectSelectedEntryUseCase($inspector, new InMemorySettings()),
-            new StubTranslator(),
+        self::assertSame(
+            ['timeout', 'arguments', 'timeFormat', 'inode', 'checksum', 'checksumLimit'],
+            $keys,
+            'krok 25 dokłada cztery pozycje; du i limit pracy tłowej czekają na krok 26',
         );
+    }
 
-        $screen->useContext(new ModuleContext('/home', 'dokumenty', ContextEntryKind::Directory));
-        self::assertContains('module.file-info.nothing', self::textsOf($screen->draw(self::panel())));
+    /**
+     * Moduł deklaruje `ProvidesCommands`, ale dziś nie wnosi żadnej komendy.
+     *
+     * `file-info.jump` przeniosła się w kroku 21 do modułu przeglądarki — po
+     * wyprowadzeniu nawigacji tylko ona umie zmienić katalog. Deklaracja zostaje,
+     * bo moduł ma się rozrastać, a rejestr komend znosi pustą listę bez szkody.
+     */
+    public function testDeclaresCommandsButBringsNoneAfterTheJumpMoved(): void
+    {
+        $module = $this->app->module('file-info');
 
+        self::assertInstanceOf(ProvidesCommands::class, $module);
+        self::assertSame([], $module->commands());
+        self::assertNull($this->app->commandRegistry->find('file-info.jump'));
+    }
+
+    /**
+     * Opis pliku: cztery sekcje i zawartość od polecenia `file`.
+     *
+     * Test idzie przez **moduł**, a nie przez ręcznie złożony ekran, i to jest
+     * po kroku 25 jedyna droga: wnętrze modułu składa on sam, a `Bootstrap` widzi
+     * z niego jedną klasę.
+     */
+    public function testScreenDescribesAFileInFourSections(): void
+    {
+        $screen = $this->screen();
         $screen->useContext(new ModuleContext('/home', 'notatka.txt', ContextEntryKind::File));
-        $texts = self::textsOf($screen->draw(self::panel()));
 
-        self::assertContains('notatka.txt', $texts);
-        self::assertContains('ASCII text', $texts);
-        self::assertSame(['/home/notatka.txt'], $inspector->inspectedPaths);
+        $texts = implode("\n", self::textsOf($screen->draw(self::panel())));
+
+        self::assertStringContainsString('notatka.txt', $texts);
+        self::assertStringContainsString('PDF document, version 1.7', $texts, 'opis od polecenia file');
+        self::assertStringContainsString('module.file-info.section.identity', $texts);
+        self::assertStringContainsString('module.file-info.section.size', $texts);
+        self::assertSame(['/home/notatka.txt'], $this->app->inspector->inspectedPaths);
+    }
+
+    /** Wpis, którego `lstat` nie widzi, nie ma opisu — i tylko on. */
+    public function testMissingEntryHasNoDescription(): void
+    {
+        $this->app->stats->deny('/home/znikl.txt');
+
+        $screen = $this->screen();
+        $screen->useContext(new ModuleContext('/home', 'znikl.txt', ContextEntryKind::File));
+
+        self::assertContains('module.file-info.nothing', self::textsOf($screen->draw(self::panel())));
     }
 
     /**
@@ -120,11 +138,8 @@ final class FileInfoModuleTest extends TestCase
      */
     public function testDescriptionIsComputedOncePerSelection(): void
     {
-        $inspector = new StubFileInspector();
-        $screen = new FileInfoScreen(
-            new InspectSelectedEntryUseCase($inspector, new InMemorySettings()),
-            new StubTranslator(),
-        );
+        $screen = $this->screen();
+        $inspector = $this->app->inspector;
         $context = new ModuleContext('/home', 'notatka.txt', ContextEntryKind::File);
 
         for ($frame = 0; $frame < 5; ++$frame) {
@@ -151,7 +166,7 @@ final class FileInfoModuleTest extends TestCase
                 ->withModuleValue(FileInfoSettings::ID, FileInfoSettings::ARGUMENTS, '-k'),
         );
 
-        (new InspectSelectedEntryUseCase($inspector, $store))
+        (new InspectSelectedEntryUseCase($inspector, new StubFileStat(), $store, new StubTranslator()))
             ->execute(new ModuleContext('/home', 'notatka.txt', ContextEntryKind::File));
 
         self::assertSame([[5, '-k']], $inspector->options);
@@ -159,58 +174,14 @@ final class FileInfoModuleTest extends TestCase
 
     public function testEmptyContextDescribesNothing(): void
     {
-        $description = (new InspectSelectedEntryUseCase(new StubFileInspector(), new InMemorySettings()))
-            ->execute(new ModuleContext());
+        $description = (new InspectSelectedEntryUseCase(
+            new StubFileInspector(),
+            new StubFileStat(),
+            new InMemorySettings(),
+            new StubTranslator(),
+        ))->execute(new ModuleContext());
 
         self::assertNull($description);
-    }
-
-    public function testJumpEntersTheGivenDirectory(): void
-    {
-        $outcome = $this->jump()->execute(new CommandInput(['path' => '/home/dokumenty']));
-
-        self::assertSame(CommandTransition::Close, $outcome->transition);
-        self::assertSame('/home/dokumenty', $this->app->state->directory()->path()->value);
-    }
-
-    public function testJumpAcceptsAPathRelativeToTheCurrentPlace(): void
-    {
-        $this->jump()->execute(new CommandInput(['path' => 'dane']));
-
-        self::assertSame('/home/dane', $this->app->state->directory()->path()->value);
-    }
-
-    /** Ścieżka nieczytelna nie zamyka okna — użytkownik ma gdzie poprawić literówkę. */
-    public function testJumpToAnUnreadableDirectoryStaysOpenWithAMessage(): void
-    {
-        $outcome = $this->jump()->execute(new CommandInput(['path' => '/nie-ma-takiego']));
-
-        self::assertSame(CommandTransition::Stay, $outcome->transition);
-        self::assertNotNull($outcome->message);
-        self::assertSame('/home', $this->app->state->directory()->path()->value);
-    }
-
-    public function testJumpSuggestsDirectoriesFromDiskOnDemand(): void
-    {
-        $suggestions = $this->jump()->suggestions('path', '/home/d');
-
-        self::assertSame(['/home/dokumenty/', '/home/dane/'], $suggestions);
-    }
-
-    public function testSuggestionsOfAnUnreadableDirectoryAreEmptyRatherThanAnError(): void
-    {
-        $this->directories->makeUnreadable('/home');
-
-        self::assertSame([], $this->jump()->suggestions('path', '/home/d'));
-    }
-
-    public function testSuggestionsSkipFiles(): void
-    {
-        self::assertSame(
-            ['dokumenty/', 'dane/'],
-            $this->jump()->suggestions('path', ''),
-            'skok dotyczy katalogów, więc plik nie jest podpowiedzią',
-        );
     }
 
     /** Ekran modułu wraca `Esc`em — tak samo, jak każdy ekran rdzenia. */
@@ -221,9 +192,20 @@ final class FileInfoModuleTest extends TestCase
         self::assertSame(Transition::Close, $outcome->transition);
     }
 
-    private function jump(): JumpCommand
+    /**
+     * Ekran modułu widziany **jego** typem.
+     *
+     * Zestaw ekranów trzyma go pod kontraktem, bo tak widzi go aplikacja; test
+     * napędza za to `useContext()` i `reset()`, czyli zdolności deklarowane
+     * osobno — i stąd to jedno zawężenie, zrobione raz zamiast w pięciu miejscach.
+     */
+    private function screen(): FileInfoScreen
     {
-        return new JumpCommand($this->app->state, $this->directories, new StubTranslator());
+        $screen = $this->app->fileInfo;
+
+        self::assertInstanceOf(FileInfoScreen::class, $screen);
+
+        return $screen;
     }
 
     private static function panel(): Rect

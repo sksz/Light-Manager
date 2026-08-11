@@ -543,12 +543,43 @@ final class SixelFrameEncoder
             return;
         }
 
-        $shape = new ImagickDraw();
-        $shape->setFillColor(new ImagickPixel($this->colorOf($bar->role)));
-        $shape->setStrokeColor(new ImagickPixel('none'));
-        $shape->rectangle($left, $top, $this->rightOf($bar->bounds), $bottom);
+        $this->drawFilledBar($canvas, $bar, $left, $top, $this->rightOf($bar->bounds) - $left + 1, $bottom - $top + 1);
+    }
 
-        $canvas->drawImage($shape);
+    /**
+     * Płaszczyzna — i ona także z zapamiętanej bitmapy, z tego samego powodu, co
+     * włos i krawędź.
+     *
+     * Do kroku 23 szła przez `drawImage()`, bo `Weight::Fill` **nie miał w
+     * aplikacji ani jednego użytkownika**: pasek zaznaczenia rysuje się
+     * `RoundRect`iem, przegroda w pasku stanu włosem, krawędź zaznaczenia
+     * krawędzią. Pierwszym użytkownikiem został pasek postępu i od razu wpadł
+     * w pułapkę opisaną trzy metody niżej — scenariusz `progress` kosztował
+     * **85,3 ms**, z czego 73,4 ms samo rysowanie. Po zamianie na
+     * `compositeImage` z pamięci podręcznej: 15,3 ms.
+     *
+     * Szerokość wypełnienia zmienia się co klatkę, więc pamięć podręczna dostaje
+     * osobny wpis na każdą szerokość — ale liczba różnych szerokości jest z góry
+     * ograniczona liczbą kolumn okna, a bitmapa wysoka na jeden wiersz waży tyle,
+     * co wiersz tekstu. Limit `RowBitmapCache` sięga 512 wpisów, więc pasek
+     * wędrujący przez całą szerokość mieści się w niej z zapasem.
+     */
+    private function drawFilledBar(Imagick $canvas, Bar $bar, int $left, int $top, int $width, int $height): void
+    {
+        $width = max(1, $width);
+        $height = max(1, $height);
+        $color = $this->colorOf($bar->role);
+        $key = "\x1dF" . $width . 'x' . $height . "\x1e" . $color;
+        $bitmap = $this->bitmaps->get($key);
+
+        if ($bitmap === null) {
+            $bitmap = new Imagick();
+            $bitmap->newImage($width, $height, new ImagickPixel($color));
+
+            $this->bitmaps->put($key, $bitmap);
+        }
+
+        $canvas->compositeImage($bitmap, Imagick::COMPOSITE_OVER, $left, $top);
     }
 
     /**

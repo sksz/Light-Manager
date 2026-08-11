@@ -93,6 +93,55 @@ final class SettingsServiceTest extends TestCase
         self::assertSame('{ to nie jest JSON', file_get_contents($this->path()));
     }
 
+    /**
+     * Klucz `showHiddenEntries` zszedł w kroku 21 do modułu przeglądarki, ale plik
+     * sprzed tej wersji nie ma się przez to cofać do ustawienia domyślnego.
+     * Przepisujemy go **raz**, przy odczycie.
+     */
+    public function testHiddenEntriesFromAnOlderFileMoveIntoTheBrowserModule(): void
+    {
+        $this->write('{"theme": "papier", "showHiddenEntries": true}');
+
+        $loaded = SettingsService::getInstance()->load(self::THEMES);
+
+        self::assertTrue($loaded->settings->moduleValue('browser', 'showHidden'));
+        self::assertNull($loaded->problem, 'przepisanie nie jest problemem, o którym trzeba mówić');
+    }
+
+    /** Wartość zapisana już przez moduł wygrywa ze starym kluczem rdzenia. */
+    public function testTheModuleValueWinsOverTheLegacyKey(): void
+    {
+        $this->write('{"showHiddenEntries": true, "modules": {"browser": {"showHidden": false}}}');
+
+        $loaded = SettingsService::getInstance()->load(self::THEMES);
+
+        self::assertFalse($loaded->settings->moduleValue('browser', 'showHidden'));
+    }
+
+    /** Stary klucz wypada z pliku przy pierwszym zapisie — nikt go już nie wypisuje. */
+    public function testTheLegacyKeyDisappearsOnTheNextSave(): void
+    {
+        $this->write('{"showHiddenEntries": true}');
+
+        $settings = SettingsService::getInstance()->load(self::THEMES)->settings;
+        SettingsService::getInstance()->save($settings);
+
+        $written = (string) file_get_contents($this->path());
+
+        self::assertStringNotContainsString('showHiddenEntries', $written);
+        self::assertStringContainsString('showHidden', $written, 'ustawienie zostaje, tylko w innym miejscu');
+    }
+
+    /** Moduł domyślny to zwykły klucz rdzenia — zapisywany i odczytywany jak reszta. */
+    public function testStartupModuleSurvivesANewProcess(): void
+    {
+        SettingsService::getInstance()->save((new Settings())->withStartupModule('file-info'));
+
+        $this->resetSingleton(SettingsService::class);
+
+        self::assertSame('file-info', SettingsService::getInstance()->load(self::THEMES)->settings->startupModule);
+    }
+
     public function testUnknownKeyIsIgnoredWithoutAWord(): void
     {
         $this->write('{"theme": "papier", "czegoTakiegoNieMa": 7}');

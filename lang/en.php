@@ -15,30 +15,29 @@ declare(strict_types=1);
  */
 
 return [
+    'app.name' => 'Light Manager',
+
     'format.decimal' => '.',
+    'format.percent' => '{value}%',
 
     'layout.zone.path' => 'PATH',
-    'layout.zone.files' => 'FILES',
+    'layout.zone.about' => 'APPLICATION',
+    'layout.zone.settings.file' => 'CONFIGURATION FILE',
     'layout.zone.settings' => 'SETTINGS',
     'layout.zone.help' => 'HELP',
     'layout.zone.preview' => 'PREVIEW',
     'layout.zone.command' => 'COMMANDS',
-
-    'browser.empty' => '(this directory is empty)',
-    'browser.hidden' => '• hidden',
-
-    'preview.unreadable' => 'The image could not be read.',
-    'preview.tooLarge' => 'File exceeds the {limit} MB limit — no preview.',
-    'preview.tooManyPixels' => '{dimensions} — image exceeds the {limit} Mpx limit.',
 
     'settings.hints' => '↑↓ move · ←→ change · Esc back',
     'settings.tab.appearance' => 'APPEARANCE',
     'settings.tab.graphics' => 'GRAPHICS',
     'settings.tab.modules' => 'MODULES',
     'settings.modules.empty' => '(no module is declared)',
+    'settings.modules.essential' => 'always enabled',
+    'settings.modules.essential.reason' => 'This module cannot be disabled — it is the one the application falls back to when the default module is unavailable.',
     'settings.key.language' => 'Language',
     'settings.key.theme' => 'Theme',
-    'settings.key.showHiddenEntries' => 'Show hidden entries',
+    'settings.key.startupModule' => 'Module opened at startup',
     'settings.key.textAntialias' => 'Text antialiasing',
     'settings.key.strokeAntialias' => 'Stroke antialiasing',
     'settings.key.paletteColors' => 'Sixel palette colours',
@@ -55,9 +54,6 @@ return [
     'settings.palette.warning' => 'Below {colors} colours the panel borders vanish from the frame.',
 
     'help.key.move' => 'move the selection',
-    'help.key.open' => 'enter the directory',
-    'help.key.up' => 'parent directory',
-    'help.key.hidden' => 'show or hide hidden entries',
     'help.key.help' => 'help',
     'help.key.settings' => 'settings',
     'help.key.back' => 'back to the file list',
@@ -70,6 +66,7 @@ return [
     'help.key.edit' => 'edit the value',
     'help.key.commit' => 'commit the value',
     'help.key.cancel' => 'discard the change',
+    'help.key.collapse' => 'collapse or expand the section',
 
     // Module tab in the help window — headings of the declared part.
     'help.module.shortcut' => 'Shortcut',
@@ -101,6 +98,7 @@ return [
     'command.core.language' => 'set the interface language',
     'command.argument.theme' => 'theme',
     'command.argument.language' => 'language',
+    'help.section.global' => 'Everywhere',
     'help.tab.keys' => 'Controls',
     'help.tab.about' => 'Application',
     'help.about.version' => 'Version',
@@ -131,10 +129,11 @@ return [
     ],
     'module.setting.invalid' => 'Value rejected — "{name}" does not accept what was typed.',
     'module.restart' => 'The change takes effect after a restart.',
+    'module.startup.unknown' => 'There is no module "{module}" — opened the file browser.',
+    'module.startup.disabled' => 'The module "{module}" is disabled — opened the file browser.',
+    'module.startup.rejected' => 'The module "{module}" was rejected at startup — opened the file browser.',
+    'module.startup.screenless' => 'The module "{module}" provides no window — opened the file browser.',
 
-    'problem.directory.unreadable' => 'Cannot read the directory "{path}".',
-    'problem.directory.invalidPath' => '"{path}" is not an absolute directory path.',
-    'problem.directory.fallback' => 'Cannot read the directory "{requested}" — opened "{opened}" instead.',
     'problem.terminal.notInteractive' => 'Standard input is not a terminal — the file manager needs an '
         . 'interactive session (no redirection from a file or a pipe).',
     'problem.terminal.missingPcntl' => 'The PHP extension "pcntl" is unavailable — without signal handling '
@@ -175,6 +174,9 @@ return [
     'bench.scenario.thumbnail' => 'frame with a thumbnail',
     'bench.scenario.popup' => 'frame with a popup',
     'bench.scenario.command' => 'command window',
+    'bench.scenario.sections' => 'collapsible sections',
+    'bench.scenario.progress' => 'progress bars',
+    'bench.scenario.split' => 'split frame',
 
     'bench.transfer.title' => 'Frame transfer to the terminal',
     'bench.transfer.blob' => '  frame size:         {kilobytes} kB',

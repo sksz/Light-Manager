@@ -5,53 +5,67 @@ declare(strict_types=1);
 namespace LightManager\Tests\Presentation\Cli;
 
 use LightManager\Application\Dto\Settings;
-use LightManager\Domain\Aggregate\Directory;
-use LightManager\Domain\ValueObject\DirectoryPath;
-use LightManager\Domain\ValueObject\Entry;
+use LightManager\Application\Module\ContextEntryKind;
+use LightManager\Application\Module\ModuleContext;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Component\Dialog;
 use LightManager\Presentation\Ui\Overlay\MessageOverlay;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * Stan powłoki — czyli to, co po kroku 21 zostało z dawnego stanu pętli.
+ *
+ * Katalogu tu nie ma i to jest treść tego testu tak samo, jak treścią jest
+ * wszystko, co zostało: ustawienia, komunikat, okna nakładane i kontekst sesji.
+ */
 final class LoopStateTest extends TestCase
 {
     private LoopState $state;
 
     protected function setUp(): void
     {
-        $this->state = new LoopState(
-            new Directory(new DirectoryPath('/start'), [Entry::file('alfa.txt', 0)]),
-        );
+        $this->state = new LoopState();
     }
 
     public function testStartsEmpty(): void
     {
         self::assertNull($this->state->message());
         self::assertNull($this->state->overlays()->current());
-        self::assertFalse($this->state->showsHiddenEntries());
-        self::assertSame('/start', $this->state->directory()->path()->value);
+        self::assertSame('', $this->state->context()->path);
+        self::assertNull($this->state->context()->selection);
     }
 
-    public function testEnteringDirectoryKeepsPreviousProblemVisible(): void
+    /** Brak wydawcy daje kontekst **pusty**, a nie `null`: odbiorca ma czytać. */
+    public function testContextIsEmptyUntilSomebodyPublishesIt(): void
+    {
+        self::assertSame(ContextEntryKind::None, $this->state->context()->kind);
+
+        $this->state->publishContext(new ModuleContext('/home', 'notatka.txt', ContextEntryKind::File));
+
+        self::assertSame('/home', $this->state->context()->path);
+        self::assertSame('notatka.txt', $this->state->context()->selection);
+        self::assertSame(ContextEntryKind::File, $this->state->context()->kind);
+    }
+
+    public function testPublishingContextKeepsPreviousProblemVisible(): void
     {
         $this->state->reportProblem('coś poszło nie tak', 0.0);
 
-        $this->state->enterDirectory(new Directory(new DirectoryPath('/inny'), []));
+        $this->state->publishContext(new ModuleContext('/inny'));
 
-        self::assertSame('/inny', $this->state->directory()->path()->value);
-        // Samo wejście do katalogu komunikatu nie gasi — robi to dopiero klawisz
+        self::assertSame('/inny', $this->state->context()->path);
+        // Sama zmiana miejsca komunikatu nie gasi — robi to dopiero klawisz
         // naciśnięty po upływie czasu na przeczytanie.
         self::assertNotNull($this->state->message());
     }
 
-    /** Widoczność ukrytych nie jest już osobnym znacznikiem — czyta ją z ustawień. */
-    public function testHiddenEntriesFlagComesFromSettings(): void
+    public function testSettingsAreReplacedWholesale(): void
     {
-        self::assertFalse($this->state->showsHiddenEntries());
+        self::assertSame('browser', $this->state->settings()->startupModule);
 
-        $this->state->applySettings((new Settings())->withShowHiddenEntries(true));
+        $this->state->applySettings((new Settings())->withStartupModule('file-info'));
 
-        self::assertTrue($this->state->showsHiddenEntries());
+        self::assertSame('file-info', $this->state->settings()->startupModule);
     }
 
     public function testOpensAndClosesTheModalWindow(): void

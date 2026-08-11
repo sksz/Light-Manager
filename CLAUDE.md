@@ -11,5 +11,13 @@ lub modyfikować kod w `src/`/`tests/`, zastosuj konwencje z:
 
 Zamiast podejmować decyzje pytaj użytkownika.
 
+**Przed pomiarem wydajności (`bin/render-bench`) oraz przed sprawdzeniem
+działania aplikacji w prawdziwym terminalu (zrzuty ekranu, klatka pod XTermem)
+poproś użytkownika o zwolnienie mocy obliczeniowej hosta** — zatrzymanie
+kompilacji, kontenerów, przeglądarki i innych zadań — i **poczekaj na
+potwierdzenie**. Obciążona maszyna daje rozrzut, przy którym `--save` odmawia
+zapisu wzorca, a liczby z takiego przebiegu nie nadają się na punkt odniesienia
+(zdarzyło się w kroku 22).
+
 Nie odstępuj od tych ustaleń bez jawnej zgody użytkownika — to świadome
 decyzje architektoniczne, nie przypadkowe konwencje.

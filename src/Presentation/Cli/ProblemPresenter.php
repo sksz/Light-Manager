@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace LightManager\Presentation\Cli;
 
 use LightManager\Application\Port\TranslatorPort;
-use LightManager\Domain\Exception\DirectoryNotReadableException;
-use LightManager\Domain\Exception\InvalidDirectoryPathException;
+use LightManager\Domain\Exception\DescribesProblem;
 use LightManager\Infrastructure\Terminal\TerminalException;
 use LightManager\Infrastructure\Terminal\TerminalProblem;
 use Throwable;
@@ -28,6 +27,11 @@ use Throwable;
  * swoboda, z której korzysta [Bootstrap](Bootstrap.php): warstwa `Presentation`
  * jest miejscem, w którym aplikacja styka się z konkretami, i jedynym, które
  * może rozstrzygnąć, co pokazać użytkownikowi.
+ *
+ * Od kroku 21 drogi są **dwie**, i to jest cena za rdzeń, który nie wie, czym jest
+ * katalog. Wyjątek modułu deklaruje `DescribesProblem` i sam podaje klucz zdania
+ * wraz z parametrami; pytamy o to **najpierw**, bo rozpoznawanie po klasie działa
+ * wyłącznie dla wyjątków, których nazwy wolno tu wymienić — czyli rdzeniowych.
  */
 final class ProblemPresenter
 {
@@ -62,13 +66,9 @@ final class ProblemPresenter
     private function known(Throwable $problem): ?string
     {
         return match (true) {
-            $problem instanceof DirectoryNotReadableException => $this->translator->translate(
-                'problem.directory.unreadable',
-                ['path' => $problem->path],
-            ),
-            $problem instanceof InvalidDirectoryPathException => $this->translator->translate(
-                'problem.directory.invalidPath',
-                ['path' => $problem->path],
+            $problem instanceof DescribesProblem => $this->translator->translate(
+                $problem->problemKey(),
+                $problem->problemParameters(),
             ),
             $problem instanceof TerminalException => $this->terminal($problem),
             default => null,

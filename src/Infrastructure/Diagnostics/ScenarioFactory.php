@@ -16,9 +16,14 @@ use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\ListRow;
 use LightManager\Presentation\Ui\Component\ListView;
 use LightManager\Presentation\Ui\Component\Panel;
+use LightManager\Presentation\Ui\Component\ProgressBar;
+use LightManager\Presentation\Ui\Component\Section;
+use LightManager\Presentation\Ui\Component\SectionList;
+use LightManager\Presentation\Ui\Component\Split;
 use LightManager\Presentation\Ui\Component\StatusBar;
 use LightManager\Presentation\Ui\Component\TextInput;
 use LightManager\Presentation\Ui\HudLayout;
+use LightManager\Presentation\Ui\SplitAxis;
 
 /**
  * Buduje treść mierzonych klatek.
@@ -69,7 +74,7 @@ final class ScenarioFactory
     {
         $rows = max(1, $this->options->rows);
         $columns = max(1, $this->options->columns);
-        $layout = new HudLayout($rows, $columns, $scenario === Scenario::Thumbnail);
+        $layout = new HudLayout($rows, $columns, withPreview: $scenario === Scenario::Thumbnail);
         $window = new Rect(0, 0, $rows, $columns);
 
         $planes = [new Plane('chrome', $window, $this->chrome($scenario, $layout))];
@@ -102,6 +107,17 @@ final class ScenarioFactory
         ];
 
         foreach ($panels as [$zone, $isPanel, $label]) {
+            // Klatka podzielona ma w miejscu strefy środkowej **dwie** obwódki
+            // zamiast jednej — i tak samo jak jedna, leżą one w płaszczyźnie
+            // spodniej, bo między klatkami się nie zmieniają.
+            if ($scenario === Scenario::Split && $label === 'FILES') {
+                foreach ($this->splitFrames($layout) as $primitive) {
+                    $primitives[] = $primitive;
+                }
+
+                continue;
+            }
+
             if ($isPanel) {
                 foreach ((new Panel($label))->draw($zone) as $primitive) {
                     $primitives[] = $primitive;
@@ -124,8 +140,147 @@ final class ScenarioFactory
             Scenario::Text => $this->list($list, selected: null, scroll: null),
             Scenario::Selection => $this->list($list, selected: 0, scroll: null, everyRowSelected: true),
             Scenario::Scrollbar => $this->list($list, selected: null, scroll: $this->scroll($list->rows)),
+            Scenario::Sections => $this->sections($list),
+            Scenario::Progress => $this->progress($list),
+            Scenario::Split => $this->splitLists($layout),
             default => $this->fullContent($layout, $list, $scenario),
         };
+    }
+
+    /**
+     * Lista sekcji wypełniająca panel: co trzecia zwinięta, kursor na drugiej.
+     *
+     * Proporcja jest umyślna. Same sekcje rozwinięte mierzyłyby to samo, co
+     * `chrome-text`, plus kilka nagłówków; same zwinięte — prawie nic. Mieszanka
+     * odpowiada temu, jak lista wygląda po chwili używania, i pokazuje **oba**
+     * znaczniki naraz.
+     *
+     * @return list<Primitive>
+     */
+    private function sections(Rect $bounds): array
+    {
+        $sections = [];
+        $index = 0;
+
+        while (SectionList::rowCount($sections) < max(1, $bounds->rows)) {
+            $collapsed = $index % 3 === 2;
+            $sections[] = new Section(
+                'sekcja-' . $index,
+                sprintf('SEKCJA %02d', $index),
+                $collapsed ? [] : $this->sectionRows($index),
+                $collapsed,
+            );
+
+            ++$index;
+        }
+
+        return (new SectionList($sections, 0, 1, $this->scroll($bounds->rows)))->draw($bounds);
+    }
+
+    /**
+     * Obwódki obu paneli — tak, jak oddaje je przeglądarka po włączeniu podziału.
+     *
+     * Panel lewy jest czynny (nawiasy i etykieta w akcencie), prawy nie. Obie
+     * obwódki idą na płaszczyznę **spodnią**, bo dokładnie tam kładzie je
+     * `FrameComposer`: obrys z wygładzaniem kosztuje kilkanaście milisekund, więc
+     * rysowany co klatkę zjadałby połowę budżetu (zmierzone w kroku 24).
+     *
+     * @return list<Primitive>
+     */
+    private function splitFrames(HudLayout $layout): array
+    {
+        $primitives = [];
+        $index = 0;
+
+        foreach (Split::halves($layout->list, SplitAxis::Vertical) as $bounds) {
+            $focused = $index === 0;
+            $panel = new Panel(
+                Label::fitEnd(self::SAMPLE_PATH . ($focused ? '' : '/Imagick'), Panel::labelRoom($bounds)),
+                Role::Border,
+                $focused ? Role::Accent : Role::Border,
+                $focused ? Role::Accent : Role::Muted,
+            );
+
+            foreach ($panel->draw($bounds) as $primitive) {
+                $primitives[] = $primitive;
+            }
+
+            ++$index;
+        }
+
+        return $primitives;
+    }
+
+    /**
+     * Treść obu paneli: dwie listy plików, każda we wnętrzu swojej obwódki.
+     * W panelu czynnym stoi zaznaczenie, w nieczynnym nie ma go wcale.
+     *
+     * @return list<Primitive>
+     */
+    private function splitLists(HudLayout $layout): array
+    {
+        $primitives = [];
+        $index = 0;
+
+        foreach (Split::halves($layout->list, SplitAxis::Vertical) as $bounds) {
+            $inner = Panel::inner($bounds);
+
+            foreach ($this->list($inner, $index === 0 ? 2 : null, $this->scroll($inner->rows)) as $primitive) {
+                $primitives[] = $primitive;
+            }
+
+            ++$index;
+        }
+
+        return $primitives;
+    }
+
+    /**
+     * Panel wypełniony paskami postępu: co czwarty w trybie „postęp nieznany”,
+     * reszta z wypełnieniem rosnącym co wiersz.
+     *
+     * Dwie rzeczy są tu umyślne. **Chwila jest podana z wiersza**, a nie
+     * z zegara — wędrujące wypełnienie musi w każdym przebiegu stanąć w tym
+     * samym miejscu, inaczej klatka przestałaby być powtarzalna i porównanie
+     * z wzorcem nie znaczyłoby nic. **Tłumacza nie ma**, więc liczba procent
+     * idzie w postaci surowej: długość napisu w znakach wchodzi do wyniku, a ta
+     * nie może zależeć od wybranego języka (D33).
+     *
+     * @return list<Primitive>
+     */
+    private function progress(Rect $bounds): array
+    {
+        $primitives = [];
+
+        for ($row = 0; $row < $bounds->rows; ++$row) {
+            $unknown = $row % 4 === 3;
+            $bar = new ProgressBar(
+                $unknown ? null : ($row % 21) / 20,
+                $unknown ? 'licze rozmiar katalogu' : 'sha256 pliku obraz-' . sprintf('%02d', $row) . '.jpg',
+                0.31 * $row,
+            );
+
+            foreach ($bar->draw($bounds->line($row)) as $primitive) {
+                $primitives[] = $primitive;
+            }
+        }
+
+        return $primitives;
+    }
+
+    /** @return list<ListRow> */
+    private function sectionRows(int $section): array
+    {
+        $rows = [];
+
+        for ($index = 0; $index < 4; ++$index) {
+            $rows[] = new ListRow(
+                sprintf('wlasciwosc-%02d-%02d', $section, $index),
+                sprintf('%d,%d kB', 1 + $index % 900, $index % 10),
+            );
+        }
+
+        return $rows;
     }
 
     /**

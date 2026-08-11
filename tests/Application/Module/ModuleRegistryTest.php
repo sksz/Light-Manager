@@ -6,8 +6,8 @@ namespace LightManager\Tests\Application\Module;
 
 use LightManager\Application\Module\ModuleRegistry;
 use LightManager\Application\Module\ModuleShortcut;
-use LightManager\Domain\ValueObject\DirectoryPath;
-use LightManager\Domain\ValueObject\Entry;
+use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
+use LightManager\Module\Browser\Domain\ValueObject\Entry;
 use LightManager\Tests\Support\FakeModule;
 use LightManager\Tests\Support\InMemoryDirectoryRepository;
 use LightManager\Tests\Support\ScreenFixture;
@@ -193,7 +193,12 @@ final class ModuleRegistryTest extends TestCase
         $app = new ScreenFixture($directories->get(new DirectoryPath('/'), false), $directories);
 
         self::assertSame([], $app->modules->rejections());
-        self::assertSame(['d'], array_keys($app->modules->shortcuts()), 'FileInfo trzyma Ctrl+D');
+        self::assertSame(
+            ['b', 'd'],
+            array_keys($app->modules->shortcuts()),
+            'przeglądarka trzyma Ctrl+B, FileInfo — Ctrl+D',
+        );
+        self::assertNotNull($app->module('browser'));
         self::assertNotNull($app->module('file-info'));
     }
 }

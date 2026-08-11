@@ -102,7 +102,7 @@ final class HudLayoutTest extends TestCase
     #[DataProvider('windowHeights')]
     public function testMatchesTheLadderFromStepThirteen(int $rows, array $expected): void
     {
-        $layout = new HudLayout($rows, 100, true);
+        $layout = new HudLayout($rows, 100, withPreview: true);
 
         self::assertSame($expected, [
             $layout->header->rows,
@@ -116,7 +116,7 @@ final class HudLayoutTest extends TestCase
     #[DataProvider('windowHeights')]
     public function testZonesTileTheWindowWithoutGapsOrOverlap(int $rows, array $expected): void
     {
-        $layout = new HudLayout($rows, 100, true);
+        $layout = new HudLayout($rows, 100, withPreview: true);
         $top = 0;
 
         foreach ([$layout->header, $layout->list, $layout->preview, $layout->status] as $zone) {
@@ -129,23 +129,36 @@ final class HudLayoutTest extends TestCase
 
     public function testEcranWithoutPreviewGivesThoseRowsToTheList(): void
     {
-        $withPreview = new HudLayout(40, 100, true);
-        $without = new HudLayout(40, 100, false);
+        $withPreview = new HudLayout(40, 100, withPreview: true);
+        $without = new HudLayout(40, 100, withPreview: false);
 
         self::assertSame(0, $without->preview->rows);
         self::assertSame($withPreview->list->rows + $withPreview->preview->rows, $without->list->rows);
     }
 
+    /**
+     * Od kroku 21 ekran zamawia także **górny pas**, a strefa niezamówiona nie
+     * dostaje ani jednego wiersza — wszystkie idą do listy.
+     */
+    public function testScreenWithoutHeaderGivesThoseRowsToTheList(): void
+    {
+        $withHeader = new HudLayout(40, 100);
+        $without = new HudLayout(40, 100, withHeader: false);
+
+        self::assertSame(0, $without->header->rows);
+        self::assertSame($withHeader->list->rows + $withHeader->header->rows, $without->list->rows);
+    }
+
     public function testPanelThresholdsFollowTheZoneHeights(): void
     {
-        $tall = new HudLayout(40, 100, true);
+        $tall = new HudLayout(40, 100, withPreview: true);
 
         self::assertTrue($tall->headerIsPanel());
         self::assertTrue($tall->listIsPanel());
         self::assertTrue($tall->previewIsPanel());
         self::assertTrue($tall->statusIsPanel());
 
-        $short = new HudLayout(6, 100, true);
+        $short = new HudLayout(6, 100, withPreview: true);
 
         self::assertFalse($short->headerIsPanel());
         self::assertFalse($short->listIsPanel());

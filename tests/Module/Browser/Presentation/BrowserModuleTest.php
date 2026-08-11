@@ -1,0 +1,331 @@
+<?php
+
+declare(strict_types=1);
+
+namespace LightManager\Tests\Module\Browser\Presentation;
+
+use LightManager\Application\Command\CommandInput;
+use LightManager\Application\Command\CommandInterface;
+use LightManager\Application\Command\CommandTransition;
+use LightManager\Application\Command\SuggestsArguments;
+use LightManager\Application\Dto\Key;
+use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\Settings;
+use LightManager\Application\Module\ModuleSetting;
+use LightManager\Application\Module\ProvidesSettingsTab;
+use LightManager\Application\Ui\Primitive\Primitive;
+use LightManager\Application\Ui\Primitive\TextRun;
+use LightManager\Application\Ui\Rect;
+use LightManager\Module\Browser\Application\BrowserSettings;
+use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
+use LightManager\Module\Browser\Domain\ValueObject\Entry;
+use LightManager\Tests\Support\InMemoryDirectoryRepository;
+use LightManager\Tests\Support\InMemorySettings;
+use LightManager\Tests\Support\ScreenFixture;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * Menadżer plików po przeprowadzce z rdzenia do modułu.
+ *
+ * Test pilnuje trzech rzeczy: że przeglądarka jest **modułem jak każdy inny**
+ * (tożsamość, skrót, zakładka ustawień, napisy, komenda), że jest zarazem modułem
+ * **ostatniej szansy** (niewyłączalna, sprawdzana pierwsza) i że jej ekran rysuje
+ * **trzy strefy**, a nie jedną.
+ */
+final class BrowserModuleTest extends TestCase
+{
+    private InMemoryDirectoryRepository $directories;
+
+    private ScreenFixture $app;
+
+    protected function setUp(): void
+    {
+        $this->directories = (new InMemoryDirectoryRepository())
+            ->add('/', [Entry::directory('home')])
+            ->add('/home', [Entry::directory('dokumenty'), Entry::directory('dane'), Entry::file('notatka.txt', 12)])
+            ->add('/home/dokumenty', [Entry::file('umowa.pdf', 2048)])
+            ->add('/home/dane', []);
+
+        $this->app = new ScreenFixture(
+            $this->directories->get(new DirectoryPath('/home'), false),
+            $this->directories,
+        );
+    }
+
+    public function testModuleDeclaresEveryHookOfTheContract(): void
+    {
+        $module = $this->app->module('browser');
+
+        self::assertNotNull($module);
+        self::assertSame('browser', $module->id());
+
+        $shortcut = $module->shortcut();
+
+        self::assertNotNull($shortcut);
+        self::assertSame('b', $shortcut->character);
+        self::assertTrue($shortcut->ctrl);
+        self::assertDirectoryExists((string) $module->translations(), 'napisy leżą w katalogu modułu');
+    }
+
+    /**
+     * `showHiddenEntries` przestało być kluczem rdzenia i jest pozycją modułu.
+     *
+     * Od kroku 24 stoją obok niego dwie pozycje podziału — i to jest treść tej
+     * asercji: podział jest ustawieniem **modułu**, a nie rdzenia, bo to moduł
+     * rozstrzyga, jak wygląda jego własny interfejs.
+     */
+    public function testSettingsTabCarriesTheHiddenEntriesToggle(): void
+    {
+        $module = $this->app->module('browser');
+
+        self::assertInstanceOf(ProvidesSettingsTab::class, $module);
+
+        $keys = array_map(
+            static fn (ModuleSetting $setting): string => $setting->key,
+            $module->settingsTab()->settings,
+        );
+
+        self::assertSame(
+            [BrowserSettings::SHOW_HIDDEN, BrowserSettings::SPLIT, BrowserSettings::SPLIT_VERTICAL],
+            $keys,
+        );
+    }
+
+    public function testCommandMovedIntoTheBrowserNamespace(): void
+    {
+        $command = $this->app->commandRegistry->find('browser.jump');
+
+        self::assertNotNull($command);
+        self::assertSame('module.browser.command.jump', $command->descriptionKey());
+    }
+
+    public function testJumpEntersTheGivenDirectory(): void
+    {
+        $outcome = $this->jump()->execute(new CommandInput(['path' => '/home/dokumenty']));
+
+        self::assertSame(CommandTransition::Close, $outcome->transition);
+        self::assertSame('/home/dokumenty', $this->app->state->context()->path);
+    }
+
+    public function testJumpAcceptsAPathRelativeToTheCurrentPlace(): void
+    {
+        $this->jump()->execute(new CommandInput(['path' => 'dane']));
+
+        self::assertSame('/home/dane', $this->app->state->context()->path);
+    }
+
+    /** Ścieżka nieczytelna nie zamyka okna — użytkownik ma gdzie poprawić literówkę. */
+    public function testJumpToAnUnreadableDirectoryStaysOpenWithAMessage(): void
+    {
+        $outcome = $this->jump()->execute(new CommandInput(['path' => '/nie-ma-takiego']));
+
+        self::assertSame(CommandTransition::Stay, $outcome->transition);
+        self::assertNotNull($outcome->message);
+        self::assertSame('/home', $this->app->state->context()->path);
+    }
+
+    public function testJumpSuggestsDirectoriesFromDiskOnDemand(): void
+    {
+        self::assertSame(['/home/dokumenty/', '/home/dane/'], $this->suggestions('/home/d'));
+    }
+
+    public function testSuggestionsOfAnUnreadableDirectoryAreEmptyRatherThanAnError(): void
+    {
+        $this->directories->makeUnreadable('/home');
+
+        self::assertSame([], $this->suggestions('/home/d'));
+    }
+
+    public function testSuggestionsSkipFiles(): void
+    {
+        self::assertSame(
+            ['dokumenty/', 'dane/'],
+            $this->suggestions(''),
+            'skok dotyczy katalogów, więc plik nie jest podpowiedzią',
+        );
+    }
+
+    /**
+     * Skok zmienia katalog **i ogłasza to modułom**: kontekst sesji ma jedno
+     * miejsce publikacji, więc druga droga zmiany katalogu nie może go pominąć.
+     */
+    public function testJumpPublishesTheSessionContext(): void
+    {
+        $this->jump()->execute(new CommandInput(['path' => '/home/dokumenty']));
+
+        self::assertSame('/home/dokumenty', $this->app->state->context()->path);
+        self::assertSame('umowa.pdf', $this->app->state->context()->selection);
+    }
+
+    public function testBrowserIsTheLastResortModuleAndCannotBeDisabled(): void
+    {
+        self::assertSame('browser', $this->app->modules->lastResort());
+        self::assertTrue($this->app->modules->isEssential('browser'));
+        self::assertFalse($this->app->modules->isEssential('file-info'));
+    }
+
+    /** Dno stosu wybiera konfiguracja; domyślnie wskazuje przeglądarkę. */
+    public function testScreenOfTheDefaultModuleStandsOnTheFloor(): void
+    {
+        self::assertSame('browser', $this->app->screens->current()->id());
+        self::assertNull($this->app->startup->problemKey);
+    }
+
+    /**
+     * Wskazanie innego modułu w konfiguracji uruchamia aplikację z jego ekranem —
+     * **bez zmiany w kodzie rdzenia**. To drugie z trzech zdań, którymi krok 21
+     * mierzy swoje powodzenie.
+     */
+    public function testAnotherModuleNamedInTheConfigurationBecomesTheFloor(): void
+    {
+        $app = $this->fixtureWith((new Settings())->withStartupModule('file-info'));
+
+        self::assertSame('file-info', $app->screens->current()->id());
+        self::assertNull($app->startup->problemKey);
+    }
+
+    /** Wartość nieznana w pliku wraca do modułu ostatniej szansy i mówi o tym. */
+    public function testUnknownStartupModuleFallsBackToTheBrowser(): void
+    {
+        $app = $this->fixtureWith((new Settings())->withStartupModule('drzewo'));
+
+        self::assertSame('browser', $app->screens->current()->id());
+        self::assertSame('module.startup.unknown', $app->startup->problemKey);
+    }
+
+    /**
+     * `Ctrl+B` otwiera przeglądarkę z każdego ekranu, a naciśnięty na niej samej
+     * — gdy jest dnem — **nie robi nic**. Przypadku szczególnego na to nie ma:
+     * `toggle()` woła `close()`, a `close()` stawia ten sam ekran.
+     */
+    public function testCtrlBOpensTheBrowserFromAnyScreenAndDoesNothingOnTheFloor(): void
+    {
+        $this->app->input->handle(KeyPress::special(Key::F1, ''), $this->app->state, 0.0);
+        self::assertSame('help', $this->app->screens->current()->id());
+
+        $this->app->input->handle(KeyPress::ctrl('b'), $this->app->state, 0.0);
+        self::assertSame('browser', $this->app->screens->current()->id());
+
+        $this->app->input->handle(KeyPress::ctrl('b'), $this->app->state, 0.0);
+        self::assertSame('browser', $this->app->screens->current()->id(), 'na dnie skrót nie robi nic');
+    }
+
+    private function fixtureWith(Settings $settings): ScreenFixture
+    {
+        $directories = (new InMemoryDirectoryRepository())
+            ->add('/home', [Entry::directory('dokumenty')])
+            ->add('/home/dokumenty', []);
+
+        return new ScreenFixture(
+            $directories->get(new DirectoryPath('/home'), false),
+            $directories,
+            new InMemorySettings($settings),
+        );
+    }
+
+    /**
+     * Trzy strefy zamiast jednej: pasek ścieżki i pas podglądu zamawia ekran,
+     * a nie rdzeń.
+     */
+    public function testScreenOrdersThreeZones(): void
+    {
+        $screen = $this->app->browser;
+
+        self::assertSame('module.browser.zone.files', $screen->labelKey());
+
+        $header = $screen->header();
+        $preview = $screen->preview();
+
+        self::assertNotNull($header);
+        self::assertNotNull($preview);
+        self::assertSame('layout.zone.path', $header->labelKey);
+        self::assertSame('layout.zone.preview', $preview->labelKey);
+
+        $texts = self::textsOf($header->content->draw(new Rect(0, 2, 1, 60)));
+
+        self::assertNotSame([], $texts);
+        self::assertStringStartsWith('/home', $texts[0], 'ścieżka wraz z numerem zaznaczenia');
+        self::assertStringContainsString('1/3', $texts[0]);
+    }
+
+    /** Znacznik wpisów ukrytych wrócił tam, skąd pochodzi — do paska ścieżki. */
+    public function testHiddenMarkerAppearsInTheHeaderAfterTheDotKey(): void
+    {
+        $this->app->browser->handle(KeyPress::character('.'));
+
+        $header = $this->app->browser->header();
+
+        self::assertNotNull($header);
+        self::assertStringContainsString(
+            'module.browser.hidden',
+            implode('', self::textsOf($header->content->draw(new Rect(0, 2, 1, 80)))),
+        );
+    }
+
+    /** Pas podglądu nie znika, gdy zaznaczony wpis nie jest obrazem. */
+    public function testPreviewZoneStaysEvenWithNothingToShow(): void
+    {
+        $preview = $this->app->browser->preview();
+
+        self::assertNotNull($preview);
+        self::assertSame([], $preview->content->draw(new Rect(10, 2, 6, 60)), 'katalog nie ma miniatury');
+    }
+
+    /** Klawisze przeglądarki nie zmieniły się co do znaku. */
+    public function testKeyBindingsAreUnchanged(): void
+    {
+        $keys = array_map(
+            static fn (object $binding): string => (string) $binding->descriptionKey,
+            $this->app->browser->bindings(),
+        );
+
+        self::assertSame(
+            ['help.key.move', 'module.browser.help.open', 'module.browser.help.up', 'module.browser.help.hidden'],
+            $keys,
+        );
+    }
+
+    public function testEscapeIsNotHandledByTheFloorScreenItself(): void
+    {
+        $outcome = $this->app->browser->handle(KeyPress::special(Key::Escape, ''));
+
+        self::assertSame([], array_filter([$outcome->message]), 'dno nie ma dokąd wracać');
+    }
+
+    private function jump(): CommandInterface
+    {
+        $command = $this->app->commandRegistry->find('browser.jump');
+
+        self::assertNotNull($command);
+
+        return $command;
+    }
+
+    /** @return list<string> */
+    private function suggestions(string $prefix): array
+    {
+        $command = $this->jump();
+
+        self::assertInstanceOf(SuggestsArguments::class, $command);
+
+        return $command->suggestions('path', $prefix);
+    }
+
+    /**
+     * @param list<Primitive> $primitives
+     *
+     * @return list<string>
+     */
+    private static function textsOf(array $primitives): array
+    {
+        $texts = [];
+
+        foreach ($primitives as $primitive) {
+            if ($primitive instanceof TextRun) {
+                $texts[] = $primitive->text;
+            }
+        }
+
+        return $texts;
+    }
+}
