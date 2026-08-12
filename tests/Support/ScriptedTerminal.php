@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace LightManager\Tests\Support;
 
 use LightManager\Application\Dto\KeyPress;
-use LightManager\Application\Port\TerminalPort;
+use LightManager\Application\Port\InputPort;
 
 /**
  * Terminal sterowany scenariuszem: oddaje z góry zadane klawisze, a potem
  * `null`. Pozwala przetestować pętlę bez dotykania prawdziwego terminala.
  */
-final class ScriptedTerminal implements TerminalPort
+final class ScriptedTerminal implements InputPort
 {
     /** @var list<KeyPress|null> */
     private array $script;

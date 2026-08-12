@@ -9,10 +9,10 @@ use PHPUnit\Framework\TestCase;
 
 final class RendererModeTest extends TestCase
 {
-    public function testOffersExactlyTwoModes(): void
+    public function testOffersExactlyThreeModes(): void
     {
         self::assertSame(
-            [RendererMode::Sixel, RendererMode::TextFallback],
+            [RendererMode::Sixel, RendererMode::TextFallback, RendererMode::OpenGl],
             RendererMode::cases(),
         );
     }

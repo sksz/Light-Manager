@@ -4,3 +4,8 @@ parameters:
         - src
         - tests
         - lang
+    # Stuby PHP-GLFW: analiza ma przechodzić także na maszynie bez załadowanego
+    # rozszerzenia `glfw` (krok 34) — pakiet nie autoloaduje się w runtime,
+    # więc symbole trzeba wskazać jawnie.
+    scanFiles:
+        - vendor/phpgl/ide-stubs/src/phpglfw.php

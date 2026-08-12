@@ -73,6 +73,44 @@ final class BaselineStoreTest extends TestCase
         self::assertSame('2026-08-09-b.json', basename((new BaselineStore($this->directory))->newest()));
     }
 
+    /**
+     * Od kroku 35 katalog mieszczą dwa nieporównywalne tory naraz, więc wybór
+     * bez wskazanego pliku musi trafić we wzorzec **własnego** toru — inaczej
+     * `--compare` terminalowy odbijałby się od wzorca okienkowego, który
+     * przypadkiem jest nowszy.
+     */
+    public function testNewestPrefersABaselineComparableWithTheCurrentRun(): void
+    {
+        $store = new BaselineStore($this->directory);
+        $terminal = new BenchmarkOptions();
+        $windowed = new BenchmarkOptions(windowed: true);
+
+        $store->save($this->snapshot($terminal), '2000-01-01-terminal');
+        $store->save($this->snapshot($windowed), 'zzz-window');
+
+        // Alfabetycznie ostatni jest wzorzec okienkowy, ale tor terminalowy
+        // ma dostać swój.
+        self::assertSame(
+            $terminal->signature(),
+            $store->load($store->newest($terminal))->options->signature(),
+        );
+        self::assertSame(
+            $windowed->signature(),
+            $store->load($store->newest($windowed))->options->signature(),
+        );
+    }
+
+    /** Gdy nic nie pasuje, wraca najnowszy w ogóle — odmowa z dwiema konfiguracjami mówi więcej niż „brak wzorca”. */
+    public function testNewestFallsBackToTheLatestWhenNothingIsComparable(): void
+    {
+        $store = new BaselineStore($this->directory);
+        $store->save($this->snapshot(new BenchmarkOptions()), 'jedyny');
+
+        $path = $store->newest(new BenchmarkOptions(themeName: 'papier'));
+
+        self::assertStringContainsString('jedyny', $path);
+    }
+
     public function testMissingFileIsReportedAsMissingBaseline(): void
     {
         try {
@@ -122,10 +160,10 @@ final class BaselineStoreTest extends TestCase
         }
     }
 
-    private function snapshot(): BaselineSnapshot
+    private function snapshot(?BenchmarkOptions $options = null): BaselineSnapshot
     {
         return new BaselineSnapshot(
-            new BenchmarkOptions(),
+            $options ?? new BenchmarkOptions(),
             new EnvironmentMetadata('8.3.11', 'ImageMagick 6.9', 'DejaVu-Sans-Mono', '2026-08-09T10:00:00+00:00'),
             ['text' => new ScenarioMedians(210.7, 55.9, 1.6, 268.3, 20051, false)],
         );

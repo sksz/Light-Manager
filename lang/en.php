@@ -41,10 +41,13 @@ return [
     'settings.key.textAntialias' => 'Text antialiasing',
     'settings.key.strokeAntialias' => 'Stroke antialiasing',
     'settings.key.paletteColors' => 'Sixel palette colours',
+    'settings.key.windowColumns' => 'Window columns (windowed mode)',
+    'settings.key.windowRows' => 'Window rows (windowed mode)',
     'settings.language.auto' => 'Automatic',
     'settings.language.pl' => 'Polski',
     'settings.language.en' => 'English',
     'settings.action.restore' => 'Restore default settings',
+    'settings.restore.confirm' => 'Restore the default settings? The current ones will be lost for good.',
     'settings.restore.done' => 'Default settings restored.',
     'settings.restore.unchanged' => 'Settings are already at their defaults.',
     'settings.value.yes' => 'yes',
@@ -82,6 +85,15 @@ return [
     'command.key.caret' => 'move the caret',
     'command.key.erase' => 'erase a character',
     'command.key.dismiss' => 'close the window',
+
+    // Confirmation overlay (step 28).
+    'confirm.title' => 'QUESTION',
+    'confirm.title.dangerous' => 'WARNING',
+    'confirm.yes' => 'Yes',
+    'confirm.no' => 'No',
+    'confirm.key.move' => 'change the answer',
+    'confirm.key.answer' => 'confirm',
+    'confirm.key.refuse' => 'refuse',
     'command.history' => 'history',
     'command.problem.empty' => 'no command name was typed',
     'command.problem.unknown' => 'unknown command: {name}',
@@ -141,6 +153,12 @@ return [
     'problem.terminal.disabledExec' => 'exec() is disabled — without it "stty" cannot be called and the '
         . 'terminal cannot be switched to raw mode.',
     'problem.terminal.stty' => 'Could not switch the terminal to raw mode: {detail}',
+    'problem.missingGlfw' => 'ERROR: the PHP extension "glfw" is not loaded — without it the windowed mode '
+        . '(--window) cannot start. Installation: https://phpgl.net',
+    'problem.glfw.init' => 'Could not initialise GLFW — check that the session can reach a display server.',
+    'problem.glfw.window' => 'Could not open a window with an OpenGL 3.3 core context — check the graphics drivers.',
+    'problem.glfw.font' => 'No monospace font was found — the windowed mode has nothing to draw text with.',
+    'window.title' => 'Light Manager',
     'problem.missingImagick' => 'ERROR: the PHP extension "imagick" is not loaded — without it the screen '
         . 'frame cannot be built.',
     'problem.unexpected' => 'This operation could not be completed.',
@@ -167,6 +185,7 @@ return [
     'bench.column.draw' => 'Drawing',
     'bench.column.quantize' => 'Quantization',
     'bench.column.encode' => 'Encoding',
+    'bench.column.swap' => 'Buffers',
     'bench.column.total' => 'Total',
     'bench.column.spread' => 'Spread',
     'bench.column.blob' => 'Blob',
@@ -232,6 +251,7 @@ return [
         . '  --iterations=15      number of measured runs' . "\n"
         . '  --warmup=3           number of warm-up runs',
     'bench.help.modes' => 'Modes and output:' . "\n"
+        . '  --window             measure the windowed path (OpenGL, hidden window) instead of Sixel' . "\n"
         . '  --scenarios=a,b      measure only the selected scenarios' . "\n"
         . '  --transfer           also measure the frame transfer (needs a real terminal)' . "\n"
         . '  --save[=name]        save a baseline into docs/pomiary/' . "\n"
@@ -249,4 +269,5 @@ return [
     'bench.problem.baselineMissing' => 'No baseline found in "{detail}". Save the first one with --save',
     'bench.problem.writeFailed' => 'Could not write "{detail}".',
     'bench.problem.terminalUnavailable' => 'Measuring the transfer needs a terminal on both input and output.',
+    'bench.problem.glfwUnavailable' => 'Measuring the windowed path needs the "glfw" extension. Installation: https://phpgl.net',
 ];

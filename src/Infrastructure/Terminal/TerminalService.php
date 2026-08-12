@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace LightManager\Infrastructure\Terminal;
 
 use LightManager\Application\Dto\KeyPress;
-use LightManager\Application\Port\TerminalPort;
+use LightManager\Application\Port\InputPort;
 use LightManager\Infrastructure\Support\AbstractSingleton;
 
 /**
@@ -16,7 +16,7 @@ use LightManager\Infrastructure\Support\AbstractSingleton;
  * zabezpieczone trzytorowo: obsługą sygnałów, funkcją zamknięcia procesu
  * i jawnym wywołaniem `restore()`.
  */
-final class TerminalService extends AbstractSingleton implements TerminalPort
+final class TerminalService extends AbstractSingleton implements InputPort
 {
     private const RAW_MODE_SETTINGS = '-icanon -echo -ixon min 1 time 0';
 
@@ -50,6 +50,8 @@ final class TerminalService extends AbstractSingleton implements TerminalPort
     private bool $alternateScreenActive = false;
 
     private bool $shutdownRequested = false;
+
+    private bool $windowResized = false;
 
     private string $buffer = '';
 
@@ -99,7 +101,27 @@ final class TerminalService extends AbstractSingleton implements TerminalPort
     }
 
     /**
-     * Surowy zapis na terminal — poza kontraktem `TerminalPort`, do użytku
+     * Oddaje i gasi znacznik zmiany rozmiaru okna (`SIGWINCH`).
+     *
+     * Poza kontraktem `InputPort`, jak `sizeInCells()`: rdzeń o rozmiarze
+     * rozmawia wyłącznie przez `ViewportPort`, a świeżość odpowiedzi jest
+     * sprawą usług terminala (krok 33). Zgaszenie **przed** pomiarem jest
+     * celowe — sygnał doręczony w trakcie pomiaru ustawi znacznik ponownie
+     * i następna klatka zmierzy jeszcze raz, zamiast zgubić zmianę.
+     */
+    public function consumeWindowResize(): bool
+    {
+        if (!$this->windowResized) {
+            return false;
+        }
+
+        $this->windowResized = false;
+
+        return true;
+    }
+
+    /**
+     * Surowy zapis na terminal — poza kontraktem `InputPort`, do użytku
      * przez inne usługi `Infrastructure` (zapytania do terminala, wypychanie
      * klatki).
      *
@@ -265,6 +287,15 @@ final class TerminalService extends AbstractSingleton implements TerminalPort
                 $this->shutdownRequested = true;
             });
         }
+
+        // Zmiana rozmiaru okna tym samym wzorcem: uchwyt ustawia znacznik
+        // i nic więcej. Pomiar tutaj dotykałby STDIN w nieprzewidywalnym
+        // momencie klatki; znacznik zdejmuje usługa rozmiaru, a serie
+        // sygnałów z przeciągania rogu okna składają się przez to same do
+        // jednego pomiaru na klatkę.
+        pcntl_signal(SIGWINCH, function (): void {
+            $this->windowResized = true;
+        });
     }
 
     private function registerShutdownHandler(): void

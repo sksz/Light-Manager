@@ -21,11 +21,17 @@ use LightManager\Application\UseCase\ChangeSettingUseCase;
 use LightManager\Application\UseCase\LoadSettingsUseCase;
 use LightManager\Application\UseCase\RestoreDefaultSettingsUseCase;
 use LightManager\Domain\ValueObject\Message;
+use LightManager\Domain\ValueObject\RendererMode;
 use LightManager\Infrastructure\Config\CommandHistoryService;
 use LightManager\Infrastructure\Config\SettingsService;
+use LightManager\Infrastructure\Glfw\GlfwInputService;
+use LightManager\Infrastructure\Glfw\GlfwViewportService;
+use LightManager\Infrastructure\Glfw\GlfwWindowService;
+use LightManager\Infrastructure\Glfw\VgContextService;
 use LightManager\Infrastructure\I18n\TranslatorService;
 use LightManager\Infrastructure\Imagick\ImagePreviewService;
 use LightManager\Infrastructure\Process\BackgroundProcessService;
+use LightManager\Infrastructure\Rendering\OpenGlFrameRenderer;
 use LightManager\Infrastructure\Rendering\RendererService;
 use LightManager\Infrastructure\Rendering\ThemeService;
 use LightManager\Infrastructure\Terminal\SixelCapabilityService;
@@ -80,6 +86,14 @@ final class Bootstrap
     private static ?CommandHistory $history = null;
 
     /**
+     * Czy aplikacja działa w trybie okienkowym (krok 34). Wybór zapada raz,
+     * przy starcie, flagą CLI — i musi przeżyć między `boot()`
+     * a `createGameLoop()` i `shutdown()`, więc stoi tu, obok historii,
+     * jako drugi i ostatni stan bootstrapu.
+     */
+    private static bool $windowed = false;
+
+    /**
      * Kolejność jest wymuszona jawnie, bo każda z tych usług ma w konstruktorze
      * efekt uboczny wymagany przed pętlą: tryb surowy terminala, wykrycie trybu
      * renderowania, przejęcie ekranu.
@@ -87,9 +101,40 @@ final class Bootstrap
      * Konfiguracja wchodzi przed renderowaniem, bo to ona wybiera motyw — a
      * odczytana po rendererze zostałaby zapamiętana **bez sprawdzenia nazwy
      * palety**, więc plik z literówką w kluczu `theme` przeszedłby bez słowa.
+     *
+     * Tor okienkowy (krok 34) ma własną sekwencję i **nie dotyka ani jednej
+     * usługi terminalowej**: bez trybu surowego, bez zapytania DA1, bez
+     * alternatywnego bufora. Konfiguracja wchodzi tu **przed** oknem, bo to
+     * z niej pochodzi rozmiar startowy (D53) — a pułapki znanej z toru
+     * terminalowego nie ma, bo odczyt pliku terminala nie dotyka.
      */
-    public static function boot(): void
+    public static function boot(bool $windowed = false): void
     {
+        self::$windowed = $windowed;
+
+        if ($windowed) {
+            self::loadSettings();
+
+            // Okno rodzi się ukryte; komórka siatki wychodzi z metryk fontu
+            // (krok 35), więc dopiero z nią da się przeliczyć rozmiar
+            // startowy z ustawień na piksele — i pokazać okno raz, w dobrym
+            // rozmiarze, zamiast szarpać je na oczach użytkownika.
+            GlfwWindowService::getInstance();
+            $vg = VgContextService::getInstance();
+
+            $settings = SettingsService::getInstance()->current();
+            GlfwWindowService::getInstance()->showAtGrid(
+                $settings->windowColumns,
+                $settings->windowRows,
+                $vg->cellWidthPixels(),
+                $vg->cellHeightPixels(),
+            );
+
+            GlfwInputService::getInstance();
+
+            return;
+        }
+
         TerminalService::getInstance();
         SixelCapabilityService::getInstance();
         self::loadSettings();
@@ -128,11 +173,15 @@ final class Bootstrap
             $modules,
         );
 
+        // W torze okienkowym o tryb nie pyta się detektora: wybór wyprzedził
+        // detekcję i DA1 nie zostało wysłane, bo nie było go do kogo wysłać.
         $help = new HelpScreen(
             $settings,
             $translator,
             self::VERSION,
-            SixelCapabilityService::getInstance()->detect()->name,
+            self::$windowed
+                ? RendererMode::OpenGl->name
+                : SixelCapabilityService::getInstance()->detect()->name,
         );
 
         $commands = self::createCommandOverlay($state, $settings, $translator, $modules);
@@ -153,11 +202,14 @@ final class Bootstrap
 
         self::reportModuleProblems($modules, $state, $translator);
 
+        // Jedyne miejsce, w którym tory się różnią: te same trzy porty, inne
+        // implementacje. Pętla, ekrany, moduły i komponenty nie wiedzą,
+        // że cokolwiek się zmieniło — to jest miara powodzenia kroku 34.
         return new GameLoop(
-            TerminalService::getInstance(),
+            self::$windowed ? GlfwInputService::getInstance() : TerminalService::getInstance(),
             new FrameComposer(
-                RendererService::getInstance(),
-                TerminalSizeService::getInstance(),
+                self::$windowed ? new OpenGlFrameRenderer() : RendererService::getInstance(),
+                self::$windowed ? GlfwViewportService::getInstance() : TerminalSizeService::getInstance(),
                 $translator,
                 InputHandler::globalBindings(),
             ),
@@ -463,6 +515,16 @@ final class Bootstrap
         BackgroundProcessService::getInstance()->shutdown();
 
         self::$history?->flush();
+
+        // Przywracanie terminala zamienia się w zamknięcie okna (krok 34) —
+        // i tak samo jak ono jest zdublowane funkcją zamknięcia procesu
+        // rejestrowaną w konstruktorze usługi, na wyjścia, których ta ścieżka
+        // nie dosięga.
+        if (self::$windowed) {
+            GlfwWindowService::getInstance()->close();
+
+            return;
+        }
 
         TerminalService::getInstance()->restore();
     }

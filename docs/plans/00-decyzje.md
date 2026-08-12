@@ -14,6 +14,101 @@ Model / wysiłek dla prowadzenia tego dokumentu: **Sonnet 5 / Extra High**
 Każda decyzja: **Data**, **Dotyczy kroku**, **Decyzja**, **Uzasadnienie**,
 **Odrzucone alternatywy**.
 
+Nowy wpis wymaga **dwóch** czynności, nie jednej: treści w odpowiedniej sekcji
+chronologicznej **oraz wiersza w [indeksie](#indeks-decyzji)** poniżej. Numer
+nadaje się kolejny wolny — a przed nadaniem sprawdza, czy nie jest już zajęty:
+dziennik pisało wiele sesji równolegle i numer zdublował się już dwa razy
+(patrz uwagi pod indeksem).
+
+## Indeks decyzji
+
+Spis wszystkich wpisów dziennika w kolejności, w jakiej stoją w pliku.
+**Utrzymywany ręcznie: każda nowa decyzja dopisuje tu wiersz** — indeks bez
+tego zapisu rozjeżdża się z treścią i przestaje być wart czytania.
+
+Kolumna **Stan** mówi, co się z decyzją stało w kodzie:
+
+| Stan | Znaczenie |
+|---|---|
+| **Wdrożona** | krok, którego decyzja dotyczy, jest ukończony — ustalenie leży w kodzie |
+| **W realizacji** | krok jest w toku |
+| **Czeka** | krok nierozpoczęty; decyzja obowiązuje, ale nie ma jeszcze śladu w kodzie |
+| **Obowiązuje** | reguła stała, nieprzypisana do jednego kroku (model prac projektowych, wykluczony terminal, obejście narzędziowe) |
+| **Nieaktualna** | rzeczywistość rozeszła się z decyzją — powód stoi przy samym wpisie |
+
+| # | Decyzja | Dotyczy | Data | Stan |
+|---|---------|---------|------|------|
+| [D1](#d1--zakres-pierwszej-iteracji-minimalny) | Zakres pierwszej iteracji: Minimalny | całość planu | 2026-08-07 | Obowiązuje |
+| [D2](#d2--wejście-z-klawiatury-tryb-surowy-single-key) | Wejście z klawiatury: tryb surowy (single-key) | krok 6 | 2026-08-07 | Wdrożona |
+| [D3](#d3--obsługa-sixela-wykrywanie-w-runtime--fallback) | Obsługa Sixela: wykrywanie w runtime + fallback | kroki 7, 8 | 2026-08-07 | Wdrożona |
+| [D4](#d4--brak-repozytorium-git-na-razie) | Brak repozytorium git na razie | organizacja projektu | 2026-08-07 | Nieaktualna |
+| [D5](#d5--podniesienie-minimalnego-wysiłku-i-model-dla-prac-projektowych) | Podniesienie minimalnego wysiłku i model dla prac projektowych | model i wysiłek | 2026-08-07 | Obowiązuje |
+| [D6](#d6--pełne-domain-driven-design) | Pełne Domain-Driven Design | krok 1 | 2026-08-07 | Wdrożona |
+| [D7](#d7--wzorzec-singleton-per-usługa-bez-centralnego-kontenera) | Wzorzec Singleton per usługa, bez centralnego kontenera | krok 2 | 2026-08-07 | Wdrożona |
+| [D8](#d8--ustalenia-trafiają-do-dokumentacji-projektu-i-do-claude-code-skill) | Ustalenia trafiają do dokumentacji projektu i do Claude Code Skill | krok 4 | 2026-08-07 | Wdrożona |
+| [D9](#d9--plan-architektury-i-stylu-wstawiony-na-początku-z-przenumerowaniem) | Plan architektury i stylu wstawiony na początku, z przenumerowaniem | numeracja planu | 2026-08-07 | Wdrożona |
+| [D10](#d10--kluczowe-klasyfikacje-taktyczne-ddd-i-struktura-portów) | Kluczowe klasyfikacje taktyczne DDD i struktura portów | krok 1 | 2026-08-07 | Wdrożona |
+| [D11](#d11--kształt-wzorca-singleton-reset-w-testach-orkiestracja-bootstrapu) | Kształt wzorca Singleton, reset w testach, orkiestracja bootstrapu | krok 2 | 2026-08-07 | Wdrożona |
+| [D12](#d12--wersja-php-i-hierarchia-wyjątków-domenowych) | Wersja PHP i hierarchia wyjątków domenowych | krok 3 | 2026-08-07 | Wdrożona |
+| [D13](#d13--claudemd-jako-dodatkowe-zabezpieczenie-obok-skilla) | CLAUDE.md jako dodatkowe zabezpieczenie obok Skilla | poza krokami | 2026-08-07 | Obowiązuje |
+| [D14](#d14--nazewnictwo-pakietuskryptu-i-zawężenie-szkieletu-do-pustych-katalogów) | Nazewnictwo pakietu/skryptu i zawężenie szkieletu do pustych katalogów | krok 5 | 2026-08-07 | Wdrożona |
+| [D15](#d15--obejście-sigsegv-composera-przy-załadowanych-imagick-i-openswoole) | Obejście SIGSEGV Composera przy załadowanych `imagick` i `openswoole` | poza krokami | 2026-08-07 | Obowiązuje |
+| [D16](#d16--reprezentacja-klawisza-wyjątki-infrastructure-testowalność-wejścia) | Reprezentacja klawisza, wyjątki Infrastructure, testowalność wejścia | krok 6 | 2026-08-07 | Wdrożona |
+| [D17](#d17--rozdział-możliwości-imagicka-od-terminala-surowe-io-poza-portem) | Rozdział możliwości Imagicka od terminala, surowe I/O poza portem | krok 7 | 2026-08-07 | Wdrożona |
+| [D18](#d18--rozmiar-płótna-przejęcie-ekranu-i-jakość-tekstu) | Rozmiar płótna, przejęcie ekranu i jakość tekstu | krok 8 | 2026-08-07 | Wdrożona |
+| [D19](#d19--stały-takt-sygnał-jako-znacznik-i-kształt-punktu-wejścia) | Stały takt, sygnał jako znacznik i kształt punktu wejścia | krok 9 | 2026-08-07 | Wdrożona |
+| [D20](#d20--zachowania-nawigacji-okienko-file-i-czas-życia-komunikatu) | Zachowania nawigacji, okienko `file` i czas życia komunikatu | krok 10 | 2026-08-07 | Wdrożona |
+| [D21](#d21--kształt-klatki-miejsce-przewijania-i-wygląd-listy) | Kształt klatki, miejsce przewijania i wygląd listy | krok 11 | 2026-08-08 | Wdrożona |
+| [D22](#d22--rozmiar-płótna-sixel-wobec-okna-terminala) | Rozmiar płótna Sixel wobec okna terminala | uruchomienie pod XTermem | 2026-08-08 | Obowiązuje |
+| [D23](#d23--gnome-terminal-wykluczony-z-trybu-graficznego) | gnome-terminal wykluczony z trybu graficznego | poza krokami | 2026-08-08 | Obowiązuje |
+| [D24](#d24--miejsce-warstwy-i-granice-podglądu-miniatur) | Miejsce, warstwy i granice podglądu miniatur | krok 12 | 2026-08-08 | Wdrożona |
+| [D25](#d25--paleta-grafit-układ-panelowy-i-uproszczony-fallback) | Paleta Grafit, układ panelowy i uproszczony fallback | krok 13 | 2026-08-08 | Wdrożona |
+| [D26](#d26--konfiguracja-w-pliku-i-ekran-ustawień-w-aplikacji) | Konfiguracja w pliku i ekran ustawień w aplikacji | krok 14 | 2026-08-08 | Wdrożona |
+| [D27](#d27--progi-układu-paleta-sixela-i-wygładzanie) | Progi układu, paleta Sixela i wygładzanie | krok 13 | 2026-08-08 | Wdrożona |
+| [D28](#d28--miejsce-instrumentacja-i-forma-wyników-narzędzi-pomiarowych) | Miejsce, instrumentacja i forma wyników narzędzi pomiarowych | krok 16 | 2026-08-08 | Wdrożona |
+| [D29](#d29--zakres-optymalizacji-takt-pętli-kształt-wiersza-i-cel-kroku) | Zakres optymalizacji: takt pętli, kształt wiersza i cel kroku | krok 17 | 2026-08-08 | Wdrożona |
+| [D30](#d30--kształt-mechanizmu-modułów-źródło-kontrakt-ekrany-i-granice) | Kształt mechanizmu modułów: źródło, kontrakt, ekrany i granice | krok 20 | 2026-08-09 | Wdrożona |
+| [D31](#d31--klawisze-funkcyjne-trzy-ekrany-granica-wyjątków-konfiguracji) | Klawisze funkcyjne, trzy ekrany, granica wyjątków konfiguracji | krok 14 | 2026-08-09 | Wdrożona |
+| [D32](#d32--miejsce-napisów-komunikaty-wyjątków-i-wybór-języka) | Miejsce napisów, komunikaty wyjątków i wybór języka | krok 15 | 2026-08-09 | Wdrożona |
+| [D33](#d33--rozbicie-potoku-miejsce-wzorców-i-granica-co-jest-napisem) | Rozbicie potoku, miejsce wzorców i granica „co jest napisem” | krok 16 | 2026-08-09 | Wdrożona |
+| [D34](#d34--segmenty-wiersza-paleta-motywu-pamięci-podręczne-i-takt-pętli) | Segmenty wiersza, paleta motywu, pamięci podręczne i takt pętli | krok 17 | 2026-08-09 | Wdrożona |
+| [D35](#d35--komponenty-i-okno-komend-przed-modułami-przenumerowanie-kroków) | Komponenty i okno komend przed modułami: przenumerowanie kroków | kolejność planu | 2026-08-09 | Wdrożona |
+| [D36](#d36--komponenty-interfejsu-kontrakt-płaszczyzny-układ-i-granice-warstw) | Komponenty interfejsu: kontrakt, płaszczyzny, układ i granice warstw | krok 18 | 2026-08-09 | Wdrożona |
+| [D37](#d37--paleta-hybrydowa-dla-klatki-z-miniaturą) | Paleta hybrydowa dla klatki z miniaturą | korekta D34 | 2026-08-09 | Wdrożona |
+| [D38](#d38--kontrakt-modułu-po-komponentach-dwie-warstwy-ctrl-w-wejściu-napisy-modułu) | Kontrakt modułu po komponentach: dwie warstwy, `Ctrl` w wejściu, napisy modułu | krok 20 | 2026-08-09 | Wdrożona |
+| [D39](#d39--okno-komend-kontrakt-komendy-czynna-płaszczyzna-modalna-i-pole-tekstowe) | Okno komend: kontrakt komendy, czynna płaszczyzna modalna i pole tekstowe | krok 19 | 2026-08-09 | Wdrożona |
+| [D58](#d58--karetka-wędrówka-klawisza-przy-oknie-nakładanym-i-pamięć-podpowiedzi) | Karetka, wędrówka klawisza przy oknie nakładanym i pamięć podpowiedzi | krok 19 | 2026-08-09 | Wdrożona |
+| [D40](#d40--menadżer-plików-jako-moduł-domyślny-rdzeń-przestaje-wiedzieć-o-plikach) | Menadżer plików jako moduł domyślny: rdzeń przestaje wiedzieć o plikach | krok 21 | 2026-08-09 | Wdrożona |
+| [D41](#d41--moduły-trzy-rodzaje-zakładek-ustawienia-surowe-w-pliku-i-miejsce-komendy-modułu) | Moduły: trzy rodzaje zakładek, ustawienia surowe w pliku i miejsce komendy modułu | krok 20 | 2026-08-09 | Wdrożona |
+| [D42](#d42--przeglądarka-jako-moduł-trzy-strefy-ekranu-wyjątek-przedstawiający-się-sam-i-dno-stosu-z-konfiguracji) | Przeglądarka jako moduł: trzy strefy ekranu, wyjątek przedstawiający się sam i dno stosu z konfiguracji | krok 21 | 2026-08-10 | Wdrożona |
+| [D43](#d43--pełny-obraz-pliku-wymusza-trzy-komponenty-rdzenia-przenumerowanie-kroków-2225) | Pełny obraz pliku wymusza trzy komponenty rdzenia: przenumerowanie kroków 22–25 | poza krokami | 2026-08-10 | Wdrożona |
+| [D44](#d44--pasek-postępu-takt-bez-wymuszania-zegar-dla-ekranu-i-pierwszy-użytkownik-weightfill) | Pasek postępu: takt bez wymuszania, zegar dla ekranu i pierwszy użytkownik `Weight::Fill` | krok 23 | 2026-08-10 | Wdrożona |
+| [D45](#d45--podział-ekranu-należy-do-modułu-dwa-panele-w-jednym-ekranie-oprawa-w-płaszczyźnie-spodniej) | Podział ekranu należy do modułu: dwa panele w jednym ekranie, oprawa w płaszczyźnie spodniej | krok 24 | 2026-08-10 | Wdrożona |
+| [D46](#d46--praca-dłuższa-od-klatki-kawałek-na-klatkę-na-żądanie-z-właścicielem--a-proces-potomny-osobnym-krokiem) | Praca dłuższa od klatki: kawałek na klatkę, na żądanie, z właścicielem — a proces potomny osobnym krokiem | kroki 25, 26 | 2026-08-10 | Wdrożona |
+| [D47](#d47--proces-tłowy-jedna-praca-z-uchwytem-sprzątanie-dwiema-drogami-a-du-tylko-dla-katalogów) | Proces tłowy: jedna praca z uchwytem, sprzątanie dwiema drogami, a `du` tylko dla katalogów | krok 26 | 2026-08-11 | Wdrożona |
+| [D48](#d48--sześć-nowych-komponentów-rdzenia-rytm-jeden-komponent--jeden-krok-i-otwarcie-zamkniętego-słownika-prymitywów) | Sześć nowych komponentów rdzenia, rytm „jeden komponent — jeden krok” i otwarcie zamkniętego słownika prymitywów | Faza VII (27–32) | 2026-08-11 | Wdrożona |
+| [D49](#d49--wiersz-wielokolumnowy-jedna-reguła-podziału-na-dwie-osie-tabela-obok-listy-i-stat-zamiast-dwóch-pytań) | Wiersz wielokolumnowy: jedna reguła podziału na dwie osie, tabela obok listy i `stat` zamiast dwóch pytań | krok 27 | 2026-08-11 | Wdrożona |
+| [D50](#d50--krok-33-reakcja-na-zmianę-rozmiaru-okna-wchodzi-do-planu-jako-osobna-faza-viii) | Krok 33: reakcja na zmianę rozmiaru okna wchodzi do planu jako osobna Faza VIII | krok 33 | 2026-08-11 | Wdrożona |
+| [D51](#d51--zmiana-rozmiaru-okna-prawdziwe-zapytanie-o-piksele-samoodświeżanie-bez-zmian-w-kontraktach) | Zmiana rozmiaru okna: prawdziwe zapytanie o piksele, samoodświeżanie bez zmian w kontraktach | krok 33 | 2026-08-11 | Wdrożona |
+| [D52](#d52--prezentacja-poza-terminalem-natywny-opengl-przez-php-glfw-faza-ix-z-dwoma-krokami) | Prezentacja poza terminalem: natywny OpenGL przez PHP-GLFW, Faza IX z dwoma krokami | kroki 34, 35 | 2026-08-11 | Wdrożona |
+| [D53](#d53--okno-glfw-flaga---window-renderermodeopengl-port-wejścia-pod-neutralną-nazwą-rozmiar-startowy-z-ustawień) | Okno GLFW: flaga `--window`, `RendererMode::OpenGl`, port wejścia pod neutralną nazwą, rozmiar startowy z ustawień | krok 34 | 2026-08-11 | Wdrożona |
+| [D54](#d54--renderer-okienkowy-api-wektorowe-rozszerzenia-font-systemowy-natywne-ładowanie-tekstur-pomiar-w-render-bench) | Renderer okienkowy: API wektorowe rozszerzenia, font systemowy, natywne ładowanie tekstur, pomiar w render-bench | krok 35 | 2026-08-11 | Wdrożona |
+| [D55](#d55--odtwarzanie-muzyki-przez-glaudio-osobna-faza-x-z-jednym-krokiem) | Odtwarzanie muzyki przez `GL\Audio`: osobna Faza X z jednym krokiem | krok 36 | 2026-08-11 | Czeka |
+| [D56](#d56--okno-potwierdzenia-decyzja-wraca-domknięciem-esc-znaczy-nie-wariant-groźny-wchodzi-od-razu) | Okno potwierdzenia: decyzja wraca domknięciem, `Esc` znaczy „nie”, wariant groźny wchodzi od razu | krok 28 | 2026-08-12 | Wdrożona |
+| [D57](#d57--faza-ix-dostaje-trzeci-krok-dopracowanie-okna) | Faza IX dostaje trzeci krok: dopracowanie okna | krok 37 | 2026-08-12 | Czeka |
+
+**Dwie uwagi do numeracji**, obie wynikłe z tego, że dziennik pisało wiele
+sesji równolegle:
+
+- **D2 i D3 powstały przed przenumerowaniem planu** (D9), więc w ich treści
+  widnieją stare numery kroków — kolumna „Dotyczy” podaje dzisiejsze
+  (stary 01–08 to obecne 05–12).
+- **Dwa numery zostały nadane dwa razy i rozdzielone 2026-08-12**: D40
+  (karetka przy oknie nakładanym → **D58**, bo nie miała odwołań w kodzie)
+  oraz D53 (odtwarzanie muzyki → **D55**, z tego samego powodu). Numer
+  D58 stoi przez to poza chronologią — wpis leży tam, gdzie powstał, przy
+  kroku 19.
+
 ## Decyzje z fazy planowania (2026-08-07)
 
 ### D1 — Zakres pierwszej iteracji: Minimalny
@@ -52,6 +147,12 @@ wykrywania — prostsze, ale przenosi ryzyko na użytkownika/dokumentację
 zamiast na aplikację.
 
 ### D4 — Brak repozytorium git na razie
+
+> **Stan: nieaktualna** (odnotowano 2026-08-12). Repozytorium git w projekcie
+> **istnieje** i ma historię — rzeczywistość rozeszła się z tą decyzją bez
+> osobnego wpisu. Co z niej zostało w mocy: śledzenie postępu nadal odbywa się
+> w plikach `docs/plans/*.md`, a commitowanie nie jest częścią żadnego kroku —
+> potwierdzone przez użytkownika 2026-08-12.
 
 **Dotyczy:** organizacji projektu.
 **Decyzja:** nie inicjalizujemy repozytorium git w tej iteracji; postęp
@@ -1717,7 +1818,14 @@ dopiero po pierwszym znaku; model Sonnet / high oraz Opus / high.
 
 ## Decyzje z realizacji kroku 19 (2026-08-09)
 
-### D40 — Karetka, wędrówka klawisza przy oknie nakładanym i pamięć podpowiedzi
+### D58 — Karetka, wędrówka klawisza przy oknie nakładanym i pamięć podpowiedzi
+
+> **Uwaga o numerze.** Wpis powstał 2026-08-09 jako **drugi D40** — ten sam
+> numer dostała tego samego dnia decyzja o przeglądarce jako module domyślnym.
+> Kolizję rozstrzygnięto 2026-08-12 na korzyść tamtej, bo jej numer zdążył
+> wejść do dziesięciu miejsc w kodzie i planach (cytowany jako „D40, P4–P8”);
+> ta nie miała ani jednego odwołania. Stąd numer spoza chronologii — wpis
+> stoi w pliku tam, gdzie powstał, przy kroku 19.
 
 **Dotyczy:** kroku 19 (pełna treść: sekcje „Rozstrzygnięcia wykonawcze ze startu
 kroku” i „Odstępstwa od planu” w [19-okno-komend.md](19-okno-komend.md)).
@@ -2588,3 +2696,361 @@ zmianie. Zapytanie `ESC [ 14 t` w środku pętli konkuruje o STDIN z klawiszami
 bajty), a przeliczenie z zapamiętanego rozmiaru komórki nie kosztuje nic, lecz
 kłamie po zmianie fontu w locie. Wybór — jak wszystkie w tym projekcie —
 należy do użytkownika i stoi jako punkt 1 listy startowej kroku.
+
+### D51 — Zmiana rozmiaru okna: prawdziwe zapytanie o piksele, samoodświeżanie bez zmian w kontraktach
+
+**Dotyczy:** kroku 33 (pełna treść: [33-reakcja-na-zmiane-rozmiaru.md](33-reakcja-na-zmiane-rozmiaru.md)).
+
+**Data:** 2026-08-11.
+
+Cztery rozstrzygnięcia użytkownika ze startu kroku; trzy zgodne z rekomendacją,
+pierwsze — wbrew niej, i to ono jest najciekawsze.
+
+**1. Piksele po zmianie: ponowne `ESC [ 14 t`, nie przeliczenie z komórki.**
+Rekomendacja szła za przeliczeniem (zero I/O, zero straconych klatek, kłamie
+tylko po zmianie fontu w locie — a ta i tak jest poza zakresem). Użytkownik
+wybrał prawdziwe zapytanie. Wykonanie dostało dwie poprawki, które zostawiają
+wybór w mocy, a zdejmują jego koszt z przypadków, w których odpowiedź nie może
+przyjść: **pyta się ponownie wyłącznie terminala, który odpowiedział przy
+starcie** (milczenie to konfiguracja `disallowedWindowOps`, nie chwilowa
+niedyspozycja — pytanie milczącego to 300 ms zamrożonej pętli za każdym razem,
+za nic), a gdy pytać nie wolno, **rozmiar komórki liczy się z poprzedniego
+pomiaru**, nie ze stałych 6×13 (font się nie zmienił, więc iloraz mówi prawdę
+tam, gdzie stała mówi „najczęściej”). Odrzucona hybryda (przeliczenie od razu,
+korekta zapytaniem po uspokojeniu sygnałów) wnosiła stan „pomiar w toku” do
+pętli — najwięcej kodu za różnicę niewidoczną przy terminalu, który odpowiada
+w milisekundach.
+
+**2. Nowy rozmiar dociera do klatki samoodświeżeniem, kontrakty nietknięte.**
+`TerminalSizeService` zdejmuje znacznik przy odczycie i mierzy ponownie;
+`ViewportPort` i `TerminalPort` nie zmieniły się o literę, bo składanie klatki
+i renderer **pytały co klatkę już od kroku 18** — zamrożona była wyłącznie
+odpowiedź. Odrzucone jawne `refresh()` w pętli dawało jedną własność więcej
+(rozmiar zmienia się tylko na granicy taktu) za poszerzenie kontraktu portu —
+a jedyny teoretyczny rozjazd (sygnał w środku klatki między odczytem składania
+a odczytem renderera) kosztuje jedną klatkę przy 30 na sekundę i naprawia się
+sam. Skutek uboczny wart odnotowania: **`GameLoop` i `FrameComposer` nie
+zmieniły się wcale**, choć tabela planu przewidywała w obu zmiany.
+
+**3. Znacznik stoi w `TerminalService`**, obok `shutdownRequested` — sygnały
+w jednym miejscu, jednym wzorcem: uchwyt ustawia znacznik i nic więcej, bo
+pomiar w uchwycie dotykałby STDIN w nieprzewidywalnym momencie klatki.
+Zdjęcie znacznika **przed** pomiarem jest częścią umowy: sygnał doręczony
+w trakcie pomiaru ustawia go ponownie i następna klatka mierzy jeszcze raz —
+zmiana nie ma jak się zgubić.
+
+**4. Okno za małe rysuje, co się zmieści.** Dzisiejsze zachowanie rozciągnięte
+na czas działania: `HudLayout` oddaje strefy, `Distribution` gasi kolumny,
+`ScrollWindow` ścina przewinięcie — wszystko wedle reguł, które już są.
+Odrzucona plansza „okno za małe” wnosiła napisy do obu katalogów i próg, który
+trzeba by uzasadnić, w zamian za zakrycie klatki, która i tak mówi prawdę.
+
+**Poza rozstrzygnięciami, przy okazji:** `queryPixelSize()` przy przekroczeniu
+limitu czasu połykał zebrane bajty — dług kroku 06, niegroźny przy starcie,
+groźny przy pomiarze w trakcie działania (to byłyby klawisze użytkownika).
+Bajty wracają teraz przez `pushBackBytes()`.
+
+**Sprawdzian D34 zdany**: krok nie dotknął ani jednej pamięci podręcznej.
+Klucz płaszczyzny spodniej i bitmap napisów niesie rozmiar od kroku 17, więc
+zmiana okna unieważnia je sama — dokładnie tak, jak obiecywał zapis „pamięć
+odświeża się sama, bez ścieżki unieważnienia, o której można zapomnieć”.
+
+## Decyzje z planowania Fazy IX (2026-08-11)
+
+### D52 — Prezentacja poza terminalem: natywny OpenGL przez PHP-GLFW, Faza IX z dwoma krokami
+
+**Dotyczy:** kroków 34 i 35 (pełna treść: [34-okno-glfw.md](34-okno-glfw.md),
+[35-renderer-opengl.md](35-renderer-opengl.md)) i struktury planu
+([00-index.md](00-index.md)).
+
+**Data:** 2026-08-11.
+
+Na polecenie użytkownika plan dostał integrację warstwy prezentacji z OpenGL
+przez rozszerzenie PHP-GLFW. Dwie decyzje użytkownika z planowania — pierwsza
+wbrew rekomendacji i to ona przesądza o skali przedsięwzięcia.
+
+**1. Zakres: natywne rysowanie prymitywów w OpenGL, nie klatka-tekstura.**
+Rekomendacja szła za wariantem najmniejszym: klatka nadal składana Imagickiem,
+a zamiast enkodowania do Sixela wgrywana jako tekstura na pełnoekranowy
+prostokąt w oknie GLFW — cały potok zostawał nietknięty, dochodził tylko
+trzeci `FrameRendererPort` i alternatywa dla wejścia. Użytkownik wybrał
+rysowanie natywne: prymitywy słownika z kroku 18 tłumaczone wprost na
+wywołania OpenGL, **bez Imagicka w ścieżce klatki** w trybie okienkowym.
+Konsekwencja architektoniczna warta jawnego zapisu: założenie z celu projektu
+(„cała klatka ekranu budowana jest jako jeden obraz Imagick”) przestaje być
+uniwersalne — pozostaje prawdziwe dla trybów terminalowych, a tryb okienkowy
+dostaje własnego, trzeciego tłumacza tego samego słownika prymitywów.
+Odrzucony został też wariant „oba” (tekstura teraz, natywnie później) — bez
+wariantu pośredniego nie powstaje kod, który drugi krok by wyrzucił.
+
+**2. Struktura: osobna Faza IX z dwoma krokami** (zgodnie z rekomendacją).
+Krok 34 stawia mechanizm: okno, kontekst OpenGL, wejście z klawiatury jako ten
+sam słownik `KeyPress`, zamknięcie okna i zmianę rozmiaru, wybór trybu przy
+starcie — z klatką „dowód życia” (tło motywu) jako treścią zastępczą, wzorem
+kroku 09. Krok 35 dowozi treść: natywny renderer pełnego słownika prymitywów
+do parytetu z klatką sixelową, z pomiarem. Odrzucone: jeden krok (większy niż
+18 i 21 razem — za dużo rozstrzygnięć na jeden start) oraz trzy kroki
+(renderer tekstu i kształtów bez bitmap nie domyka żadnego ekranu z podglądem,
+więc środkowy krok nie miałby uczciwego kryterium ukończenia). Osobna faza,
+nie dopisek do VIII — wzorem rozumowania z D50: to nowy mechanizm rdzenia
+o własnym rytmie, nie kolejny komponent ani nie sprawa okna terminala.
+
+**Granice postawione już na etapie planu:** tryby terminalowe (Sixel, tekst)
+zostają pierwszorzędne i nie mają prawa zdrożeć ani się zmienić; `ext-glfw`
+nie wchodzi do `require` (wzorem `intl` z D20 — tryb okienkowy to możliwość,
+nie wymóg); słownik prymitywów pozostaje zamknięty — „OpenGL potrafi więcej”
+nie otwiera go, otwiera go wyłącznie tryb z D48; od kroku 35 każdy nowy
+prymityw obowiązuje **trzy** renderery naraz, co dotyka kroku 30, jeśli
+wykona się później. Rozstrzygnięcia wykonawcze (flaga wyboru trybu, nazwa
+trybu i katalogu, los nazwy `TerminalPort`, technika rysowania — API wektorowe
+rozszerzenia czy surowe GL z atlasem glifów, źródło fontu, dekoder bitmap,
+kształt pomiaru) stoją jawnie w listach startowych obu kroków i — jak
+wszystkie w tym projekcie — należą do użytkownika.
+
+## Decyzje ze startu kroku 34 (2026-08-11)
+
+### D53 — Okno GLFW: flaga `--window`, `RendererMode::OpenGl`, port wejścia pod neutralną nazwą, rozmiar startowy z ustawień
+
+**Dotyczy:** kroku 34 (pełna treść: [34-okno-glfw.md](34-okno-glfw.md)).
+
+**Data:** 2026-08-11.
+
+Sześć rozstrzygnięć użytkownika z listy startowej kroku; pięć zgodnych
+z rekomendacją, piąte — rozszerzone ponad nią.
+
+**Stan zastany, który zmienił założenia planu:** rozszerzenie `glfw` okazało
+się **już zainstalowane i załadowane** (PHP-GLFW 2.2.0, wkompilowane API `gl`
+w wersji 4.1, GLFW 3.3.8 pod X11, wraz z API wektorowym
+`GL\VectorGraphics\VGContext` — istotnym dla rozstrzygnięcia nr 1 kroku 35),
+a stuby do analizy statycznej są publikowane na Packagist jako
+`phpgl/ide-stubs` (MIT).
+
+**1. Tryb okienkowy wybiera flaga CLI `--window`.** Rozstrzyga się przed
+jakąkolwiek sekwencją terminalową, jawnie przy każdym uruchomieniu. Odrzucone:
+zmienna środowiskowa (wybór niewidoczny w poleceniu) i klucz ustawień
+(wymagałby przestawienia kolejności bootstrapu, przed którą plan ostrzegał).
+
+**2. Nazewnictwo: `RendererMode::OpenGl` + katalog `Infrastructure/Glfw`.**
+Wariant enuma nazywa technikę, którą klatka trafia na ekran — jak `Sixel` —
+i pokrywa się z nazwą kroku 35; katalog usług idzie po bibliotece, precedensem
+`Infrastructure/Imagick`.
+
+**3. `TerminalPort` przechodzi na neutralną nazwę `InputPort`.** Kontrakt
+(`readKey()` + `shutdownRequested()`) nie mówił o terminalu niczego — mówiła
+nazwa. Argument kosztowy z planu upadł po sprawdzeniu: jedno miejsce
+wstrzyknięcia (`GameLoop`), jedna implementacja (`TerminalService`), jeden
+dubler testowy — zmiana mechaniczna w ~4 plikach.
+
+**4. Rytm klatek: dzisiejszy stały takt z `glfwSwapInterval(0)`.** Oba tory
+zachowują się identycznie, `GameLoop` zostaje jeden i niezmieniony; vsync
+(rytm monitora, mniejsze zużycie) odrzucony, bo rozjeżdżał tryb okienkowy
+z terminalowym i wymagał rozgałęzienia `usleep()` w pętli.
+
+**5. Rozmiar startowy okna: domyślnie 100×30 komórek, konfigurowalne
+w ustawieniach aplikacji** — rozszerzenie ponad rekomendację (sama stała
+100×30): użytkownik zażądał kluczy ustawień rdzenia na rozmiar startowy.
+Komórka zastępcza pozostaje stałą jawnie opisaną jako tymczasowa — prawdziwa
+wyjdzie z metryk fontu w kroku 35. Konsekwencja dla toru okienkowego
+bootstrapu: ustawienia czytają się **przed** otwarciem okna (sekwencja
+ustawienia → okno → renderer), co w tym torze nie ma pułapki znanej z toru
+terminalowego, bo odczyt konfiguracji terminala nie dotyka.
+
+**6. Kontekst OpenGL: 3.3 core.** Wystarcza obu technikom rysowania
+rozważanym w kroku 35 (API wektorowe rozszerzenia wymaga rdzenia 3.x; atlas
+glifów na surowym GL też), najszersza zgodność sprzętowa; Mesa pod X11 odda
+kontekst nowszy i zgodny wstecz. Odrzucone: 4.1 core (parytet z wkompilowanym
+API bez odbiorcy — krok 35 niczego powyżej 3.3 nie potrzebuje) i profil
+zgodnościowy (zamykał drogę API wektorowemu).
+
+## Decyzje ze startu kroku 35 (2026-08-11)
+
+### D54 — Renderer okienkowy: API wektorowe rozszerzenia, font systemowy, natywne ładowanie tekstur, pomiar w render-bench
+
+**Dotyczy:** kroku 35 (pełna treść: [35-renderer-opengl.md](35-renderer-opengl.md)).
+
+**Data:** 2026-08-11.
+
+Pięć rozstrzygnięć użytkownika z listy startowej; cztery zgodne
+z rekomendacją, trzecie — wbrew niej.
+
+**Rozpoznanie na maszynie, które poprzedziło pytania** (wymóg planu: „nie
+z pamięci ani z dokumentacji”): API wektorowe `GL\VectorGraphics\VGContext`
+(NanoVG na GL3) ma pełny zakres — kształty z antyaliasingiem (`rect`,
+`roundedRect`, `roundedRectVarying`, łuki, `strokeWidth`, nożyce), pełny
+tekst TTF (`createFont` ze ścieżki pliku, `textAlign`, `textBounds`,
+`textMetrics`, wewnętrzny atlas glifów) i obrazy (`Texture2D::fromDisk`/
+`fromBuffer` → `imageFromTexture` → `VGImage::makePaint`). `fc-match` jest
+dostępny i wskazuje `DejaVuSansMono.ttf`.
+
+**1. Technika rysowania: API wektorowe `VGContext`.** Tabela tłumaczeń jest
+krótka, antyaliasing i pamięć podręczna glifów przychodzą w cenie (font
+stash NanoVG), łuki `RoundRect` są prawdziwe, a kontekst 3.3 core z D53
+wystarcza. Odrzucone surowe GL z własnym atlasem: pełna kontrola za cenę
+najtrudniejszego kawałka (tekst) pisanego ręcznie — bez zysku, skoro
+rozpoznanie potwierdziło zakres API.
+
+**2. Font: systemowy, lista preferencji ścieżek TTF + `fc-match` jako
+ostatnia szansa** — wzorem kroku 08 (tam: lista nazw + `Imagick::queryFonts`),
+spójny z resztą pulpitu. Cena znana z planu: metryki niedeterministyczne
+między maszynami. Odrzucony plik TTF w repozytorium (identyczne metryki
+wszędzie, ale ~340 KB w repo i odstępstwo od wzorca).
+
+**3. Dekoder bitmap: natywne `Texture2D::fromDisk`** — **wbrew
+rekomendacji** (Imagick poza ścieżką klatki, z limitami D24 i pełną paletą
+formatów). Użytkownik wybrał zero Imagicka także w dekodowaniu podglądów
+toru okienkowego. Konsekwencje przyjęte świadomie: zakres formatów zawęża
+się do tego, co czyta stb_image (PNG/JPG/BMP/GIF statyczny/TGA/PSD/PNM —
+bez WEBP/TIFF/SVG; format nieobsłużony spada do pustej ramki z podpisem,
+jak dziś plik nieczytelny), a limity rozmiaru trzeba postawić od nowa po
+stronie toru okienkowego, bo D24 chronił potok Imagicka.
+
+**4. Przełączniki jakości: `strokeAntialias` działa, reszta „nie dotyczy”.**
+`strokeAntialias` mapuje się na `shapeAntiAlias` kontekstu — jedyny
+przełącznik, który VG naprawdę ma. `textAntialias` (NanoVG wygładza tekst
+zawsze) i `paletteColors` (kwantyzacji nie ma wcale) dostają jawną adnotację
+„nie dotyczy toru okienkowego”, wartości są ignorowane bez ostrzeżeń.
+
+**5. Pomiar: `bin/render-bench` z nową osią `--window`.** Te same
+scenariusze (`ScenarioFactory` buduje `Frame` — wspólny dla wszystkich
+tłumaczy), okno ukryte hintem `GLFW_VISIBLE=0`, osobny tor pomiaru (czas
+klatki VG + zamiana buforów zamiast faz Sixela). Wzorzec okienkowy wchodzi
+do `docs/pomiary/` obok terminalowych; `--compare` porównuje w obrębie
+toru. Odrzucone osobne narzędzie: drugi parser, drugi format i drugi zestaw
+wzorców przy tych samych scenariuszach.
+
+## Decyzje z planowania Fazy X (2026-08-11)
+
+### D55 — Odtwarzanie muzyki przez `GL\Audio`: osobna Faza X z jednym krokiem
+
+> **Uwaga o numerze.** Decyzja powstała 2026-08-11 jako D53, ale ten sam numer
+> dostały równolegle rozstrzygnięcia startu kroku 34. Kolizję rozstrzygnięto
+> 2026-08-12 na korzyść kroku 34, bo jego numer zdążył wejść do dwudziestu
+> miejsc w kodzie i dokumentacji; treść decyzji o muzyce nie zmieniła się
+> o literę.
+
+**Dotyczy:** kroku 36 (pełna treść: [36-odtwarzanie-muzyki.md](36-odtwarzanie-muzyki.md))
+i struktury planu ([00-index.md](00-index.md)).
+
+**Data:** 2026-08-11.
+
+Na polecenie użytkownika plan dostał odtwarzanie muzyki — domyślnie i na
+początek „Smoke On The Water” — przez moduł audio rozszerzenia PHP-GLFW
+(`GL\Audio`), z rozwiązaniami zastępczymi do zaproponowania na wypadek jego
+niedostępności.
+
+**Rozpoznanie z dnia planowania** (fakty, nie założenia): rozszerzenie `glfw`
+**jest załadowane** w środowisku projektu; `GL\Audio\Engine` oddaje
+`start()`/`stop()`, `soundFromDisk()` i głośność główną, `GL\Audio\Sound` —
+`play()`, `stop()`, `setLoop()`, `setVolume()`, fade i seek. Dwa ustalenia
+przesądzają o kształcie kroku: dźwięk ładuje się **wyłącznie z pliku na
+dysku** (brak konstrukcji z bufora — utwór syntezowany musi najpierw stanąć
+jako WAV), a silnik audio (miniaudio) najpewniej **nie wymaga okna ani
+kontekstu OpenGL** (do potwierdzenia na starcie kroku) — więc muzyka może
+grać także w trybach terminalowych, a krok stoi **poza Fazą IX**, niezależny
+od niej w obie strony. Jedyny punkt styku: stuby `GL\*` do analizy statycznej
+dowozi ten z kroków 34/36, który wykona się pierwszy.
+
+**Struktura: osobna Faza X, jeden krok** — wzorem rozumowania z D50/D52:
+dźwięk to nowy mechanizm o własnym rytmie, nie komponent i nie sprawa okna.
+Jeden krok, nie dwa, bo zakres jest domknięty: port + usługa + domyślny
+utwór + komendy; ewentualny moduł odtwarzacza (playlisty, przeglądanie) to
+świadome wykluczenie, zapisane w „Poza zakresem”.
+
+**Granice postawione na etapie planu:** dźwięk gra **poza ścieżką klatki** —
+koszt klatki nie ma prawa drgnąć w żadnym trybie (`bin/render-bench
+--compare` w kryteriach ukończenia); `ext-glfw` nie wchodzi do `require`
+(granica z D52 bez zmian) — brak rozszerzenia obsługuje pusta implementacja
+portu z komunikatem, nie kod wyjścia; nagranie Deep Purple **nie wchodzi do
+repozytorium** (cudze nagranie, cudze prawa) — rekomendacją jest własny,
+deterministyczny syntezator riffu piszący WAV do pamięci podręcznej.
+
+**Rozwiązania zastępcze bez rozszerzenia — zaproponowane, wybór należy do
+użytkownika** (lista startowa kroku): (a) odtwarzacz zewnętrzny jako proces
+potomny wzorcem kroku 26 (`paplay`/`aplay`/`ffplay`/`mpv`), (b) FFI do
+miniaudio/OpenAL (odradzane — najcięższe), (c) sama degradacja z komunikatem
+(rekomendowane, dopóki jedyne środowisko projektu ma rozszerzenie
+załadowane). Pozostałe rozstrzygnięcia wykonawcze (zasięg trybów, źródło
+utworu, domyślny stan autostartu, nazewnictwo portu i katalogu) stoją jawnie
+w liście startowej kroku i — jak wszystkie w tym projekcie — należą do
+użytkownika.
+
+## Decyzje ze startu kroku 28 (2026-08-12)
+
+### D56 — Okno potwierdzenia: decyzja wraca domknięciem, `Esc` znaczy „nie”, wariant groźny wchodzi od razu
+
+**Dotyczy:** kroku 28 (pełna treść: [28-okno-potwierdzenia.md](28-okno-potwierdzenia.md)).
+
+**Data:** 2026-08-12.
+
+Cztery rozstrzygnięcia użytkownika z listy startowej; trzy zgodne
+z rekomendacją, czwarte — wbrew niej i to ono jest najciekawsze.
+
+**Stan zastany, który zmienił obraz rozstrzygnięcia nr 1:** droga „ekran
+otwiera okno nakładane” **już istnieje** — `ScreenOutcome::opens(OverlayInterface)`
+wraz z obsługą w `InputHandler` — ale nie ma ani jednego użytkownika.
+`ConfirmOverlay` będzie pierwszym, więc krok nie buduje drogi, tylko po raz
+pierwszy nią idzie.
+
+**1. Decyzja wraca domknięciem, które oddaje komunikat.** Okno dostaje przy
+tworzeniu `Closure` wykonywaną po „tak”; zwraca ona `?Message`, a okno pakuje
+go w **istniejące** `OverlayOutcome::close($message)`. Kontrakt okna
+nakładanego nie rośnie **wcale** — kryterium kroku mówiło „najwyżej o jedną
+rzecz”, a wyszło zero. To ten sam wzorzec, którym `Button` działa od kroku 18:
+czynność przychodzi z zewnątrz jako wywoływalny obiekt, a komponent nie wie,
+co uruchamia. Odrzucone: pole `confirmed` w `OverlayOutcome` (rozszerzałoby
+kontrakt **każdego** okna, także dwóch, które o żadnej decyzji nie wiedzą)
+oraz odpytywanie okna po zamknięciu (przenosiłoby stan do ekranu — tam, gdzie
+krok 19 świadomie go nie zostawił).
+
+**2. `Esc` znaczy „nie”.** Zamknięcie bez odpowiedzi i odmowa dają ten sam
+skutek: czynność się nie wykonuje. Rozróżnianie ich nie ma dziś odbiorcy,
+a okno pyta o rzecz nieodwracalną — milczenie ma znaczyć odmowę.
+
+**3. Okno przepuszcza klawisze globalne**, jak każde inne (reguła kroku 19 bez
+wyjątku). `F10` w trakcie pytania kończy aplikację **bez wykonania czynności**,
+co jest bezpieczne, bo domyślną odpowiedzią jest „nie”. Odrzucone przejęcie
+całej klawiatury: dawałoby okno, z którego nie da się wyjść inaczej niż
+odpowiadając.
+
+**4. Wariant „niebezpieczne” wchodzi od razu — i ma użytkownika od pierwszego
+dnia.** Rekomendacja szła za odłożeniem parametru do czasu operacji na plikach,
+powołując się na regułę 13 („nic nie powstaje bez prawdziwego użytkownika”).
+Użytkownik wybrał wprowadzenie go teraz i **wyłomu od reguły 13 nie ma**:
+przywracanie ustawień domyślnych jest jedynym miejscem w aplikacji, w którym
+pomyłka kosztuje dane (tak opisuje je sam plan kroku), więc pierwsze pytanie
+w historii aplikacji jest właśnie pytaniem groźnym. Parametr rodzi się
+z odbiorcą, a nie na zapas — inaczej niż `ProgressBar` w kroku 23, którego
+dług trzeba było spłacać przez trzy kroki.
+
+### D57 — Faza IX dostaje trzeci krok: dopracowanie okna
+
+**Dotyczy:** kroku 37 (pełna treść: [37-dopracowanie-okna.md](37-dopracowanie-okna.md))
+i struktury planu ([00-index.md](00-index.md)).
+
+**Data:** 2026-08-12.
+
+Po ukończeniu kroków 34 i 35 użytkownik zdecydował, że drobiazgi wykluczone
+z obu — **zapamiętywanie rozmiaru okna, pełny ekran, ikona i skala treści
+(HiDPI)** — wchodzą do planu jako osobny krok, w komplecie, zamiast czekać na
+odbiorcę.
+
+**Zmiana wobec D52, którą trzeba nazwać:** tamta decyzja opisywała Fazę IX jako
+**dwa kroki** — mechanizm i treść — i takie było jej uzasadnienie („jeden krok
+byłby większy niż 18 i 21 razem”). Trzeci krok tego podziału nie łamie, bo nie
+dokłada ani mechanizmu, ani treści: okno działa bez niego w całości, a wszystkie
+cztery pozycje są dopełnieniem wrażenia, nie warunkiem działania. Stąd
+umiejscowienie w Fazie IX, a nie w nowej fazie — kosmetyka okna należy tam,
+gdzie okno powstało, a osobna faza dla czterech drobiazgów byłaby przerostem
+formy.
+
+**Numer 37, nie 36**: numeracja pozostaje chronologiczna wobec kolejności
+powstawania planów, a krok 36 (muzyka) był rozpisany wcześniej. Kolejność
+w planie nie jest kolejnością wykonania — Fazy VIII, IX i X i tak stoją poza
+łańcuchem.
+
+**Zakres w komplecie, wbrew rekomendacji cząstkowej.** Przy wyborze zakresu
+padło pytanie, czy skalę treści włączać, skoro maszyna projektu ma skalę 1.0
+i **nie da się jej tu rzetelnie sprawdzić**. Użytkownik włączył wszystkie
+cztery pozycje; zastrzeżenie zostaje zapisane w planie kroku jako
+rozstrzygnięcie nr 4 — kod pisany na ślepo ma być jawnie oznaczony jako
+niesprawdzony na sprzęcie albo zastąpiony samym odczytem wartości.

@@ -26,8 +26,20 @@ if (!extension_loaded('imagick')) {
     exit(1);
 }
 
+// Tryb okienkowy wybiera się flagą, zanim cokolwiek dotknie terminala (krok 34,
+// D53) — dzięki temu tor okienkowy nie wysyła na STDOUT ani jednej sekwencji.
+$windowed = in_array('--window', array_slice($argv, 1), true);
+
+// Preflight wzorem `imagick`, ale wyłącznie pod flagą: tryby terminalowe mają
+// działać bez rozszerzenia `glfw`, więc bez flagi nie ma żadnego wymogu.
+if ($windowed && !extension_loaded('glfw')) {
+    fwrite(STDERR, TranslatorService::getInstance()->translate('problem.missingGlfw') . PHP_EOL);
+
+    exit(1);
+}
+
 try {
-    Bootstrap::boot();
+    Bootstrap::boot($windowed);
     Bootstrap::createGameLoop()->run();
 } catch (InfrastructureException|DomainException $exception) {
     // Bez sprzątania w tym miejscu: gdy zawiódł sam bootstrap, usługa terminala

@@ -32,10 +32,18 @@ final class Dialog implements ComponentInterface
     /** Wiersz obwódki u góry, wiersz tytułu, wiersz odstępu i wiersz obwódki u dołu. */
     private const CHROME_ROWS = 3;
 
-    /** @param list<string> $lines */
+    /**
+     * @param list<string> $lines
+     * @param Role         $accent rola tytułu i nawiasów narożnych; okno
+     *                             potwierdzenia dla czynności nieodwracalnej
+     *                             podaje tu `Danger` (krok 28, D56)
+     * @param Role         $border rola obwódki — z tego samego powodu
+     */
     public function __construct(
         private readonly string $title,
         private readonly array $lines,
+        private readonly Role $accent = Role::Accent,
+        private readonly Role $border = Role::Border,
     ) {
     }
 
@@ -58,13 +66,13 @@ final class Dialog implements ComponentInterface
         }
 
         $primitives = [
-            new RoundRect($bounds, Role::Surface, Role::Border, Corner::Round),
-            new CornerBrackets($bounds, Role::Accent, Corner::Round),
+            new RoundRect($bounds, Role::Surface, $this->border, Corner::Round),
+            new CornerBrackets($bounds, $this->accent, Corner::Round),
             new TextRun(
                 $bounds->row + 1,
                 $bounds->column + self::PADDING_COLUMNS,
                 Label::fit($this->title, $bounds->columns - 2 * self::PADDING_COLUMNS),
-                Role::Accent,
+                $this->accent,
             ),
         ];
 

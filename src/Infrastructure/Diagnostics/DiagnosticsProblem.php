@@ -21,6 +21,7 @@ enum DiagnosticsProblem: string
     case BaselineMissing = 'baselineMissing';
     case WriteFailed = 'writeFailed';
     case TerminalUnavailable = 'terminalUnavailable';
+    case GlfwUnavailable = 'glfwUnavailable';
 
     public function textKey(): string
     {

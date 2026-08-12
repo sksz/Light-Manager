@@ -60,33 +60,61 @@ final class ReportTable
         ]);
     }
 
+    /**
+     * Tor okienkowy (krok 35) ma inne fazy, więc i inne kolumny: kwantyzacji
+     * nie ma wcale (palety nie ma), bajtów nie ma (klatka nie opuszcza
+     * procesu), a to, co w torze sixelowym jest kodowaniem, tutaj jest
+     * zamianą buforów. Kolumna zer i kolumna zer to nie jest wynik pomiaru.
+     */
     private function scenarioTable(BenchmarkReport $report): string
     {
+        $windowed = $report->options->windowed;
+
         $header = [
             $this->translator->translate('bench.column.scenario'),
             $this->translator->translate('bench.column.draw'),
-            $this->translator->translate('bench.column.quantize'),
-            $this->translator->translate('bench.column.encode'),
-            $this->translator->translate('bench.column.total'),
-            $this->translator->translate('bench.column.spread'),
-            $this->translator->translate('bench.column.blob'),
         ];
+
+        if (!$windowed) {
+            $header[] = $this->translator->translate('bench.column.quantize');
+        }
+
+        $header[] = $this->translator->translate($windowed ? 'bench.column.swap' : 'bench.column.encode');
+        $header[] = $this->translator->translate('bench.column.total');
+        $header[] = $this->translator->translate('bench.column.spread');
+
+        if (!$windowed) {
+            $header[] = $this->translator->translate('bench.column.blob');
+        }
 
         $rows = [$header];
 
         foreach ($report->results as $result) {
-            $rows[] = [
+            $row = [
                 $this->translator->translate($result->scenario->labelKey()),
                 $this->phase($result->draw, $result->total),
-                $this->phase($result->quantize, $result->total),
-                $this->phase($result->encode, $result->total),
-                $this->milliseconds($result->total->median),
-                $this->spread($result),
-                $this->kilobytes($result->blobBytes->median),
             ];
+
+            if (!$windowed) {
+                $row[] = $this->phase($result->quantize, $result->total);
+            }
+
+            $row[] = $this->phase($result->encode, $result->total);
+            $row[] = $this->milliseconds($result->total->median);
+            $row[] = $this->spread($result);
+
+            if (!$windowed) {
+                $row[] = $this->kilobytes($result->blobBytes->median);
+            }
+
+            $rows[] = $row;
         }
 
-        $table = $this->layOut($rows, [false, true, true, true, true, true, true]);
+        // Nazwa scenariusza do lewej, liczby do prawej — jak od kroku 16.
+        $alignment = array_fill(0, count($header), true);
+        $alignment[0] = false;
+
+        $table = $this->layOut($rows, $alignment);
 
         if ($report->hasUnstableResults()) {
             $table .= "\n" . $this->translator->translate('bench.report.unstableNote', [

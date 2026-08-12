@@ -51,6 +51,12 @@ final class BenchmarkOptions
         public readonly ?string $font = null,
         public readonly int $iterations = self::DEFAULT_ITERATIONS,
         public readonly int $warmupIterations = self::DEFAULT_WARMUP_ITERATIONS,
+        /**
+         * Tor okienkowy (krok 35, D54): klatka idzie przez renderer OpenGL
+         * do ukrytego okna zamiast przez potok Sixela. Osobna oś, bo wyniki
+         * obu torów nie mają prawa się porównywać.
+         */
+        public readonly bool $windowed = false,
     ) {
     }
 
@@ -78,7 +84,7 @@ final class BenchmarkOptions
     public function signature(): string
     {
         return sprintf(
-            '%dx%dpx %dx%d theme=%s palette=%d textAA=%d strokeAA=%d font=%s',
+            '%dx%dpx %dx%d theme=%s palette=%d textAA=%d strokeAA=%d font=%s%s',
             $this->widthPixels,
             $this->heightPixels,
             $this->columns,
@@ -88,6 +94,7 @@ final class BenchmarkOptions
             $this->textAntialias ? 1 : 0,
             $this->strokeAntialias ? 1 : 0,
             $this->font ?? 'auto',
+            $this->windowed ? ' window' : '',
         );
     }
 
@@ -106,6 +113,7 @@ final class BenchmarkOptions
             'font' => $this->font,
             'iterations' => $this->iterations,
             'warmupIterations' => $this->warmupIterations,
+            'windowed' => $this->windowed,
         ];
     }
 
@@ -126,6 +134,7 @@ final class BenchmarkOptions
             is_string($font) ? $font : null,
             JsonValue::int($data, 'iterations', self::DEFAULT_ITERATIONS),
             JsonValue::int($data, 'warmupIterations', self::DEFAULT_WARMUP_ITERATIONS),
+            JsonValue::bool($data, 'windowed'),
         );
     }
 }

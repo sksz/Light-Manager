@@ -22,6 +22,11 @@ namespace LightManager\Application\Dto;
  * `ShowHiddenEntries` **zniknął**: po przenosinach nawigacji do modułu widoczność
  * wpisów ukrytych jest ustawieniem przeglądarki (`modules.browser.showHidden`),
  * a nie aplikacji.
+ *
+ * `WindowColumns` i `WindowRows` (krok 34, D53) opisują rozmiar startowy okna
+ * trybu okienkowego w komórkach siatki znakowej. W trybach terminalowych nie
+ * robią nic — rozmiar dyktuje tam terminal — ale zostają widoczne na ekranie
+ * ustawień, bo plik konfiguracji jest jeden dla wszystkich trybów.
  */
 enum SettingKey: string
 {
@@ -31,6 +36,8 @@ enum SettingKey: string
     case TextAntialias = 'textAntialias';
     case StrokeAntialias = 'strokeAntialias';
     case PaletteColors = 'paletteColors';
+    case WindowColumns = 'windowColumns';
+    case WindowRows = 'windowRows';
 
     public function labelKey(): string
     {

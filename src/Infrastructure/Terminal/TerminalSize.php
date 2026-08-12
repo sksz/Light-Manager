@@ -18,6 +18,15 @@ final class TerminalSize
     ) {
     }
 
+    /** Porównanie w obu jednostkach naraz — renderer po tym poznaje, że okno się zmieniło. */
+    public function equals(self $other): bool
+    {
+        return $this->widthPixels === $other->widthPixels
+            && $this->heightPixels === $other->heightPixels
+            && $this->columns === $other->columns
+            && $this->rows === $other->rows;
+    }
+
     /**
      * Wysokość obrazu pokrywającego okno, pomniejszona o jeden wiersz znakowy.
      *

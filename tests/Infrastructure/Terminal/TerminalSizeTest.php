@@ -37,6 +37,18 @@ final class TerminalSizeTest extends TestCase
         self::assertSame(328, $size->heightPixelsWithoutBottomRow());
     }
 
+    /** Po `equals()` renderer poznaje zmianę okna — czułość na każde z czterech pól jest treścią umowy. */
+    public function testEqualsComparesBothUnitsAtOnce(): void
+    {
+        $size = new TerminalSize(540, 338, 90, 26);
+
+        self::assertTrue($size->equals(new TerminalSize(540, 338, 90, 26)));
+        self::assertFalse($size->equals(new TerminalSize(541, 338, 90, 26)));
+        self::assertFalse($size->equals(new TerminalSize(540, 339, 90, 26)));
+        self::assertFalse($size->equals(new TerminalSize(540, 338, 91, 26)));
+        self::assertFalse($size->equals(new TerminalSize(540, 338, 90, 27)));
+    }
+
     /** @return array<string, array{int, int}> */
     public static function degenerateSizes(): array
     {

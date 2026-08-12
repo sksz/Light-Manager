@@ -6,6 +6,8 @@ namespace LightManager\Presentation\Cli;
 
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Domain\Exception\DescribesProblem;
+use LightManager\Infrastructure\Glfw\GlfwException;
+use LightManager\Infrastructure\Glfw\GlfwProblem;
 use LightManager\Infrastructure\Terminal\TerminalException;
 use LightManager\Infrastructure\Terminal\TerminalProblem;
 use Throwable;
@@ -71,7 +73,18 @@ final class ProblemPresenter
                 $problem->problemParameters(),
             ),
             $problem instanceof TerminalException => $this->terminal($problem),
+            $problem instanceof GlfwException => $this->glfw($problem),
             default => null,
+        };
+    }
+
+    private function glfw(GlfwException $problem): string
+    {
+        return match ($problem->problem) {
+            GlfwProblem::MissingExtension => $this->translator->translate('problem.missingGlfw'),
+            GlfwProblem::InitFailure => $this->translator->translate('problem.glfw.init'),
+            GlfwProblem::WindowFailure => $this->translator->translate('problem.glfw.window'),
+            GlfwProblem::MissingFont => $this->translator->translate('problem.glfw.font'),
         };
     }
 

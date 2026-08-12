@@ -90,6 +90,13 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     klawiszy globalnych, nigdy do ekranu pod spodem (krok 19). Płaszczyznę
     takiego okna składa się z `opaque: true` — **warstwa ma zakrywać to, co pod
     nią**, a `Panel` rysuje samą obwódkę, bez tła.
+    **Okno, które czegoś chce od wołającego, oddaje to domknięciem** (krok 28,
+    D56): czynność przychodzi w konstruktorze jako `Closure` i **zwraca
+    `?Message`**, który okno pakuje w `OverlayOutcome::close($message)` —
+    kontrakt okna nie rośnie o żadne pole, a ekran otwiera je przez istniejące
+    `ScreenOutcome::opens()`. Pytanie przed czynnością nieodwracalną: ognisko
+    startuje na odmowie, `Esc` znaczy to samo co „nie”, klawisze globalne
+    przechodzą, a wariant `dangerous` maluje oprawę rolą `Danger`.
 11a. **Komponent jest bezstanowy** — powstaje na nowo w każdej klatce, więc co ma
     przeżyć klatkę, mieszka **obok** niego, a właścicielem jest ekran. Dwie takie
     klasy: `Presentation\Ui\ScrollWindow` (wycinek listy, krok 18) i
@@ -160,6 +167,58 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     (komponent: liczy szerokości **raz na klatkę dla wszystkich wierszy naraz**).
     `Table` stoi **obok** `ListView`, nie zamiast niego: `ListRow` z dwoma polami
     zostaje dla opisu pliku, bo etykieta z wartością to nie tabela.
+
+11f. **Rozmiar okna terminala nie jest stałą uruchomienia** (krok 33). `SIGWINCH`
+    ustawia w `TerminalService` znacznik (wzorem `shutdownRequested`), a
+    `TerminalSizeService` zdejmuje go przy najbliższym odczycie i mierzy
+    ponownie; kontrakty `ViewportPort` i `InputPort` są nietknięte, bo
+    składanie klatki i renderer pytają o rozmiar **co klatkę**. Konsekwencje:
+    nie zapamiętuj wierszy/kolumn/pikseli między klatkami; pamięć podręczna
+    zależna od rozmiaru ma rozmiar w kluczu (D34) i unieważnia się sama;
+    renderer sixelowy czyści ekran **raz** po zmianie (jawny wyjątek od
+    „czyszczenie daje migotanie”); okno za małe rysuje, co się zmieści —
+    planszy zastępczej nie ma.
+
+11g. **Tryb okienkowy to te same porty z innymi implementacjami — i nic ponad
+    to** (krok 34, D53). Flaga `--window` otwiera okno GLFW (kontekst OpenGL
+    3.3 core) zamiast terminala: `InputPort` (dawny `TerminalPort`, nazwa
+    przeszła na neutralną wraz z drugim źródłem) → `Glfw\GlfwInputService`,
+    `ViewportPort` → `Glfw\GlfwViewportService` (framebuffer / komórka
+    zastępcza — stała do kroku 35), `FrameRendererPort` →
+    `OpenGlFrameRenderer` (do kroku 35 zastępczy: tło motywu + zamiana
+    buforów). Pętla, ekrany, moduły i komponenty **nie wiedzą, że coś się
+    zmieniło**. Zakazy, których pilnuje `WindowedModeTouchesNoTerminalTest`:
+    kod toru okienkowego (`Infrastructure/Glfw`, `OpenGlFrameRenderer`) nie
+    wymienia usług terminalowych, `STDIN`/`STDOUT` ani sekwencji sterujących;
+    DA1 nie wychodzi, bo wybór trybu wyprzedza detekcję. Mapowanie klawiszy
+    GLFW → `Key` żyje w czystym `GlfwKeyMapper` (bez wywołań GLFW, testowalne
+    bez okna). Rozmiar startowy okna niosą klucze rdzenia
+    `windowColumns`/`windowRows` (100×30 domyślnie), czytane **przed**
+    otwarciem okna. `ext-glfw` zostaje w `suggest`, nigdy w `require`;
+    PHPStan przechodzi bez rozszerzenia dzięki stubom `phpgl/ide-stubs`
+    (`scanFiles`) — dwie stałe stubów są błędne (`GLFW_TRUE`,
+    `GLFW_RELEASE`), więc kod porównuje literały. Rytm klatek: stały takt
+    pętli z `glfwSwapInterval(0)`, nie vsync.
+
+11h. **Słownik prymitywów ma trzech tłumaczy** (krok 35, D54). Trzeci to
+    `OpenGlFrameRenderer` — prymitywy wprost na API wektorowe rozszerzenia
+    (`GL\VectorGraphics\VGContext`, NanoVG na GL3), **bez Imagicka w ścieżce
+    klatki**, także w dekodowaniu podglądów (`Texture2D::fromDisk`). Nowy
+    prymityw obowiązuje odtąd **trzy renderery naraz**, a kompletności tabeli
+    tłumaczeń pilnuje `PrimitiveTranslationTableTest` (renderer okienkowy
+    i sixelowy; tekstowy jest zwolniony, bo świadomie degraduje kształty).
+    Geometria okienna jest **lustrem sixelowej**: `GlfwFrameMetrics` powtarza
+    reguły `SixelFrameMetrics` (pismo jako udział wiersza, obwódka środkiem
+    skrajnych wierszy, prawa krawędź od prawej strony framebuffera) — nie
+    wymyślaj jej od nowa. Komórkę dyktuje font zmierzony przez
+    `VgContextService` (preferencje ścieżek TTF + `fc-match`), więc okno rodzi
+    się **ukryte** i pokazuje dopiero zwymiarowane. Tekstury podglądów
+    w `VgTextureCache` (limit + LRU, klucz ze ścieżki, czasu i rozmiaru;
+    nieudane dekodowanie też jest wpisem). Z przełączników jakości działa
+    **tylko `strokeAntialias`**; `textAntialias` i `paletteColors` mają jawne
+    „nie dotyczy”. Pomiar: `bin/render-bench --window`, z barierą `glFinish()`
+    w pomiarze (bez niej mierzy się zlecenie klatki, nie klatkę) — w aplikacji
+    tej bariery nie ma i mieć nie powinna.
 
 11. **Nowy element interfejsu to nowy komponent w `Presentation/Ui/Component`**,
     a nie nowa metoda w rendererze. Komponent oddaje prymitywy z ról motywu i
@@ -246,6 +305,10 @@ wiersza, rejestr i historia — w `Application/Command`; komendy rdzenia
 bo dostają stan pętli i stos ekranów. `Domain/ValueObject` **nie zawiera już
 niczego o rysowaniu** (krok 18, D36). Katalogi napisów i wybór języka — `Infrastructure/I18n`
 (`TranslatorService`, `Catalog`, `PluralRule`), pliki napisów w `lang/`.
+Usługi trybu okienkowego — `Infrastructure/Glfw` (katalog po bibliotece, jak
+`Imagick`): `GlfwWindowService`, `GlfwInputService`, `GlfwViewportService`,
+`GlfwKeyMapper`; renderer okienkowy `OpenGlFrameRenderer` leży w
+`Infrastructure/Rendering`, obok pozostałych tłumaczy słownika prymitywów.
 
 ## Gdy coś tu nie pasuje do zadania
 

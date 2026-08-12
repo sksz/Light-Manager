@@ -17,6 +17,13 @@ powstał — a wtedy rozliczenie sprowadza się do wrażeń. Decyzja o miejscu:
 `--compare` bez wskazanego pliku bierze **ostatni po nazwie**, a nie po czasie
 modyfikacji — kopiowanie plików potrafi przestawić znacznik systemu plików.
 
+Od kroku 35 katalog mieszczą **dwa tory naraz**: terminalowy (Sixel) i okienkowy
+(OpenGL, wzorce z `--window`, rozpoznawalne po słowie `window` w podpisie).
+Ich liczby są z założenia nieporównywalne — inne fazy, inna jednostka pracy —
+więc wybór bez wskazanego pliku bierze najnowszy wzorzec **porównywalny
+z bieżącym przebiegiem**, a nie najnowszy w ogóle. Dzięki temu `--compare`
+i `--window --compare` trafiają każdy do swojego, choć leżą obok siebie.
+
 ## Jak czytać zawartość
 
 | Klucz | Znaczenie |

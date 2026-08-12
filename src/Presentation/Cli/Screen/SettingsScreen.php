@@ -35,6 +35,7 @@ use LightManager\Presentation\Ui\ComponentInterface;
 use LightManager\Presentation\Ui\Container\Slot;
 use LightManager\Presentation\Ui\Container\VStack;
 use LightManager\Presentation\Ui\KeyBinding;
+use LightManager\Presentation\Ui\Overlay\ConfirmOverlay;
 use LightManager\Presentation\Ui\Resettable;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
@@ -75,16 +76,6 @@ final class SettingsScreen implements ScreenInterface, Resettable
     private ?ModuleSetting $editing = null;
 
     private ?TextInput $input = null;
-
-    /**
-     * Komunikat wystawiony przez czynność przycisku.
-     *
-     * Przycisk oddaje `bool` — „zużyłem klawisz” — a nie wynik czynności, bo
-     * czynność jest wywoływalnym obiektem i nie ma jak niczego zwrócić. Pole
-     * jest więc jedyną drogą, którą komunikat trafia do paska stanu; żyje przez
-     * jedno naciśnięcie klawisza i zeruje się na wejściu do `handle()`.
-     */
-    private ?Message $pending = null;
 
     /**
      * @param SettingsPort      $configuration źródło **położenia** pliku; wartości
@@ -271,18 +262,48 @@ final class SettingsScreen implements ScreenInterface, Resettable
      * dotyczy tylko tej zakładki. Pod zakładką modułu go nie ma — obiecywałby
      * wtedy, że przywraca ustawienia modułu, czego nie robi.
      */
+    /**
+     * Wiersz czynności — od kroku 28 **wyłącznie etykieta z ogniskiem**.
+     *
+     * Czynność przeniosła się do okna potwierdzenia, więc przycisk nie ma już
+     * czego wykonywać; jego akcja jest pusta, a `handle()` nie jest tu wołane
+     * (`Enter` obsługuje ekran, bo tylko on może oddać `ScreenOutcome`). Zostaje
+     * to, co przycisk nadal wnosi: wygląd wiersza z kursorem i deklaracja
+     * klawisza dla spisu w oknie pomocy.
+     */
     private function restoreButton(): Button
     {
         return new Button(
             $this->translator->translate('settings.action.restore'),
-            function (): void {
-                [$settings, $message] = $this->restoreDefaults->execute($this->state->settings());
-
-                $this->state->applySettings($settings);
-                $this->pending = $message;
+            static function (): void {
             },
             'help.key.restore',
             $this->cursor->isOnAction(),
+        );
+    }
+
+    /**
+     * Pytanie przed jedyną nieodwracalną czynnością w aplikacji — i dlatego
+     * zadane w wariancie groźnym (D56).
+     *
+     * Domknięcie jest **całą** czynnością: przywraca ustawienia, wpuszcza je do
+     * stanu pętli i oddaje komunikat, który okno postawi w pasku stanu. Ekran
+     * nie dowiaduje się nawet, czy padła odpowiedź „tak”.
+     */
+    private function restoreConfirmation(): ConfirmOverlay
+    {
+        return new ConfirmOverlay(
+            'settings.restore.confirm',
+            [],
+            function (): Message {
+                [$settings, $message] = $this->restoreDefaults->execute($this->state->settings());
+
+                $this->state->applySettings($settings);
+
+                return $message;
+            },
+            $this->translator,
+            true,
         );
     }
 
@@ -313,14 +334,16 @@ final class SettingsScreen implements ScreenInterface, Resettable
      */
     public function handle(KeyPress $key): ScreenOutcome
     {
-        $this->pending = null;
-
         if ($this->editing !== null) {
             return $this->whileEditing($key);
         }
 
-        if ($this->cursor->isOnAction() && $this->restoreButton()->handle($key)) {
-            return ScreenOutcome::stay($this->pending);
+        // Do kroku 28 szło tu `restoreButton()->handle()`, a przycisk kasował
+        // konfigurację w miejscu. Dziś `Enter` na wierszu czynności **otwiera
+        // pytanie** i to ono wykona czynność — warunek jest ten sam, który
+        // sprawdzał sam przycisk (ognisko plus `Enter`), tyle że jawny.
+        if ($this->cursor->isOnAction() && $key->key === Key::Enter) {
+            return ScreenOutcome::opens($this->restoreConfirmation());
         }
 
         return match ($key->key) {
@@ -549,6 +572,8 @@ final class SettingsScreen implements ScreenInterface, Resettable
             SettingKey::StartupModule => new Choice($label, $settings->startupModule, $selected),
             SettingKey::TextAntialias => new Toggle($label, $settings->textAntialias, $yes, $no, $selected),
             SettingKey::StrokeAntialias => new Toggle($label, $settings->strokeAntialias, $yes, $no, $selected),
+            SettingKey::WindowColumns => new Choice($label, (string) $settings->windowColumns, $selected),
+            SettingKey::WindowRows => new Choice($label, (string) $settings->windowRows, $selected),
         };
     }
 

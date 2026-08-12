@@ -6,7 +6,7 @@
 
 ## Status
 
-**Nie rozpoczęty** (2026-08-11).
+**Ukończony** (2026-08-12).
 
 ## Cel
 
@@ -142,4 +142,55 @@ modalnym, bo składa się z tych samych prymitywów.
 
 ## Dziennik realizacji
 
-*(pusty — krok nierozpoczęty)*
+### 2026-08-12 — realizacja
+
+**Rozstrzygnięcia użytkownika ze startu kroku — komplet w D56**: decyzja wraca
+domknięciem oddającym komunikat; `Esc` znaczy „nie”; okno przepuszcza klawisze
+globalne; wariant groźny wchodzi od razu.
+
+**Stan zastany skorygował obraz rozstrzygnięcia nr 1**: droga „ekran otwiera
+okno” — `ScreenOutcome::opens(OverlayInterface)` wraz z obsługą
+w `InputHandler` — **już istniała, bez ani jednego użytkownika**. Krok nie
+zbudował więc drogi, tylko po raz pierwszy nią poszedł.
+
+**Kontrakt okna nakładanego nie urósł o nic.** Kryterium mówiło „najwyżej
+o jedną rzecz”, a wyszło zero: `OverlayOutcome::close(?Message)` istniał już od
+kroku 19, więc komunikat oddany przez domknięcie miał czym wrócić. Cała nowość
+mieści się w jednym pliku (`ConfirmOverlay`) plus dwa parametry w `Dialog`.
+
+**Odbiorca**: `SettingsScreen` przestał kasować konfigurację po jednym
+`Enter`. Przy okazji zniknęły z niego **dwa** pola stanu, nie przybyły:
+`$pending` (komunikat czynności przycisku) stracił rację bytu, bo czynność
+przeniosła się do okna wraz z komunikatem. Przycisk czynności został
+**etykietą z ogniskiem** — jego `handle()` nie jest już wołane, bo `Enter` na
+wierszu czynności obsługuje ekran (tylko on może oddać `ScreenOutcome`).
+
+**Dwie poprawki wobec pierwszej wersji, obie z weryfikacji na żywo:**
+
+1. **Efekt uboczny w akcji przycisku wyleciał.** Pierwsza wersja zamawiała okno
+   przez pole ustawiane w domknięciu przycisku — PHPStan słusznie zauważył, że
+   nie widzi tam żadnej zmiany, a przy okazji okazało się, że dla człowieka też
+   jest to nieczytelne. Warunek jest teraz jawny: ognisko na wierszu czynności
+   plus `Enter`, czyli dokładnie to, co sprawdzał sam przycisk.
+2. **Przyciski zwężone do etykiet.** Rozciągnięte na pół okna wyglądały na
+   zrzucie jak błąd rysowania, bo `Button` maluje pasek ogniska na całym
+   prostokącie. Para jest teraz wyśrodkowana, każdy przycisk szerokości swojej
+   etykiety z kolumną oddechu.
+
+**Weryfikacja na żywo** (okno GLFW, host zwolniony przez użytkownika): pytanie
+otwiera się z ogniskiem na „Nie”, obwódka i tytuł w roli `Danger`, strzałka
+przestawia ognisko na „Tak”, a zatwierdzenie stawia w pasku stanu „Przywrócono
+ustawienia domyślne”. Plik konfiguracyjny użytkownika został przed próbą
+skopiowany i po niej przywrócony co do bajtu.
+
+**Pomiar**: `--compare` na scenariuszach `popup`, `chrome-text` i `text` —
+**bez regresji** (klatka z okienkiem +0,4%). Nowy scenariusz nie powstał,
+zgodnie z planem: okno potwierdzenia składa się z tych samych prymitywów co
+okno modalne, więc `popup` wystarcza.
+
+**Jakość**: 1115 testów zielonych — w tym trzy nowe na ścieżce przez
+`InputHandler` (pyta zamiast kasować, odmowa niczego nie zmienia, `Esc`
+odmawia) i dziewięć jednostkowych na samym oknie (ognisko startuje na
+odmowie, wędrówka trzema klawiszami, komunikat z domknięcia, przepuszczanie
+`F1`/`F10`/`F12`, rola `Danger`, prostokąt, obie odpowiedzi widoczne).
+PHPStan `max` czysty, PHP-CS-Fixer bez uwag.

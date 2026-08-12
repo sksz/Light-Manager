@@ -197,4 +197,42 @@ final class BenchmarkArgumentsTest extends TestCase
     {
         self::assertSame(128, BenchmarkArguments::parse(['--palette=16', '--palette=128'])->options->paletteColors);
     }
+
+    /** Tor okienkowy jest osobną osią i domyślnie wyłączony (krok 35). */
+    public function testWindowedPathIsOptedIntoExplicitly(): void
+    {
+        self::assertFalse(BenchmarkArguments::parse([])->options->windowed);
+        self::assertTrue(BenchmarkArguments::parse(['--window'])->options->windowed);
+        self::assertFalse(BenchmarkArguments::parse(['--window=0'])->options->windowed);
+    }
+
+    /**
+     * Podpis konfiguracji rozróżnia tory, więc wzorzec okienkowy nie ma jak
+     * zostać porównany z sixelowym — a to jedyne zabezpieczenie przed
+     * przeczytaniem dwóch różnych pomiarów jako jednego szeregu.
+     */
+    public function testWindowedSignatureDiffersFromTheTerminalOne(): void
+    {
+        self::assertNotSame(
+            BenchmarkArguments::parse([])->options->signature(),
+            BenchmarkArguments::parse(['--window'])->options->signature(),
+        );
+    }
+
+    /**
+     * Przesył mierzy potok Sixela, a zrzut PNG bierze płótno Imagicka — w oknie
+     * nie istnieje ani jedno, ani drugie. Głośna odmowa zamiast cichego
+     * pominięcia, jak przy każdej literówce w nazwie opcji.
+     */
+    public function testWindowedPathRefusesTerminalOnlyModes(): void
+    {
+        foreach ([['--window', '--transfer'], ['--window', '--png=/tmp/x.png']] as $argv) {
+            try {
+                BenchmarkArguments::parse($argv);
+                self::fail('Tor okienkowy powinien odrzucić: ' . implode(' ', $argv));
+            } catch (DiagnosticsException $exception) {
+                self::assertSame(DiagnosticsProblem::InvalidArgument, $exception->problem);
+            }
+        }
+    }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LightManager\Infrastructure\Diagnostics;
 
 use Imagick;
+use LightManager\Infrastructure\Glfw\GlfwFontLocator;
 use LightManager\Infrastructure\Imagick\ImagickCapabilityService;
 
 /**
@@ -27,12 +28,17 @@ final class EnvironmentMetadata
     ) {
     }
 
-    public static function current(?string $requestedFont): self
+    /**
+     * Tor okienkowy (krok 35) bierze font **z lokatora plików TTF**, a nie
+     * z listy nazw Imagicka: to jego metryki dyktują komórkę, więc wzorzec
+     * zapisany z innym plikiem fontu opisuje inną siatkę.
+     */
+    public static function current(?string $requestedFont, bool $windowed = false): self
     {
         return new self(
             PHP_VERSION,
             self::imageMagickVersion(),
-            $requestedFont ?? ImagickCapabilityService::getInstance()->monospaceFont() ?? 'default',
+            $requestedFont ?? self::font($windowed) ?? 'default',
             date('c'),
         );
     }
@@ -57,6 +63,13 @@ final class EnvironmentMetadata
             JsonValue::string($data, 'font'),
             JsonValue::string($data, 'recordedAt'),
         );
+    }
+
+    private static function font(bool $windowed): ?string
+    {
+        return $windowed
+            ? (new GlfwFontLocator())->locate()
+            : ImagickCapabilityService::getInstance()->monospaceFont();
     }
 
     private static function imageMagickVersion(): string

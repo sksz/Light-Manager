@@ -6,8 +6,10 @@ namespace LightManager\Infrastructure\Diagnostics;
 
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Domain\ValueObject\RendererMode;
+use LightManager\Infrastructure\Glfw\GlfwWindowService;
 use LightManager\Infrastructure\I18n\TranslatorService;
 use LightManager\Infrastructure\Imagick\SixelFrameEncoder;
+use LightManager\Infrastructure\Rendering\OpenGlFrameRenderer;
 use LightManager\Infrastructure\Rendering\ThemeService;
 use LightManager\Infrastructure\Terminal\SixelCapabilityService;
 use LightManager\Infrastructure\Terminal\TerminalService;
@@ -64,22 +66,23 @@ final class BenchmarkCli
     private function measure(BenchmarkArguments $arguments): int
     {
         $fixture = $this->fixtureFor($arguments);
+        $windowed = $arguments->options->windowed;
 
         try {
-            $runner = $this->runnerFor($arguments, $fixture?->path);
-
             $this->progress('bench.progress.running', [
                 'scenarios' => count($arguments->scenarios),
                 'iterations' => $arguments->options->iterations,
             ]);
 
-            $report = new BenchmarkReport(
-                $arguments->options,
-                EnvironmentMetadata::current($arguments->options->font),
-                $runner->run($arguments->scenarios),
-            );
+            [$results, $transfer] = $windowed
+                ? [$this->windowRunnerFor($arguments, $fixture?->path)->run($arguments->scenarios), null]
+                : $this->measureTerminal($arguments, $fixture?->path);
 
-            $report = $report->withTransfer($this->transferFor($arguments, $runner));
+            $report = (new BenchmarkReport(
+                $arguments->options,
+                EnvironmentMetadata::current($arguments->options->font, $windowed),
+                $results,
+            ))->withTransfer($transfer);
 
             echo $this->table->render($report);
 
@@ -89,7 +92,52 @@ final class BenchmarkCli
             return 0;
         } finally {
             $fixture?->remove();
+
+            if ($windowed) {
+                GlfwWindowService::getInstance()->close();
+            }
         }
+    }
+
+    /**
+     * Tor terminalowy: przebieg wraz z fazą przesyłu — ta ostatnia jest jedyną,
+     * która potrzebuje terminala, i nie ma odpowiednika w oknie.
+     *
+     * @return array{list<ScenarioResult>, TransferResult|null}
+     */
+    private function measureTerminal(BenchmarkArguments $arguments, ?string $imagePath): array
+    {
+        $runner = $this->runnerFor($arguments, $imagePath);
+
+        return [$runner->run($arguments->scenarios), $this->transferFor($arguments, $runner)];
+    }
+
+    /**
+     * Tor okienkowy: ukryte okno GLFW i renderer OpenGL zamiast potoku Sixela
+     * (krok 35, D54).
+     *
+     * Okno powstaje ukryte samo z siebie (hint `GLFW_VISIBLE`), więc pomiar
+     * niczego nie musi chować — ale i niczego nie pokazuje: `showAtGrid()`
+     * woła wyłącznie `Bootstrap` aplikacji.
+     */
+    private function windowRunnerFor(BenchmarkArguments $arguments, ?string $imagePath): WindowBenchmarkRunner
+    {
+        if (!extension_loaded('glfw')) {
+            throw DiagnosticsException::forUnavailableGlfw();
+        }
+
+        $themes = ThemeService::getInstance();
+
+        if (!$themes->has($arguments->options->themeName)) {
+            throw DiagnosticsException::forUnknownTheme($arguments->options->themeName);
+        }
+
+        return new WindowBenchmarkRunner(
+            new OpenGlFrameRenderer(),
+            new ScenarioFactory($arguments->options, $imagePath),
+            $arguments->options,
+            $arguments->options->toRenderingOptions($themes->named($arguments->options->themeName)),
+        );
     }
 
     private function writeSnapshot(BenchmarkArguments $arguments): int
@@ -193,7 +241,9 @@ final class BenchmarkCli
         }
 
         $store = $this->store ?? BaselineStore::default();
-        $path = $arguments->comparePath === '' ? $store->newest() : $arguments->comparePath;
+        $path = $arguments->comparePath === ''
+            ? $store->newest($arguments->options)
+            : $arguments->comparePath;
         $baseline = $store->load($path);
         $current = $report->toSnapshot();
 

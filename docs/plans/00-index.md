@@ -144,7 +144,7 @@ kolejne dowożą go razem z komponentem.
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
 | 27 | Wiersz wielokolumnowy (`Table`) | [27-tabela-kolumn.md](27-tabela-kolumn.md) | 17, 18, 21, 24 | Opus | high | Ukończony |
-| 28 | Okno potwierdzenia (`ConfirmOverlay`) | [28-okno-potwierdzenia.md](28-okno-potwierdzenia.md) | 14, 18, 19 | Opus | high | Nie rozpoczęty |
+| 28 | Okno potwierdzenia (`ConfirmOverlay`) | [28-okno-potwierdzenia.md](28-okno-potwierdzenia.md) | 14, 18, 19 | Opus | high | Ukończony |
 | 29 | Widok tekstu (`TextView`) | [29-podglad-tekstu.md](29-podglad-tekstu.md) | 12, 18, 25 | Opus | high | Nie rozpoczęty |
 | 30 | Filtrowanie i podświetlenie dopasowania | [30-filtrowanie-i-podswietlenie.md](30-filtrowanie-i-podswietlenie.md) | 7, 8, 18, 19, 21, 27 | Opus | xhigh | Nie rozpoczęty |
 | 31 | Drzewo (`TreeView`) | [31-drzewo-katalogow.md](31-drzewo-katalogow.md) | 18, 21, 22, 24, 27 | Opus | xhigh | Nie rozpoczęty |
@@ -158,7 +158,41 @@ w obie strony — wolno go zrobić przed nią, po niej albo pomiędzy
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 33 | Reakcja na zmianę rozmiaru okna | [33-reakcja-na-zmiane-rozmiaru.md](33-reakcja-na-zmiane-rozmiaru.md) | 6, 9, 17, 18 | Fable | xhigh | Nie rozpoczęty |
+| 33 | Reakcja na zmianę rozmiaru okna | [33-reakcja-na-zmiane-rozmiaru.md](33-reakcja-na-zmiane-rozmiaru.md) | 6, 9, 17, 18 | Fable | xhigh | Ukończony |
+
+### Faza IX — Prezentacja poza terminalem: okno OpenGL (PHP-GLFW)
+
+Prezentacja po raz pierwszy wychodzi poza terminal
+([00-decyzje.md](00-decyzje.md), D52): aplikacja uruchomiona w trybie
+okienkowym otwiera natywne okno przez rozszerzenie PHP-GLFW i rysuje prymitywy
+wprost wywołaniami OpenGL — **bez Imagicka w ścieżce klatki**. Tryby
+terminalowe (Sixel, tekst) zostają pierwszorzędne i nietknięte. Dwa kroki:
+najpierw mechanizm (okno, kontekst, wejście, pętla — z klatką zastępczą),
+potem treść (natywny renderer prymitywów do pełnego parytetu, z pomiarem).
+
+Po ukończeniu obu doszedł **trzeci** ([00-decyzje.md](00-decyzje.md), D57):
+faza planowana jako „mechanizm i treść” zbiera na końcu drobiazgi świadomie
+z nich wykluczone — zapamiętany rozmiar, pełny ekran, ikonę i skalę treści.
+Żaden z nich nie jest mechanizmem: okno działa bez nich w całości.
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 34 | Okno GLFW: kontekst, wejście, pętla | [34-okno-glfw.md](34-okno-glfw.md) | 6, 7, 9, 13, 33 | Fable | xhigh | Ukończony |
+| 35 | Natywny renderer prymitywów w OpenGL | [35-renderer-opengl.md](35-renderer-opengl.md) | 12, 13, 17, 18, 34 | Fable | xhigh | Ukończony |
+| 37 | Dopracowanie okna: rozmiar, pełny ekran, ikona, skala | [37-dopracowanie-okna.md](37-dopracowanie-okna.md) | 14, 19, 34, 35 | Opus | medium | Nie rozpoczęty |
+
+### Faza X — Dźwięk: odtwarzanie muzyki (`GL\Audio`)
+
+Aplikacja dostaje dźwięk ([00-decyzje.md](00-decyzje.md), D55): moduł audio
+rozszerzenia PHP-GLFW odtwarza muzykę **poza ścieżką klatki** — domyślnie
+i na początek riff „Smoke On The Water”. Rozszerzenie jest w środowisku
+załadowane (sprawdzone przy planowaniu); brak rozszerzenia to degradacja
+z komunikatem, nie błąd. Od Fazy IX krok niezależny w obie strony — dzieli
+z nią tylko rozszerzenie i stuby do analizy statycznej.
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 36 | Odtwarzanie muzyki przez `GL\Audio` | [36-odtwarzanie-muzyki.md](36-odtwarzanie-muzyki.md) | 6, 9, 14, 15, 19 | Opus | high | Nie rozpoczęty |
 
 ### Dokumenty towarzyszące (praca projektowa)
 
@@ -168,9 +202,9 @@ w obie strony — wolno go zrobić przed nią, po niej albo pomiędzy
 
 ## Graf zależności
 
-Kolejność realizacji pokrywa się z numeracją (01…33) **do kroku 26 włącznie**;
-Faza VII łańcuchem już nie jest, a krok 33 stoi poza nią zupełnie (patrz opisy
-na końcu tej listy). Poza prostym
+Kolejność realizacji pokrywa się z numeracją (01…36) **do kroku 26 włącznie**;
+Faza VII łańcuchem już nie jest, a kroki 33–36 (Fazy VIII–X) stoją poza nią
+zupełnie (patrz opisy na końcu tej listy). Poza prostym
 łańcuchem `01→02→…→26` istnieją węzły zbiegające się z dwóch gałęzi:
 
 - **04** (dokumentacja + Skill) zależy od **01, 02 i 03** — potrzebuje
@@ -296,6 +330,41 @@ na końcu tej listy). Poza prostym
   zdania są prawdziwe, krok kończy się na warstwie terminala i pętli. Od Fazy
   VII nie zależy i ona nie zależy od niego.
 
+- **34** (okno GLFW) zależy od **06** — słownik `KeyPress`/`Key` w
+  `Application/Dto` był od początku projektowany bez śladu terminala (D16)
+  i dostaje tu drugie źródło, z pominięciem `KeySequenceParser` — od **07**
+  (`RendererMode` dostaje trzeci wariant, a wybór okienkowy omija DA1: nie ma
+  go do kogo wysłać), od **09** (pętla zostaje jedna — `glfwPollEvents()`
+  wchodzi w takt, a zamknięcie okna jest drugą drogą do tego samego `break`),
+  od **13** (tło zastępczej klatki z ról motywu) i od **33** jako od wzorca
+  do powtórzenia: rozmiar czytany przy każdym pytaniu, pamięci kluczowane
+  rozmiarem odświeżają się same (D34) — z tą różnicą, że GLFW oddaje rozmiar
+  tanio i w procesie, więc znacznik i ponowny pomiar są niepotrzebne. Od Fazy
+  VII nie zależy i ona nie zależy od niego.
+- **35** (natywny renderer prymitywów) zależy od **34** twardo i całkowicie —
+  kontekst, pętla i viewport, w których rysuje, powstają tam — oraz od **18**
+  w roli sprawdzianu: jest **trzecim tłumaczem tego samego słownika
+  prymitywów** i niczego do słownika nie dokłada, jak krok 21 był sprawdzianem
+  kontraktu modułu. Zależy od **13** (role motywu; pierwszy renderer bez
+  palety indeksowanej), od **17** (wzorzec pamięci podręcznych przenosi się
+  na tekstury glifów i bitmap) i od **12/25** (bitmapy podglądów muszą trafić
+  do tekstur). **Uwaga o kroku 30:** od kroku 35 nowy prymityw obowiązuje
+  **trzy** renderery naraz — jeśli 30 wykona się wcześniej, 35 przejmuje jego
+  prymityw podświetlenia do swojej tabeli tłumaczeń; jeśli później, 30
+  rozszerza się o trzeciego tłumacza.
+
+- **36** (odtwarzanie muzyki) zależy od **06** (zatrzymanie silnika audio
+  wchodzi do sprzątania wszystkimi trzema ścieżkami wyjścia), od **09**
+  (autostart staje w bootstrapie; pętla zostaje nietknięta — silnik gra we
+  własnym wątku), od **14** (autostart, głośność, zapętlenie i ścieżka utworu
+  to klucze ustawień), od **15** (etykiety komend i komunikat niedostępności
+  przez katalog napisów) i od **19** (sterowanie wyłącznie komendami
+  w `CommandRegistry` — bez nowego ekranu i skrótów). Od **26** zależy
+  warunkowo — tylko jeśli rozwiązaniem zastępczym bez rozszerzenia zostanie
+  proces zewnętrzny. Od Fazy VII, kroku 33 i **Fazy IX nie zależy** i one nie
+  zależą od niego; jedyny punkt styku z krokiem 34: stuby `GL\*` do analizy
+  statycznej dowozi ten z dwóch kroków, który wykona się pierwszy.
+
 Żaden krok nie da się sensownie zacząć przed ukończeniem swoich zależności
 z tabel powyżej.
 
@@ -324,4 +393,6 @@ zakończeniu pracy nad krokiem:
 - Kolorowanie składni w podglądzie tekstu — wyłączone z kroku 29
 - Sortowanie listy po kolumnie — wyłączone z kroku 27
 - Zaznaczenie wielokrotne — wyłączone z kroku 32
+- Zdarzenia myszy w oknie GLFW — wyłączone z kroków 34–35 (aplikacja nie ma
+  słownika zdarzeń myszy w żadnej warstwie; osobna decyzja, jeśli w ogóle)
 - Inicjalizacja repozytorium git

@@ -1,0 +1,138 @@
+{
+    "signature": "1000x600px 166x46 theme=grafit palette=64 textAA=0 strokeAA=1 font=auto window",
+    "environment": {
+        "php": "8.3.11",
+        "imageMagick": "ImageMagick 6.9.12-98 Q16 x86_64 18038 https://legacy.imagemagick.org",
+        "font": "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+        "recordedAt": "2026-08-12T13:57:31+00:00"
+    },
+    "options": {
+        "widthPixels": 1000,
+        "heightPixels": 600,
+        "columns": 166,
+        "rows": 46,
+        "theme": "grafit",
+        "textAntialias": false,
+        "strokeAntialias": true,
+        "paletteColors": 64,
+        "font": null,
+        "iterations": 15,
+        "warmupIterations": 3,
+        "windowed": true
+    },
+    "scenarios": {
+        "empty": {
+            "draw": 0.033,
+            "quantize": 0,
+            "encode": 0.116,
+            "total": 0.154,
+            "bytes": 0,
+            "unstable": false
+        },
+        "text": {
+            "draw": 0.145,
+            "quantize": 0,
+            "encode": 0.169,
+            "total": 0.313,
+            "bytes": 0,
+            "unstable": false
+        },
+        "chrome": {
+            "draw": 0.063,
+            "quantize": 0,
+            "encode": 0.25,
+            "total": 0.317,
+            "bytes": 0,
+            "unstable": false
+        },
+        "chrome-text": {
+            "draw": 0.186,
+            "quantize": 0,
+            "encode": 0.352,
+            "total": 0.547,
+            "bytes": 0,
+            "unstable": false
+        },
+        "selection": {
+            "draw": 0.277,
+            "quantize": 0,
+            "encode": 0.379,
+            "total": 0.665,
+            "bytes": 0,
+            "unstable": false
+        },
+        "scrollbar": {
+            "draw": 0.148,
+            "quantize": 0,
+            "encode": 0.167,
+            "total": 0.313,
+            "bytes": 0,
+            "unstable": false
+        },
+        "thumbnail": {
+            "draw": 0.186,
+            "quantize": 0,
+            "encode": 0.385,
+            "total": 0.575,
+            "bytes": 0,
+            "unstable": false
+        },
+        "popup": {
+            "draw": 0.211,
+            "quantize": 0,
+            "encode": 0.397,
+            "total": 0.606,
+            "bytes": 0,
+            "unstable": false
+        },
+        "command": {
+            "draw": 0.21,
+            "quantize": 0,
+            "encode": 0.422,
+            "total": 0.646,
+            "bytes": 0,
+            "unstable": false
+        },
+        "sections": {
+            "draw": 0.156,
+            "quantize": 0,
+            "encode": 0.285,
+            "total": 0.443,
+            "bytes": 0,
+            "unstable": false
+        },
+        "progress": {
+            "draw": 0.241,
+            "quantize": 0,
+            "encode": 0.452,
+            "total": 0.699,
+            "bytes": 0,
+            "unstable": false
+        },
+        "split": {
+            "draw": 0.278,
+            "quantize": 0,
+            "encode": 0.383,
+            "total": 0.677,
+            "bytes": 0,
+            "unstable": false
+        },
+        "background": {
+            "draw": 0.186,
+            "quantize": 0,
+            "encode": 0.348,
+            "total": 0.534,
+            "bytes": 0,
+            "unstable": false
+        },
+        "columns": {
+            "draw": 0.276,
+            "quantize": 0,
+            "encode": 0.368,
+            "total": 0.649,
+            "bytes": 0,
+            "unstable": false
+        }
+    },
+    "transfer": null
+}

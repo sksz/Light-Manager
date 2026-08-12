@@ -58,6 +58,7 @@ final class BenchmarkArguments
 
         $mode = BenchmarkMode::Run;
         $scenarios = Scenario::all();
+        $windowed = false;
         $transfer = false;
         $save = false;
         $saveName = 'render';
@@ -134,6 +135,10 @@ final class BenchmarkArguments
                     $scenarios = Scenario::fromNames(self::slugList($argument, $value));
 
                     break;
+                case '--window':
+                    $windowed = self::flag($argument, $value, $hasValue);
+
+                    break;
                 case '--transfer':
                     $transfer = self::flag($argument, $value, $hasValue);
 
@@ -166,6 +171,15 @@ final class BenchmarkArguments
             }
         }
 
+        // Przesył mierzy potok Sixela, a zrzut PNG bierze płótno Imagicka —
+        // w torze okienkowym nie istnieje ani jedno, ani drugie. Głośna odmowa
+        // zamiast cichego pominięcia, jak przy każdej literówce.
+        if ($windowed && ($transfer || $mode === BenchmarkMode::Snapshot)) {
+            throw DiagnosticsException::forInvalidArgument(
+                $transfer ? '--transfer' : '--png',
+            );
+        }
+
         return new self(
             $mode,
             new BenchmarkOptions(
@@ -180,6 +194,7 @@ final class BenchmarkArguments
                 $font,
                 $iterations,
                 $warmup,
+                $windowed,
             ),
             $scenarios,
             $transfer,

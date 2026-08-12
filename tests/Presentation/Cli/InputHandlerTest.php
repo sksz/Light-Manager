@@ -283,18 +283,60 @@ final class InputHandlerTest extends TestCase
         self::assertTrue($this->app->settingsStore->saved[0]->moduleValue('browser', 'showHidden'));
     }
 
-    public function testRestoreButtonSitsUnderTheLastPositionAndReportsWhatItDid(): void
+    /**
+     * Od kroku 28 przycisk czynności **nie kasuje konfiguracji** — otwiera
+     * pytanie. Komunikat pojawia się dopiero po odpowiedzi „tak”, a ta wymaga
+     * przestawienia ognisko, bo okno startuje na „nie”.
+     */
+    public function testRestoreButtonAsksBeforeItRestores(): void
+    {
+        $this->standOnRestoreButton();
+        $this->special(Key::Enter);
+
+        self::assertSame('confirm', $this->app->state->overlays()->current()?->id());
+        self::assertNull($this->app->state->message());
+
+        // Ognisko z „nie” na „tak”, potem zatwierdzenie.
+        $this->special(Key::ArrowRight);
+        $this->special(Key::Enter);
+
+        self::assertNull($this->app->state->overlays()->current());
+        self::assertSame(MessageTone::Info, $this->app->state->message()?->tone);
+    }
+
+    /** Odmowa zamyka pytanie i **niczego nie zmienia** — główne kryterium kroku 28. */
+    public function testRefusingTheQuestionChangesNothing(): void
+    {
+        $this->standOnRestoreButton();
+        $this->special(Key::Enter);
+
+        // Ognisko stoi na „nie”, więc sam `Enter` jest odmową.
+        $this->special(Key::Enter);
+
+        self::assertNull($this->app->state->overlays()->current());
+        self::assertNull($this->app->state->message());
+        self::assertSame([], $this->app->settingsStore->saved);
+    }
+
+    /** `Esc` znaczy dokładnie tyle, co „nie” (D56). */
+    public function testEscapeRefusesJustLikeTheNoButton(): void
+    {
+        $this->standOnRestoreButton();
+        $this->special(Key::Enter);
+        $this->special(Key::Escape);
+
+        self::assertNull($this->app->state->overlays()->current());
+        self::assertSame([], $this->app->settingsStore->saved);
+    }
+
+    /** Cztery pozycje zakładki „Wygląd”, a piąte zejście staje na przycisku czynności. */
+    private function standOnRestoreButton(): void
     {
         $this->special(Key::F2);
 
-        // Dwie pozycje zakładki „Wygląd”, a trzecie zejście staje na przycisku.
-        for ($step = 0; $step < 3; ++$step) {
+        for ($step = 0; $step < 5; ++$step) {
             $this->special(Key::ArrowDown);
         }
-
-        $this->special(Key::Enter);
-
-        self::assertSame(MessageTone::Info, $this->app->state->message()?->tone);
     }
 
     /**

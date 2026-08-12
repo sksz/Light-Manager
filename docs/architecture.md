@@ -29,8 +29,9 @@ src/
 │   └── Port/             # interfejsy portów wyjściowych
 ├── Infrastructure/
 │   ├── Terminal/        # implementacje portów terminala
-│   ├── Rendering/       # implementacje portu renderowania
+│   ├── Rendering/       # implementacje portu renderowania (Sixel, tekst, OpenGL)
 │   ├── Imagick/         # adaptery na bibliotekę Imagick
+│   ├── Glfw/            # tryb okienkowy (krok 34): okno GLFW, wejście, viewport
 │   ├── Config/          # trwała konfiguracja (plik JSON w katalogu domowym)
 │   ├── I18n/            # katalogi napisów, wybór języka, liczba mnoga
 │   ├── Diagnostics/     # pomiar wydajności potoku (narzędzie bin/render-bench)
@@ -130,7 +131,7 @@ Domena **rdzenia** — słownik powłoki, w której moduły się rysują:
 
 | Termin (PL) | Identyfikator | Blok DDD | Katalog | Opis |
 |---|---|---|---|---|
-| Tryb renderowania | `RendererMode` | Value Object (`enum`) | `Domain/ValueObject` | `Sixel` \| `TextFallback`. |
+| Tryb renderowania | `RendererMode` | Value Object (`enum`) | `Domain/ValueObject` | `Sixel` \| `TextFallback` \| `OpenGl` (od kroku 34). |
 | Komunikat | `Message` | Value Object | `Domain/ValueObject` | Treść paska stanu wraz z tonem; `marked()` dokleja znak wiodący. |
 | Ton komunikatu | `MessageTone` | Value Object (`enum`) | `Domain/ValueObject` | `Info` \| `Warning` \| `Error`; każdy ma własny znak (`·`, `!`, `×`). |
 | Położenie okna | `ScrollPosition` | Value Object | `Domain/ValueObject` | Pierwszy widoczny wpis, liczba widocznych i liczba wszystkich — wejście do suwaka. |
@@ -173,6 +174,7 @@ komunikat, podgląd, tryb renderowania i położenie okna listy.
 | Strefa ekranu | `ScreenZone` | Presentation | `Presentation/Ui` | Zamówienie strefy skrajnej: klucz etykiety obwódki plus komponent z treścią. `null` znaczy „strefa nie powstaje, jej wiersze idą do środka”. |
 | Kontekst sesji | `ModuleContext` | Application | `Application/Module` | Gdzie użytkownik stoi i co ma zaznaczone — **dane pierwotne** (napis, napis, enum). Publikuje go ten, kto zna bieżące miejsce; czyta każdy ekran z `ReadsContext`. |
 | Okno nakładane | `OverlayInterface` | Presentation | `Presentation/Ui` | Płaszczyzna **nad** ekranem, która sama mówi, gdzie stanąć, i **zużywa albo przepuszcza** klawisz. Przepuszczony trafia wyłącznie do klawiszy globalnych — nigdy do ekranu pod spodem. |
+| Okno pytające | `ConfirmOverlay` | Presentation | `Presentation/Ui/Overlay` | Okno nakładane, które **czegoś chce od wołającego** (krok 28). Decyzja wraca domknięciem podanym przy tworzeniu: po „tak” wykonuje się ono i oddaje komunikat, a okno pakuje go w `OverlayOutcome::close()`. Ognisko startuje na „nie”, `Esc` znaczy to samo co „nie”. |
 | Karetka | `TextInput` | Presentation | `Presentation/Ui/Component` | Miejsce wpisywania **wewnątrz** komponentu — w odróżnieniu od kursora, który wędruje **między** komponentami. |
 | Komenda | `CommandInterface` | Application | `Application/Command` | Czynność wywoływana po nazwie wraz z deklaracją argumentów. Nazwa nosi przestrzeń właściciela (`core.*`), a wynik wskazuje ekran **identyfikatorem**, bo `Application` nie widzi `ScreenInterface`. |
 
@@ -225,6 +227,123 @@ w dowolnym miejscu cyklu.
 Cena jest jedna i trzeba ją znać: **element ruchomy z założenia nie trafia do
 pamięci podręcznej wierszy** (D34) — jego wiersz jest w każdej klatce inny, więc
 rasteryzuje się od nowa. Dlatego pasek postępu ma własny scenariusz pomiaru.
+
+#### Rozmiar okna terminala nie jest stałą uruchomienia (od kroku 33)
+
+**O rozmiar okna pyta się co klatkę i niczego się z niego nie zapamiętuje.**
+`SIGWINCH` ustawia w `TerminalService` znacznik — tym samym wzorcem, co sygnały
+zamknięcia — a `TerminalSizeService` zdejmuje go przy najbliższym odczycie
+i mierzy ponownie: komórki ze `stty size`, piksele zapytaniem `ESC [ 14 t`
+(ponawianym wyłącznie u terminala, który odpowiedział przy starcie; milczącemu
+rozmiar komórki liczy się z poprzedniego pomiaru). Kontrakty `ViewportPort`
+i `InputPort` (do kroku 34 pod nazwą `TerminalPort`) są nietknięte: składanie
+klatki i renderer pytały co klatkę już wcześniej, więc świeżą odpowiedź
+dostają, nie wiedząc, że coś zaszło.
+
+Konsekwencje dla piszącego kod:
+
+- **Nie zapamiętuj wierszy, kolumn ani pikseli między klatkami.** Prostokąty
+  liczą się w każdej klatce od nowa z `ViewportPort`; stan żyjący między
+  klatkami (`ScrollWindow`, `SectionState`, `SplitState`) ścina się do
+  pojemności przy rysowaniu i to wystarcza.
+- **Pamięć podręczna zależna od rozmiaru ma rozmiar w kluczu** (D34) — wtedy
+  zmiana okna unieważnia ją sama, bez ścieżki unieważnienia. Krok 33 niczego
+  w pamięciach nie zmienił i to była teza tego wzorca, sprawdzona w praktyce.
+- **Renderer sixelowy czyści ekran raz po zmianie** — jawny wyjątek od reguły
+  „czyszczenie daje migotanie” (krok 08): reguła „kolejna klatka zamalowuje
+  poprzednią” stoi na płótnie o stałym rozmiarze.
+- **Okno zwężone poniżej sensu rysuje, co się zmieści** — strefy i kolumny
+  ustępują wedle swoich reguł (`HudLayout`, `Distribution`), planszy zastępczej
+  nie ma.
+
+#### Prezentacja poza terminalem: tryb okienkowy (od kroku 34)
+
+**Trzeci tryb renderowania otwiera natywne okno przez PHP-GLFW zamiast rysować
+w terminalu** — wybierany flagą CLI `--window`, zanim cokolwiek dotknie
+terminala, więc detekcja DA1 w ogóle nie startuje. Tryby terminalowe zostają
+pierwszorzędne: `ext-glfw` nie wchodzi do `require` (jest w `suggest`),
+a bez flagi nie ma żadnego wymogu.
+
+Tor okienkowy to te same trzy porty z innymi implementacjami — i **nic ponad
+to**: pętla, ekrany, moduły i komponenty nie wiedzą, że cokolwiek się zmieniło.
+
+- **`InputPort`** (do kroku 34 `TerminalPort` — nazwa przeszła na neutralną,
+  gdy kontrakt dostał drugie źródło, D53) → `GlfwInputService`: zdarzenia
+  klawiszy i znaków GLFW wpadają do kolejki jako te same `KeyPress`,
+  z pominięciem `KeySequenceParser`. Mapowanie kodów na `Key` żyje w czystym
+  `GlfwKeyMapper` — bez jednego wywołania GLFW, testowalne bez okna.
+  `Ctrl` przychodzi polem `mods`, nie bajtem sterującym.
+- **`ViewportPort`** → `GlfwViewportService`: framebuffer podzielony przez
+  komórkę zastępczą (stałą do kroku 35, w którym zastąpią ją metryki fontu).
+  Rozmiar czyta się co pytanie, **bez znacznika i bez ponownego pomiaru** —
+  to uproszczenie wzorca z kroku 33, bo GLFW oddaje rozmiar tanio i w procesie.
+- **`FrameRendererPort`** → `OpenGlFrameRenderer`: do kroku 35 **zastępczy**
+  (tło w kolorze roli motywu + zamiana buforów, treść `Frame` świadomie
+  ignorowana); pełne tłumaczenie prymitywów dowozi krok 35.
+
+Reguły, których pilnują testy (`WindowedModeTouchesNoTerminalTest`):
+
+- **Tor okienkowy nie dotyka terminala** — kod w `Infrastructure/Glfw`
+  i renderer okienkowy nie mają prawa wymienić usług terminalowych, `STDIN`,
+  `STDOUT` ani sekwencji sterujących. Terminal, z którego padło polecenie,
+  zostaje nietknięty (sprawdzalne przekierowaniem STDOUT — zero bajtów).
+- **Zamknięcie okna i sygnał zbiegają się w jednym miejscu taktu** — obie
+  drogi prowadzą do tego samego `break`, a sprzątanie (`glfwTerminate`)
+  idzie jak wszędzie dwiema drogami: jawnie w `Bootstrap::shutdown()`
+  i funkcją zamknięcia procesu.
+- **Rozmiar startowy okna pochodzi z ustawień** (`windowColumns` ×
+  `windowRows`, domyślnie 100×30 komórek, D53) — dlatego w torze okienkowym
+  konfiguracja czyta się **przed** otwarciem okna; pułapki znanej z toru
+  terminalowego tu nie ma, bo odczyt pliku terminala nie dotyka.
+- Kontekst OpenGL to **3.3 core** (D53) — pod obie techniki rysowania
+  rozważane w kroku 35; rytm klatek zostaje stałym taktem pętli
+  z `glfwSwapInterval(0)`, żeby oba tory zachowywały się identycznie.
+
+#### Trzeci tłumacz słownika: renderer OpenGL (od kroku 35)
+
+**Ten sam słownik prymitywów tłumaczy się teraz na trzy sposoby**: Imagick →
+Sixel, `CellBuffer` → ANSI, oraz — od kroku 35 — wprost na wywołania API
+wektorowego rozszerzenia PHP-GLFW (NanoVG na GL3, D54). W trybie okienkowym
+**Imagicka nie ma w ścieżce klatki wcale**, także w dekodowaniu podglądów:
+piksele wchodzą natywnie przez `Texture2D::fromDisk()`.
+
+Renderer niczego do słownika nie dokłada i to jest jego sprawdzian — jak
+krok 21 był sprawdzianem kontraktu modułu. Zasady, które z tego wynikają:
+
+- **Nowy prymityw obowiązuje odtąd trzy renderery naraz.** Kompletności
+  tabeli tłumaczeń pilnuje `PrimitiveTranslationTableTest` — dla renderera
+  okienkowego i sixelowego wymaga wpisu na **każdy** prymityw słownika.
+  Tekstowy jest z tego wymogu zwolniony świadomie: nawias narożny i suwak
+  nie mają odpowiednika w siatce znakowej, więc degraduje je do niczego.
+- **Geometria jest lustrem toru sixelowego, nie nowym pomysłem.**
+  `GlfwFrameMetrics` powtarza reguły `SixelFrameMetrics` — rozmiar pisma
+  jako udział wysokości wiersza, obwódka biegnąca środkiem skrajnych
+  wierszy, prawa krawędź liczona od prawej strony framebuffera. Rozjazd
+  któregokolwiek z nich widać w klatce natychmiast.
+- **Komórkę dyktuje font.** `VgContextService` mierzy szerokość znaku fontu
+  o stałej szerokości (lista preferencji ścieżek TTF + `fc-match`, wzorem
+  kroku 08) i z niej liczy komórkę; `GlfwViewportService` dzieli przez nią
+  framebuffer. Dlatego okno rodzi się **ukryte**: rozmiar startowy z ustawień
+  da się przeliczyć na piksele dopiero po zmierzeniu fontu, więc `Bootstrap`
+  wymiaruje okno i pokazuje je raz, już poprawne.
+- **Pamięć podręczna przenosi się na tekstury.** `VgTextureCache` trzyma
+  zdekodowane podglądy z limitem i porządkiem LRU, kluczowane ścieżką wraz
+  z czasem i rozmiarem pliku (wzorem `ThumbnailService`); wpisem jest także
+  **nieudane dekodowanie**, inaczej pętla próbowałaby go 30 razy na sekundę.
+  Atlas glifów utrzymuje NanoVG wewnętrznie — to okienny odpowiednik pamięci
+  bitmap napisów z kroku 17.
+- **Z przełączników jakości kroku 14 obowiązuje jeden**: `strokeAntialias`
+  (→ `shapeAntiAlias`). `textAntialias` i `paletteColors` **nie dotyczą**
+  toru okienkowego — NanoVG wygładza tekst zawsze, a palety indeksowanej nie
+  ma wcale; to pierwszy renderer rysujący w pełnej głębi kolorów.
+
+Pomiar wchodzi do `bin/render-bench` osią `--window` (okno ukryte hintem
+`GLFW_VISIBLE`): te same scenariusze, inne fazy — „rysowanie” i „bufory”
+zamiast trzech faz Sixela, bez kolumny kwantyzacji i bez bajtów. Podpis
+konfiguracji niesie słowo `window`, więc wzorzec okienkowy nie ma jak zostać
+porównany z sixelowym. **Pomiar toru okienkowego stawia barierę `glFinish()`
+po zamianie buforów** — bez niej zegar mierzy czas *zlecenia* klatki
+sterownikowi, a nie jej wykonania (różnica dwukrotna, zmierzona).
 
 #### Jeden ekran, dwa panele (od kroku 24)
 
@@ -420,15 +539,20 @@ infrastruktury i nie różnią się niczym od usług rdzenia.
 
 | Port (`Application/Port`) | Implementacja (`Infrastructure`) | Singleton | W `Bootstrap::boot()`? |
 |---|---|---|---|
-| `TerminalPort` | `TerminalService` | Tak | Tak — kolejność 1 |
-| `RendererModeDetectorPort` | `SixelCapabilityService` | Tak | Tak — kolejność 2 |
-| `FrameRendererPort` | `RendererService` | Tak | Tak — kolejność 3 |
+| `InputPort` (do kroku 34 `TerminalPort`) | `TerminalService`; w trybie okienkowym `Glfw\GlfwInputService` | Tak | Tak — kolejność 1 |
+| `RendererModeDetectorPort` | `SixelCapabilityService` | Tak | Tak — kolejność 2; **nie w torze okienkowym** (DA1 nie wychodzi) |
+| `FrameRendererPort` | `RendererService`; w trybie okienkowym `OpenGlFrameRenderer` (zwykły obiekt, jak strategie w `RendererService`) | Tak / nie | Tak — kolejność 3 |
 | `ThumbnailGeneratorPort` | `ThumbnailGeneratorService` | Tak | Nie — leniwa inicjalizacja |
 | `FileInspectorPort` | `FileInspectorService` | Tak | Nie — leniwa inicjalizacja |
-| `ViewportPort` | `TerminalSizeService` | Tak | Tak — pośrednio, przez `RendererService` |
+| `ViewportPort` | `TerminalSizeService`; w trybie okienkowym `Glfw\GlfwViewportService` | Tak | Tak — pośrednio, przez `RendererService` |
 | `FrameLayoutPort` | `HudFrameLayoutService` | Tak | Nie — leniwa inicjalizacja |
-| `SettingsPort` | `Config\SettingsService` | Tak | Tak — kolejność 3, **przed** rendererem |
+| `SettingsPort` | `Config\SettingsService` | Tak | Tak — kolejność 3, **przed** rendererem; w torze okienkowym **pierwsza** (rozmiar okna z ustawień) |
 | `ThemePort` | `Rendering\ThemeService` | Tak | Nie — leniwa inicjalizacja |
+
+Tor okienkowy dokłada do sekwencji bootstrapu usługę bez portu:
+`Glfw\GlfwWindowService` (`glfwInit()`, okno z kontekstem 3.3 core,
+sprzątanie) — okienny odpowiednik efektu ubocznego `TerminalService`,
+dlatego stoi zaraz po konfiguracji, przed wejściem i rendererem.
 
 `Module/Browser/Domain/Repository`: `DirectoryRepositoryInterface` →
 `Module/Browser/Infrastructure/FilesystemDirectoryRepository` (nie jest portem

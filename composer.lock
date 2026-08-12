@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2b298248c826f4cf313e76a17adc2d03",
+    "content-hash": "70b317474065c441a6b0bb72f6df809e",
     "packages": [],
     "packages-dev": [
         {
@@ -806,6 +806,57 @@
                 "source": "https://github.com/phar-io/version/tree/3.2.1"
             },
             "time": "2022-02-21T01:04:05+00:00"
+        },
+        {
+            "name": "phpgl/ide-stubs",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/phpgl/ide-stubs.git",
+                "reference": "f776ee027ccf9c19c8308641c90b43e41b759ff3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/phpgl/ide-stubs/zipball/f776ee027ccf9c19c8308641c90b43e41b759ff3",
+                "reference": "f776ee027ccf9c19c8308641c90b43e41b759ff3",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.0"
+            },
+            "default-branch": true,
+            "type": "library",
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT",
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Mario Döring",
+                    "homepage": "https://github.com/mario-deluna"
+                },
+                {
+                    "name": "Contributors",
+                    "homepage": "https://github.com/phpgl/ide-stubs/graphs/contributors"
+                }
+            ],
+            "description": "IDE Stubs for PHP-GLFW / OpenGL. (PHPStorm, VSCode, etc.)",
+            "homepage": "https://phpgl.net",
+            "keywords": [
+                "3d",
+                "Rendering",
+                "autocomplete",
+                "glfw",
+                "opengl",
+                "php-glfw",
+                "phpstorm"
+            ],
+            "support": {
+                "issues": "https://github.com/phpgl/ide-stubs/issues",
+                "source": "https://github.com/phpgl/ide-stubs/tree/main"
+            },
+            "time": "2026-07-23T13:02:34+00:00"
         },
         {
             "name": "phpstan/phpstan",
@@ -4430,12 +4481,15 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "phpgl/ide-stubs": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.3",
-        "ext-imagick": "*"
+        "ext-imagick": "*",
+        "ext-pcntl": "*"
     },
     "platform-dev": [],
     "plugin-api-version": "2.6.0"

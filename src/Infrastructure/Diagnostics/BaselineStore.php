@@ -95,9 +95,17 @@ final class BaselineStore
      * to data w nazwie mówi, kiedy pomiar powstał; kopiowanie plików potrafi
      * przestawić znacznik systemu plików.
      *
+     * Od kroku 35 katalog mieszczą **dwa tory naraz** (sixelowy i okienkowy),
+     * a ich wyniki są z założenia nieporównywalne. Dlatego wybór z pominięciem
+     * podpisu bierze najnowszy wzorzec **porównywalny z bieżącą konfiguracją** —
+     * inaczej `--compare` po zapisaniu wzorca okienkowego odmawiałby porównania
+     * torowi terminalowemu, choć jego własny wzorzec leży obok. Gdy nic nie
+     * pasuje, wraca najnowszy w ogóle: odmowa z wypisanymi obiema
+     * konfiguracjami mówi więcej niż „brak wzorca”.
+     *
      * @throws DiagnosticsException gdy katalog nie zawiera żadnego wzorca
      */
-    public function newest(): string
+    public function newest(?BenchmarkOptions $comparableWith = null): string
     {
         $files = $this->all();
 
@@ -105,7 +113,27 @@ final class BaselineStore
             throw DiagnosticsException::forMissingBaseline($this->directory);
         }
 
+        if ($comparableWith !== null) {
+            $signature = $comparableWith->signature();
+
+            foreach (array_reverse($files) as $path) {
+                if ($this->signatureOf($path) === $signature) {
+                    return $path;
+                }
+            }
+        }
+
         return $files[count($files) - 1];
+    }
+
+    /** Podpis wzorca albo `null`, gdy pliku nie da się przeczytać — wybór ma nie wywracać się na cudzym pliku. */
+    private function signatureOf(string $path): ?string
+    {
+        try {
+            return $this->load($path)->options->signature();
+        } catch (DiagnosticsException) {
+            return null;
+        }
     }
 
     /** @return list<string> ścieżki wzorców, posortowane rosnąco po nazwie */

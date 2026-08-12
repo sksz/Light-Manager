@@ -92,4 +92,12 @@ final class DiagnosticsException extends InfrastructureException
             DiagnosticsProblem::TerminalUnavailable,
         );
     }
+
+    public static function forUnavailableGlfw(): self
+    {
+        return new self(
+            'The PHP extension "glfw" is unavailable; the windowed benchmark cannot run.',
+            DiagnosticsProblem::GlfwUnavailable,
+        );
+    }
 }

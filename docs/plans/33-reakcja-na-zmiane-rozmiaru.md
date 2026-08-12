@@ -7,7 +7,7 @@
 
 ## Status
 
-**Nie rozpoczęty** (2026-08-11).
+**Ukończony** (2026-08-11).
 
 ## Cel
 
@@ -180,4 +180,106 @@ nie jest przesądzony (lista startowa, punkt 5).
 
 ## Dziennik realizacji
 
-*(pusty — krok nierozpoczęty)*
+### 2026-08-11 — implementacja: cztery pliki rdzenia, zero zmian w kontraktach
+
+**Rozstrzygnięcia użytkownika ze startu kroku** (pełne uzasadnienia: D51):
+
+1. **Piksele: ponowne `ESC [ 14 t`** — wybrane wbrew rekomendacji (przeliczenie
+   z komórki), z dwiema poprawkami wykonawczymi opisanymi niżej.
+2. **Samoodświeżanie**: `TerminalSizeService` sprawdza znacznik przy odczycie;
+   `ViewportPort` i `TerminalPort` nietknięte.
+3. **Znacznik w `TerminalService`**, obok `shutdownRequested`, tym samym wzorcem.
+4. **Okno za małe rysuje, co się zmieści** — bez planszy, bez nowych napisów.
+
+**Zmiany w kodzie** — inne niż zapowiadała tabela planu i to jest główna
+wiadomość tego wpisu: samoodświeżanie sprawiło, że **`GameLoop`, `FrameComposer`
+i katalogi napisów pozostały nietknięte**, a cały krok zamknął się w czterech
+plikach `Infrastructure`:
+
+- `TerminalService` — `SIGWINCH` ustawia znacznik `windowResized`;
+  `consumeWindowResize()` oddaje go i gasi (zgaszenie **przed** pomiarem jest
+  celowe: sygnał doręczony w trakcie pomiaru ustawi go ponownie, więc zmiana
+  nie może się zgubić).
+- `TerminalSizeService` — pole przestało być `readonly`; `size()` przed
+  oddaniem odpowiedzi zdejmuje znacznik i mierzy ponownie. `rows()`
+  i `columns()` idą przez `size()`, więc trzy drogi odczytu widzą tę samą
+  chwilę.
+- `TerminalSize` — `equals()`; po nim renderer poznaje zmianę.
+- `SixelFrameRenderer` — jednorazowe `ESC [ 2 J` przy klatce o innym rozmiarze
+  niż poprzednia; tryb tekstowy czyści ekran co klatkę od zawsze, więc nie
+  wymagał niczego.
+
+**Dwie poprawki wykonawcze przy rozstrzygnięciu nr 1**, obie po to, żeby wybór
+„prawdziwe zapytanie” nie kosztował tam, gdzie odpowiedzi być nie może:
+
+- **Ponawiamy pytanie wyłącznie u terminala, który odpowiedział przy starcie.**
+  Milczenie to konfiguracja (`disallowedWindowOps`), nie chwilowa
+  niedyspozycja — pytanie milczącego kosztowałoby 300 ms zamrożonej pętli przy
+  każdej zmianie, bez szansy na odpowiedź.
+- **Fallback komórki liczy się z poprzedniego pomiaru**, nie ze stałych 6×13:
+  font się nie zmienił, więc iloraz poprzednich pikseli i komórek mówi prawdę
+  tam, gdzie stała mówi „najczęściej”. Stałe zostają dla pierwszego pomiaru.
+
+**Naprawiony przy okazji dług kroku 06**: `queryPixelSize()` przy przekroczeniu
+limitu czasu **połykał** zebrane bajty. Przy starcie było to niegroźne; przy
+pomiarze w trakcie działania byłyby to klawisze użytkownika. Teraz wracają
+przez `pushBackBytes()`.
+
+**Testy** (16 nowych/rozszerzonych, wszystkie zielone; PHPStan `max` czysty,
+PHP-CS-Fixer bez uwag):
+
+- `FrameComposerResizeTest` — klatka rośnie i kurczy się razem z oknem
+  (gwarancja per-klatkowego pytania o rozmiar przestała być przypadkiem, jest
+  umową); okno 5×10 nadal produkuje klatkę (rozstrzygnięcie nr 4).
+- `ScrollWindowTest` — kurcząca się pojemność nie gubi kursora, rosnąca ściąga
+  okno znad pustki, pojemność zdegenerowana nie wywraca rachunku.
+- `TerminalSizeTest` — `equals()` czuły na każde z czterech pól.
+- Nowy dubler `ResizableViewport` obok `FixedViewport`.
+
+**Odstępstwo od planu testów**: „znacznik po sygnale” nie ma testu
+jednostkowego — `TerminalService` wymaga tty i przełącza terminal w tryb
+surowy w konstruktorze, więc nie da się go postawić w PHPUnit (dlatego nie
+istnieje żaden `TerminalServiceTest`). Pokrycie: sprawdzenie w prawdziwym
+terminalu.
+
+### 2026-08-11 — pomiar: bez regresji, scenariusza nie będzie
+
+Host zwolniony za potwierdzeniem użytkownika; `./bin/render-bench --compare`
+wobec wzorca po kroku 27:
+
+- **„Bez regresji powyżej progu”** — wszystkie czternaście scenariuszy
+  w widełkach od −4,8% do +2,9%, rozrzut ciasny (najszerszy: miniatura
+  25,2–27,5 ms). Najważniejsze kryterium kroku — klatka w oknie o stałym
+  rozmiarze kosztuje tyle, co przed krokiem — **spełnione pomiarem**, zgodnie
+  z przewidywaniem: ścieżka klatki dostała wyłącznie odczyt jednego znacznika.
+- Wzorzec po kroku zapisany: `docs/pomiary/2026-08-11-po-kroku-33.json`
+  (strażnik rozrzutu nie protestował).
+
+**Rozstrzygnięcie nr 5 rozstrzygnęło się samo, zgodnie z warunkiem z planu:
+osobnego scenariusza nie będzie.** Pomiar nie pokazał kosztów poza przebudową
+płaszczyzny spodniej, a tę mierzy każdy scenariusz swoją pierwszą, zimną
+klatką (rozgrzewka). Narzędzie pomiarowe działa poza pętlą i poza terminalem —
+scenariusz „zmiana rozmiaru” mierzyłby więc dokładnie to samo, co zimna klatka,
+tylko pod inną nazwą.
+
+### 2026-08-11 — sprawdzenie pod XTermem: cztery zrzuty, wszystkie kryteria wzrokowe spełnione
+
+Test na żywym XTermie (host zwolniony), zmiana rozmiaru wymuszana sekwencją
+`ESC [ 8 ; wiersze ; kolumny t` pisaną wprost na pty — jądro doręcza wtedy
+`SIGWINCH` dokładnie tak, jak przy przeciąganiu rogu okna. Na czas testu
+z listy `disallowedWindowOps` zdjęto operację `8` (aplikacja jej nie używa —
+furtka wyłącznie dla testu); operacja `14` została dopuszczona jak w
+`bin/run.sh`, więc piksele szły prawdziwym zapytaniem.
+
+Cykl 100×30 → **130×38** → **60×18** → **100×30**, zrzut po każdej zmianie:
+
+- **Powiększenie**: klatka wypełniła nowe okno, suwak zniknął (cała lista się
+  mieści), a kolumny „Zmieniony” i „Prawa” **pojawiły się same** — rozdział
+  miejsca z kroku 27 dostał przestrzeń i z niej skorzystał. Zero strzępów.
+- **Zmniejszenie**: moduł przeglądarki sam złożył podział do jednego panelu,
+  pas podglądu ustąpił, kursor pozostał widoczny, suwak wrócił i mówi prawdę.
+  Zero resztek po większej klatce — jednorazowe czyszczenie robi swoje.
+- **Powrót**: układ identyczny z klatką wyjściową — wielokrotne zmiany bez
+  dryfu, aplikacja żywa przez cały cykl i zamknięta czysto.
+
+Kryteria ukończenia rozliczone w komplecie. Krok **ukończony**.

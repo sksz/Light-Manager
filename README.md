@@ -2,12 +2,18 @@
 
 Menadżer plików w terminalu napisany w PHP. Cała klatka ekranu jest budowana
 jako jeden obraz przez Imagick i wypychana do terminala protokołem Sixel, w
-architekturze pętli głównej znanej z gier.
+architekturze pętli głównej znanej z gier. Od kroku 34 aplikacja ma także
+**tryb okienkowy** (`--window`): natywne okno z kontekstem OpenGL przez
+rozszerzenie [PHP-GLFW](https://phpgl.net), bez dotykania terminala.
 
 ## Wymagania
 
 - PHP `^8.3` (weryfikowane: 8.3.11)
 - Rozszerzenia PHP: `imagick`, `pcntl`
+- Opcjonalnie rozszerzenie `glfw` ([PHP-GLFW](https://phpgl.net), instalowane
+  ze źródeł — nie ma go w PECL; weryfikowane: 2.2.0 z GLFW 3.3.8 pod X11) —
+  wyłącznie dla trybu okienkowego `--window`; tryby terminalowe działają
+  bez niego
 - Zewnętrzne polecenie `stty` — stąd założenie **Linux/macOS**; Windows nie
   jest wspierany
 - Interaktywny terminal na standardowym wejściu — uruchomienie z potoku lub
@@ -53,6 +59,32 @@ lub poprzez alias:
 Aplikacja przechodzi na osobny ekran, rysuje klatkę w stałym takcie i czeka na
 wejście. Wyjście: klawisz `F10` albo Ctrl+C — w obu przypadkach terminal wraca
 do stanu sprzed uruchomienia.
+
+### Tryb okienkowy (od kroku 34)
+
+```bash
+./bin/light-manager --window
+```
+
+Zamiast rysować w terminalu aplikacja otwiera natywne okno z kontekstem
+OpenGL 3.3 core (wymaga rozszerzenia `glfw` — bez niego start kończy się
+czytelnym błędem, a **bez flagi rozszerzenie nie jest potrzebne w ogóle**).
+Terminal, z którego padło polecenie, pozostaje nietknięty: bez trybu
+surowego, bez osobnego ekranu, bez jednej sekwencji sterującej na STDOUT.
+Klawiatura działa tym samym słownikiem co w terminalu (strzałki, `F1`–`F12`,
+`Ctrl`+litera, `F10` kończy; przycisk zamknięcia okna działa jak Ctrl+C),
+a przeciągnięcie rogu okna zmienia siatkę od następnej klatki.
+
+Rozmiar startowy okna ustawia się na ekranie ustawień (pozycje „Kolumny/
+Wiersze okna”, domyślnie 100×30 komórek); komórkę wyznaczają metryki
+systemowego fontu o stałej szerokości.
+
+Od kroku 35 okno pokazuje **całą aplikację**: prymitywy rysowane są wprost
+wywołaniami OpenGL przez API wektorowe PHP-GLFW, bez Imagicka w ścieżce
+klatki. Ta sama treść, ten sam układ i te same role motywu co w trybie
+sixelowym — z dwiema różnicami na korzyść okna: kolory idą w pełnej głębi
+(nie ma kwantyzacji do palety Sixela), a klatka kosztuje ułamek tego, co
+kosztuje w terminalu.
 
 ### Sterowanie
 
@@ -172,8 +204,11 @@ zmianę. Wartość niezgodna z wymaganiami pozycji **nie nadpisuje poprzedniej**
 powód staje w pasku stanu.
 
 Pod pozycjami zakładek rdzenia stoi przycisk **Przywróć ustawienia domyślne** —
-`Enter` na nim cofa wszystkie ustawienia naraz, więc po zabłądzeniu w motywach
-i palecie nie trzeba kasować pliku konfiguracyjnego.
+cofa wszystkie ustawienia naraz, więc po zabłądzeniu w motywach i palecie nie
+trzeba kasować pliku konfiguracyjnego. `Enter` na nim **nie kasuje niczego od
+razu**: otwiera pytanie, w którym odpowiedź startuje na „Nie”, a `Esc` znaczy
+to samo co odmowa. To jedyne miejsce w aplikacji, w którym pomyłka kosztuje
+dane — i jedyne, które pyta.
 
 | Zakładka | Pozycja | Wartości | Domyślnie |
 |---|---|---|---|
@@ -395,6 +430,10 @@ Bez ostatniego zasobu aplikacja nadal działa — przyjmuje wtedy komórkę 6×1
 (domyślny font XTerma) i rysuje klatkę mniejszą niż okno, zostawiając margines
 przy prawej i dolnej krawędzi.
 
+Zmiana rozmiaru okna w trakcie działania jest obsługiwana: następna klatka
+rysuje się w nowym rozmiarze, a raport `ESC [ 14 t` jest ponawiany po każdej
+zmianie u terminala, który odpowiedział na niego przy starcie.
+
 ## Struktura
 
 ```
@@ -441,7 +480,15 @@ i bez edytowania kodu:
 ./bin/render-bench                       # wszystkie scenariusze, konfiguracja domyślna
 ./bin/render-bench --help                # pełna lista opcji i scenariuszy
 ./bin/render-bench --palette=16 --text-aa # inna konfiguracja, bez ruszania kodu
+./bin/render-bench --window              # tor okienkowy (OpenGL, okno ukryte)
 ```
+
+Oś `--window` mierzy te same scenariusze **rendererem OpenGL** zamiast potoku
+Sixela, w oknie ukrytym na czas pomiaru. Fazy są tam inne (rysowanie i zamiana
+buforów; kwantyzacji ani bajtów nie ma), a podpis konfiguracji niesie słowo
+`window` — dzięki temu `--compare` nie zestawi ze sobą wyników dwóch różnych
+torów. `--transfer` i `--png` należą wyłącznie do toru terminalowego i w parze
+z `--window` kończą się błędem zamiast cichego pominięcia.
 
 Klatka rozbita jest na trzy fazy — **rysowanie**, **kwantyzację** i **kodowanie
 do Sixela** — mierzone osobno, a każdy scenariusz izoluje inny element klatki

@@ -313,6 +313,12 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
             SettingKey::PaletteColors => is_int($value) && in_array($value, Settings::PALETTE_CHOICES, true)
                 ? $settings->withPaletteColors($value)
                 : null,
+            SettingKey::WindowColumns => is_int($value) && in_array($value, Settings::WINDOW_COLUMNS_CHOICES, true)
+                ? $settings->withWindowColumns($value)
+                : null,
+            SettingKey::WindowRows => is_int($value) && in_array($value, Settings::WINDOW_ROWS_CHOICES, true)
+                ? $settings->withWindowRows($value)
+                : null,
         };
     }
 
@@ -362,6 +368,8 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
             SettingKey::TextAntialias->value => $settings->textAntialias,
             SettingKey::StrokeAntialias->value => $settings->strokeAntialias,
             SettingKey::PaletteColors->value => $settings->paletteColors,
+            SettingKey::WindowColumns->value => $settings->windowColumns,
+            SettingKey::WindowRows->value => $settings->windowRows,
         ];
 
         if ($settings->modules !== []) {

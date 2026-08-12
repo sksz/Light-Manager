@@ -41,6 +41,18 @@ final class Settings
     /** Moduł otwierany przy starcie, dopóki konfiguracja nie wskaże innego. */
     public const DEFAULT_STARTUP_MODULE = 'browser';
 
+    /**
+     * Rozmiar startowy okna trybu okienkowego, w komórkach (krok 34, D53).
+     * Wartości, po których chodzą strzałki — wzorem `PALETTE_CHOICES`.
+     */
+    public const WINDOW_COLUMNS_CHOICES = [80, 100, 120, 140, 160, 200];
+
+    public const WINDOW_ROWS_CHOICES = [24, 30, 40, 50, 60];
+
+    public const DEFAULT_WINDOW_COLUMNS = 100;
+
+    public const DEFAULT_WINDOW_ROWS = 30;
+
     /** @param array<string, array<string, bool|int|string>> $modules `id modułu` → klucz → wartość */
     public function __construct(
         public readonly string $language = Language::Auto->value,
@@ -50,6 +62,8 @@ final class Settings
         public readonly bool $strokeAntialias = true,
         public readonly int $paletteColors = self::DEFAULT_PALETTE_COLORS,
         public readonly array $modules = [],
+        public readonly int $windowColumns = self::DEFAULT_WINDOW_COLUMNS,
+        public readonly int $windowRows = self::DEFAULT_WINDOW_ROWS,
     ) {
     }
 
@@ -79,6 +93,12 @@ final class Settings
             SettingKey::StrokeAntialias => $this->withStrokeAntialias(!$this->strokeAntialias),
             SettingKey::PaletteColors => $this->withPaletteColors(
                 self::next(self::PALETTE_CHOICES, $this->paletteColors, $direction),
+            ),
+            SettingKey::WindowColumns => $this->withWindowColumns(
+                self::next(self::WINDOW_COLUMNS_CHOICES, $this->windowColumns, $direction),
+            ),
+            SettingKey::WindowRows => $this->withWindowRows(
+                self::next(self::WINDOW_ROWS_CHOICES, $this->windowRows, $direction),
             ),
         };
     }
@@ -111,6 +131,16 @@ final class Settings
     public function withPaletteColors(int $paletteColors): self
     {
         return $this->copy(paletteColors: $paletteColors);
+    }
+
+    public function withWindowColumns(int $windowColumns): self
+    {
+        return $this->copy(windowColumns: $windowColumns);
+    }
+
+    public function withWindowRows(int $windowRows): self
+    {
+        return $this->copy(windowRows: $windowRows);
     }
 
     /** @param array<string, array<string, bool|int|string>> $modules */
@@ -147,7 +177,9 @@ final class Settings
             && $this->textAntialias === $other->textAntialias
             && $this->strokeAntialias === $other->strokeAntialias
             && $this->paletteColors === $other->paletteColors
-            && $this->modules === $other->modules;
+            && $this->modules === $other->modules
+            && $this->windowColumns === $other->windowColumns
+            && $this->windowRows === $other->windowRows;
     }
 
     /**
@@ -168,6 +200,8 @@ final class Settings
         ?bool $strokeAntialias = null,
         ?int $paletteColors = null,
         ?array $modules = null,
+        ?int $windowColumns = null,
+        ?int $windowRows = null,
     ): self {
         return new self(
             $language ?? $this->language,
@@ -177,6 +211,8 @@ final class Settings
             $strokeAntialias ?? $this->strokeAntialias,
             $paletteColors ?? $this->paletteColors,
             $modules ?? $this->modules,
+            $windowColumns ?? $this->windowColumns,
+            $windowRows ?? $this->windowRows,
         );
     }
 

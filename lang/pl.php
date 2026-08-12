@@ -53,10 +53,13 @@ return [
     'settings.key.textAntialias' => 'Wygładzanie tekstu',
     'settings.key.strokeAntialias' => 'Wygładzanie obrysów',
     'settings.key.paletteColors' => 'Kolory palety Sixela',
+    'settings.key.windowColumns' => 'Kolumny okna (tryb okienkowy)',
+    'settings.key.windowRows' => 'Wiersze okna (tryb okienkowy)',
     'settings.language.auto' => 'Automatyczny',
     'settings.language.pl' => 'Polski',
     'settings.language.en' => 'English',
     'settings.action.restore' => 'Przywróć ustawienia domyślne',
+    'settings.restore.confirm' => 'Przywrócić ustawienia domyślne? Obecne przepadną bezpowrotnie.',
     'settings.restore.done' => 'Przywrócono ustawienia domyślne.',
     'settings.restore.unchanged' => 'Ustawienia są już domyślne.',
     'settings.value.yes' => 'tak',
@@ -96,6 +99,15 @@ return [
     'command.key.caret' => 'ruch karetki w wierszu',
     'command.key.erase' => 'kasowanie znaku',
     'command.key.dismiss' => 'zamknij okno',
+
+    // Okno potwierdzenia (krok 28).
+    'confirm.title' => 'PYTANIE',
+    'confirm.title.dangerous' => 'UWAGA',
+    'confirm.yes' => 'Tak',
+    'confirm.no' => 'Nie',
+    'confirm.key.move' => 'zmień odpowiedź',
+    'confirm.key.answer' => 'potwierdź',
+    'confirm.key.refuse' => 'odmów',
     'command.history' => 'historia',
     'command.problem.empty' => 'nie wpisano nazwy komendy',
     'command.problem.unknown' => 'nieznana komenda: {name}',
@@ -163,7 +175,15 @@ return [
     'problem.terminal.stty' => 'Nie udało się przełączyć terminala w tryb surowy: {detail}',
     'problem.missingImagick' => 'BŁĄD: rozszerzenie PHP "imagick" nie jest załadowane — bez niego nie da się '
         . 'zbudować klatki ekranu.',
+    'problem.missingGlfw' => 'BŁĄD: rozszerzenie PHP "glfw" nie jest załadowane — bez niego tryb okienkowy '
+        . '(--window) nie może wystartować. Instalacja: https://phpgl.net',
+    'problem.glfw.init' => 'Nie udało się uruchomić GLFW — sprawdź, czy sesja ma dostęp do serwera wyświetlania.',
+    'problem.glfw.window' => 'Nie udało się otworzyć okna z kontekstem OpenGL 3.3 core — sprawdź sterowniki grafiki.',
+    'problem.glfw.font' => 'Nie znaleziono żadnego fontu o stałej szerokości — tryb okienkowy nie ma czym rysować tekstu.',
     'problem.unexpected' => 'Nie udało się wykonać tej operacji.',
+
+    // Okno trybu okienkowego (krok 34).
+    'window.title' => 'Light Manager',
 
     // Praca tłowa (krok 26). Powody należą do rdzenia, bo mówią o procesie,
     // a nie o tym, po co go uruchomiono — moduł dokłada do nich własne.
@@ -186,6 +206,7 @@ return [
     'bench.column.draw' => 'Rysowanie',
     'bench.column.quantize' => 'Kwantyzacja',
     'bench.column.encode' => 'Kodowanie',
+    'bench.column.swap' => 'Bufory',
     'bench.column.total' => 'Razem',
     'bench.column.spread' => 'Rozrzut',
     'bench.column.blob' => 'Blob',
@@ -252,6 +273,7 @@ return [
         . '  --iterations=15      liczba mierzonych przebiegów' . "\n"
         . '  --warmup=3           liczba przebiegów rozgrzewkowych',
     'bench.help.modes' => 'Tryby i wyniki:' . "\n"
+        . '  --window             zmierz tor okienkowy (OpenGL, okno ukryte) zamiast Sixela' . "\n"
         . '  --scenarios=a,b      zmierz tylko wybrane scenariusze' . "\n"
         . '  --transfer           zmierz też przesył klatki (wymaga prawdziwego terminala)' . "\n"
         . '  --save[=nazwa]       zapisz wzorzec do docs/pomiary/' . "\n"
@@ -269,4 +291,5 @@ return [
     'bench.problem.baselineMissing' => 'Nie znaleziono wzorca w "{detail}". Zapisz pierwszy: --save',
     'bench.problem.writeFailed' => 'Nie udało się zapisać "{detail}".',
     'bench.problem.terminalUnavailable' => 'Pomiar przesyłu wymaga terminala na wejściu i na wyjściu.',
+    'bench.problem.glfwUnavailable' => 'Pomiar toru okienkowego wymaga rozszerzenia "glfw". Instalacja: https://phpgl.net',
 ];

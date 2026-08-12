@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Presentation\Cli;
 
-use LightManager\Application\Port\TerminalPort;
+use LightManager\Application\Port\InputPort;
 
 /**
  * Pętla główna: odczytaj wejście → zaktualizuj stan → przerysuj klatkę.
@@ -33,7 +33,7 @@ final class GameLoop
     private readonly int $frameBudgetMicroseconds;
 
     public function __construct(
-        private readonly TerminalPort $terminal,
+        private readonly InputPort $source,
         private readonly FrameComposer $frames,
         private readonly ScreenStack $screens,
         private readonly InputHandler $input,
@@ -54,7 +54,7 @@ final class GameLoop
                 break;
             }
 
-            if ($this->terminal->shutdownRequested()) {
+            if ($this->source->shutdownRequested()) {
                 break;
             }
 
@@ -81,7 +81,7 @@ final class GameLoop
      */
     private function consumeInput(LoopState $state, float $now): bool
     {
-        while (($key = $this->terminal->readKey()) !== null) {
+        while (($key = $this->source->readKey()) !== null) {
             if ($this->input->handle($key, $state, $now)) {
                 return true;
             }
