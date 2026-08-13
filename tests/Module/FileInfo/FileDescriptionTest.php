@@ -20,6 +20,7 @@ use LightManager\Module\FileInfo\Application\FileInfoSettings;
 use LightManager\Module\FileInfo\Application\UseCase\InspectSelectedEntryUseCase;
 use LightManager\Module\FileInfo\Presentation\FileInfoModule;
 use LightManager\Module\FileInfo\Presentation\FileInfoScreen;
+use LightManager\Presentation\Cli\LoopState;
 use LightManager\Tests\Support\InMemorySettings;
 use LightManager\Tests\Support\StubBackgroundProcess;
 use LightManager\Tests\Support\StubChecksums;
@@ -178,9 +179,52 @@ final class FileDescriptionTest extends TestCase
             $primitives = $screen->draw(self::panel());
         }
 
-        $texts = implode("\n", self::textsOf($primitives));
+        // Suma ma sześćdziesiąt cztery znaki i od poprawki z 2026-08-12 **zawija
+        // się** na kolejny wiersz sekcji, zamiast wychodzić poza panel. Sklejona
+        // z powrotem musi być w całości — i to jest treść tej asercji.
+        $joined = (string) preg_replace('/\s+/', '', implode('', self::textsOf($primitives)));
 
-        self::assertStringContainsString(StubChecksums::DIGEST, $texts);
+        self::assertStringContainsString(StubChecksums::DIGEST, $joined);
+    }
+
+    /**
+     * Długi opis od polecenia `file` **zawija się na kolejne wiersze sekcji**
+     * zamiast wychodzić poza panel.
+     *
+     * Usterka zgłoszona 2026-08-12 na zdjęciu, którego `file` opisuje stu
+     * dwudziestoma ośmioma znakami: wartość szła na płótno w całości, więc
+     * kończyła się osiemdziesiąt osiem kolumn za krawędzią panelu — czyli po
+     * sąsiednim. Dziś nie wychodzi ani o kolumnę, a treść jest cała.
+     */
+    public function testALongFileDescriptionWrapsInsteadOfLeavingThePanel(): void
+    {
+        $long = 'JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, '
+            . 'segment length 16, baseline, precision 8, 940x1256, components 3';
+        [$screen] = $this->screen(inspector: new StubFileInspector($long));
+        $screen->useContext($this->fileContext());
+
+        $primitives = $screen->draw(self::panel());
+
+        foreach ($primitives as $primitive) {
+            if ($primitive instanceof TextRun) {
+                self::assertLessThanOrEqual(
+                    self::panel()->right(),
+                    $primitive->column + mb_strlen($primitive->text) - 1,
+                    'napis wychodzi poza panel: ' . $primitive->text,
+                );
+            }
+        }
+
+        // Zawijanie łamie **po znaku**, więc sklejenie kawałków bez separatora
+        // odtwarza treść co do znaku; białe znaki znikają po obu stronach, bo
+        // ostatni kawałek jest dopełniony spacjami do równej szerokości bloku.
+        $squashed = (string) preg_replace('/\s+/', '', implode('', self::textsOf($primitives)));
+
+        self::assertStringContainsString(
+            (string) preg_replace('/\s+/', '', $long),
+            $squashed,
+            'opis jest w klatce w całości',
+        );
     }
 
     /** Zmiana zaznaczenia przerywa pracę — inaczej przewinięcie listy byłaby wyciekiem. */
@@ -251,19 +295,23 @@ final class FileDescriptionTest extends TestCase
     /**
      * @return array{FileInfoScreen, StubChecksums}
      */
-    private function screen(bool $checksumEnabled = false, ?StubFileStat $stats = null): array
-    {
+    private function screen(
+        bool $checksumEnabled = false,
+        ?StubFileStat $stats = null,
+        ?StubFileInspector $inspector = null,
+    ): array {
         $checksums = new StubChecksums();
         $settings = new InMemorySettings(
             (new Settings())->withModuleValue(FileInfoSettings::ID, FileInfoSettings::CHECKSUM, $checksumEnabled),
         );
 
         $module = new FileInfoModule(
+            new LoopState($settings->current()),
             new StubTranslator(),
             $settings,
             new StubImagePreview(),
             new StubBackgroundProcess(),
-            new StubFileInspector('ASCII text'),
+            $inspector ?? new StubFileInspector('ASCII text'),
             $stats ?? new StubFileStat(),
             $checksums,
         );

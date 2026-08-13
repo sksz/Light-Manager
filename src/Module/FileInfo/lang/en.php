@@ -22,6 +22,9 @@ return [
     'module.file-info.setting.checksumLimit' => 'Checksum size limit (MiB)',
     'module.file-info.setting.diskUsage' => 'Directory disk usage (du)',
     'module.file-info.setting.backgroundTimeout' => 'Background work limit (s)',
+    'module.file-info.setting.textPreview' => 'Preview text file content',
+    'module.file-info.setting.lineNumbers' => 'Line numbers in the preview',
+    'module.file-info.setting.textWrap' => 'Wrap lines in the preview',
 
     'module.file-info.section.identity' => 'IDENTITY',
     'module.file-info.section.size' => 'SIZE',
@@ -86,6 +89,7 @@ return [
     'module.file-info.preview.none' => '(no preview)',
     'module.file-info.preview.unreadable' => 'The image could not be read.',
     'module.file-info.preview.tooLarge' => 'The file exceeds the {limit} MB limit — no preview.',
+    'module.file-info.preview.binary' => '(binary file — no content preview)',
 
     'module.file-info.ago.now' => 'just now',
     'module.file-info.ago.minutes' => ['{count} minute ago', '{count} minutes ago'],
@@ -107,9 +111,18 @@ return [
 
     'module.file-info.help.checksum' => 'compute the checksum',
     'module.file-info.help.diskUsage' => 'measure the directory disk usage',
+    'module.file-info.help.scrollPreview' => 'scroll the preview by a panel',
+    'module.file-info.help.scrollLine' => 'scroll the preview by one row',
+    'module.file-info.help.edges' => 'start and end of the file',
+    'module.file-info.help.sectionEdges' => 'first and last section',
+    'module.file-info.help.focus' => 'move between the description and the preview',
+    'module.file-info.help.wrap' => 'wrap lines in the preview',
     'module.file-info.help.enter' => 'The description covers the entry selected in the file list — '
         . 'directories included.',
     'module.file-info.help.sections' => 'Enter collapses a section; the checksum starts only after you '
         . 'press s, because it reads the whole file, and the directory disk usage after you press d, '
         . 'because it walks the whole tree.',
+    'module.file-info.help.preview' => 'The right panel holds the content of a text file: PgUp and PgDn '
+        . 'scroll it by a panel, Home returns to the beginning and Alt+Z toggles line wrapping. Only the '
+        . 'visible part is read, so a file of any size opens instantly.',
 ];

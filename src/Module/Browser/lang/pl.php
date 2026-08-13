@@ -30,6 +30,15 @@ return [
     'module.browser.empty' => '(katalog jest pusty)',
     'module.browser.hidden' => '• ukryte',
 
+    // Filtr listy (krok 30). Znacznik w pasie ścieżki jest jedynym śladem
+    // zawężenia po zamknięciu pola, więc niesie wpisany fragment, nie samo słowo.
+    'module.browser.filter.zone' => 'FILTR',
+    'module.browser.filter.prompt' => 'szukaj: ',
+    'module.browser.filter.marker' => '• filtr: {fragment}',
+    'module.browser.filter.none' => '(nic nie pasuje do filtra)',
+    'module.browser.filter.key.accept' => 'zostaw listę zawężoną',
+    'module.browser.filter.key.cancel' => 'zdejmij filtr i wróć do wpisu',
+
     // Pozycje zakładki ustawień modułu.
     'module.browser.setting.showHidden' => 'Pokazuj wpisy ukryte',
     'module.browser.setting.split' => 'Podział na dwa panele',
@@ -56,6 +65,8 @@ return [
     'module.browser.help.up' => 'katalog wyżej',
     'module.browser.help.hidden' => 'pokaż lub ukryj wpisy ukryte',
     'module.browser.help.focus' => 'przejście do drugiego panelu',
+    'module.browser.help.filter' => 'zawężenie listy fragmentem nazwy',
+    'module.browser.help.filter.clear' => 'zdjęcie filtra',
 
     // Komenda modułu.
     'module.browser.command.jump' => 'przejdź do wskazanego katalogu',

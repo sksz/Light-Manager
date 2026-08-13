@@ -138,7 +138,10 @@ final class TextInput implements FocusableInterface
             $key->key === Key::End => $this->putCaret(mb_strlen($this->value)),
             $key->key === Key::Backspace => $this->eraseBefore(),
             $key->key === Key::Delete => $this->eraseUnder(),
-            $key->key === Key::Character && !$key->ctrl => $this->insert($key->raw),
+            // Litera z modyfikatorem nie jest treścią: `Ctrl`+litera od kroku 19,
+            // `Alt`+litera od kroku 29. Obie niosą w `raw` samą literę, więc bez
+            // tego warunku skrót wpisywałby się do pola jak zwykły znak.
+            $key->key === Key::Character && !$key->ctrl && !$key->alt => $this->insert($key->raw),
             default => false,
         };
     }

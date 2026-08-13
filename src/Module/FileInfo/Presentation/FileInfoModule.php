@@ -13,17 +13,22 @@ use LightManager\Application\Port\BackgroundProcessPort;
 use LightManager\Application\Port\ImagePreviewPort;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
+use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Module\FileInfo\Application\FileInfoSettings;
 use LightManager\Module\FileInfo\Application\Port\ChecksumPort;
 use LightManager\Module\FileInfo\Application\Port\FileInspectorPort;
 use LightManager\Module\FileInfo\Application\Port\FileStatPort;
+use LightManager\Module\FileInfo\Application\Port\TextPreviewPort;
 use LightManager\Module\FileInfo\Application\UseCase\InspectSelectedEntryUseCase;
 use LightManager\Module\FileInfo\Application\UseCase\MeasureDiskUsageUseCase;
 use LightManager\Module\FileInfo\Application\UseCase\PreviewEntryUseCase;
+use LightManager\Module\FileInfo\Application\UseCase\PreviewTextUseCase;
 use LightManager\Module\FileInfo\Infrastructure\ChecksumService;
 use LightManager\Module\FileInfo\Infrastructure\FileInspectorService;
 use LightManager\Module\FileInfo\Infrastructure\FileStatService;
+use LightManager\Module\FileInfo\Infrastructure\TextPreviewService;
 use LightManager\Module\FileInfo\Presentation\Component\PreviewPane;
+use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
 use LightManager\Presentation\Ui\ScreenInterface;
@@ -78,6 +83,14 @@ final class FileInfoModule implements
      *                                          „prawdziwe polecenie `file`”
      */
     public function __construct(
+        /**
+         * Stan pętli — potrzebny **wyłącznie** po to, by `Alt`+`Z` zmieniało tę
+         * samą pozycję ustawień, którą pokazuje zakładka modułu (poprawka
+         * z 2026-08-12). Ekran ustawień czyta konfigurację stąd, więc moduł
+         * zapisujący ją samym portem rozjechałby się z zakładką. Ta sama
+         * zależność i z tego samego powodu stoi w `BrowserModule` od kroku 21.
+         */
+        private readonly LoopState $state,
         private readonly TranslatorPort $translator,
         private readonly SettingsPort $settings,
         private readonly ImagePreviewPort $images,
@@ -85,6 +98,7 @@ final class FileInfoModule implements
         private readonly ?FileInspectorPort $inspector = null,
         private readonly ?FileStatPort $stats = null,
         private readonly ?ChecksumPort $checksums = null,
+        private readonly ?TextPreviewPort $texts = null,
     ) {
     }
 
@@ -157,6 +171,12 @@ final class FileInfoModule implements
             $this->checksums ?? ChecksumService::getInstance(),
             new MeasureDiskUsageUseCase($this->processes),
             $this->settings,
+            new PreviewTextUseCase(
+                $this->texts ?? TextPreviewService::getInstance(),
+                $this->settings,
+            ),
+            new ChangeModuleSettingUseCase($this->settings, $this->translator),
+            $this->state,
         );
 
         return new FileInfoScreen($state, new PreviewPane($state, $this->translator), $this->translator);
@@ -174,6 +194,7 @@ final class FileInfoModule implements
         return [
             'module.' . FileInfoSettings::ID . '.help.enter',
             'module.' . FileInfoSettings::ID . '.help.sections',
+            'module.' . FileInfoSettings::ID . '.help.preview',
         ];
     }
 }

@@ -6,6 +6,7 @@ namespace LightManager\Presentation\Ui\Component;
 
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Primitive\Scrollbar;
+use LightManager\Application\Ui\Primitive\TextMark;
 use LightManager\Application\Ui\Primitive\TextRun;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
@@ -49,6 +50,19 @@ final class Table implements ComponentInterface
      * się w kolumnie o szerokości dziewięciu, a nie dziesięciu.
      */
     private const GAP = 1;
+
+    /**
+     * Role podświetlenia dopasowania: pismo w kolorze tła, tło w akcencie.
+     *
+     * Akcent, a nie `Selection`, i to nie jest wybór estetyczny: pasek pod
+     * kursorem **jest** rolą `Selection`, więc dopasowanie w zaznaczonym wierszu
+     * zniknęłoby dokładnie w tym wierszu, na który użytkownik patrzy. Akcent
+     * odróżnia się od obu — od tła listy i od paska zaznaczenia — bo w motywach
+     * projektu jest jedynym kolorem nasyconym (D25).
+     */
+    private const MARK_TEXT = Role::Background;
+
+    private const MARK_GROUND = Role::Accent;
 
     /**
      * @param list<Column>   $columns  kolumny wraz z regułą ustępowania
@@ -198,9 +212,8 @@ final class Table implements ComponentInterface
             if ($width > 0 && $text !== '') {
                 $cell = $line->columnsFrom($column, $width);
                 $room = $index === $last ? $width : $width - self::GAP;
-                $primitive = $this->cell($cell, $this->columns[$index], $text, $room, $role);
 
-                if ($primitive !== null) {
+                foreach ($this->cell($cell, $this->columns[$index], $text, $room, $role, $row->marks[$index] ?? []) as $primitive) {
                     $primitives[] = $primitive;
                 }
             }
@@ -223,23 +236,73 @@ final class Table implements ComponentInterface
      * kolumna; dosunięcie do jej brzegu skleiłoby rozmiar z datą dokładnie
      * wtedy, gdy rozmiar jest najdłuższy — czyli w przypadku, w którym najbardziej
      * potrzeba go odróżnić.
+     *
+     * @param list<TextSpan> $marks zakresy do podświetlenia, liczone w znakach
+     *                              **pełnej** treści komórki
+     *
+     * @return list<Primitive>
      */
-    private function cell(Rect $cell, Column $column, string $text, int $room, Role $role): ?TextRun
+    private function cell(Rect $cell, Column $column, string $text, int $room, Role $role, array $marks): array
     {
         $fitted = Label::fit($text, $room);
 
         if ($fitted === '') {
-            return null;
+            return [];
         }
 
         $shift = $column->align === Align::Right ? $room - mb_strlen($fitted) : 0;
+        $at = $cell->column + max(0, $shift);
 
-        return new TextRun(
-            $cell->row,
-            $cell->column + max(0, $shift),
-            $fitted,
-            $role === Role::SelectionText ? $role : ($column->role ?? $role),
-        );
+        return [
+            new TextRun(
+                $cell->row,
+                $at,
+                $fitted,
+                $role === Role::SelectionText ? $role : ($column->role ?? $role),
+            ),
+            ...$this->marks($cell->row, $at, $text, $fitted, $room, $marks),
+        ];
+    }
+
+    /**
+     * Podświetlenia jednej komórki — po jednym prymitywie na zakres, który
+     * przetrwał przycięcie.
+     *
+     * Zakresy przycina się do treści **zachowanej**, a nie do napisu, który
+     * wyszedł z `Label::fit()`: ten drugi kończy się wielokropkiem, a wielokropek
+     * nie jest dopasowaniem. Bez tego rozróżnienia nazwa ucięta w środku
+     * dopasowania malowałaby tło pod znakiem, którego w treści nie ma.
+     *
+     * @param list<TextSpan> $marks
+     *
+     * @return list<Primitive>
+     */
+    private function marks(int $row, int $at, string $text, string $fitted, int $room, array $marks): array
+    {
+        if ($marks === []) {
+            return [];
+        }
+
+        $kept = mb_strlen($text) > $room ? max(0, $room - 1) : mb_strlen($fitted);
+        $primitives = [];
+
+        foreach ($marks as $mark) {
+            $clipped = $mark->clippedTo($kept);
+
+            if ($clipped === null) {
+                continue;
+            }
+
+            $primitives[] = new TextMark(
+                $row,
+                $at + $clipped->offset,
+                mb_substr($fitted, $clipped->offset, $clipped->length),
+                self::MARK_TEXT,
+                self::MARK_GROUND,
+            );
+        }
+
+        return $primitives;
     }
 
     /**

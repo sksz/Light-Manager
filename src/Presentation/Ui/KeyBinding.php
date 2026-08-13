@@ -28,12 +28,14 @@ final class KeyBinding
      * @param ?string   $character   znak, gdy czynność wisi na literze albo znaku
      * @param string    $descriptionKey klucz katalogu napisów z opisem czynności
      * @param bool      $ctrl        czy znak wymaga wciśniętego `Ctrl`
+     * @param bool      $alt         czy znak wymaga wciśniętego `Alt`
      */
     public function __construct(
         public readonly array $keys,
         public readonly ?string $character,
         public readonly string $descriptionKey,
         public readonly bool $ctrl = false,
+        public readonly bool $alt = false,
     ) {
     }
 
@@ -54,12 +56,19 @@ final class KeyBinding
         return new self([], $character, $descriptionKey, true);
     }
 
+    /** Czynność na `Alt`+znak — od kroku 29, gdzie wisi na nim zawijanie wierszy. */
+    public static function alt(string $character, string $descriptionKey): self
+    {
+        return new self([], $character, $descriptionKey, false, true);
+    }
+
     public function matches(KeyPress $key): bool
     {
         if ($this->character !== null
             && $key->key === Key::Character
             && $key->raw === $this->character
             && $key->ctrl === $this->ctrl
+            && $key->alt === $this->alt
         ) {
             return true;
         }
@@ -73,9 +82,11 @@ final class KeyBinding
         $names = array_map(self::nameOf(...), $this->keys);
 
         if ($this->character !== null) {
-            $names[] = $this->ctrl
-                ? 'Ctrl+' . mb_strtoupper($this->character)
-                : $this->character;
+            $names[] = match (true) {
+                $this->ctrl => 'Ctrl+' . mb_strtoupper($this->character),
+                $this->alt => 'Alt+' . mb_strtoupper($this->character),
+                default => $this->character,
+            };
         }
 
         return implode(' / ', $names);

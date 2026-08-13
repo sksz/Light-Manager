@@ -94,6 +94,7 @@ kosztuje w terminalu.
 | `Enter` / `→` | wejście do katalogu (na pliku `Enter` nie robi nic) |
 | `Backspace` / `←` | katalog wyżej |
 | `.` | pokaż lub ukryj wpisy ukryte (ustawienie trwałe, dotyczy obu paneli) |
+| `/` | zawężenie listy fragmentem nazwy — pole filtra przy dolnej krawędzi |
 | `Tab` | przejście do drugiego panelu — tylko przy włączonym podziale |
 | `F1` | ekran pomocy — pełna lista klawiszy |
 | `F2` | ekran ustawień |
@@ -232,6 +233,9 @@ dane — i jedyne, które pyta.
 | Opis pliku | Limit rozmiaru sumy (MiB) | 16, 64, 256, 1024 | 256 |
 | Opis pliku | Zajętość katalogu na dysku (du) | tak / nie | **nie** |
 | Opis pliku | Limit czasu pracy w tle (s) | 5, 15, 30, 60 | 15 |
+| Opis pliku | Podgląd treści plików tekstowych | tak / nie | **tak** |
+| Opis pliku | Numery wierszy w podglądzie | tak / nie | nie |
+| Opis pliku | Zawijanie wierszy w podglądzie | tak / nie | **tak** |
 
 Każda zmiana działa natychmiast — motyw i jakość rysowania widać w następnej
 klatce, bez restartu — i od razu ląduje w pliku, więc przeżywa nawet zabicie
@@ -278,8 +282,18 @@ Wbudowane są dziś dwa:
   najpierw prawa, potem data, potem rozmiar, a nazwa nie ustępuje nigdy. Kolumna,
   która nie mieści się w całości, **znika w całości**: przycięta data (`2026-08-…`)
   nie mówi nic, a zabiera znaki nazwie, która by je wykorzystała.
+
+  Listę można **zawęzić fragmentem nazwy** — `/` otwiera pole filtra przy dolnej
+  krawędzi, a lista zwęża się przy każdej literze, w tej samej klatce.
+  Dopasowany fragment jest **podświetlony**. Dopasowanie to podciąg bez
+  rozróżniania wielkości liter (także poza ASCII: `Ł` znajduje `ł`); wzorców ani
+  wyrażeń regularnych nie ma. Strzałki w otwartym polu chodzą po zawężonej
+  liście, `Enter` zostawia ją zawężoną, a `Esc` zdejmuje filtr i wraca do wpisu
+  sprzed jego otwarcia. Filtr dotyczy **panelu z ogniskiem**, widać go
+  znacznikiem w pasie ścieżki i znika przy zmianie katalogu.
 - **Opis pliku** (`file-info`, `Ctrl+D`) — **pełny obraz stanu zaznaczonego
-  wpisu**, także katalogu: cztery zwijane sekcje po lewej i miniatura po prawej.
+  wpisu**, także katalogu: cztery zwijane sekcje po lewej, a po prawej miniatura
+  albo **treść pliku tekstowego**.
 
   | Sekcja | Co pokazuje |
   |---|---|
@@ -304,6 +318,39 @@ Wbudowane są dziś dwa:
   ma własny limit czasu, osobny i hojniejszy od limitu polecenia `file`, bo
   sekundy spędzone w tle nie kosztują ani jednej klatki. Po zamknięciu aplikacji
   — także `Ctrl+C` — nie zostaje po niej ani jeden proces.
+
+  **Prawy panel pokazuje treść pliku tekstowego** — tam, gdzie wcześniej stał
+  napis „(brak podglądu)”. **`Tab` przenosi kursor między opisem a podglądem** —
+  panel z ogniskiem poznaje się po akcencie w obwódce. W podglądzie strzałki
+  przewijają o **linijkę**, `PgUp`/`PgDn` o panel, `Home` wraca na początek pliku,
+  a `End` skacze na jego koniec; w opisie strzałki chodzą po sekcjach, a
+  `Home`/`End` skaczą na pierwszą i ostatnią. `Alt`+`Z` przełącza zawijanie
+  wierszy niezależnie od ogniska.
+
+  Linijka to **linijka panelu, nie wiersz pliku**, i przy zawijaniu to nie jest
+  to samo: strzałka w pliku będącym jedną długą linią przesuwa obraz o jeden
+  wiersz ekranu, a `PgDn` o dokładnie tyle linijek, ile było widać. Po `End`
+  **numery wierszy znikają** — kotwica staje wtedy po bajcie, a numeru z bajtu
+  wyczytać się nie da bez przejścia przez cały plik; `Home` je przywraca.
+
+  Czytany jest **wyłącznie
+  widoczny fragment**, więc plik półgigabajtowy otwiera się tak samo szybko, jak
+  kilobajtowy i nie zatrzymuje ani jednej klatki; przewinięcie porzuca poprzednie
+  wiersze i doczytuje następne, jak w edytorze. Zawijanie łamie **po znaku, a nie
+  po słowie**, żeby wcięcia w kodzie zostały wcięciami, i obowiązuje **każdy**
+  wiersz: zrzut JSON-a w jednej linijce wypełnia panel od góry do dołu, a `PgDn`
+  wchodzi w głąb tego samego wiersza. Zawijanie jest **pozycją w ustawieniach
+  modułu** (domyślnie włączone), a `Alt`+`Z` przełącza tę samą pozycję, więc
+  wybór przeżywa zamknięcie aplikacji.
+  Czy plik jest tekstem, rozstrzyga kaskada: rozszerzenie, potem opis od
+  polecenia `file`, a na końcu podejrzenie pierwszych bajtów — dzięki temu
+  `README` i `.gitignore` też mają podgląd. Kodowanie rozpoznajemy z nagłówka
+  i konwertujemy do UTF-8 — **także UTF-16 i UTF-32**, po znaczniku kolejności
+  bajtów albo po wzorcu zer, gdy znacznika nie ma; bajt, którego nie da się
+  zdekodować, i znak sterujący dostają widoczny znacznik zamiast psuć klatkę.
+  Numery wierszy są **domyślnie
+  wyłączone** i włącza się je w ustawieniach modułu, a w wąskim panelu ustępują
+  miejsca treści. Podgląd binariów nie powstaje i mówi o tym wprost.
 
 #### Moduł domyślny
 
@@ -372,7 +419,8 @@ zmianie ustawienia — sam start aplikacji niczego nie tworzy na dysku.
         "browser": { "enabled": true, "showHidden": false },
         "file-info": { "enabled": true, "timeout": 2, "arguments": "",
                        "timeFormat": "absolute", "inode": false,
-                       "checksum": false, "checksumLimit": 256 }
+                       "checksum": false, "checksumLimit": 256,
+                       "textPreview": true, "lineNumbers": false }
     }
 }
 ```
@@ -503,6 +551,15 @@ toczącej się obok pętli — a twierdzenie, że praca tłowa nie kosztuje klat
 dzięki temu sprawdzalne, a nie deklarowane. **`columns`** rysuje z kolei tę samą
 listę, co `chrome-text`, ale w czterech kolumnach zamiast dwóch — różnica jest
 ceną rozdziału szerokości i dwóch dodatkowych napisów w każdym wierszu.
+**`text-view`** wypełnia panel treścią pliku o zmiennej długości wierszy: różnica
+wobec `chrome-text` jest ceną podglądu tekstu, a osobny scenariusz jest tu
+potrzebny dlatego, że wiersze podglądu zmieniają się przy każdym przewinięciu,
+więc pamięć podręczna wierszy trafia w nie rzadziej niż w listę plików.
+**`highlight`** rysuje tę samą listę, co `columns`, ale z dopasowaniem filtra
+w **każdym** wierszu — przypadek najgorszy z możliwych. Rozlicza się go
+**w parze z `columns`, nie osobno**: różnica między nimi jest ceną podświetlenia,
+a `columns` odpowiada przy okazji na pytanie ważniejsze — czy lista bez filtra
+zdrożała. Nie ma prawa.
 
 #### Jak czytać wynik
 

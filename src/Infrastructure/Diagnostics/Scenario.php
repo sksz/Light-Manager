@@ -111,6 +111,46 @@ enum Scenario: string
      */
     case Columns = 'columns';
 
+    /**
+     * Panel wypełniony treścią pliku tekstowego, z zawijaniem (krok 29).
+     *
+     * Osobny scenariusz jest tu potrzebny z konkretnego powodu i nie jest nim
+     * „nowy komponent”: **wiersze podglądu zmieniają się przy każdym
+     * przewinięciu**, i to co do znaku, bo okno przesuwa się po pliku zamiast
+     * wybierać wycinek z gotowej listy. Pamięć podręczna wierszy (D34) trafia
+     * w nie przez to rzadziej niż w listę plików, gdzie ta sama nazwa wraca po
+     * przewinięciu w tę i z powrotem.
+     *
+     * Treść jest wierszami kodu o **zmiennej długości**, bo to ona rozstrzyga
+     * o kształcie pracy: wiersz krótszy od panelu daje jeden napis, dłuższy —
+     * tyle napisów, na ile się zawinie. Różnica wobec `chrome-text` jest ceną
+     * podglądu tekstu; numerów wierszy w niej nie ma, bo w aplikacji są domyślnie
+     * wyłączone, a scenariusz ma mierzyć to, co widzi użytkownik.
+     */
+    case TextView = 'text-view';
+
+    /**
+     * Lista w kolumnach, w której **każdy wiersz ma dopasowanie** filtra
+     * (krok 30).
+     *
+     * Przypadek najgorszy z możliwych i właśnie dlatego właściwy: pokazuje sufit
+     * ceny podświetlenia, a nie jej wartość typową. Prawdziwy filtr trafia
+     * zwykle w kilka wierszy z kilkudziesięciu.
+     *
+     * **Rozlicza się go w parze z `columns`, nie samodzielnie**, i to jest cała
+     * konstrukcja tego pomiaru. Treść wierszy, kolumny i przewinięcie są tu co do
+     * znaku takie same, jak tam; różni je wyłącznie ósmy prymityw postawiony raz
+     * na wiersz. Różnica między dwiema liczbami jest więc **ceną podświetlenia**,
+     * a `columns` odpowiada osobno na pytanie ważniejsze: czy lista bez filtra
+     * zdrożała. Nie ma prawa, i to jest główne kryterium tamtego kroku.
+     *
+     * Fragment jest trzyznakowy i trafia w każdą nazwę dokładnie raz — tak, jak
+     * przy wpisaniu trzech liter przez użytkownika. Jeden fragment znaczy też
+     * jeden wpis w pamięci podręcznej bitmap, i tak właśnie zachowuje się filtr
+     * w aplikacji: podświetla wszędzie ten sam napis.
+     */
+    case Highlight = 'highlight';
+
     /** @return list<self> kolejność wydruku: od najtańszego do najbogatszego */
     public static function all(): array
     {
@@ -152,7 +192,7 @@ enum Scenario: string
         return match ($this) {
             self::Chrome, self::ChromeWithText, self::Thumbnail, self::Popup,
             self::Command, self::Sections, self::Progress, self::Split,
-            self::Background, self::Columns => true,
+            self::Background, self::Columns, self::TextView, self::Highlight => true,
             default => false,
         };
     }

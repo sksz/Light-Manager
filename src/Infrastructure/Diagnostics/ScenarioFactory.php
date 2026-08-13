@@ -26,6 +26,8 @@ use LightManager\Presentation\Ui\Component\StatusBar;
 use LightManager\Presentation\Ui\Component\Table;
 use LightManager\Presentation\Ui\Component\TableRow;
 use LightManager\Presentation\Ui\Component\TextInput;
+use LightManager\Presentation\Ui\Component\TextSpan;
+use LightManager\Presentation\Ui\Component\TextView;
 use LightManager\Presentation\Ui\HudLayout;
 use LightManager\Presentation\Ui\SplitAxis;
 
@@ -66,6 +68,18 @@ final class ScenarioFactory
 
     /** Tyle podpowiedzi widać w oknie komend przy typowym wpisaniu przedrostka. */
     private const COMMAND_SUGGESTIONS = 5;
+
+    /**
+     * Długość dopasowania w scenariuszu `highlight` — trzy znaki, jak wpisane
+     * trzy litery.
+     *
+     * Zakres jest **stały**, a nie wyszukany w nazwie, i to jest świadome:
+     * scenariusz mierzy rysowanie, nie szukanie, a fragment znaleziony w treści
+     * przestawałby trafiać w każdy wiersz przy okrągłej setce wierszy okna
+     * (numer wpisu zmienia wtedy dwie pierwsze cyfry). Pomiar, który po cichu
+     * słabnie wraz z wysokością terminala, jest gorszy niż brak pomiaru.
+     */
+    private const HIGHLIGHT_CHARACTERS = 3;
 
     public function __construct(
         private readonly BenchmarkOptions $options,
@@ -146,7 +160,9 @@ final class ScenarioFactory
             Scenario::Scrollbar => $this->list($list, selected: null, scroll: $this->scroll($list->rows)),
             Scenario::Sections => $this->sections($list),
             Scenario::Progress => $this->progress($list),
-            Scenario::Columns => $this->columns($list),
+            Scenario::Columns => $this->columns($list, marked: false),
+            Scenario::Highlight => $this->columns($list, marked: true),
+            Scenario::TextView => $this->textView($list),
             Scenario::Split => $this->splitLists($layout),
             default => $this->fullContent($layout, $list, $scenario),
         };
@@ -336,21 +352,23 @@ final class ScenarioFactory
      *
      * @return list<Primitive>
      */
-    private function columns(Rect $bounds): array
+    private function columns(Rect $bounds, bool $marked): array
     {
         $rows = [];
         $count = max(0, $bounds->rows);
 
         for ($index = 0; $index < $count; ++$index) {
             $directory = $index % 6 === 0;
+            $name = sprintf('%s-%04d%s', $directory ? 'katalog' : 'plik', $index, $directory ? '/' : '.txt');
             $rows[] = new TableRow(
                 [
-                    sprintf('%s-%04d%s', $directory ? 'katalog' : 'plik', $index, $directory ? '/' : '.txt'),
+                    $name,
                     $directory ? '' : sprintf('%d,%d kB', 1 + $index % 900, $index % 10),
                     sprintf('2026-%02d-%02d %02d:%02d', 1 + $index % 12, 1 + $index % 28, $index % 24, $index % 60),
                     $index % 3 === 0 ? 'rwxr-xr-x' : 'rw-r--r--',
                 ],
                 $directory ? Role::Accent : Role::Text,
+                $marked ? [0 => [new TextSpan(0, self::HIGHLIGHT_CHARACTERS)]] : [],
             );
         }
 
@@ -365,6 +383,37 @@ final class ScenarioFactory
             2,
             $this->scroll($bounds->rows),
         ))->draw($bounds);
+    }
+
+    /**
+     * Panel wypełniony treścią pliku tekstowego — wiersze kodu o zmiennej
+     * długości, część z nich dłuższa od panelu (krok 29).
+     *
+     * Proporcja jest umyślna, jak w scenariuszu sekcji: same wiersze krótkie
+     * mierzyłyby to, co `chrome-text` z jednym napisem zamiast dwóch, a same
+     * długie — wyłącznie zawijanie. Mieszanka odpowiada temu, jak wygląda kod:
+     * większość wierszy mieści się w panelu, co kilka wystaje i zawija się na
+     * następny, a jeden na kilkanaście jest tak długi, że zostaje przycięty do
+     * jednej linijki.
+     *
+     * @return list<Primitive>
+     */
+    private function textView(Rect $bounds): array
+    {
+        $lines = [];
+        $count = max(1, $bounds->rows);
+        $width = max(1, $bounds->columns);
+
+        for ($index = 0; $index < $count; ++$index) {
+            $indent = str_repeat(' ', 4 * ($index % 4));
+            $lines[] = match ($index % 8) {
+                7 => $indent . str_repeat('"wartosc-' . $index . '", ', $width),
+                3, 5 => $indent . sprintf('$wynik[%d] = $this->policz($wpis, $index, %d) ?? null;', $index, $index),
+                default => $indent . sprintf('public function metoda%02d(): string', $index),
+            };
+        }
+
+        return (new TextView($lines, wrap: true, position: $this->scroll($bounds->rows)))->draw($bounds);
     }
 
     /**

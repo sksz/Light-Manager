@@ -158,16 +158,19 @@ komunikat, podgląd, tryb renderowania i położenie okna listy.
 |---|---|---|---|---|
 | Klatka | `Frame` | Application | `Application/Ui` | Stos płaszczyzn w porządku nakładania — jedyne, co przechodzi przez `FrameRendererPort`. |
 | Płaszczyzna | `Plane` | Application | `Application/Ui` | Niezależnie umieszczony plan obrazu: prostokąt i lista prymitywów. Spodnia to ekran, nad nią stoją okna nakładane. Flaga `opaque` każe rendererowi **wymazać prostokąt** przed narysowaniem — bez niej okno złożone z samej obwódki przepuszcza to, co pod nim. |
-| Prymityw | `Primitive` | Application | `Application/Ui/Primitive` | Kształt gotowy do narysowania: `TextRun`, `RoundRect`, `CornerBrackets`, `Bar`, `Bitmap`, `Scrollbar`. Zamknięty słownik. |
+| Prymityw | `Primitive` | Application | `Application/Ui/Primitive` | Kształt gotowy do narysowania: `TextRun`, `TextMark`, `RoundRect`, `CornerBrackets`, `Bar`, `Bitmap`, `Scrollbar`. Słownik **zamknięty**; otwierany dotąd raz, w kroku 30. |
+| Podświetlenie | `TextMark` | Application | `Application/Ui/Primitive` | Napis postawiony **na własnym tle** — ósmy kształt, dołożony w kroku 30 dla dopasowania filtra (D59). Niesie sam fragment, rolę pisma i rolę tła; tło obejmuje tyle kolumn, ile fragment ma znaków. |
+| Zakres dopasowania | `TextSpan` | Presentation | `Presentation/Ui/Component` | Kawałek napisu — przesunięcie i długość **w znakach**. Wiersz niesie zakresy, a nie podzieloną treść: tylko komponent wie, od której kolumny zaczyna się napis i ile z niego zostanie po przycięciu. |
 | Rola koloru | `Role` | Application | `Application/Ui` | Rola motywu (tło, obwódka, akcent, …). Prymityw niesie rolę, nie kolor. |
 | Prostokąt | `Rect` | Application | `Application/Ui` | Obszar w **siatce znakowej**; piksele zaczynają się dopiero w rendererze. |
-| Komponent | `ComponentInterface` | Presentation | `Presentation/Ui` | Element interfejsu, który rysuje się w zadanym prostokącie: `Panel`, `Label`, `ListView`, `SectionList`, `ProgressBar`, `Tabs`, `Choice`, `Toggle`, `Button`, `Dialog`, `StatusBar`, `ImageBox`, `Spacer`. |
+| Komponent | `ComponentInterface` | Presentation | `Presentation/Ui` | Element interfejsu, który rysuje się w zadanym prostokącie: `Panel`, `Label`, `ListView`, `SectionList`, `ProgressBar`, `Tabs`, `Choice`, `Toggle`, `Button`, `Dialog`, `StatusBar`, `ImageBox`, `TextView`, `Spacer`. |
 | Zwijana sekcja | `Section`, `SectionList` | Presentation | `Presentation/Ui/Component` | Grupa wierszy z etykietą i znacznikiem `▼`/`▶`. `Section` jest **daną** (jak `ListRow`), `SectionList` — komponentem: spłaszcza sekcje do wierszy, wycina okno i oddaje rysowanie `ListView`owi. Sekcje przewijają się **jak jedna lista**, więc wycinanie okna musi widzieć je wszystkie naraz. |
 | Podział | `Split`, `SplitAxis` | Presentation | `Presentation/Ui` | Dzieli prostokąt na dwa i oddaje je dwojgu dzieciom, wzdłuż osi pionowej albo poziomej. **Nie tworzy drugiego ekranu** — widoczny ekran jest nadal jeden, a `F1`, `F2` i skrót modułu zastępują go razem z podziałem. Progi (`MINIMUM_COLUMNS`, `MINIMUM_ROWS`) mają tę samą naturę, co progi wysokości w `HudLayout`: mówią, co się jeszcze da czytać, a nie co się mieści. |
 | Pasek postępu | `ProgressBar` | Presentation | `Presentation/Ui/Component` | Wypełniany tor z napisem w środku, w **dwóch trybach**: postęp znany (wypełnienie od lewej plus liczba procent) i nieznany (odcinek wędrujący tam i z powrotem, **bez liczby**). Tor rysuje się rolą `Surface`, wypełnienie `Accent`, a napis zmienia rolę tam, gdzie przechodzi przez wypełnienie. |
 | Kontener | `VStack`, `Slot` | Presentation | `Presentation/Ui/Container` | Rozdziela miejsce między dzieci; `Slot` to **miara wraz z dzieckiem**. |
 | Rozdział miejsca | `Span`, `Distribution` | Presentation | `Presentation/Ui/Container` | Jedna reguła na **obie osie** (krok 27): `Span` niesie minimum, rozmiar preferowany i kolejność ustępowania, `Distribution` je dzieli. Wołają ją `VStack` (wiersze) i `Table` (kolumny). |
 | Tabela | `Column`, `TableRow`, `Table` | Presentation | `Presentation/Ui/Component` | Lista o wielu kolumnach wyrównanych w pionie. `Column` mówi, **czego chce**; szerokości liczy tabela raz na klatkę, dla wszystkich wierszy naraz. Stoi **obok** `ListView`, nie zamiast niego. |
+| Widok tekstu | `TextView` | Presentation | `Presentation/Ui/Component` | Treść pliku w prostokącie (krok 29). Dostaje **gotowe wiersze**, a nie ścieżkę: nie czyta, nie dekoduje, nie zna pliku ani kodowania. Zawijanie łamie **po znaku, nie po słowie** (podgląd kodu ma pokazywać wcięcia) i **nie ma górnego progu**: wiersz dłuższy od całego prostokąta wypełnia panel, bo rysowanie kończy się na dolnej krawędzi tak czy owak (poprawka z 2026-08-12; wcześniej próg sprawiał, że najdłuższe wiersze jako jedyne się nie zawijały). Suwakowi oddaje kolumnę, zamiast kłaść go na treści jak `ListView` — i oddaje ją **z chwilą podania położenia**, a kolumnę numerów liczy z wysokości prostokąta, żeby szerokość treści nie zmieniała się wraz z treścią. Regułę tej szerokości wystawia `contentColumns()`, bo potrzebuje jej także ten, kto czyta plik. |
 | Kursor | `FocusableInterface` | Presentation | `Presentation/Ui` | Komponent przyjmujący klawisze; `handle()` oddaje `bool`, więc nieobsłużony klawisz wędruje wyżej. |
 | Wiązanie klawisza | `KeyBinding` | Presentation | `Presentation/Ui` | Klawisz wraz z kluczem opisu — jedno źródło dla obsługi, podpowiedzi w stopce i spisu w pomocy. |
 | Ekran | `ScreenInterface` | Presentation | `Presentation/Ui` | Treść **trzech stref** klatki wraz z obsługą klawiszy: górnego pasa (`header()`), środkowego panelu (`draw()`) i pasa podglądu (`preview()`). Rdzeniowi zostają oprawa stref i pasek stanu. |
@@ -228,6 +231,42 @@ Cena jest jedna i trzeba ją znać: **element ruchomy z założenia nie trafia d
 pamięci podręcznej wierszy** (D34) — jego wiersz jest w każdej klatce inny, więc
 rasteryzuje się od nowa. Dlatego pasek postępu ma własny scenariusz pomiaru.
 
+#### Komponent nie czyta (od kroku 29)
+
+`TextView` pokazuje treść pliku, a **pliku nie zna**: dostaje listę wierszy już
+zdekodowanych, z rozwiniętymi tabulatorami i oznaczonymi znakami sterującymi.
+Granica jest ta sama, co między komponentem a rendererem, tyle że po drugiej
+stronie: *komponent wie, jak wyglądać* — a nie skąd wziąć treść.
+
+Wszystko, co ma z wejściem-wyjściem wspólnego, zostaje po stronie modułu
+(`TextPreviewPort` i jego usługa w `Module/FileInfo/Infrastructure`), bo to tam
+mieszka wiedza o tym, co wolno przeczytać i jak długo. Rdzeń nie wie, czym jest
+plik — reguła 15 obowiązuje tu tak samo, jak przy podglądzie obrazu.
+
+**Odczyt idzie przesuwnym oknem, jak w edytorze**, i to jest rozstrzygnięcie
+o wadze wzorca: w pamięci siedzą wyłącznie te wiersze, które właśnie widać,
+a przewinięcie porzuca poprzednie i doczytuje następne. Konsekwencje, które
+z tego wynikają i o których trzeba pamiętać przy każdym podobnym podglądzie:
+
+- **Miejsce w pliku to bajt, nie numer wiersza** (`TextAnchor`) — tylko bajt
+  pozwala usiąść w środku pliku bez przeczytania wszystkiego przed nim. Numer
+  wiersza jedzie obok i liczy się przyrostowo.
+- **Ile czytać, wiadomo dopiero przy rysowaniu**, bo budżet odczytu liczy się
+  z geometrii panelu. Stąd podgląd powstaje w `draw()`, a przewinięcie
+  zamówione klawiszem czeka na rozliczenie — dokładnie jak `ScrollWindow`
+  rozdziela `scrollBy()` od `clamp()`.
+- **Suwak liczy się w bajtach**, bo liczby wierszy pliku nie znamy i poznać jej
+  nie chcemy: kosztowałaby przejście przez cały plik przy pierwszym pokazaniu.
+- **Praca kawałkowa (D46) tu nie obowiązuje** i nie musi: jedno okno to
+  kilkadziesiąt kilobajtów, więc mieści się w klatce z zapasem. Wzorzec z kroku
+  25 dotyczy prac, których w klatce wykonać **nie da się**.
+- **Bajt to nie znak** — podgląd czyta także UTF-16 i UTF-32, więc podział na
+  wiersze szuka znaku nowej linii w kodowaniu źródła i **wyłącznie na granicy
+  jednostki kodowej**. Bajty `0A 00` wypadają w UTF-16LE także w środku pary
+  innych znaków; wzięte za koniec wiersza przesunęłyby kotwicę o pół znaku
+  i wszystko po niej byłoby śmieciem. Wszystkie kotwice są z tego samego powodu
+  wyrównane do jednostki, a bufor urwany budżetem docina się do niej.
+
 #### Rozmiar okna terminala nie jest stałą uruchomienia (od kroku 33)
 
 **O rozmiar okna pyta się co klatkę i niczego się z niego nie zapamiętuje.**
@@ -272,7 +311,8 @@ to**: pętla, ekrany, moduły i komponenty nie wiedzą, że cokolwiek się zmien
   klawiszy i znaków GLFW wpadają do kolejki jako te same `KeyPress`,
   z pominięciem `KeySequenceParser`. Mapowanie kodów na `Key` żyje w czystym
   `GlfwKeyMapper` — bez jednego wywołania GLFW, testowalne bez okna.
-  `Ctrl` przychodzi polem `mods`, nie bajtem sterującym.
+  `Ctrl` i `Alt` przychodzą polem `mods`, nie bajtem sterującym ani sekwencją
+  escape.
 - **`ViewportPort`** → `GlfwViewportService`: framebuffer podzielony przez
   komórkę zastępczą (stałą do kroku 35, w którym zastąpią ją metryki fontu).
   Rozmiar czyta się co pytanie, **bez znacznika i bez ponownego pomiaru** —
@@ -344,6 +384,40 @@ konfiguracji niesie słowo `window`, więc wzorzec okienkowy nie ma jak zostać
 porównany z sixelowym. **Pomiar toru okienkowego stawia barierę `glFinish()`
 po zamianie buforów** — bez niej zegar mierzy czas *zlecenia* klatki
 sterownikowi, a nie jej wykonania (różnica dwukrotna, zmierzona).
+
+#### Ósmy prymityw: dlaczego słownik został otwarty (krok 30)
+
+Słownik prymitywów był **zamknięty od kroku 18** i przez dwanaście kroków nikt
+go nie ruszył — łącznie z krokiem 19, w którym karetka pola tekstowego udała
+podświetlenie parą „wypełnienie plus napis”, żeby nowego kształtu nie dokładać.
+Krok 30 otwiera go raz, na jawną zgodę użytkownika (D48), i dokłada **jeden**
+kształt: `TextMark`, czyli napis na własnym tle.
+
+Ważniejsze od samego dołożenia jest to, **czego nie dołożono**. Wyjściowa
+propozycja planu — „samo tło pod fragmentem” — okazała się przy rozpisaniu
+synonimem: prostokąt wypełniony rolą motywu **już jest** w słowniku dwa razy,
+jako `Bar` z `Weight::Fill` i jako `RoundRect` bez obrysu. Ósmy kształt musiał
+więc być czymś, czego żaden z siedmiu nie umie, i jest: **związaniem pisma
+z tłem w jednej rzeczy**. Trzy konsekwencje, wszystkie zmierzone albo widoczne
+w kodzie:
+
+- **Tor sixelowy składa jedną bitmapę zamiast dwóch.** `compositeImage` kosztuje
+  tyle, ile kształt, ale samo wywołanie kosztuje zawsze — a przy filtrze
+  trafiającym w każdy wiersz listy wywołań jest tyle, ile wierszy.
+- **Tor tekstowy degraduje kształt do atrybutu, nie do treści.** Tło i kolor
+  pisma to dokładnie te dwa atrybuty, które komórka siatki znakowej ma, więc
+  dopasowanie widać tam co do znaku tak samo, jak w torze graficznym. Odwracanie
+  atrybutów, które plan kroku dopuszczał jako ostateczność, okazało się zbędne.
+- **`TextRun` zostaje nietknięty**, a wraz z nim koszt wiersza bez dopasowania.
+  To jest najważniejsze kryterium kroku 30 i pilnuje go zarówno test
+  strukturalny (`TableTest`: wiersz bez zakresów oddaje te same podpisy, co
+  przed krokiem), jak i para scenariuszy pomiaru `columns` i `highlight`.
+
+Zakresy dopasowania niesie **wiersz**, nie gotowy podział na kawałki
+(`TableRow::$marks`, klucz = numer kolumny; pusta tablica domyślnie).
+Przesunięcie liczy się w **znakach**, bo rysuje się je w kolumnach — nazwa
+`zażółć.txt` ma dziewięć znaków i trzynaście bajtów, a zakres liczony bajtami
+wylądowałby w połowie znaku.
 
 #### Jeden ekran, dwa panele (od kroku 24)
 
@@ -705,7 +779,16 @@ klasy.
 - **DTO portów**: obiekty wejścia/wyjścia portów aplikacyjnych żyją w
   `Application/Dto` (np. `KeyPress` i enum `Key` z kroku 06). Pojęcie
   techniczne warstwy dostarczania nie trafia do `Domain/ValueObject`, nawet
-  gdy formalnie jest niemutowalną wartością.
+  gdy formalnie jest niemutowalną wartością. `KeyPress` niesie **dwa
+  modyfikatory, rozłącznie**: `ctrl` od kroku 19 (skróty modułów) i `alt` od
+  kroku 29 (zawijanie wierszy w podglądzie). Kombinacji `Ctrl`+`Alt` słownik
+  **nie zna** i nie ma jej po co znać, dopóki nie pojawi się użytkownik — w torze
+  okienkowym `Ctrl` wygrywa, w terminalowym taka para w ogóle nie powstaje.
+  Cena `Alt` w terminalu jest znana i zapisana przy parserze: `ESC`+litera to
+  te same dwa bajty co `Esc` naciśnięty tuż przed literą, więc rozstrzyga o nich
+  czas — jak we wszystkich emulatorach terminala od czasów VT100. Wiązanie
+  klawisza porównuje **oba** znaczniki, więc wiązanie na gołą literę nie łapie
+  skrótu z modyfikatorem.
 - **Moduły** (krok 20): klasa modułu ma sufiks `Module` (`FileInfoModule`) i leży
   w warstwie `Presentation` swojego katalogu, bo implementuje zdolności
   wymieniające typy z `Presentation/Ui`. Zdolności nazywają się od tego, co
@@ -716,7 +799,10 @@ klasy.
   `PathLine`, `PreviewBox`), gdy element interfejsu zna typ jego domeny —
   postawiony w katalogu komponentów rdzenia przywróciłby rdzeniowi wiedzę, którą
   właśnie mu odebrano. Słownik prymitywów zostaje przy tym **zamknięty**: komponent
-  modułu składa się z komponentów rdzenia, a nie z nowych kształtów.
+  modułu składa się z komponentów rdzenia, a nie z nowych kształtów. Moduł może
+  mieć także **własne okno nakładane** w `Presentation/Overlay` (krok 30:
+  `FilterOverlay`), gdy okno zna jego stan; obowiązuje tam ta sama zasada, co
+  przy komponentach.
 - **Wyjątki modułu** (krok 21) dziedziczą po rdzeniowym `DomainException`
   i mogą zadeklarować `Domain\Exception\DescribesProblem` — parę „klucz katalogu
   plus parametry”, z której `ProblemPresenter` składa zdanie dla użytkownika.

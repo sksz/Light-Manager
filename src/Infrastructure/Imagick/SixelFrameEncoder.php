@@ -16,6 +16,7 @@ use LightManager\Application\Ui\Primitive\CornerBrackets;
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Primitive\RoundRect;
 use LightManager\Application\Ui\Primitive\Scrollbar;
+use LightManager\Application\Ui\Primitive\TextMark;
 use LightManager\Application\Ui\Primitive\TextRun;
 use LightManager\Application\Ui\Primitive\Weight;
 use LightManager\Application\Ui\Rect;
@@ -315,6 +316,7 @@ final class SixelFrameEncoder
     {
         match (true) {
             $primitive instanceof TextRun => $this->drawText($canvas, $primitive),
+            $primitive instanceof TextMark => $this->drawTextMark($canvas, $primitive),
             $primitive instanceof RoundRect => $this->drawRoundRect($canvas, $primitive),
             $primitive instanceof CornerBrackets => $this->drawBrackets($canvas, $primitive),
             $primitive instanceof Bar => $this->drawBar($canvas, $primitive),
@@ -401,6 +403,69 @@ final class SixelFrameEncoder
         );
 
         $bitmap->annotateImage($this->pen($color), 0, $this->metrics->baselineWithinRow(), 0, $text->text);
+
+        $this->bitmaps->put($key, $bitmap);
+
+        return $bitmap;
+    }
+
+    /**
+     * Podświetlony fragment — **jedna** bitmapa z pamięci, tło razem z pismem.
+     *
+     * To jest cały powód, dla którego ósmy prymityw jest napisem na tle, a nie
+     * samym tłem: para „wypełnienie plus napis” kosztowałaby dwa wywołania
+     * `compositeImage` na fragment, a przy filtrze trafiającym w każdy wiersz
+     * listy jest ich tyle, ile wierszy. Klucz pamięci niesie oba kolory, więc
+     * dopasowanie na pasku zaznaczenia i poza nim to osobne wpisy — i muszą być
+     * osobne, bo różnią się pismem.
+     */
+    private function drawTextMark(Imagick $canvas, TextMark $mark): void
+    {
+        if ($mark->text === '') {
+            return;
+        }
+
+        $canvas->compositeImage(
+            $this->markBitmap($mark),
+            Imagick::COMPOSITE_OVER,
+            $this->metrics->xOf($mark->column),
+            $this->metrics->topOf($mark->row),
+        );
+    }
+
+    /**
+     * Bitmapa fragmentu: tło na tylu kolumnach, ile znaków, i litery na nim.
+     *
+     * Bitmapa jest o kolumnę szersza od tła — z tego samego powodu, co przy
+     * `textBitmap()`: ogonek ostatniej litery wychodzi poza swoją komórkę,
+     * a ucięty byłby widoczny. Nadmiar zostaje przezroczysty, więc tło kończy
+     * się dokładnie tam, gdzie kończy się dopasowanie.
+     */
+    private function markBitmap(TextMark $mark): Imagick
+    {
+        $color = $this->colorOf($mark->role);
+        $ground = $this->colorOf($mark->ground);
+        $key = "\x1dM" . $mark->text . "\x1e" . $color . "\x1e" . $ground . "\x1e" . $this->metricsKey();
+        $cached = $this->bitmaps->get($key);
+
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $width = max(1, mb_strlen($mark->text) * $this->metrics->columnWidth);
+        $bitmap = new Imagick();
+        $bitmap->newImage(
+            $width + $this->metrics->columnWidth,
+            $this->metrics->rowBitmapHeight(),
+            new ImagickPixel('none'),
+        );
+
+        $fill = new ImagickDraw();
+        $fill->setFillColor(new ImagickPixel($ground));
+        $fill->rectangle(0, 0, $width - 1, $this->metrics->rowHeight - 1);
+        $bitmap->drawImage($fill);
+
+        $bitmap->annotateImage($this->pen($color), 0, $this->metrics->baselineWithinRow(), 0, $mark->text);
 
         $this->bitmaps->put($key, $bitmap);
 

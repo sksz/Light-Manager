@@ -36,6 +36,7 @@ use LightManager\Presentation\Ui\ScreenZone;
 use LightManager\Presentation\Ui\ScrollWindow;
 use LightManager\Presentation\Ui\SectionState;
 use LightManager\Presentation\Ui\SplitAxis;
+use LightManager\Presentation\Ui\SplitState;
 
 /**
  * Ekran modułu: pełny obraz stanu zaznaczonego wpisu.
@@ -63,9 +64,46 @@ use LightManager\Presentation\Ui\SplitAxis;
  */
 final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable, DrawsOwnFrame, NeedsTime
 {
+    /**
+     * Poniżej tylu kolumn wartość nie zawija się, tylko przycina.
+     *
+     * Blok węższy od kilkunastu znaków nie jest już zawinięciem, tylko pionowym
+     * słupkiem sylab — a wtedy wielokropek mówi więcej. Ta sama zasada, którą
+     * `TextView` stosuje do kolumny numerów: element ustępuje, gdy przestaje się
+     * opłacać.
+     */
+    private const WRAP_MINIMUM_COLUMNS = 16;
+
     private readonly ScrollWindow $window;
 
     private readonly SectionState $sections;
+
+    /**
+     * Który z dwóch paneli przyjmuje klawisze.
+     *
+     * Krok 29 rozstrzygnął, że ogniska **nie ma**: strzałki należały do sekcji,
+     * a `PgUp`/`PgDn` do podglądu, i miało to wystarczyć, bo klawisze są
+     * rozłączne. Rozstrzygnięcie zostało odwołane na żądanie użytkownika
+     * (2026-08-12) i powód jest prosty: podgląd tekstu, który nie umie przewinąć
+     * się o wiersz, nie jest podglądem tekstu, a strzałki są jedyne, których
+     * użytkownik szuka odruchowo.
+     *
+     * Klasa jest ta sama, którą podział przeglądarki ma od kroku 24 — wraz
+     * z regułą „brak podziału sprowadza ognisko na pierwszy panel”, bez której
+     * wąskie okno zostawiałoby klawisze u panelu, którego nie widać.
+     */
+    private readonly SplitState $focus;
+
+    /**
+     * Czy **ostatnia** klatka miała dwa panele.
+     *
+     * Klawisze przychodzą bez prostokąta, a o podziale rozstrzyga szerokość okna,
+     * więc odpowiedź musi pochodzić z rysowania. Zapamiętanie jej nie łamie reguły
+     * 11f („rozmiaru okna nie wolno pamiętać”): to nie jest rozmiar, tylko wynik
+     * pytania zadanego przy ostatnim rysowaniu — a rysowanie poprzedza każdy
+     * klawisz.
+     */
+    private bool $splits = false;
 
     /** Czas bieżącej klatki — dla paska postępu, który nie zna postępu. */
     private float $now = 0.0;
@@ -79,6 +117,7 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
     ) {
         $this->window = new ScrollWindow();
         $this->sections = new SectionState();
+        $this->focus = new SplitState();
         $this->sizes = new SizeText($translator);
     }
 
@@ -147,7 +186,16 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
         $labels = ['module.file-info.name', 'layout.zone.preview'];
 
         foreach (Split::halves($zone, SplitAxis::Vertical) as $index => $bounds) {
-            $panel = new Panel($this->translator->translate($labels[$index]));
+            // Panel z ogniskiem poznaje się po akcencie w nawiasach i w etykiecie
+            // — dokładnie tak, jak panel czynny w przeglądarce od kroku 24.
+            // Bez tego przeniesienie ogniska byłoby ruchem bez śladu na ekranie.
+            $focused = $this->focus->focusesSecond() === ($index === 1);
+            $panel = new Panel(
+                $this->translator->translate($labels[$index]),
+                Role::Border,
+                $focused ? Role::Accent : Role::Border,
+                $focused ? Role::Accent : Role::Muted,
+            );
 
             foreach ($panel->draw($bounds) as $primitive) {
                 $primitives[] = $primitive;
@@ -166,7 +214,8 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
         $this->state->advance();
 
         if ($this->state->description() === null) {
-            return (new Label($this->translator->translate('module.file-info.nothing')))->draw($bounds);
+            return (new Label($this->translator->translate('module.file-info.nothing')))
+                ->draw($this->sentenceArea($bounds));
         }
 
         if (!$this->splitsIn($bounds)) {
@@ -181,6 +230,30 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
         }
 
         return $primitives;
+    }
+
+    /**
+     * Prostokąt na zdanie „nie zaznaczono wpisu“ — **wnętrze lewego panelu**, gdy
+     * ekran rysuje własną oprawę.
+     *
+     * Do poprawki z 2026-08-12 zdanie szło na surowy prostokąt ekranu, którego
+     * pierwszy wiersz jest **linią obwódki**: napis siadał na niej i nakładał się
+     * na etykietę „Opis pliku“, litera na literę. Widać to było dopiero wtedy, gdy
+     * opisu nie ma, a panele są dwa — czyli w przypadku, który krok 25 zostawił
+     * bez zrzutu, bo wtedy zaznaczenie znikało wyłącznie w pustym katalogu.
+     * Filtrowanie z kroku 30 dołożyło drugą drogę do tego stanu: lista zawężona
+     * tak, że nie pasuje nic.
+     *
+     * Oprawę rysuje `ownFrame()` **niezależnie od tego, czy opis jest**, więc
+     * zdanie musi liczyć geometrię tak samo, jak liczy ją treść trzy metody niżej.
+     */
+    private function sentenceArea(Rect $bounds): Rect
+    {
+        if (!$this->splitsIn($bounds)) {
+            return $bounds;
+        }
+
+        return Panel::inner(Split::halves($bounds, SplitAxis::Vertical)[0]);
     }
 
     /**
@@ -200,7 +273,7 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
 
         $bar = $this->workBar();
         $list = $bar === null ? $bounds : $bounds->rowsFrom(0, $bounds->rows - 1);
-        $primitives = $this->sectionList($list->rows)->draw($list);
+        $primitives = $this->sectionList($list->rows, $list->columns)->draw($list);
 
         if ($bar === null) {
             return $primitives;
@@ -256,9 +329,9 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
      * zostać**: dwa wywołania `keepVisible()`, z których pierwsze ściąga okno do
      * końca sekcji pod kursorem, a drugie pilnuje jej nagłówka i wygrywa.
      */
-    private function sectionList(int $capacity): SectionList
+    private function sectionList(int $capacity, int $columns): SectionList
     {
-        $sections = $this->sections();
+        $sections = $this->wrapped($this->sections(), $columns);
         $this->sections->moveBy(0, count($sections));
 
         $cursor = $this->sections->cursor();
@@ -277,6 +350,86 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
             $current === null ? null : $cursor,
             $this->window->position($total, $capacity),
         );
+    }
+
+    /**
+     * Sekcje po zawinięciu wartości, które nie mieszczą się obok swojej etykiety.
+     *
+     * Zawijanie dzieje się **tutaj, a nie w `sections()`**, i to jest jedyna
+     * nieoczywistość tej pary metod: wymaga szerokości panelu, a tę zna dopiero
+     * rysowanie. Wywołane stąd trafia jednak przed `rowCount()` i `rowOf()`, więc
+     * przewijanie i suwak liczą wiersze **po** zawinięciu — inaczej sekcja
+     * z długim opisem wystawałaby poniżej okna, a kursor przestałby trafiać
+     * w nagłówki. Liczba **sekcji** się przy tym nie zmienia, więc `handle()`
+     * może pytać o nie bez szerokości i pyta.
+     *
+     * Do poprawki z 2026-08-12 zawijania nie było wcale, a `Label` wartości nie
+     * przycinał: opis od polecenia `file` — dla zdjęcia potrafi mieć sto
+     * dwadzieścia osiem znaków — wychodził poza panel i rysował się po sąsiednim.
+     *
+     * @param list<Section> $sections
+     *
+     * @return list<Section>
+     */
+    private function wrapped(array $sections, int $columns): array
+    {
+        $wrapped = [];
+
+        foreach ($sections as $section) {
+            $rows = [];
+
+            foreach ($section->rows as $row) {
+                foreach ($this->wrappedRow($row, $columns) as $line) {
+                    $rows[] = $line;
+                }
+            }
+
+            $wrapped[] = new Section($section->key, $section->label, $rows, $section->collapsed);
+        }
+
+        return $wrapped;
+    }
+
+    /**
+     * Jeden wiersz opisu rozłożony na tyle wierszy, ile trzeba.
+     *
+     * Kawałki mają **jednakową szerokość**, a ostatni jest dopełniony spacjami,
+     * i to nie jest kosmetyka: `ListRow` dosuwa wartość do prawej krawędzi, więc
+     * kawałki różnej długości ustawiłyby się w schodki. Dopełnienie sprawia, że
+     * blok stoi równo pod pierwszym kawałkiem — czyli tam, gdzie zaczyna się
+     * wartość obok etykiety.
+     *
+     * @return list<ListRow>
+     */
+    private function wrappedRow(ListRow $row, int $columns): array
+    {
+        // Miejsce na wartość obok etykiety, wraz z odstępem od niej. Poniżej
+        // progu czytelności nie zawijamy wcale — wąski panel dostaje wartość
+        // przyciętą, jak przed tą poprawką, bo blok o szerokości pięciu znaków
+        // byłby gorszy od wielokropka.
+        $room = $columns - mb_strlen($row->left) - 1;
+
+        if ($room < self::WRAP_MINIMUM_COLUMNS || mb_strlen($row->right) <= $room) {
+            return [$row];
+        }
+
+        $pieces = [];
+        $length = mb_strlen($row->right);
+
+        for ($offset = 0; $offset < $length; $offset += $room) {
+            $piece = mb_substr($row->right, $offset, $room);
+            $pieces[] = $offset === 0
+                ? $piece
+                : $piece . str_repeat(' ', $room - mb_strlen($piece));
+        }
+
+        $lines = [new ListRow($row->left, $pieces[0], $row->role)];
+
+        foreach (array_slice($pieces, 1) as $piece) {
+            $lines[] = new ListRow('', $piece, $row->role);
+        }
+
+        return $lines;
     }
 
     /**
@@ -403,39 +556,138 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
         };
     }
 
+    /**
+     * Klawisze ekranu — **zależne od tego, który panel ma ognisko**.
+     *
+     * Krok 29 rozdzielił je inaczej: strzałki należały na stałe do sekcji,
+     * a `PgUp`/`PgDn`/`Home` na stałe do podglądu, bo „panele odpowiadają na
+     * rozłączne klawisze, więc nie ma czego przełączać”. Rozstrzygnięcie zostało
+     * odwołane na żądanie użytkownika (2026-08-12): podgląd bez strzałek nie jest
+     * podglądem tekstu, a strzałek nie da się mieć w dwóch miejscach naraz.
+     *
+     * Spis pokazuje **wyłącznie to, co działa tu i teraz** — tą samą regułą, którą
+     * przeglądarka pokazuje `Tab` dopiero przy włączonym podziale: podpowiedź
+     * o klawiszu, który nic nie robi, jest kłamstwem, a pasek stanu i okno pomocy
+     * mają jedno źródło.
+     */
     public function bindings(): array
     {
-        return [
-            KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move'),
-            KeyBinding::of([Key::Enter], 'help.key.collapse'),
-            KeyBinding::character('s', 'module.file-info.help.checksum'),
-            KeyBinding::character('d', 'module.file-info.help.diskUsage'),
-            KeyBinding::of([Key::Escape], 'help.key.back'),
-        ];
+        $bindings = [];
+
+        if ($this->focus->focusesSecond()) {
+            $bindings[] = KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'module.file-info.help.scrollLine');
+            $bindings[] = KeyBinding::of([Key::PageUp, Key::PageDown], 'module.file-info.help.scrollPreview');
+            $bindings[] = KeyBinding::of([Key::Home, Key::End], 'module.file-info.help.edges');
+        } else {
+            $bindings[] = KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move');
+            $bindings[] = KeyBinding::of([Key::Enter], 'help.key.collapse');
+            $bindings[] = KeyBinding::of([Key::Home, Key::End], 'module.file-info.help.sectionEdges');
+        }
+
+        // Klawisz ogniska pokazujemy dopiero wtedy, gdy jest dokąd je przenieść —
+        // w wąskim oknie prawego panelu nie ma.
+        if ($this->splits) {
+            $bindings[] = KeyBinding::of([Key::Tab], 'module.file-info.help.focus');
+        }
+
+        $bindings[] = KeyBinding::alt('z', 'module.file-info.help.wrap');
+        $bindings[] = KeyBinding::character('s', 'module.file-info.help.checksum');
+        $bindings[] = KeyBinding::character('d', 'module.file-info.help.diskUsage');
+        $bindings[] = KeyBinding::of([Key::Escape], 'help.key.back');
+
+        return $bindings;
     }
 
     public function handle(KeyPress $key): ScreenOutcome
     {
-        switch (true) {
-            case $key->key === Key::Escape:
-                return ScreenOutcome::close();
-            case $key->key === Key::ArrowUp:
-                $this->sections->moveBy(-1, count($this->sections()));
-
-                return ScreenOutcome::stay();
-            case $key->key === Key::ArrowDown:
-                $this->sections->moveBy(1, count($this->sections()));
-
-                return ScreenOutcome::stay();
-            case $key->key === Key::Enter:
-                return $this->toggleSection();
-            case $key->key === Key::Character && $key->raw === 's':
-                return $this->startChecksum();
-            case $key->key === Key::Character && $key->raw === 'd':
-                return $this->startDiskUsage();
-            default:
-                return ScreenOutcome::stay();
+        if ($key->key === Key::Escape) {
+            return ScreenOutcome::close();
         }
+
+        if ($key->key === Key::Tab) {
+            return $this->moveFocus();
+        }
+
+        // Klawisze niezwiązane z żadnym panelem — działają niezależnie od ogniska,
+        // bo dotyczą **opisywanego pliku**, a nie tego, na co się patrzy.
+        return match (true) {
+            $this->isLetter($key, 'z', alt: true) => ScreenOutcome::stay($this->state->toggleTextWrap()),
+            $this->isLetter($key, 's') => $this->startChecksum(),
+            $this->isLetter($key, 'd') => $this->startDiskUsage(),
+            $this->focus->focusesSecond() => $this->toPreview($key),
+            default => $this->toSections($key),
+        };
+    }
+
+    /**
+     * `Tab` przenosi ognisko, ale wyłącznie wtedy, gdy jest dokąd: przy jednym
+     * panelu klawisz **nie jest zużyty** i wraca do rdzenia — tak samo, jak
+     * w przeglądarce od kroku 24.
+     */
+    private function moveFocus(): ScreenOutcome
+    {
+        if ($this->splits) {
+            $this->focus->moveFocus();
+        }
+
+        return ScreenOutcome::stay();
+    }
+
+    /**
+     * Klawisze podglądu. Strzałka to **linijka panelu**, nie wiersz pliku —
+     * przy zawijaniu to nie to samo, a linijka jest tym, co użytkownik widzi.
+     */
+    private function toPreview(KeyPress $key): ScreenOutcome
+    {
+        match ($key->key) {
+            Key::ArrowUp => $this->state->scrollTextRows(-1),
+            Key::ArrowDown => $this->state->scrollTextRows(1),
+            Key::PageUp => $this->state->scrollTextPanels(-1),
+            Key::PageDown => $this->state->scrollTextPanels(1),
+            Key::Home => $this->state->rewindText(),
+            Key::End => $this->state->forwardTextToEnd(),
+            default => null,
+        };
+
+        return ScreenOutcome::stay();
+    }
+
+    private function toSections(KeyPress $key): ScreenOutcome
+    {
+        $count = count($this->sections());
+
+        return match ($key->key) {
+            Key::ArrowUp => $this->movedSection(-1, $count),
+            Key::ArrowDown => $this->movedSection(1, $count),
+            Key::Home => $this->movedSection(-$count, $count),
+            Key::End => $this->movedSection($count, $count),
+            Key::Enter => $this->toggleSection(),
+            default => ScreenOutcome::stay(),
+        };
+    }
+
+    private function movedSection(int $delta, int $count): ScreenOutcome
+    {
+        $this->sections->moveBy($delta, $count);
+
+        return ScreenOutcome::stay();
+    }
+
+    /**
+     * Litera wraz z modyfikatorem — porównanie, które od kroku 29 musi być jawne.
+     *
+     * Do niego wystarczało `raw === 's'`, bo `Ctrl`+litera trafiała wcześniej do
+     * skrótów modułów i tu nie docierała. `Alt`+litera dociera, więc czynność
+     * pytana o samą literę odpowiadałaby także na `Alt`+tę literę — a to jest
+     * dokładnie ten rodzaj pomyłki, którego nie widać w testach ekranu, tylko
+     * w używaniu aplikacji.
+     */
+    private function isLetter(KeyPress $key, string $letter, bool $alt = false): bool
+    {
+        return $key->key === Key::Character
+            && $key->raw === $letter
+            && $key->alt === $alt
+            && !$key->ctrl;
     }
 
     private function toggleSection(): ScreenOutcome
@@ -469,8 +721,17 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
     }
 
     /** Podział powstaje wtedy i tylko wtedy, gdy mieści się w oknie (krok 24). */
+    /**
+     * Czy w tym prostokącie powstaną dwa panele — **wraz z uzgodnieniem ogniska**.
+     *
+     * Uzgodnienie jest tu z tego samego powodu, co w przeglądarce: okno zwężone
+     * poniżej progu zostawiłoby klawisze u podglądu, którego już nie widać.
+     */
     private function splitsIn(Rect $zone): bool
     {
-        return $zone->rows >= 3 && Split::fits($zone, SplitAxis::Vertical);
+        $this->splits = $zone->rows >= 3 && Split::fits($zone, SplitAxis::Vertical);
+        $this->focus->useSplit($this->splits);
+
+        return $this->splits;
     }
 }

@@ -16,6 +16,7 @@ use LightManager\Application\Ui\Primitive\CornerBrackets;
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Primitive\RoundRect;
 use LightManager\Application\Ui\Primitive\Scrollbar;
+use LightManager\Application\Ui\Primitive\TextMark;
 use LightManager\Application\Ui\Primitive\TextRun;
 use LightManager\Application\Ui\Primitive\Weight;
 use LightManager\Application\Ui\Rect;
@@ -157,6 +158,7 @@ final class OpenGlFrameRenderer implements FrameRendererPort
     {
         match (true) {
             $primitive instanceof TextRun => $this->drawText($vg, $primitive),
+            $primitive instanceof TextMark => $this->drawTextMark($vg, $primitive),
             $primitive instanceof RoundRect => $this->drawRoundRect($vg, $primitive),
             $primitive instanceof CornerBrackets => $this->drawBrackets($vg, $primitive),
             $primitive instanceof Bar => $this->drawBar($vg, $primitive),
@@ -186,6 +188,38 @@ final class OpenGlFrameRenderer implements FrameRendererPort
 
         $vg->fillColor($this->colorOf($text->role));
         $vg->text($x, (float) $this->metrics->baselineOf($text->row), $text->text);
+    }
+
+    /**
+     * Podświetlony fragment: tło na tylu kolumnach, ile znaków, i pismo na nim.
+     *
+     * Tekstur ani pamięci podręcznej nie ma tu z czego brać — NanoVG rysuje
+     * i prostokąt, i napis wprost, a wygrana z zapamiętywania bitmap była
+     * własnością toru sixelowego, nie tego (D54).
+     */
+    private function drawTextMark(VGContext $vg, TextMark $mark): void
+    {
+        if ($mark->text === '') {
+            return;
+        }
+
+        $x = (float) $this->metrics->xOf($mark->column);
+
+        $vg->beginPath();
+        $vg->rect(
+            $x,
+            (float) $this->metrics->topOf($mark->row),
+            (float) max(1, mb_strlen($mark->text) * $this->metrics->columnWidth),
+            (float) $this->metrics->rowHeight,
+        );
+        $vg->fillColor($this->colorOf($mark->ground));
+        $vg->fill();
+
+        $vg->fontFace(VgContextService::FONT_NAME);
+        $vg->fontSize($this->metrics->fontSize);
+        $vg->textAlign(VGAlign::LEFT | VGAlign::BASELINE);
+        $vg->fillColor($this->colorOf($mark->role));
+        $vg->text($x, (float) $this->metrics->baselineOf($mark->row), $mark->text);
     }
 
     /**

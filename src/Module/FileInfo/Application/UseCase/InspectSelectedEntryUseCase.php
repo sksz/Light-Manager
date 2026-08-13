@@ -73,40 +73,56 @@ final class InspectSelectedEntryUseCase
         }
 
         $settings = $this->settings->current();
+        $content = $this->content($path, $stat);
         $sections = [
-            $this->identity($path, $stat, $context->selection ?? ''),
+            $this->identity($stat, $context->selection ?? '', $content),
             $this->size($stat),
             $this->permissions($stat, FileInfoSettings::inode($settings)),
             $this->times($stat, FileInfoSettings::relativeTime($settings), $this->now()),
         ];
 
-        return new EntryDescription($context->selection ?? '', $sections, $stat->kind, $stat->sizeInBytes);
+        return new EntryDescription(
+            $context->selection ?? '',
+            $sections,
+            $stat->kind,
+            $stat->sizeInBytes,
+            $content,
+        );
     }
 
     /**
-     * Czym wpis jest: rodzaj z `lstat`, opis od `file` i cel dowiązania.
+     * Opis treści od polecenia `file` — **wyłącznie dla zwykłych plików**.
      *
-     * `file` pytamy **wyłącznie o zwykłe pliki**. Dla katalogu, gniazda czy
-     * kolejki nazwanej polecenie powtórzyłoby rodzaj, który stoi wiersz wyżej —
-     * a kosztuje proces potomny wraz z limitem czasu.
+     * Dla katalogu, gniazda czy kolejki nazwanej polecenie powtórzyłoby rodzaj,
+     * który stoi wiersz wyżej, a kosztuje proces potomny wraz z limitem czasu.
+     * Od kroku 29 wynik jedzie dalej niż do wiersza „Zawartość”: jest drugim
+     * stopniem kaskady rozpoznającej plik tekstowy.
      */
-    private function identity(string $path, FileStat $stat, string $name): DescriptionSection
+    private function content(string $path, FileStat $stat): ?string
     {
+        if ($stat->kind !== EntryKind::File) {
+            return null;
+        }
+
         $settings = $this->settings->current();
+
+        return $this->inspector->describe(
+            $path,
+            FileInfoSettings::timeout($settings),
+            FileInfoSettings::arguments($settings),
+        );
+    }
+
+    /** Czym wpis jest: rodzaj z `lstat`, opis od `file` i cel dowiązania. */
+    private function identity(FileStat $stat, string $name, ?string $content): DescriptionSection
+    {
         $rows = [
             new DescriptionRow('module.file-info.row.name', $name),
             new DescriptionRow('module.file-info.row.kind', $this->translator->translate($stat->kind->labelKey())),
         ];
 
-        if ($stat->kind === EntryKind::File) {
-            $rows[] = new DescriptionRow(
-                'module.file-info.row.content',
-                $this->inspector->describe(
-                    $path,
-                    FileInfoSettings::timeout($settings),
-                    FileInfoSettings::arguments($settings),
-                ),
-            );
+        if ($content !== null) {
+            $rows[] = new DescriptionRow('module.file-info.row.content', $content);
         }
 
         if ($stat->linkTarget !== null) {

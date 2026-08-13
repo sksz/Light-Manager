@@ -14,6 +14,7 @@ use LightManager\Application\Ui\Primitive\CornerBrackets;
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Primitive\RoundRect;
 use LightManager\Application\Ui\Primitive\Scrollbar;
+use LightManager\Application\Ui\Primitive\TextMark;
 use LightManager\Application\Ui\Primitive\TextRun;
 use LightManager\Application\Ui\Primitive\Weight;
 use LightManager\Application\Ui\Rect;
@@ -183,7 +184,59 @@ final class SixelFrameEncoderTest extends TestCase
             'włos' => [[new Bar(new Rect(4, 10, 1, 1), Role::Border, Weight::Hairline)]],
             'krawędź' => [[new Bar($line, Role::Accent, Weight::Edge)]],
             'suwak' => [[new Scrollbar(new Rect(1, 37, 8, 1), new ScrollPosition(0, 4, 20))]],
+            'podświetlenie' => [[new TextMark(1, 2, 'alf', Role::Background, Role::Accent)]],
         ];
+    }
+
+    /**
+     * Podświetlenie **kładzie tło pod pismem**, a nie samo pismo w innym kolorze.
+     *
+     * Sprawdzane pikselem, bo to jest jedyna różnica, która ósmy prymityw
+     * usprawiedliwia: gdyby rysował sam napis, klatka byłaby nieodróżnialna od
+     * `TextRun` w tej samej roli — a wtedy prymityw byłby zbędny.
+     */
+    public function testHighlightPaintsGroundBehindTheGlyphs(): void
+    {
+        $canvas = $this->encoder->drawCanvas(
+            new Frame([
+                new Plane('chrome', new Rect(0, 0, self::ROWS, self::COLUMNS), []),
+                new Plane('content', new Rect(0, 0, self::ROWS, self::COLUMNS), [
+                    new TextMark(1, 2, 'alf', Role::Background, Role::Accent),
+                ]),
+            ]),
+            self::options(),
+            self::WIDTH,
+            self::HEIGHT,
+            self::ROWS,
+            self::COLUMNS,
+        );
+
+        // Prawy skraj trzeciej kolumny fragmentu: wewnątrz tła, poza literami.
+        $columnWidth = intdiv(self::WIDTH, self::COLUMNS);
+        $rowHeight = intdiv(self::HEIGHT, self::ROWS);
+        $pixel = $canvas->getImagePixelColor(5 * $columnWidth - 1, $rowHeight + 1);
+
+        self::assertSame(strtolower(self::options()->theme->accent), self::hexOf($pixel));
+
+        $canvas->clear();
+    }
+
+    /** Tło jest szerokie na tyle kolumn, ile fragment ma znaków — ani jednej więcej. */
+    public function testHighlightEndsWhereTheFragmentEnds(): void
+    {
+        self::assertNotSame(
+            $this->encode([new TextMark(1, 2, 'alf', Role::Background, Role::Accent)]),
+            $this->encode([new TextMark(1, 2, 'alfa', Role::Background, Role::Accent)]),
+        );
+    }
+
+    /** Rola tła wchodzi do klucza pamięci podręcznej — inaczej drugi fragment wziąłby barwę pierwszego. */
+    public function testHighlightGroundChangesTheFrame(): void
+    {
+        self::assertNotSame(
+            $this->encode([new TextMark(1, 2, 'alf', Role::Background, Role::Accent)]),
+            $this->encode([new TextMark(1, 2, 'alf', Role::Background, Role::Danger)]),
+        );
     }
 
     /** @param list<Primitive> $content */

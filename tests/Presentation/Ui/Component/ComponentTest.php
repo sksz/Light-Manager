@@ -53,6 +53,40 @@ final class ComponentTest extends TestCase
         self::assertSame(10, mb_strlen($primitives[0]->text), 'przycięty napis wypełnia szerokość co do znaku');
     }
 
+    /**
+     * **Wartość po prawej też się przycina.**
+     *
+     * Do poprawki z 2026-08-12 przycinała się wyłącznie treść po lewej, a wartość
+     * szła na płótno w całości: opis od polecenia `file` dla zdjęcia — sto
+     * dwadzieścia osiem znaków — rysował się w czterdziestokolumnowym panelu jako
+     * napis kończący się osiemdziesiąt osiem kolumn za jego krawędzią, czyli po
+     * sąsiednim panelu.
+     */
+    public function testLabelTrimsTheValueSoItNeverLeavesTheRectangle(): void
+    {
+        $bounds = new Rect(5, 2, 1, 40);
+        $primitives = (new Label('Zawartość', str_repeat('x', 128)))->draw($bounds);
+
+        foreach ($primitives as $primitive) {
+            self::assertInstanceOf(TextRun::class, $primitive);
+            self::assertLessThanOrEqual(
+                $bounds->right(),
+                $primitive->column + mb_strlen($primitive->text) - 1,
+                'napis wychodzi poza prostokąt',
+            );
+            self::assertGreaterThanOrEqual($bounds->column, $primitive->column);
+        }
+    }
+
+    /** Wartość mieszcząca się w prostokącie zostaje nietknięta — przycina się tylko za długa. */
+    public function testLabelLeavesAFittingValueAlone(): void
+    {
+        $primitives = (new Label('nazwa', '12 kB'))->draw(new Rect(0, 0, 1, 20));
+
+        self::assertInstanceOf(TextRun::class, $primitives[1]);
+        self::assertSame('12 kB', $primitives[1]->text);
+    }
+
     public function testEmptyRectangleProducesNothing(): void
     {
         $bounds = new Rect(0, 0, 0, 0);

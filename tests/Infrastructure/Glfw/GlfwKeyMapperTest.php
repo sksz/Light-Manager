@@ -119,6 +119,35 @@ final class GlfwKeyMapperTest extends TestCase
         self::assertNull($this->mapper->mapKeyEvent(GLFW_KEY_Q, GLFW_PRESS, 0));
     }
 
+    /** `Alt`+litera — druga para modyfikatora, od kroku 29 (podgląd tekstu). */
+    public function testAltLetterComesFromKeyEventAsLowercaseLetter(): void
+    {
+        $press = $this->mapper->mapKeyEvent(GLFW_KEY_Z, GLFW_PRESS, GLFW_MOD_ALT);
+
+        self::assertNotNull($press);
+        self::assertSame(Key::Character, $press->key);
+        self::assertSame('z', $press->raw);
+        self::assertTrue($press->alt);
+        self::assertFalse($press->ctrl);
+    }
+
+    /**
+     * `Ctrl` wygrywa z `Alt`, bo słownik zna modyfikatory rozłącznie, a skróty
+     * modułów wiszą na `Ctrl`+literze od kroku 20.
+     */
+    public function testCtrlWinsOverAltWhenBothAreHeld(): void
+    {
+        $press = $this->mapper->mapKeyEvent(GLFW_KEY_Z, GLFW_PRESS, GLFW_MOD_CONTROL | GLFW_MOD_ALT);
+
+        self::assertTrue($press?->ctrl);
+        self::assertFalse($press->alt);
+    }
+
+    public function testAltWithNonLetterIsIgnored(): void
+    {
+        self::assertNull($this->mapper->mapKeyEvent(GLFW_KEY_1, GLFW_PRESS, GLFW_MOD_ALT));
+    }
+
     public function testCtrlWithNonLetterIsIgnored(): void
     {
         self::assertNull($this->mapper->mapKeyEvent(GLFW_KEY_1, GLFW_PRESS, GLFW_MOD_CONTROL));

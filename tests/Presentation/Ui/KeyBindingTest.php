@@ -53,4 +53,25 @@ final class KeyBindingTest extends TestCase
         self::assertSame('.', KeyBinding::character('.', 'whatever')->display());
         self::assertSame('Enter / →', KeyBinding::of([Key::Enter, Key::ArrowRight], 'whatever')->display());
     }
+
+    /** `Alt`+litera — druga para modyfikatora, od kroku 29. */
+    public function testAltBindingMatchesOnlyWithAlt(): void
+    {
+        $binding = KeyBinding::alt('z', 'module.file-info.help.wrap');
+
+        self::assertTrue($binding->matches(KeyPress::alt('z')));
+        self::assertFalse($binding->matches(KeyPress::character('z')));
+        self::assertFalse($binding->matches(KeyPress::ctrl('z')));
+    }
+
+    /** Ta sama pułapka, co przy `Ctrl`: goła litera nie ma łapać skrótu. */
+    public function testPlainCharacterBindingDoesNotMatchAlt(): void
+    {
+        self::assertFalse(KeyBinding::character('z', 'help.key.hidden')->matches(KeyPress::alt('z')));
+    }
+
+    public function testDisplaysAltWithUppercaseLetter(): void
+    {
+        self::assertSame('Alt+Z', KeyBinding::alt('z', 'whatever')->display());
+    }
 }

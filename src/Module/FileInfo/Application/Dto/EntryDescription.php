@@ -38,6 +38,17 @@ final class EntryDescription
          */
         public readonly EntryKind $kind = EntryKind::Unknown,
         public readonly int $sizeInBytes = 0,
+        /**
+         * Surowe wyjście polecenia `file` — to samo, które stoi w wierszu
+         * „Zawartość”, ale **jako dana, nie jako napis wiersza**.
+         *
+         * Dopisane w kroku 29 z tego samego powodu, dla którego obok sekcji
+         * jadą już rodzaj i rozmiar: rozpoznanie pliku tekstowego pyta o nie
+         * drugim stopniem kaskady, a wygrzebywanie go z sekcji po kluczu
+         * etykiety byłoby czytaniem interfejsu zamiast czytaniem danych.
+         * `null` — polecenia nie uruchamiano, bo wpis nie jest zwykłym plikiem.
+         */
+        public readonly ?string $content = null,
     ) {
     }
 }

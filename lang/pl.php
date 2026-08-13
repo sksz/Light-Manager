@@ -225,6 +225,8 @@ return [
     'bench.scenario.split' => 'klatka podzielona',
     'bench.scenario.background' => 'klatka z pracą w tle',
     'bench.scenario.columns' => 'lista w kolumnach',
+    'bench.scenario.text-view' => 'podgląd tekstu',
+    'bench.scenario.highlight' => 'lista z podświetleniem',
 
     'bench.transfer.title' => 'Przesył klatki do terminala',
     'bench.transfer.blob' => '  rozmiar klatki:     {kilobytes} kB',

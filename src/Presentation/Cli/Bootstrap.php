@@ -252,6 +252,7 @@ final class Bootstrap
         return [
             new BrowserModule($state, $translator, $settings, ImagePreviewService::getInstance()),
             new FileInfoModule(
+                $state,
                 $translator,
                 $settings,
                 ImagePreviewService::getInstance(),

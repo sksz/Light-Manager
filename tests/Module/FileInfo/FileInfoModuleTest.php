@@ -77,9 +77,13 @@ final class FileInfoModuleTest extends TestCase
         );
 
         self::assertSame(
-            ['timeout', 'arguments', 'timeFormat', 'inode', 'checksum', 'checksumLimit', 'diskUsage', 'backgroundTimeout'],
+            [
+                'timeout', 'arguments', 'timeFormat', 'inode', 'checksum', 'checksumLimit',
+                'diskUsage', 'backgroundTimeout', 'textPreview', 'lineNumbers', 'textWrap',
+            ],
             $keys,
-            'krok 26 domyka listę dwiema pozycjami, które krok 25 świadomie odłożył',
+            'krok 26 domknął listę dwiema pozycjami odłożonymi w kroku 25, krok 29 dołożył podgląd tekstu, '
+            . 'a poprawka z 2026-08-12 — zawijanie, które do tej pory żyło wyłącznie pod Alt+Z',
         );
     }
 
@@ -129,6 +133,35 @@ final class FileInfoModuleTest extends TestCase
         $screen->useContext(new ModuleContext('/home', 'znikl.txt', ContextEntryKind::File));
 
         self::assertContains('module.file-info.nothing', self::textsOf($screen->draw(self::panel())));
+    }
+
+    /**
+     * Zdanie „nie zaznaczono wpisu“ stoi **wewnątrz lewego panelu**, a nie na
+     * linii jego obwódki.
+     *
+     * Usterka zgłoszona 2026-08-12: przy dwóch panelach napis siadał na wierszu
+     * zerowym prostokąta ekranu — czyli na kresce — i nakładał się na etykietę
+     * „Opis pliku“, litera na literę. Widać ją było dopiero wtedy, gdy opisu nie
+     * ma **i** okno jest dość szerokie na podział; filtrowanie z kroku 30 dołożyło
+     * drugą drogę do tego stanu.
+     */
+    public function testTheNoSelectionSentenceStaysInsideTheLeftPanel(): void
+    {
+        $this->app->stats->deny('/home/znikl.txt');
+
+        $screen = $this->screen();
+        $screen->useContext(new ModuleContext('/home', 'znikl.txt', ContextEntryKind::File));
+
+        // Szeroko, żeby ekran naprawdę narysował własną oprawę (próg z kroku 24).
+        $bounds = new Rect(0, 0, 16, 120);
+        $runs = array_values(array_filter(
+            $screen->draw($bounds),
+            static fn (Primitive $primitive): bool => $primitive instanceof TextRun,
+        ));
+
+        self::assertCount(1, $runs);
+        self::assertGreaterThan($bounds->row, $runs[0]->row, 'napis leży pod górną kreską, nie na niej');
+        self::assertGreaterThan($bounds->column, $runs[0]->column, 'i za lewą kreską, nie na niej');
     }
 
     /**

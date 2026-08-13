@@ -97,6 +97,7 @@ final class ScreenFixture
         // wyłącznie porty — a testy dostają ekran przez ten sam `screen()`,
         // którym dostaje go aplikacja.
         $fileInfo = new FileInfoModule(
+            $this->state,
             $translator,
             $settingsStore,
             new StubImagePreview(),

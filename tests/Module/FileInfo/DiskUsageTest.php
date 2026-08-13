@@ -17,6 +17,7 @@ use LightManager\Application\Ui\Role;
 use LightManager\Module\FileInfo\Application\FileInfoSettings;
 use LightManager\Module\FileInfo\Presentation\FileInfoModule;
 use LightManager\Module\FileInfo\Presentation\FileInfoScreen;
+use LightManager\Presentation\Cli\LoopState;
 use LightManager\Tests\Support\InMemorySettings;
 use LightManager\Tests\Support\StubBackgroundProcess;
 use LightManager\Tests\Support\StubChecksums;
@@ -285,13 +286,12 @@ final class DiskUsageTest extends TestCase
             ->add(self::DIRECTORY, StubFileStat::directory(7))
             ->add(self::FILE);
 
+        $settings ??= (new Settings())->withModuleValue(FileInfoSettings::ID, FileInfoSettings::DISK_USAGE, true);
+
         $module = new FileInfoModule(
+            new LoopState($settings),
             new StubTranslator(),
-            new InMemorySettings($settings ?? (new Settings())->withModuleValue(
-                FileInfoSettings::ID,
-                FileInfoSettings::DISK_USAGE,
-                true,
-            )),
+            new InMemorySettings($settings),
             new StubImagePreview(),
             $processes,
             new StubFileInspector('ASCII text'),

@@ -446,9 +446,13 @@ final class InputHandlerTest extends TestCase
         $this->special(Key::Enter);
         $this->special(Key::ArrowRight);
 
+        // Okno musi być na tyle wysokie, żeby pasek zakładek w ogóle się
+        // narysował: ekran ustawień składa się z `Slot::fixed()`, więc przy
+        // braku miejsca pozycje **znikają** zamiast się przewijać (reguła 11e),
+        // a zakładka file-info ma od kroku 29 dziesięć pozycji.
         self::assertContains(
             'module.file-info.name',
-            $this->drawCurrentScreen(10, 120),
+            $this->drawCurrentScreen(20, 120),
             'zakładka się nie zmieniła',
         );
     }

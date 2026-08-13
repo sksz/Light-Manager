@@ -10,12 +10,14 @@ use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Domain\ValueObject\Entry;
+use LightManager\Module\Browser\Domain\ValueObject\NameFilter;
 use LightManager\Presentation\Ui\Component\Align;
 use LightManager\Presentation\Ui\Component\Column;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\Table;
 use LightManager\Presentation\Ui\Component\TableRow;
+use LightManager\Presentation\Ui\Component\TextSpan;
 use LightManager\Presentation\Ui\ComponentInterface;
 use LightManager\Presentation\Ui\ScrollWindow;
 
@@ -46,6 +48,9 @@ use LightManager\Presentation\Ui\ScrollWindow;
 final class EntryList implements ComponentInterface
 {
     private const EMPTY_DIRECTORY_KEY = 'module.browser.empty';
+
+    /** Pusto **po zawężeniu** to co innego niż pusty katalog — i tak ma się czytać. */
+    private const NO_MATCH_KEY = 'module.browser.filter.none';
 
     /** Skróty jednostek są międzynarodowe — nie przechodzą przez katalog napisów. */
     private const SIZE_UNITS = ['B', 'kB', 'MB', 'GB', 'TB'];
@@ -88,6 +93,14 @@ final class EntryList implements ComponentInterface
         private readonly bool $details = true,
         /** Czy nad listą stoi wiersz z nazwami kolumn — ustawienie modułu. */
         private readonly bool $header = false,
+        /**
+         * Fragment, którym lista jest zawężona — **tylko do podświetlenia**.
+         *
+         * Samo zawężenie zrobił już panel (`BrowserState`), więc komponent
+         * dostaje listę gotową; filtr jest mu potrzebny wyłącznie po to, by
+         * wiedzieć, którą część nazwy pokazać jako dopasowaną.
+         */
+        private readonly NameFilter $filter = new NameFilter(''),
     ) {
     }
 
@@ -108,7 +121,7 @@ final class EntryList implements ComponentInterface
         }
 
         if ($this->directory->isEmpty()) {
-            return (new Label($this->translator->translate(self::EMPTY_DIRECTORY_KEY)))->draw($bounds);
+            return $this->nothing($bounds);
         }
 
         $this->window->useContext($this->directory->path()->value);
@@ -132,6 +145,41 @@ final class EntryList implements ComponentInterface
             $this->window->position(count($entries), min($capacity, count($rows))),
             $this->header,
         ))->draw($bounds);
+    }
+
+    /**
+     * Panel bez wierszy: zdanie o tym, dlaczego jest pusty — **pod nagłówkiem
+     * kolumn, a nie zamiast niego**.
+     *
+     * Do poprawki z 2026-08-12 zdanie zastępowało całą tabelę razem z nagłówkiem,
+     * więc panel bez wyników tracił wiersz „Nazwa · Rozmiar · Zmieniony · Prawa“,
+     * a przy podziale ekranu obie listy przestawały się zgadzać w pionie — jedna
+     * miała nagłówek, druga nie. Pusto znaczy „nie ma wierszy“, a nie „nie ma
+     * kolumn“; tabela z pustym ciałem to nadal tabela.
+     *
+     * @return list<Primitive>
+     */
+    private function nothing(Rect $bounds): array
+    {
+        $sentence = new Label($this->translator->translate(
+            $this->filter->isEmpty() ? self::EMPTY_DIRECTORY_KEY : self::NO_MATCH_KEY,
+        ));
+
+        if (!$this->header) {
+            return $sentence->draw($bounds);
+        }
+
+        $primitives = (new Table($this->columns(), [], null, null, true))->draw($bounds);
+
+        if ($bounds->rows < 2) {
+            return $primitives;
+        }
+
+        foreach ($sentence->draw($bounds->line(1)) as $primitive) {
+            $primitives[] = $primitive;
+        }
+
+        return $primitives;
     }
 
     /**
@@ -200,7 +248,31 @@ final class EntryList implements ComponentInterface
                 $entry->permissionsAsText(),
             ],
             $entry->isDirectory() ? Role::Accent : Role::Text,
+            $this->marksIn($entry),
         );
+    }
+
+    /**
+     * Zakresy dopasowania w nazwie — w kolumnie zerowej i tylko w niej.
+     *
+     * Ukośnik dopisany katalogowi stoi **za** nazwą, więc przesunięcia liczone
+     * w nazwie zgadzają się z treścią komórki co do znaku i nie wymagają
+     * przeliczenia.
+     *
+     * Przy pustym filtrze oddaje pustą tablicę i to jest cała cena, jaką klatka
+     * bez filtra płaci za istnienie tego kroku: jedno porównanie napisu na wiersz.
+     *
+     * @return array<int, list<TextSpan>>
+     */
+    private function marksIn(Entry $entry): array
+    {
+        if ($this->filter->isEmpty()) {
+            return [];
+        }
+
+        $spans = TextSpan::occurrencesOf($this->filter->value, $entry->name);
+
+        return $spans === [] ? [] : [0 => $spans];
     }
 
     /**

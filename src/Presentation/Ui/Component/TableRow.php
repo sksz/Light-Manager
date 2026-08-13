@@ -20,13 +20,26 @@ use LightManager\Application\Ui\Role;
  * potrafią sobie tę szerokość interpretować po swojemu — a wtedy kolumny
  * w kolejnych wierszach przestałyby się zgadzać. Wyrównanie kolumn w pionie jest
  * jedyną rzeczą, która odróżnia tabelę od listy napisów.
+ *
+ * Od kroku 30 wiersz niesie ponadto **zakresy dopasowania** — i niesie właśnie
+ * zakresy, a nie podzieloną na kawałki treść. Podział wymagałby wiedzy, której
+ * wiersz nie ma: od której kolumny zaczyna się napis i ile z niego zostanie po
+ * przycięciu. Pusta tablica znaczy „nic nie jest podświetlone” i jest
+ * **wartością domyślną**, więc wiersz bez dopasowania kosztuje dokładnie tyle,
+ * co przed tamtym krokiem.
  */
 final readonly class TableRow
 {
-    /** @param list<string> $cells treść komórek, w kolejności kolumn */
+    /**
+     * @param list<string>                $cells treść komórek, w kolejności kolumn
+     * @param array<int, list<TextSpan>>  $marks zakresy dopasowania wedle numeru
+     *                                           kolumny; komórki bez dopasowania
+     *                                           klucza nie mają
+     */
     public function __construct(
         public array $cells,
         public Role $role = Role::Text,
+        public array $marks = [],
     ) {
     }
 }

@@ -204,6 +204,8 @@ return [
     'bench.scenario.split' => 'split frame',
     'bench.scenario.background' => 'frame with background work',
     'bench.scenario.columns' => 'list with columns',
+    'bench.scenario.text-view' => 'text preview',
+    'bench.scenario.highlight' => 'list with highlighting',
 
     'bench.transfer.title' => 'Frame transfer to the terminal',
     'bench.transfer.blob' => '  frame size:         {kilobytes} kB',

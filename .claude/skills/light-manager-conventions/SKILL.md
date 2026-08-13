@@ -220,13 +220,74 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     w pomiarze (bez niej mierzy się zlecenie klatki, nie klatkę) — w aplikacji
     tej bariery nie ma i mieć nie powinna.
 
+11i. **Komponent nie czyta** (krok 29, D58). `TextView` pokazuje treść pliku
+    i **pliku nie zna**: dostaje `list<string>` wierszy już zdekodowanych,
+    z rozwiniętymi tabulatorami i oznaczonymi znakami sterującymi. Wejście-wyjście
+    zostaje w module (`TextPreviewPort` + `TextPreviewService` w `Module/FileInfo`),
+    bo tam mieszka wiedza o tym, co wolno przeczytać. Odczyt idzie **przesuwnym
+    oknem jak w edytorze**: w pamięci są tylko widoczne wiersze, przewinięcie
+    porzuca poprzednie i doczytuje następne. Cztery konsekwencje: miejsce w pliku
+    to **bajt** (`TextAnchor`), a nie numer wiersza — numer jedzie obok i liczy się
+    przyrostowo; **ile czytać, wiadomo dopiero przy rysowaniu**, bo budżet bierze
+    się z geometrii panelu, więc zamówienie przewinięcia czeka na rozliczenie
+    (wzorem `ScrollWindow::scrollBy()`/`clamp()`) i rozlicza **jeden panel na
+    klatkę**; **suwak liczy się w bajtach**, bo liczby wierszy pliku nie znamy
+    i poznać jej nie chcemy; **D46 tu nie obowiązuje** — okno to kilkadziesiąt
+    kilobajtów, a wzorzec pracy kawałkowej dotyczy prac, których w klatce zrobić
+    **nie da się**. Zawijanie łamie **po znaku, nie po słowie** i **nie ma górnego
+    progu** — wiersz dłuższy od całego prostokąta wypełnia panel, a wysokość jest
+    sufitem liczby kawałków, nie warunkiem zawinięcia. Do poprawki z 2026-08-12
+    było odwrotnie i skutek był dokładnie przeciwny do zamierzonego: **jedyne
+    wiersze, które nigdy się nie zawijały, to te najdłuższe**, czyli te, dla
+    których zawijanie istnieje. Reguła ogólna z tej pomyłki: **próg chroniący
+    przed pracą, którą i tak ucina pętla rysująca, nie chroni przed niczym** —
+    ogranicznik pętli jest tańszy i nie zmienia wyniku. Przełącznik zawijania jest
+    **pozycją ustawień modułu**, a `Alt`+`Z` zmienia tę samą pozycję (D40, jedna
+    droga — jeden klucz). **Przewijanie liczy się w linijkach panelu, nie
+    w wierszach pliku** (D60): kotwica stoi zawsze na początku wiersza, a ile jego
+    linijek pominąć, mówi osobne pole stanu — dzięki temu nie trzeba mapować
+    znaków na bajty w kodowaniach szerokich. Szerokość linijki musi być **ta
+    sama** po stronie czytającej plik i rysującej go, więc liczy ją jedno miejsce
+    (`TextView::contentColumns()`), a kolumna suwaka i kolumna numerów są
+    **niezależne od treści** — biorą się z prostokąta, nie z tego, co akurat
+    wczytano. Inaczej obraz pełznie w bok przy przewijaniu. Rozpoznanie tekstowości
+    to **kaskada trzech metod**: rozszerzenie → opis od `file` → podejrzenie
+    pierwszych bajtów; dwie pierwsze rozstrzygają wyłącznie twierdząco, ostatnia
+    zawsze. Kodowanie rozpoznajemy z nagłówka i konwertujemy — **łącznie z UTF-16
+    i UTF-32**; brak jednoznacznej odpowiedzi to UTF-8 z podmianą. Przy kodowaniu
+    szerokim **bajt to nie znak**: znaku nowej linii szukaj w kodowaniu źródła
+    i wyłącznie na granicy jednostki kodowej, bo `0A 00` wypada w UTF-16LE także
+    w środku pary innych znaków, a kotwica przesunięta o bajt to pół znaku.
+11j. **Słownik wejścia zna dwa modyfikatory, rozłącznie** (krok 29): `ctrl`
+    (skróty modułów, krok 19) i `alt` (zawijanie w podglądzie). Kombinacji
+    `Ctrl`+`Alt` nie ma i nie wprowadzaj jej bez użytkownika. W terminalu `Alt`
+    przychodzi jako `ESC`+litera, więc **jest nieodróżnialny od `Esc` naciśniętego
+    tuż przed literą** — to znana cena, nie usterka. Każde miejsce porównujące
+    literę musi porównać **oba** znaczniki (`KeyBinding::matches()` robi to samo);
+    goła litera nie ma prawa łapać skrótu z modyfikatorem.
+11k. **Słownik prymitywów otwarto raz i ma osiem kształtów** (krok 30, D59).
+    Ósmy to `TextMark` — **napis na własnym tle**, dla dopasowania filtra. Zgoda
+    użytkownika (D48) dotyczyła otwarcia, nie kształtu, a kształt rozstrzygnął
+    się dopiero przy rozpisaniu: „samo tło pod fragmentem” byłoby **synonimem**
+    `Bar`a z `Weight::Fill`, więc nowy prymityw musiał związać pismo z tłem
+    w jednej rzeczy. Zyski: jedna zapamiętana bitmapa i jeden `compositeImage`
+    zamiast dwóch (Sixel), tło **i** kolor pisma tej samej komórki (tekst),
+    `TextRun` nietknięty. Reguła na przyszłość: **zanim dołożysz kształt,
+    sprawdź, czy nie jest którymś z siedmiu pod inną nazwą** — precedensem jest
+    karetka `TextInput` z kroku 19, która podświetlenie udała parą istniejących
+    prymitywów. Zakresy dopasowania niesie **wiersz** (`TableRow::$marks`, klucz
+    = numer kolumny, pusto domyślnie), liczone **w znakach, nie w bajtach**;
+    przycięcie do widocznej treści należy do komponentu, bo tylko on wie, ile
+    z napisu zostało.
 11. **Nowy element interfejsu to nowy komponent w `Presentation/Ui/Component`**,
     a nie nowa metoda w rendererze. Komponent oddaje prymitywy z ról motywu i
     prostokątów w siatce znakowej — pikseli nie zna. Słownik prymitywów jest
-    **zamknięty**; jego rozszerzenie to obowiązek dla obu rendererów naraz i
-    wymaga zgody użytkownika. Komponent znający typ domeny **modułu** leży
-    w `Presentation/Component` tego modułu, nie w katalogu rdzenia (krok 21:
-    `PathLine`, `PreviewBox`).
+    **zamknięty**; jego rozszerzenie to obowiązek dla **trzech** rendererów naraz
+    (od kroku 35) i wymaga zgody użytkownika. Komponent znający typ domeny
+    **modułu** leży w `Presentation/Component` tego modułu, nie w katalogu
+    rdzenia (krok 21: `PathLine`, `PreviewBox`); tą samą zasadą okno nakładane
+    znające stan modułu leży w jego `Presentation/Overlay` (krok 30:
+    `FilterOverlay`).
 12. **Ekran rysuje trzy strefy, nie jedną** (krok 21, D42): `header()`
     i `preview()` oddają `?ScreenZone` — klucz etykiety obwódki plus komponent
     z treścią — a `null` znaczy „strefa nie powstaje, jej wiersze idą do środka”.
@@ -297,7 +358,9 @@ więc muszą być widoczne dla `Infrastructure`. Wartości opisujące
 `ModuleInterface`, `ModuleShortcut`, `ModuleContext`, `ModuleSetting`,
 `ModuleRegistry` i spółka — w `Application/Module`; zdolności `ProvidesScreen`,
 `ProvidesHelpTab` i `ReadsContext` w `Presentation/Ui/Module`. `ScreenZone`
-(zamówienie strefy skrajnej) — w `Presentation/Ui`, obok `ScreenInterface`. Klasa modułu ma
+(zamówienie strefy skrajnej) — w `Presentation/Ui`, obok `ScreenInterface`.
+Widok tekstu — `TextView` w `Presentation/Ui/Component`; jego dane wejściowe
+(`TextAnchor`, `TextWindow`), port i usługa leżą w module, który czyta pliki. Klasa modułu ma
 sufiks `Module` i leży w warstwie `Presentation` swojego katalogu; jego komenda,
 skoro dostaje stan pętli, leży w `Presentation/Command` modułu. Komendy — kontrakt, argumenty, parser
 wiersza, rejestr i historia — w `Application/Command`; komendy rdzenia

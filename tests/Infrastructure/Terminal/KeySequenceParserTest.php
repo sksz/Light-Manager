@@ -198,12 +198,45 @@ final class KeySequenceParserTest extends TestCase
         self::assertSame(1, $parsed->consumedBytes);
     }
 
-    public function testAltCombinationYieldsEscapeAsSeparateEvent(): void
+    /**
+     * `ESC` + litera to `Alt`+litera — od kroku 29, w którym słownik poznał
+     * drugi modyfikator.
+     *
+     * Do tamtej pory ta sama para bajtów dawała samotny `Escape`, a litera
+     * czekała na kolejne wywołanie. Cena zmiany jest znana i wpisana w komentarz
+     * parsera: `Esc` naciśnięty tuż przed literą jest od tego samego bajtu
+     * nierozróżnialny.
+     */
+    public function testEscapeWithLetterIsAltCombination(): void
     {
         $parsed = $this->parser->parse("\eq");
 
         self::assertNotNull($parsed);
+        self::assertSame(Key::Character, $parsed->keyPress->key);
+        self::assertSame('q', $parsed->keyPress->raw);
+        self::assertTrue($parsed->keyPress->alt);
+        self::assertFalse($parsed->keyPress->ctrl);
+        self::assertSame(2, $parsed->consumedBytes);
+    }
+
+    /** Bajt niedrukowalny po `ESC` zostaje przy dawnej odpowiedzi: samotny `Escape`. */
+    public function testEscapeWithControlByteStaysALoneEscape(): void
+    {
+        $parsed = $this->parser->parse("\e\e");
+
+        self::assertNotNull($parsed);
         self::assertSame(Key::Escape, $parsed->keyPress->key);
+        self::assertSame(1, $parsed->consumedBytes);
+    }
+
+    /** Samotny `ESC`, po którym nic nie przyszło, nadal jest klawiszem `Escape`. */
+    public function testLoneEscapeAfterTimeoutIsStillEscape(): void
+    {
+        $parsed = $this->parser->parseAfterTimeout("\e");
+
+        self::assertNotNull($parsed);
+        self::assertSame(Key::Escape, $parsed->keyPress->key);
+        self::assertFalse($parsed->keyPress->alt);
         self::assertSame(1, $parsed->consumedBytes);
     }
 

@@ -10,6 +10,7 @@ use LightManager\Application\Ui\Primitive\Bar;
 use LightManager\Application\Ui\Primitive\Bitmap;
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Primitive\RoundRect;
+use LightManager\Application\Ui\Primitive\TextMark;
 use LightManager\Application\Ui\Primitive\TextRun;
 use LightManager\Application\Ui\Primitive\Weight;
 use LightManager\Application\Ui\Rect;
@@ -89,6 +90,7 @@ final class TextFrameRenderer implements FrameRendererPort
                 $primitive->text,
                 $this->colorOf($primitive->role),
             ),
+            $primitive instanceof TextMark => $this->drawTextMark($buffer, $primitive),
             $primitive instanceof RoundRect => $this->drawRoundRect($buffer, $primitive),
             $primitive instanceof Bar => $this->drawBar($buffer, $primitive),
             $primitive instanceof Bitmap => $buffer->write(
@@ -101,6 +103,28 @@ final class TextFrameRenderer implements FrameRendererPort
             // pierwszy jest ozdobą narożnika, drugi zajmuje pół kolumny.
             default => null,
         };
+    }
+
+    /**
+     * Podświetlony fragment — **atrybut komórki, nie zmiana treści**, i to jest
+     * cała degradacja ósmego prymitywu w siatce znakowej.
+     *
+     * Tekstowy tryb wychodzi tu lepiej niż w wypadku nawiasu narożnego czy
+     * suwaka: tło i kolor pisma to dokładnie te dwa atrybuty, które komórka ma,
+     * więc dopasowanie widać co do znaku tak samo, jak w torze graficznym.
+     * Odwracanie atrybutów, o którym mówił plan kroku, nie jest przez to
+     * potrzebne — kolory przychodzą z motywu i są czytelne z definicji.
+     */
+    private function drawTextMark(CellBuffer $buffer, TextMark $mark): void
+    {
+        $ground = $this->colorOf($mark->ground);
+        $length = mb_strlen($mark->text);
+
+        for ($offset = 0; $offset < $length; ++$offset) {
+            $buffer->paint($mark->row, $mark->column + $offset, $ground);
+        }
+
+        $buffer->write($mark->row, $mark->column, $mark->text, $this->colorOf($mark->role));
     }
 
     /**

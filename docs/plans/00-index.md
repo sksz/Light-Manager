@@ -145,8 +145,8 @@ kolejne dowożą go razem z komponentem.
 |---|------|------|-----------|-------|---------|--------|
 | 27 | Wiersz wielokolumnowy (`Table`) | [27-tabela-kolumn.md](27-tabela-kolumn.md) | 17, 18, 21, 24 | Opus | high | Ukończony |
 | 28 | Okno potwierdzenia (`ConfirmOverlay`) | [28-okno-potwierdzenia.md](28-okno-potwierdzenia.md) | 14, 18, 19 | Opus | high | Ukończony |
-| 29 | Widok tekstu (`TextView`) | [29-podglad-tekstu.md](29-podglad-tekstu.md) | 12, 18, 25 | Opus | high | Nie rozpoczęty |
-| 30 | Filtrowanie i podświetlenie dopasowania | [30-filtrowanie-i-podswietlenie.md](30-filtrowanie-i-podswietlenie.md) | 7, 8, 18, 19, 21, 27 | Opus | xhigh | Nie rozpoczęty |
+| 29 | Widok tekstu (`TextView`) | [29-podglad-tekstu.md](29-podglad-tekstu.md) | 12, 18, 25 | Opus | high | Ukończony |
+| 30 | Filtrowanie i podświetlenie dopasowania | [30-filtrowanie-i-podswietlenie.md](30-filtrowanie-i-podswietlenie.md) | 7, 8, 18, 19, 21, 27, 35 | Opus | xhigh | Ukończony |
 | 31 | Drzewo (`TreeView`) | [31-drzewo-katalogow.md](31-drzewo-katalogow.md) | 18, 21, 22, 24, 27 | Opus | xhigh | Nie rozpoczęty |
 | 32 | Menu kontekstowe (`MenuOverlay`) | [32-menu-kontekstowe.md](32-menu-kontekstowe.md) | 19, 20, 21, 28 | Opus | high | Nie rozpoczęty |
 
@@ -194,6 +194,37 @@ z nią tylko rozszerzenie i stuby do analizy statycznej.
 |---|------|------|-----------|-------|---------|--------|
 | 36 | Odtwarzanie muzyki przez `GL\Audio` | [36-odtwarzanie-muzyki.md](36-odtwarzanie-muzyki.md) | 6, 9, 14, 15, 19 | Opus | high | Nie rozpoczęty |
 
+### Faza XI — Diagnostyka i testy
+
+Krok przekrojowy ([00-decyzje.md](00-decyzje.md), D61): aplikacja przez Fazy
+IV–IX urosła szybciej niż jej miary, więc jeden krok wyrównuje zaległości
+naraz — spis scenariuszy pomiarowych z powodami pominięć, oś zimnej klatki,
+tor tekstowy w `bin/render-bench`, porównanie zrzutów i katalog nazwanych
+przebiegów funkcjonalnych. Komponentów nie dokłada, więc rytm Fazy VII (D48)
+zostaje nietknięty.
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 38 | Rozbudowa diagnostyki, benchmarku i testów funkcjonalnych | [38-rozbudowa-diagnostyki-i-testow.md](38-rozbudowa-diagnostyki-i-testow.md) | 16, 17, 18, 21, 26, 30, 33, 35 | Opus | high | Nie rozpoczęty |
+
+### Faza XII — Wejście do projektu: Makefile
+
+Krok narzędziowy ([00-decyzje.md](00-decyzje.md), D62): wejścia do projektu są
+dziś rozsypane po README (wymagania środowiska), `composer.json` (jakość
+i testy) i skryptach w `bin/` (uruchomienie, pomiar) — jednego, które by je
+zbierało, nie ma, a wymagania sprawdzają się dopiero uruchomieniem. Faza dokłada
+`Makefile` z celami na weryfikację środowiska, instalację, bramkę jakości, testy
+(jednostkowe, funkcjonalne, wydajnościowe) i budowę aplikacji Composerem —
+jedyne z tych pojęć, którego projekt dotąd w ogóle nie miał. Domyka rzecz
+dokumentami (D63): `docs/architecture.md`, `SKILL.md` i `CLAUDE.md` mają odtąd
+wskazywać `make` oraz narzędzia repozytorium (`bin/render-bench`,
+`bin/terminal-probe`) jako drogę do procesów aplikacji — bo plik, o którym
+dokumenty milczą, przegrywa z nawykiem. Kodu aplikacji nie dotyka.
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 39 | Makefile: środowisko, instalacja, jakość, testy, budowa | [39-makefile.md](39-makefile.md) | 4, 5, 7, 16, 34 | Opus | medium | Nie rozpoczęty |
+
 ### Dokumenty towarzyszące (praca projektowa)
 
 | Krok | Plik | Aktualizowany | Model | Wysiłek | Status |
@@ -202,8 +233,8 @@ z nią tylko rozszerzenie i stuby do analizy statycznej.
 
 ## Graf zależności
 
-Kolejność realizacji pokrywa się z numeracją (01…36) **do kroku 26 włącznie**;
-Faza VII łańcuchem już nie jest, a kroki 33–36 (Fazy VIII–X) stoją poza nią
+Kolejność realizacji pokrywa się z numeracją (01…39) **do kroku 26 włącznie**;
+Faza VII łańcuchem już nie jest, a kroki 33–39 (Fazy VIII–XII) stoją poza nią
 zupełnie (patrz opisy na końcu tej listy). Poza prostym
 łańcuchem `01→02→…→26` istnieją węzły zbiegające się z dwóch gałęzi:
 
@@ -304,7 +335,11 @@ zupełnie (patrz opisy na końcu tej listy). Poza prostym
     znaczyłoby przepisywać tę samą klasę dwa razy. Zależy ponadto od **7 i 8**,
     i to jest zależność, której nie miał **żaden** krok od czasu kroku 18: nowy
     prymityw obowiązuje **oba renderery naraz**, więc krok sięga do sixelowego
-    i do tekstowego jednocześnie.
+    i do tekstowego jednocześnie. **Wykonany po kroku 35, więc rendererów było
+    trzy** — uwaga zapisana niżej sprawdziła się co do słowa, a kompletności
+    tabeli tłumaczeń dopilnował `PrimitiveTranslationTableTest`. Ósmym kształtem
+    został `TextMark` — **napis na własnym tle**, a nie samo tło pod fragmentem,
+    bo to drugie byłoby synonimem `Bar`a z `Weight::Fill` (D59).
   - **31** (drzewo) zależy od **22** wzorcowo — `SectionState` już raz rozwiązał
     „co zwinięte, przeżywa klatkę i pamięta się pod kluczem, nie pod numerem”,
     a drzewo jest tym samym problemem o wymiar głębiej. Zależy od **27**, bo
@@ -348,10 +383,11 @@ zupełnie (patrz opisy na końcu tej listy). Poza prostym
   kontraktu modułu. Zależy od **13** (role motywu; pierwszy renderer bez
   palety indeksowanej), od **17** (wzorzec pamięci podręcznych przenosi się
   na tekstury glifów i bitmap) i od **12/25** (bitmapy podglądów muszą trafić
-  do tekstur). **Uwaga o kroku 30:** od kroku 35 nowy prymityw obowiązuje
-  **trzy** renderery naraz — jeśli 30 wykona się wcześniej, 35 przejmuje jego
-  prymityw podświetlenia do swojej tabeli tłumaczeń; jeśli później, 30
-  rozszerza się o trzeciego tłumacza.
+  do tekstur). **Uwaga o kroku 30 — rozstrzygnięta:** krok 30 wykonał się
+  później, więc rozszerzył się o trzeciego tłumacza, dokładnie jak przewidziano.
+  `PrimitiveTranslationTableTest` wymusił wpis w rendererze okienkowym, zanim
+  ktokolwiek zdążył o nim zapomnieć — i to jest dowód, że test pisany w kroku 35
+  na zapas nie był ostrożnością teoretyczną.
 
 - **36** (odtwarzanie muzyki) zależy od **06** (zatrzymanie silnika audio
   wchodzi do sprzątania wszystkimi trzema ścieżkami wyjścia), od **09**
@@ -364,6 +400,40 @@ zupełnie (patrz opisy na końcu tej listy). Poza prostym
   proces zewnętrzny. Od Fazy VII, kroku 33 i **Fazy IX nie zależy** i one nie
   zależą od niego; jedyny punkt styku z krokiem 34: stuby `GL\*` do analizy
   statycznej dowozi ten z dwóch kroków, który wykona się pierwszy.
+
+- **38** (rozbudowa diagnostyki i testów) zależy od **16 i 17** twardo —
+  rozbudowuje narzędzie i metodykę, które tam powstały — od **18 i 21**
+  (przebiegi funkcjonalne idą przez `ScreenFixture` i prawdziwe moduły), od
+  **26** (wzorzec scenariusza sięgającego poza PHP i stuby procesów), od
+  **30** (ostatni scenariusz w spisie — od niego liczy się stan zastany), od
+  **33** (rozstrzygnięcie „zmiana rozmiaru to zimna klatka, nie scenariusz”
+  jest poprzednikiem osi zimnej klatki) i od **35** (tor okienkowy: każdy
+  nowy scenariusz przechodzi przez wszystkie tory naraz). Od kroków **31,
+  32, 36 i 37** nie zależy i one nie zależą od niego; z krokami 31 i 32
+  dzieli tylko granicę — scenariusze `tree` i `menu` przynoszą tamte kroki
+  (D48), nie ten.
+
+- **39** (Makefile) zależy od **05** twardo — `composer.json`, skrypty jakości
+  i lista wymagań w README powstały tam, a krok daje im wspólne wejście, nie
+  drugą definicję — od **07** (koder `SIXEL` i degradacja do trybu tekstowego
+  to wymogi, które sprawdzenie środowiska ma umieć nazwać), od **16**
+  **podwójnie** (cel pomiarowy opakowuje `bin/render-bench`; stamtąd pochodzi
+  zakaz bramki wydajności, którego kroku nie wolno cicho odwrócić zależnością
+  `qa`, a reguła D63 czyni to narzędzie **jedyną** drogą do pomiaru — koniec
+  z doraźnymi pętlami `microtime()`) i od **34** (`glfw` jako wymóg
+  **opcjonalny**, wyłącznie dla `--window`). Zależy ponadto od **04**: reguła
+  procesu wchodzi w ustalony tam podział ról między `docs/architecture.md`,
+  `SKILL.md` i `CLAUDE.md` (D8, D13) — pełna treść do dokumentu źródłowego,
+  skrót do Skilla, wskaźnik zostaje wskaźnikiem. Kodu aplikacji nie dotyka —
+  `src/` zostaje nietknięte.
+
+  Z krokiem **38** łączy go zależność miękka, jedyna tego rodzaju w całym
+  planie: rozbicie `test-unit` / `test-functional` potrzebuje granicy między
+  przebiegami a testami jednostkowymi, a ta powstaje w pytaniu nr 6 kroku 38.
+  Zalecana kolejność to **38 przed 39**; odwrotna jest dopuszczalna, o ile
+  rozstrzygnięcie nr 5 kroku 39 przesądzi podział testsuite tam, a krok 38
+  tylko dołoży do niego treść. Od kroków **31, 32, 36 i 37** nie zależy i one
+  nie zależą od niego.
 
 Żaden krok nie da się sensownie zacząć przed ukończeniem swoich zależności
 z tabel powyżej.
@@ -387,8 +457,18 @@ zakończeniu pracy nad krokiem:
   krok 24 dowiózł do nich wstęp: dwupanelową przeglądarkę, a krok **28** dowozi
   okno potwierdzenia, bez którego usuwanie nie ma prawa powstać
 - ~~Podgląd plików tekstowych~~ — wszedł do planu jako krok **29** (D48)
+  i **został wykonany**; pozycja jest zamknięta od 2026-08-12
+- Przewijanie ekranu ustawień — zakładka dłuższa od okna gubi dziś pozycje
+  zamiast je przewijać (`Slot::fixed()`, reguła 11e). Zauważone w kroku 29, gdy
+  zakładka `file-info` urosła do dziesięciu pozycji; zachowanie jest starsze
+- Rozpoznawanie UTF-32 bez znacznika kolejności bajtów — świadomie pominięte
+  w kroku 29 (kodowanie z BOM-em i UTF-16 bez BOM-u są obsługiwane)
 - ~~Widok dwupanelowy~~ — wszedł do planu jako krok **24** (D43)
 - ~~Wyszukiwanie / filtrowanie~~ — weszło do planu jako krok **30** (D48)
+  i **zostało wykonane**; pozycja jest zamknięta od 2026-08-12
+- Podświetlanie dopasowania w podglądzie tekstu — prymityw `TextMark` powstał
+  tak, żeby było możliwe, ale odbiorcą kroku 30 była lista; `TextView` filtra nie
+  ma
 - Zakładki / historia odwiedzonych katalogów
 - Kolorowanie składni w podglądzie tekstu — wyłączone z kroku 29
 - Sortowanie listy po kolumnie — wyłączone z kroku 27

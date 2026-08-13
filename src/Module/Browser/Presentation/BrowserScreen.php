@@ -20,6 +20,7 @@ use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Presentation\Component\EntryList;
 use LightManager\Module\Browser\Presentation\Component\PathLine;
 use LightManager\Module\Browser\Presentation\Component\PreviewBox;
+use LightManager\Module\Browser\Presentation\Overlay\FilterOverlay;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\Panel;
@@ -50,6 +51,16 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
     public const SCROLL_MARGIN = 2;
 
     private const HIDDEN_MARKER_KEY = 'module.browser.hidden';
+
+    /**
+     * Znacznik zawężenia w pasie ścieżki.
+     *
+     * Filtr **przeżywa zamknięcie okna**, więc musi być widoczny również wtedy,
+     * gdy pola już nie ma na ekranie. Bez tego lista zawężona byłaby nieodróżnialna
+     * od katalogu, w którym po prostu nie ma tych plików — a to jest dokładnie ta
+     * pomyłka, którą znacznik wpisów ukrytych rozwiązał w kroku 21.
+     */
+    private const FILTER_MARKER_KEY = 'module.browser.filter.marker';
 
     public function __construct(
         private readonly BrowserPanes $panes,
@@ -111,15 +122,23 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
     private function suffix(): string
     {
         $suffix = '';
-        $directory = $this->panes->focused()->directory();
+        $pane = $this->panes->focused();
+        $directory = $pane->directory();
         $selection = $directory->selection();
 
         if ($selection !== null) {
             $suffix .= sprintf('  —  %d/%d', $selection->index + 1, count($directory->entries()));
         }
 
-        if ($this->panes->focused()->showsHiddenEntries()) {
+        if ($pane->showsHiddenEntries()) {
             $suffix .= '  ' . $this->translator->translate(self::HIDDEN_MARKER_KEY);
+        }
+
+        if (!$pane->filter()->isEmpty()) {
+            $suffix .= '  ' . $this->translator->translate(
+                self::FILTER_MARKER_KEY,
+                ['fragment' => $pane->filter()->value],
+            );
         }
 
         return $suffix;
@@ -173,6 +192,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
                 $this->translator,
                 details: $this->details(),
                 header: $this->columnHeader(),
+                filter: $state->filter(),
             ))->draw($bounds);
         }
 
@@ -191,6 +211,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
             framed: true,
             details: $this->details(),
             header: $this->columnHeader(),
+            filter: $state->filter(),
         );
     }
 
@@ -211,6 +232,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
             KeyBinding::of([Key::Enter, Key::ArrowRight], 'module.browser.help.open'),
             KeyBinding::of([Key::Backspace, Key::ArrowLeft], 'module.browser.help.up'),
             KeyBinding::character('.', 'module.browser.help.hidden'),
+            KeyBinding::character('/', 'module.browser.help.filter'),
         ];
 
         // Klawisz ogniska pokazujemy dopiero wtedy, gdy podział jest włączony:
@@ -218,6 +240,13 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
         // byłaby kłamstwem — a pasek stanu i spis klawiszy mają jedno źródło.
         if ($this->splits()) {
             $bindings[] = KeyBinding::of([Key::Tab], 'module.browser.help.focus');
+        }
+
+        // Tą samą regułą: zdjęcie filtra pokazujemy dopiero wtedy, gdy jest co
+        // zdejmować. `Esc` na liście bez filtra nie robi nic i nie ma prawa
+        // twierdzić, że robi.
+        if (!$this->panes->focused()->filter()->isEmpty()) {
+            $bindings[] = KeyBinding::of([Key::Escape], 'module.browser.help.filter.clear');
         }
 
         return $bindings;
@@ -236,9 +265,56 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
             $key->key === Key::ArrowDown => $this->moved($directory, up: false),
             $key->key === Key::Enter, $key->key === Key::ArrowRight => $this->open($directory),
             $key->key === Key::Backspace, $key->key === Key::ArrowLeft => $this->goUp($directory),
-            $key->key === Key::Character && $key->raw === '.' => $this->toggleHidden(),
+            $key->key === Key::Escape => $this->dropFilter(),
+            // Litera z modyfikatorem nie jest treścią (reguła 11j): goła kropka
+            // przełącza wpisy ukryte, `Ctrl`+`.` i `Alt`+`.` — nie.
+            $key->key === Key::Character && !$key->ctrl && !$key->alt => $this->character($key->raw),
             default => ScreenOutcome::stay(),
         };
+    }
+
+    private function character(string $raw): ScreenOutcome
+    {
+        return match ($raw) {
+            '.' => $this->toggleHidden(),
+            '/' => $this->openFilter(),
+            default => ScreenOutcome::stay(),
+        };
+    }
+
+    /**
+     * Pole filtra dostaje **panel z ogniskiem**, a nie oba naraz: rozstrzygnięcie
+     * ze startu kroku 30. Filtr jest widokiem na listę, a użytkownik patrzy
+     * w danej chwili na jedną — zawężanie tej drugiej robiłoby porządek tam,
+     * gdzie nikt nie prosił.
+     */
+    private function openFilter(): ScreenOutcome
+    {
+        return ScreenOutcome::opens(new FilterOverlay(
+            $this->panes->focused(),
+            $this->moveSelection,
+            $this->translator,
+        ));
+    }
+
+    /**
+     * `Esc` zdejmuje zawężenie z listy, na której już nie ma pola — bo pole
+     * zamknięto `Enter`em, a filtr został.
+     *
+     * Zaznaczenie zostaje tam, gdzie stoi: użytkownik doszedł do wpisu przez
+     * filtr i to jest wpis, o który mu chodziło. Powrót do miejsca sprzed filtra
+     * należy do `Esc` **w oknie**, i to jest cała różnica między tymi dwoma
+     * `Esc`-ami.
+     */
+    private function dropFilter(): ScreenOutcome
+    {
+        $pane = $this->panes->focused();
+
+        if (!$pane->filter()->isEmpty()) {
+            $pane->clearFilter();
+        }
+
+        return ScreenOutcome::stay();
     }
 
     /**

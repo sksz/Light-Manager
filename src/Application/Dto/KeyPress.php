@@ -8,11 +8,13 @@ final class KeyPress
 {
     /**
      * @param bool $ctrl czy znak przyszedł z wciśniętym klawiszem `Ctrl`
+     * @param bool $alt  czy znak przyszedł z wciśniętym klawiszem `Alt`
      */
     public function __construct(
         public readonly Key $key,
         public readonly string $raw,
         public readonly bool $ctrl = false,
+        public readonly bool $alt = false,
     ) {
     }
 
@@ -34,6 +36,22 @@ final class KeyPress
         return new self(Key::Character, $letter, true);
     }
 
+    /**
+     * Znak wciśnięty wraz z `Alt` — druga para modyfikatora, dopisana w kroku 29.
+     *
+     * Powód jej powstania jest jeden i konkretny: przełączanie zawijania wierszy
+     * w podglądzie tekstu ma wisieć na `Alt`+`z`, jak w edytorach. Słownik zna
+     * odtąd dwa modyfikatory i **nie zna ich kombinacji** — `Ctrl`+`Alt`+litera
+     * nie ma w aplikacji ani jednego użytkownika, a para znaczników, z których
+     * oba bywają prawdziwe naraz, wymagałaby rozstrzygnięcia w każdym miejscu
+     * porównującym naciśnięcia. Gdy taki użytkownik się pojawi, wraca to jako
+     * osobna decyzja.
+     */
+    public static function alt(string $letter): self
+    {
+        return new self(Key::Character, $letter, false, true);
+    }
+
     public static function special(Key $key, string $raw): self
     {
         return new self($key, $raw);
@@ -43,6 +61,7 @@ final class KeyPress
     {
         return $this->key === $other->key
             && $this->raw === $other->raw
-            && $this->ctrl === $other->ctrl;
+            && $this->ctrl === $other->ctrl
+            && $this->alt === $other->alt;
     }
 }

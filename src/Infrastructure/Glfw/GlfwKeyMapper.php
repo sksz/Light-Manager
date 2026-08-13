@@ -35,8 +35,8 @@ final class GlfwKeyMapper
      *
      * Modyfikator nie zmienia klawisza bazowego (`Ctrl+Delete` to `Delete`) —
      * ta sama reguła, którą `KeySequenceParser` stosuje do parametrów
-     * sekwencji. Wyjątkiem jest `Ctrl`+litera, bo tę parę słownik zna od
-     * kroku 19.
+     * sekwencji. Wyjątki są dwa i oba są parami, które zna słownik:
+     * `Ctrl`+litera od kroku 19 i `Alt`+litera od kroku 29.
      *
      * `raw` klawiszy specjalnych niesie bajt, którym klawisz przychodzi
      * z terminala (`\r`, `\t`, …), a pusty string tam, gdzie terminalowym
@@ -55,8 +55,20 @@ final class GlfwKeyMapper
             return KeyPress::special($special, $this->rawFor($special));
         }
 
-        if (($mods & GLFW_MOD_CONTROL) !== 0 && $key >= GLFW_KEY_A && $key <= GLFW_KEY_Z) {
+        if ($key < GLFW_KEY_A || $key > GLFW_KEY_Z) {
+            return null;
+        }
+
+        if (($mods & GLFW_MOD_CONTROL) !== 0) {
             return KeyPress::ctrl(chr($key - GLFW_KEY_A + 0x61));
+        }
+
+        // `Alt`+litera — druga para modyfikatora, dopisana w kroku 29 wraz
+        // ze słownikiem. Kolejność `if`ów jest rozstrzygnięciem: `Ctrl` wygrywa,
+        // bo `KeyPress` zna modyfikatory rozłącznie i `Ctrl`+`Alt`+litera ma
+        // zostać tym, czym już jest — skrótem `Ctrl`.
+        if (($mods & GLFW_MOD_ALT) !== 0) {
+            return KeyPress::alt(chr($key - GLFW_KEY_A + 0x61));
         }
 
         return null;

@@ -97,6 +97,42 @@ final class FileInfoSettings
 
     public const DEFAULT_BACKGROUND_TIMEOUT = 15;
 
+    /**
+     * Podgląd treści pliku tekstowego — **domyślnie włączony**, w odróżnieniu od
+     * sumy kontrolnej i zajętości katalogu.
+     *
+     * Różnica jest w cenie, nie w guście: tamte dwie czytają cały plik albo całe
+     * drzewo, a ta czyta tyle, ile widać w panelu — kilkadziesiąt kilobajtów,
+     * niezależnie od tego, czy plik ma kilobajt, czy pół gigabajta (krok 29).
+     */
+    public const TEXT_PREVIEW = 'textPreview';
+
+    public const DEFAULT_TEXT_PREVIEW = true;
+
+    /**
+     * Numery wierszy w podglądzie — **domyślnie wyłączone**.
+     *
+     * Panel ma połowę szerokości okna, a kolumna numerów zabiera z niego kilka
+     * znaków na stałe. Komponent i tak ustąpi jej miejsca treści, gdy panel
+     * będzie za wąski, ale domyślne włączenie kazałoby płacić za nie każdemu.
+     */
+    public const LINE_NUMBERS = 'lineNumbers';
+
+    public const DEFAULT_LINE_NUMBERS = false;
+
+    /**
+     * Zawijanie wierszy w podglądzie — **domyślnie włączone**.
+     *
+     * Pozycja dopisana 2026-08-12, bo przełącznik istniał wyłącznie pod
+     * `Alt`+`Z` i nie przeżywał zamknięcia aplikacji. Klucz jest **jeden dla obu
+     * dróg**: skrót i pozycja zakładki kończą w tym samym miejscu pliku
+     * konfiguracyjnego, tak samo jak `.` i „Pokazuj wpisy ukryte“
+     * w przeglądarce (D40).
+     */
+    public const TEXT_WRAP = 'textWrap';
+
+    public const DEFAULT_TEXT_WRAP = true;
+
     /** @return list<ModuleSetting> */
     public static function declarations(): array
     {
@@ -146,7 +182,32 @@ final class FileInfoSettings
                 self::BACKGROUND_TIMEOUT_CHOICES,
                 self::DEFAULT_BACKGROUND_TIMEOUT,
             ),
+            ModuleSetting::toggle(
+                self::TEXT_PREVIEW,
+                'module.' . self::ID . '.setting.' . self::TEXT_PREVIEW,
+                self::DEFAULT_TEXT_PREVIEW,
+            ),
+            ModuleSetting::toggle(
+                self::LINE_NUMBERS,
+                'module.' . self::ID . '.setting.' . self::LINE_NUMBERS,
+                self::DEFAULT_LINE_NUMBERS,
+            ),
+            self::textWrapDeclaration(),
         ];
+    }
+
+    /**
+     * Deklaracja pozycji „zawijaj wiersze“ — wystawiona osobno, bo potrzebuje jej
+     * także ekran modułu: `Alt`+`Z` zmienia tę samą pozycję, którą pokazuje
+     * zakładka, a nie własną kopię stanu.
+     */
+    public static function textWrapDeclaration(): ModuleSetting
+    {
+        return ModuleSetting::toggle(
+            self::TEXT_WRAP,
+            'module.' . self::ID . '.setting.' . self::TEXT_WRAP,
+            self::DEFAULT_TEXT_WRAP,
+        );
     }
 
     /** Czy czasy pokazujemy jako „ile temu”, a nie datą. */
@@ -193,6 +254,27 @@ final class FileInfoSettings
         );
 
         return is_int($value) ? $value : self::DEFAULT_BACKGROUND_TIMEOUT;
+    }
+
+    public static function textPreview(Settings $settings): bool
+    {
+        $value = self::declarations()[8]->valueFrom($settings->moduleValue(self::ID, self::TEXT_PREVIEW));
+
+        return is_bool($value) ? $value : self::DEFAULT_TEXT_PREVIEW;
+    }
+
+    public static function lineNumbers(Settings $settings): bool
+    {
+        $value = self::declarations()[9]->valueFrom($settings->moduleValue(self::ID, self::LINE_NUMBERS));
+
+        return is_bool($value) ? $value : self::DEFAULT_LINE_NUMBERS;
+    }
+
+    public static function textWrap(Settings $settings): bool
+    {
+        $value = self::textWrapDeclaration()->valueFrom($settings->moduleValue(self::ID, self::TEXT_WRAP));
+
+        return is_bool($value) ? $value : self::DEFAULT_TEXT_WRAP;
     }
 
     public static function timeout(Settings $settings): int

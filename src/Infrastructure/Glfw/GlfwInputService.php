@@ -29,6 +29,21 @@ final class GlfwInputService extends AbstractSingleton implements InputPort
 
     private bool $shutdownRequested = false;
 
+    /**
+     * Czy w tej porcji zdarzeń padło już `Alt`+litera.
+     *
+     * Znacznik istnieje dla jednej rzeczy (krok 29): `Alt`+`z` bywa doręczane
+     * **dwoma** zdarzeniami naraz — klawisza (z bitem `Alt`) i znaku (`z`),
+     * bo układ klawiatury tłumaczy literę mimo modyfikatora. Bez znacznika
+     * jedno naciśnięcie dawałoby dwa naciśnięcia w słowniku: przełącznik
+     * zawijania włączyłby się i natychmiast wyłączył. `Ctrl` tego kłopotu nie
+     * ma, bo zdarzenia znaku dla bajtów sterujących nie powstają.
+     *
+     * Znacznik gaśnie przed każdą kolejną porcją zdarzeń, więc nie ma jak
+     * połknąć litery naciśniętej w następnym takcie.
+     */
+    private bool $altConsumedCharacter = false;
+
     protected function __construct()
     {
         parent::__construct();
@@ -39,12 +54,21 @@ final class GlfwInputService extends AbstractSingleton implements InputPort
         glfwSetKeyCallback($window, function (int $key, int $scancode, int $action, int $mods) use ($mapper): void {
             $press = $mapper->mapKeyEvent($key, $action, $mods);
 
-            if ($press !== null) {
-                $this->queue[] = $press;
+            if ($press === null) {
+                return;
             }
+
+            $this->altConsumedCharacter = $this->altConsumedCharacter || $press->alt;
+            $this->queue[] = $press;
         });
 
         glfwSetCharCallback($window, function (int $codepoint) use ($mapper): void {
+            if ($this->altConsumedCharacter) {
+                $this->altConsumedCharacter = false;
+
+                return;
+            }
+
             $press = $mapper->mapCharacter($codepoint);
 
             if ($press !== null) {
@@ -66,6 +90,7 @@ final class GlfwInputService extends AbstractSingleton implements InputPort
     public function readKey(): ?KeyPress
     {
         if ($this->queue === []) {
+            $this->altConsumedCharacter = false;
             glfwPollEvents();
         }
 

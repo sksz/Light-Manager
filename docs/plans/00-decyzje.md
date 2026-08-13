@@ -96,6 +96,10 @@ Kolumna **Stan** mówi, co się z decyzją stało w kodzie:
 | [D55](#d55--odtwarzanie-muzyki-przez-glaudio-osobna-faza-x-z-jednym-krokiem) | Odtwarzanie muzyki przez `GL\Audio`: osobna Faza X z jednym krokiem | krok 36 | 2026-08-11 | Czeka |
 | [D56](#d56--okno-potwierdzenia-decyzja-wraca-domknięciem-esc-znaczy-nie-wariant-groźny-wchodzi-od-razu) | Okno potwierdzenia: decyzja wraca domknięciem, `Esc` znaczy „nie”, wariant groźny wchodzi od razu | krok 28 | 2026-08-12 | Wdrożona |
 | [D57](#d57--faza-ix-dostaje-trzeci-krok-dopracowanie-okna) | Faza IX dostaje trzeci krok: dopracowanie okna | krok 37 | 2026-08-12 | Czeka |
+| [D58](#d58--podgląd-tekstu-czyta-jak-edytor-okno-po-bajtach-kaskada-rozpoznania-alt-w-słowniku-wejścia) | Podgląd tekstu czyta jak edytor: okno po bajtach, kaskada rozpoznania, `Alt` w słowniku wejścia | krok 29 | 2026-08-12 | Wdrożona |
+| [D59](#d59--ósmy-prymityw-jest-napisem-na-tle-filtr-mieszka-w-panelu-a-esc-odmawia) | Ósmy prymityw jest napisem na tle, filtr mieszka w panelu, a `Esc` odmawia | krok 30 | 2026-08-12 | Wdrożona |
+| [D60](#d60--podgląd-tekstu-dostaje-ognisko-a-przewijanie-liczy-się-w-linijkach-panelu) | Podgląd tekstu dostaje ognisko, a przewijanie liczy się w linijkach panelu | kroki 25, 29 | 2026-08-12 | Wdrożona |
+| [D61](#d61--diagnostyka-benchmark-i-testy-funkcjonalne-wchodzą-do-planu-jako-faza-xi-z-krokiem-38) | Diagnostyka, benchmark i testy funkcjonalne wchodzą do planu jako Faza XI z krokiem 38 | krok 38 | 2026-08-13 | Czeka |
 
 **Dwie uwagi do numeracji**, obie wynikłe z tego, że dziennik pisało wiele
 sesji równolegle:
@@ -3054,3 +3058,462 @@ i **nie da się jej tu rzetelnie sprawdzić**. Użytkownik włączył wszystkie
 cztery pozycje; zastrzeżenie zostaje zapisane w planie kroku jako
 rozstrzygnięcie nr 4 — kod pisany na ślepo ma być jawnie oznaczony jako
 niesprawdzony na sprzęcie albo zastąpiony samym odczytem wartości.
+
+### D58 — Podgląd tekstu czyta jak edytor: okno po bajtach, kaskada rozpoznania, `Alt` w słowniku wejścia
+
+**Dotyczy:** kroku 29 (pełna treść: [29-podglad-tekstu.md](29-podglad-tekstu.md)),
+komponentu `TextView`, modułu `FileInfo` oraz **warstwy wejścia** z kroków 06,
+19 i 34.
+
+**Data:** 2026-08-12.
+
+Sześć pytań ze startu kroku rozstrzygnął użytkownik przed pierwszą linią kodu.
+Trzy odpowiedzi przestawiły krok na tyle, że są decyzją architektoniczną, a nie
+wyborem szczegółu.
+
+**1. Odczyt idzie przesuwnym oknem, a miejsce w pliku to bajt.** Plan zakładał
+wczytanie nagłówka pliku „z zapasem” i wycinanie z niego widocznego fragmentu
+`ScrollWindow`em. Użytkownik rozstrzygnął inaczej: *„Ładuj jedynie te dane
+z pliku, które będziesz prezentował. Poprzednie po przewinięciu ekranu należy
+usunąć z bufora. Nowe doczytać. Jak w edytorach tekstu.”* Konsekwencje sięgają
+dalej niż jeden komponent i dlatego są tu zapisane:
+
+- **Kotwica liczy w bajtach** (`TextAnchor`), bo tylko bajt pozwala usiąść
+  w środku pliku bez przeczytania wszystkiego przed nim. Numer wiersza jedzie
+  obok i liczy się **przyrostowo** — przeliczanie go od początku pliku
+  kosztowałoby przy każdym przewinięciu przejście przez całe pół gigabajta.
+- **Suwak liczy się w bajtach**, nie w wierszach: liczby wierszy pliku nie znamy
+  i poznać jej nie chcemy.
+- **Ile czytać, wiadomo dopiero przy rysowaniu**, bo budżet bierze się
+  z geometrii panelu. Przewinięcie zamówione klawiszem czeka więc na
+  rozliczenie — wzorem, który `ScrollWindow` ustalił w kroku 18 (`scrollBy()`
+  zapisuje, `clamp()` rozstrzyga przy znanym prostokącie) — a rozlicza się
+  **jeden panel na klatkę**, wzorem pracy kawałkowej z D46.
+- **`ScrollWindow` tu nie pasuje** i kryterium ukończenia „czwarta klasa stanu
+  nie powstała” zostało dotrzymane inaczej, niż je zapisano: klasa nie powstała,
+  ale kotwica mieszka w `FileInfoState`, czyli w stanie **modułu**, a nie
+  w nowej klasie rdzenia. Rdzeń dostał komponent, nie pamięć.
+- **D46 nie obowiązuje samego odczytu** i to warto rozróżniać na przyszłość:
+  wzorzec pracy kawałkowej dotyczy robót, których w klatce wykonać **nie da
+  się**. Jedno okno to kilkadziesiąt kilobajtów — mieści się z zapasem, więc
+  dzielenie go na kawałki byłoby ceremonią bez treści.
+
+**2. Rozpoznanie tekstowości to kaskada trzech metod, nie wybór jednej.**
+Rozszerzenie → opis od polecenia `file` → podejrzenie pierwszych bajtów.
+Dopowiedzenie, które wyszło przy pisaniu i jest częścią decyzji: **dwa pierwsze
+stopnie rozstrzygają wyłącznie twierdząco**. Ich milczenie znaczy „nie wiem”,
+a nie „binarny” — `README` nie ma rozszerzenia, a `file` bywa nieobecne albo
+mówi językiem, którego wzorzec nie zna. Rozstrzyga zawsze dopiero trzeci.
+
+Kodowanie rozpoznajemy z nagłówka i konwertujemy; brak jednoznacznej odpowiedzi
+to UTF-8 z podmianą bajtów, których nie da się zdekodować. **Rozpoznanie kodowania
+stoi przed kaskadą, a nie po niej**: gdyby szło po, plik `.txt` w UTF-16
+przeszedłby pierwszym stopniem jako tekst i pokazał się jako śmieci.
+
+**Kodowania szerokie wchodzą w komplecie — poprawka tego samego dnia.** Pierwsza
+wersja odmawiała podglądu plikom UTF-16/32 z powodem, bo bajt zerowy co drugi
+znak wywraca podział na wiersze i rachunek bajtów; użytkownik polecił dowieźć
+obsługę. Rozstrzygnięcie było słuszne z powodu, który przy pisaniu umknął:
+**znacznik kolejności bajtów jest dowodem, że plik jest tekstem**, więc odmowa
+podglądu była najsłabszym punktem kroku. Reguła, która z tego została i obowiązuje
+każdy przyszły odczyt tekstu: **bajt to nie znak** — znaku nowej linii szuka się
+w kodowaniu źródła i **wyłącznie na granicy jednostki kodowej**, bo `0A 00` wypada
+w UTF-16LE także w środku pary innych znaków, a kotwica przesunięta o bajt to pół
+znaku. Wyrównania pilnują trzy miejsca naraz: kotwica przewijania w górę, bufor
+urwany budżetem i samo szukanie. Rozpoznanie bez BOM-u jest umyślnie ciasne (żadnej
+jednostki z dwóch zer, zera zawsze po tej samej stronie, wzorzec na czterech
+piątych jednostek), bo pomyłka w drugą stronę wysypałaby binaria na ekran jako
+tekst.
+
+**3. Słownik wejścia dostaje `Alt` — drugi modyfikator, rozłączny z `Ctrl`.**
+Przełącznik zawijania miał wisieć na `Alt`+`z`, „jak w edytorach”. Koszt został
+użytkownikowi przedstawiony przed decyzją (nowa flaga w `KeyPress`, rozróżnienie
+`Esc`+litera od `Alt`+litery w parserze terminalowym, bity modyfikatorów
+w `GlfwKeyMapper`, `KeyBinding` i spis pomocy — czyli kod krok 06, 19 i 34)
+i został przyjęty. Trzy rzeczy, które z tego wynikają:
+
+- **`Esc` naciśnięty tuż przed literą jest nieodróżnialny od `Alt`+litery**, bo
+  terminal wysyła w obu wypadkach te same dwa bajty. Rozstrzyga wyłącznie czas.
+  Tak samo rozstrzygają to emulatory terminala i edytory od czasów VT100;
+  rozdzielić je umie dopiero rozszerzony protokół klawiatury, wyłączony z zakresu
+  już w kroku 19.
+- **Kombinacji `Ctrl`+`Alt` słownik nie zna** i nie ma jej po co znać, dopóki nie
+  pojawi się użytkownik. W torze okienkowym `Ctrl` wygrywa, w terminalowym taka
+  para w ogóle nie powstaje.
+- **Każde porównanie litery musi patrzeć na oba znaczniki.** Dodanie `Alt`
+  ujawniło dwa miejsca, w których modyfikator był ignorowany: pole tekstowe
+  wpisywało skrót jako zwykły znak, a ekran modułu odpowiadał na `Alt`+`s` tak
+  samo jak na `s`. Do kroku 29 uchodziło to na sucho, bo `Ctrl`+litera nie
+  docierała do ekranu — przechwytywały ją skróty modułów. **Nowy modyfikator
+  odsłania każde niedokładne porównanie klawisza**, i to jest lekcja szersza niż
+  ten krok.
+
+**Granica „komponent nie czyta”.** `TextView` dostaje gotowe wiersze — już
+zdekodowane, z rozwiniętymi tabulatorami i oznaczonymi znakami sterującymi —
+i o pliku nie wie nic. To ta sama granica, co między komponentem a rendererem,
+tyle że po drugiej stronie: *komponent wie, jak wyglądać*, a nie skąd wziąć
+treść. Wejście-wyjście zostaje w module, bo tam mieszka wiedza o tym, co wolno
+przeczytać i jak długo (reguła 15).
+
+**Cena, zmierzona:** 6,3 ms wobec `chrome-text` przy blobie 80,5 kB zamiast
+23,6 kB. Widać w niej dokładnie to, co przewidział plan: zawinięty wiersz to
+kilka napisów zamiast jednego, a napisy podglądu są w każdej klatce inne, więc
+pamięć podręczna wierszy (D34) trafia w nie rzadziej niż w listę plików. Osobny
+scenariusz `text-view` był z tego powodu potrzebny, a nie dołożony dla porządku.
+
+### D59 — Ósmy prymityw jest napisem na tle, filtr mieszka w panelu, a `Esc` odmawia
+
+**Dotyczy:** kroku 30 (pełna treść:
+[30-filtrowanie-i-podswietlenie.md](30-filtrowanie-i-podswietlenie.md)),
+słownika prymitywów z kroku 18, **trzech rendererów** (kroki 07, 08, 35) oraz
+modułu przeglądarki.
+
+**Data:** 2026-08-12.
+
+Cztery pytania ze startu kroku rozstrzygnął użytkownik przed pierwszą linią
+kodu; piąte (bajty czy znaki) rozstrzygnęło się samo i jest zapisane niżej dla
+porządku. Dwa z nich są decyzją architektoniczną, a nie wyborem szczegółu.
+
+**1. Kształt ósmego prymitywu: napis na własnym tle, nie samo tło.** D48 zgodziła
+się na **otwarcie** zamkniętego słownika, ale kształtu nie przesądzała, a plan
+kroku proponował „tło pod fragmentem”. Przegląd stanu zastanego pokazał, że ta
+propozycja **nie byłaby nowym kształtem**: prostokąt wypełniony rolą motywu jest
+w słowniku dwa razy — jako `Bar` z `Weight::Fill` i jako `RoundRect` bez obrysu —
+a karetka `TextInput` od kroku 19 udaje nim podświetlenie fragmentu, dokładając
+na wierzchu przemalowany `TextRun`. Ósmy prymityw w tej postaci byłby synonimem
+siódmego, płatnym w **trzech** rendererach naraz.
+
+Użytkownik wybrał kształt, którego w słowniku naprawdę nie ma: `TextMark` —
+fragment tekstu **związany z tłem w jednej rzeczy**. Wygrana jest wymierna
+w każdym z trzech torów:
+
+- **Sixel**: jedna zapamiętana bitmapa i **jeden** `compositeImage` na
+  dopasowanie zamiast dwóch. `compositeImage` kosztuje tyle, ile kształt, ale
+  samo wywołanie kosztuje zawsze, a przy filtrze trafiającym w każdy wiersz
+  wywołań jest tyle, ile wierszy.
+- **Tekst**: tło **i** kolor pisma tej samej komórki — czyli degradacja do
+  atrybutu, nie do treści. Odwracanie atrybutów, które plan dopuszczał jako
+  ostateczność, okazało się niepotrzebne; tryb zapasowy pokazuje dopasowanie co
+  do znaku tak samo, jak tor graficzny. To pierwszy kształt od kroku 18, którego
+  renderer tekstowy **nie musi** degradować z ubytkiem.
+- **OpenGL**: prostokąt i napis, bez pamięci podręcznej — bo wygrana
+  z zapamiętywania bitmap była własnością toru sixelowego (D54).
+
+`TextRun` **zostaje nietknięty** i to jest warunek, na którym całość stoi:
+wiersz bez dopasowania oddaje co do podpisu te same prymitywy, co przed krokiem.
+Reguła na przyszłość: **zanim dołożysz kształt, sprawdź, czy nie jest którymś
+z istniejących pod inną nazwą.**
+
+**2. Zakresy w wierszu, znaki zamiast bajtów.** `TableRow` niesie
+`array<int, list<TextSpan>>` — zakresy wedle numeru kolumny, pusto domyślnie.
+Wiersz niesie **zakresy, a nie podzieloną treść**, bo podział wymaga wiedzy,
+której wiersz nie ma: od której kolumny zaczyna się napis po rozdziale
+szerokości (krok 27) i ile z niego zostanie po przycięciu. Przycięcie liczy się
+do treści **zachowanej**, a nie do napisu z wielokropkiem — wielokropek nie jest
+dopasowaniem.
+
+Przesunięcie liczy się **w znakach**. Odpowiedź była oczywista i plan tak ją
+zapowiadał, ale musiała paść: `zażółć.txt` ma dziewięć znaków i trzynaście
+bajtów, więc zakres liczony bajtami wylądowałby o cztery kolumny za daleko
+i w połowie znaku. Wielkość liter składa `mb_stripos()`, więc `Ł` znajduje `ł`.
+
+**3. Pole filtra jest oknem nakładanym, nie wierszem w panelu.** Stoi tam, gdzie
+okno komend z kroku 19 — nad paskiem stanu. Wynikła z tego jedna rzecz, której
+plan nie przewidywał, i jest ona ceną tego wyboru: **okno musi samo oddać
+strzałki pionowe liście pod spodem**. Reguła kroku 19 mówi, że klawisz
+przepuszczony przez okno próbuje jeszcze klawiszy globalnych, ale **do ekranu
+nie schodzi nigdy** — bez tej ścieżki filtr byłby polem, w którym da się pisać,
+ale nie da się wybrać tego, co się znalazło. Okno leży w
+`Module/Browser/Presentation/Overlay`, bo zna stan panelu; to rozszerzenie
+reguły 11 z komponentów na okna.
+
+**4. Filtr dotyczy panelu z ogniskiem, a zawężenie mieszka w stanie panelu.**
+Każdy panel ma własny filtr, bo ma już własny katalog, własny kursor i własne
+okno przewijania. Samo zawężenie **nie weszło do agregatu `Directory`**, tylko
+do `BrowserState`: filtr jest widokiem na katalog, a nie jego własnością — dwa
+panele otwarte na tym samym katalogu mają prawo mieć różne filtry, a katalog na
+dysku jest jeden. Panel trzyma przez to dwa katalogi: ten z dysku i ten
+widoczny; przy pustym filtrze jest to **ten sam obiekt**, żeby klatka bez filtra
+nie przechodziła przez ani jedno `array_filter`.
+
+**5. `Enter` zatwierdza, `Esc` odmawia — rozstrzygnięcie spoza listy planu.**
+Plan wymagał, żeby „zaznaczenie przeżyło wejście i wyjście z filtra”, ale zdanie
+to znaczy dwie sprzeczne rzeczy naraz: wrócić do wpisu sprzed filtra czy zostać
+na tym, który się znalazło. Rozdzielone zostało wzorem okna potwierdzenia (D56)
+i reguły P3:
+
+- **`Enter`** zostawia listę **zawężoną** i zaznaczenie tam, dokąd użytkownik
+  doszedł. Filtr przeżywa zamknięcie pola, więc widać go znacznikiem w pasie
+  ścieżki — wzorem znacznika wpisów ukrytych z kroku 21. Bez tego znacznika
+  lista zawężona byłaby nieodróżnialna od katalogu, w którym tych plików po
+  prostu nie ma.
+- **`Esc` w oknie** zdejmuje filtr i wraca do wpisu **sprzed** otwarcia.
+- **`Esc` na liście** (pole już zamknięte) zdejmuje sam filtr, zostawiając
+  zaznaczenie tam, gdzie stoi. Klawisz pokazuje się w spisie **tylko wtedy, gdy
+  jest co zdejmować** — na liście bez filtra nie robi nic i nie ma prawa
+  twierdzić, że robi.
+
+Zaznaczenie przenosi się przez każdą zmianę filtra **po nazwie, nie po numerze**
+(`Directory::selectEntryNamed()`, ten sam mechanizm, co przy ukrywaniu wpisów),
+bo filtr zmienia numery wszystkim wpisom naraz.
+
+**Skutek uboczny, znaleziony przy okazji:** porównanie klawisza `.`
+w `BrowserScreen` nie patrzyło na modyfikatory, więc `Ctrl`+`.` i `Alt`+`.`
+przełączały wpisy ukryte. Naprawione przy dokładaniu `/` — dokładnie ten rodzaj
+niedokładności, przed którym ostrzegała D58.
+
+### D60 — Podgląd tekstu dostaje ognisko, a przewijanie liczy się w linijkach panelu
+
+**Dotyczy:** modułu `FileInfo` (kroki 25 i 29), komponentu `TextView` i portu
+podglądu tekstu. **Odwołuje rozstrzygnięcie z D58.**
+
+**Data:** 2026-08-12.
+
+**Żądanie użytkownika:** „Dodaj możliwość zmiany kursora na podgląd pliku
+w module FileInfo i możliwość przewijania tekstu używając klawiszy strzałek,
+pgup, pgdown, home i end.”
+
+**1. Ognisko wraca — D58 mówiła, że go nie będzie.** Krok 29 rozstrzygnął tak:
+*„Osobnego przełącznika ogniska nie ma z rozmysłu: panele odpowiadają na
+rozłączne klawisze, więc nie ma czym się mylić ani czego przełączać — a `Tab`
+zostaje wolny.”* Rozdział był taki: strzałki należą do sekcji, `PgUp`/`PgDn`
+do podglądu. Powód odwołania jest jednozdaniowy: **podgląd tekstu, który nie
+umie przewinąć się o wiersz, nie jest podglądem tekstu**, a strzałki są jedynym
+klawiszem, którego użytkownik szuka odruchowo — i nie da się ich mieć w dwóch
+miejscach naraz.
+
+Ognisko przenosi `Tab`, czyli ten sam klawisz i ta sama klasa stanu
+(`SplitState`), co podział przeglądarki od kroku 24 — wraz z regułą „brak
+podziału sprowadza ognisko na pierwszy panel”. Panel czynny poznaje się po
+akcencie w obwódce, też jak w przeglądarce. **Spis klawiszy zależy od ogniska**
+i pokazuje wyłącznie to, co działa tu i teraz; klawisze niezwiązane z panelem
+(`Alt`+`Z`, `s`, `d`) działają zawsze, bo dotyczą **opisywanego pliku**, a nie
+tego, na co się patrzy.
+
+**2. Jednostką przewijania jest linijka panelu, nie wiersz pliku.** To była
+rozstrzygnięta wprost decyzja użytkownika, postawiona przeciw wariantowi
+tańszemu o połowę. Różnica widać dopiero przy zawijaniu — i wtedy widać ją
+boleśnie: wiersz pliku zajmuje kilka linijek, więc „przewiń o wiersz” znaczy raz
+o jedną linijkę, a raz o dziesięć. Na pliku będącym **jedną długą linią**
+(`.php-cs-fixer.cache`) strzałka w dół skakałaby od razu na koniec pliku.
+
+Przy okazji naprawiło to wadę starszą, o której nikt nie wiedział: `PgDn`
+przewijał o tyle **wierszy pliku**, ile panel ma linijek — a przy zawijaniu
+wierszy widać mniej niż linijek, więc **gubił treść**.
+
+**3. Kotwica zostaje na początku wiersza — pomijanie linijek jest osobno.**
+Rozwiązanie, które przesuwałoby kotwicę w środek wiersza, wymagałoby mapowania
+znaków na bajty: przy UTF-16 i przy rozwiniętych tabulatorach to nie jest ta sama
+arytmetyka. Zamiast tego kotwica stoi tam, gdzie stała (na początku wiersza),
+a ile jego linijek pominąć, mówi `$textRowSkip`. Pominięte linijki odcina się
+z **treści**, nie polem komponentu: `TextView` zawija to, co dostanie, więc
+wiersz podany bez początku zawija się dokładnie od właściwego miejsca. Rdzeń nie
+wie o pomijaniu linijek nic.
+
+Okno podglądu niesie za to **bajtowe początki wierszy** (`TextWindow::$starts`),
+bo bez nich każde naciśnięcie strzałki musiałoby szukać początku wiersza osobnym
+odczytem.
+
+**4. Szerokość linijki ma jedno źródło i nie zależy od treści.** To jest lekcja
+z dwóch pomyłek popełnionych przy tej zmianie, obu wyłapanych dopiero na
+zrzucie z XTerma:
+
+- **kolumna suwaka** znikała, gdy plik mieścił się w oknie, więc ten sam plik
+  miał inną szerokość treści przed i po dopisaniu wiersza;
+- **kolumna numerów** liczyła się z liczby **wczytanych wierszy**, więc plik
+  o jednej długiej linii miał ją inną niż plik kodu — a obraz przewijał się
+  wtedy o dwa znaki na krok.
+
+Obie zależały od treści, a treść zmienia się przy każdym przewinięciu. Dziś obie
+biorą się z **prostokąta**: suwak dostaje kolumnę z chwilą podania położenia
+(a nie z chwilą, gdy naprawdę się rysuje), numery — z wysokości prostokąta.
+Regułę trzyma jedno miejsce, `TextView::contentColumns()`, bo potrzebuje jej
+także ten, kto czyta plik. **Reguła ogólna: geometria, od której zależy odczyt,
+nie ma prawa zależeć od tego, co odczytano.**
+
+**5. `End` gubi numery wierszy i to jest uczciwa cena.** Skok na koniec sadza
+kotwicę po bajcie, a numeru wiersza z bajtu nie da się wyczytać bez przejścia
+przez cały plik — czyli bez zrobienia tego, czego ten moduł nie robi (D58).
+Numery znikają więc do najbliższego `Home`, zamiast pokazywać zmyśloną liczbę.
+Sam skok cofa się **wiersz po wierszu**, aż uzbiera się panel linijek; wiersz
+wypełniający cały panel mierzy się drugi raz, budżetem pełnym, bo inaczej plik
+będący jedną linią kończyłby się tam, gdzie się zaczyna.
+
+## Decyzje z planowania Fazy XI (2026-08-13)
+
+### D61 — Diagnostyka, benchmark i testy funkcjonalne wchodzą do planu jako Faza XI z krokiem 38
+
+**Dotyczy:** kroku 38 (pełna treść:
+[38-rozbudowa-diagnostyki-i-testow.md](38-rozbudowa-diagnostyki-i-testow.md))
+i struktury planu ([00-index.md](00-index.md)).
+
+**Data:** 2026-08-13.
+
+**Decyzja:** na żądanie użytkownika plan dostaje krok przekrojowy — rozbudowę
+narzędzi diagnostycznych, scenariuszy pomiarowych `bin/render-bench` i testów
+funkcjonalnych, wraz ze scenariuszami obu rodzajów. Krok stoi w osobnej
+Fazie XI i nosi numer 38.
+
+**Uzasadnienie.** Aplikacja przez Fazy IV–IX urosła szybciej niż jej miary
+i zaległości zebrały się w kilku miejscach naraz:
+
+- tor tekstowy jest jedynym z trzech tłumaczy słownika prymitywów, którego
+  narzędzie nie mierzy;
+- koszt zimnej klatki (start, zmiana rozmiaru, pierwsze dekodowanie
+  miniatury) jest odrzucany razem z rozgrzewką — dług zapisany już w kroku 16;
+- regresję wizualną wykrywa wyłącznie człowiek oglądający PNG, choć
+  najważniejsze odkrycie kroku 13 wyszło właśnie z obrazu, nie z liczb;
+- przebiegi funkcjonalne istnieją jako skutki kroków, nie spis zachowań —
+  nikt nie wie, których brakuje;
+- metryczka wzorca nie niesie obciążenia maszyny, które dwukrotnie
+  unieważniło pomiary (kroki 16 i 22).
+
+**Jeden krok, nie trzy** — bo scenariusze pomiarowe i funkcjonalne mają
+dzielić spis luk i katalog treści (deterministyczne klatki `ScenarioFactory`
+mogą służyć obu), a trzy osobne kroki robiłyby trzy przeglądy tych samych
+miejsc.
+
+**Osobna faza, nie doklejka do Fazy VII** — krok nie dowozi komponentu ani
+mechanizmu; rytm „jeden komponent — jeden krok” (D48) zostaje nietknięty.
+
+**Granice zapisane od razu:** scenariusze `tree` i `menu` należą do kroków 31
+i 32 (D48); bramka wydajności w CI pozostaje odrzucona (krok 16); otwarcie
+pomiaru pełnej pętli (rozstrzygnięcie nr 5 kroku 16) wymaga osobnej zgody
+użytkownika na starcie kroku.
+
+**Odrzucone alternatywy:** trzy osobne kroki (diagnostyka / benchmark /
+testy); dopisywanie scenariuszy wyłącznie przy okazji przyszłych kroków — to
+już się dzieje (D48) i nie domyka luk wstecznych; test wydajnościowy
+w bramce jakości — odrzucony w kroku 16 i nieprzywracany.
+
+## Decyzje z planowania Fazy XII (2026-08-13)
+
+### D62 — Makefile jako jedno wejście do projektu: osobna Faza XII z krokiem 39
+
+**Dotyczy:** kroku 39 (pełna treść: [39-makefile.md](39-makefile.md))
+i struktury planu ([00-index.md](00-index.md)).
+
+**Data:** 2026-08-13.
+
+**Decyzja:** na żądanie użytkownika plan dostaje krok narzędziowy — `Makefile`
+obejmujący weryfikację środowiska, instalację zależności, analizę jakości kodu,
+testy jednostkowe, funkcjonalne i wydajnościowe oraz budowę aplikacji
+Composerem. Krok stoi w osobnej Fazie XII i nosi numer 39.
+
+**Uzasadnienie.** Wejścia do projektu istnieją, ale żadne z nich nie wie
+o pozostałych:
+
+- wymagania środowiska (PHP `^8.3`, `imagick`, `pcntl`, `stty`, koder `SIXEL`,
+  Composer 2.x, opcjonalnie `glfw`, `intl`, `xterm`) opisuje **wyłącznie proza
+  README** — sprawdzają się dopiero uruchomieniem aplikacji, i to częściowo:
+  preflight w `bin/light-manager` zna trzy z nich;
+- polecenia jakości mieszkają w `composer.json`, a bramka „PHPStan bez błędów,
+  CS bez uwag, testy zielone” powtarza się w kryteriach każdego kroku planu
+  jako **nawyk bez nazwy**;
+- testy przebiegów leżą wymieszane z jednostkowymi w jednej testsuite, więc
+  nie da się uruchomić samych szybkich ani samych funkcjonalnych;
+- narzędzia mają trzy skrypty powłoki w `bin/`, każdy z własną kopią zasobów
+  XTerma;
+- **budowy nie ma w ogóle** — ani celu, ani katalogu wyniku, ani ustalenia, co
+  „zbudowana aplikacja” znaczy w projekcie, który niczego nie kompiluje.
+
+**Jeden krok, nie trzy** (środowisko / jakość / budowa) — bo to jeden plik
+i jeden spójny zestaw celów; trzy kroki dzieliłyby ten sam `Makefile` na trzy
+przeglądy i trzy okazje do rozjechania się nazw.
+
+**Osobna faza, nie doklejka do Fazy XI** — krok 38 rozbudowuje **treść** miar
+(scenariusze, przebiegi, wzorce), krok 39 daje **wejście** do ich uruchamiania.
+Jedyny punkt styku to podział testsuite: pytanie nr 5 kroku 39 i pytanie nr 6
+kroku 38 rozstrzygają tę samą granicę, więc zalecana kolejność to 38 przed 39,
+a odwrotna wymaga przesądzenia podziału w kroku 39.
+
+**Reguła zapisana od razu — Makefile nie jest drugim źródłem prawdy.** Cele mają
+wołać `composer`, `phpunit` i `bin/render-bench`, a nie powtarzać ich
+konfiguracji własnymi słowami; gdzie po tym kroku mieszka definicja poleceń
+jakości (`composer.json` czy `Makefile`), rozstrzyga użytkownik na starcie
+(pytanie nr 3), ale **jedno z dwóch miejsc musi ustąpić**.
+
+**Granice zapisane od razu:** bramka wydajności pozostaje odrzucona (krok 16) —
+cel pomiarowy powstaje, ale **nie może być zależnością** `make qa`, a reguła
+`CLAUDE.md` o proszeniu użytkownika o zwolnienie mocy hosta obowiązuje go tak
+samo jak wywołanie ręczne; CI poza zakresem (`make qa` ma być z niego
+wywoływalny, gdyby powstało — i tyle); Makefile nie instaluje rozszerzeń PHP
+ani zależności systemowych, tylko nazywa ich brak; Windows poza zakresem
+(README zamyka projekt do Linuksa i macOS-a); wykrywanie Sixela odpowiedzią DA1
+zostaje w `bin/terminal-probe`, bo wymaga interaktywnego terminala, którego
+`make` nie ma.
+
+**Znaczenie „budowy” rozstrzyga użytkownik** (pytanie nr 7 kroku): katalog
+dystrybucyjny bez zależności deweloperskich, archiwum, PHAR czy sam
+zoptymalizowany autoloader — od tego zależy, czy do projektu wchodzi nowa
+zależność deweloperska (builder PHAR-a) i czy potrzebne jest źródło wersji,
+którego `composer.json` dziś nie niesie.
+
+**Odrzucone alternatywy:** kolejny skrypt w `bin/` zamiast Makefile'a — trzy
+takie już są i to właśnie brak wspólnego wejścia jest problemem; rozbicie na
+osobne kroki „środowisko”, „jakość” i „budowa”; wprowadzenie CI razem
+z Makefile'em — to osobna decyzja, a jej najbardziej kuszący element (bramka
+wydajności) jest odrzucony od kroku 16; dołożenie przy okazji nowych narzędzi
+jakości (Psalm, Rector, Infection) — krok daje wejście do zestawu, który jest,
+a nie powód do jego rozszerzania.
+
+**Uzupełnienie tego samego dnia:** zakres kroku obejmuje także zapisanie reguły
+procesu w dokumentach projektu — zobacz **D63**.
+
+### D63 — Procesy projektu idą przez `make` i narzędzia repozytorium; reguła wchodzi do dokumentów
+
+**Dotyczy:** kroku 39 ([39-makefile.md](39-makefile.md), zakres pkt 8),
+`CLAUDE.md`, [docs/architecture.md](../architecture.md) oraz
+[SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md).
+
+**Data:** 2026-08-13.
+
+**Decyzja:** krok 39 nie kończy się na powstaniu `Makefile`. Ma **zapisać
+w dokumentach**, że wszystkie procesy związane z aplikacją uruchamia się celami
+`make`, a tam, gdzie projekt ma własne narzędzie (`bin/render-bench`,
+`bin/terminal-probe`, scenariusze `ScenarioFactory`), używa się **jego** zamiast
+dorabiać zastępnik doraźnie. Pełna treść — spis „proces → wejście” i reguła
+pierwszeństwa — trafia do `docs/architecture.md`; skrót operacyjny do `SKILL.md`;
+`CLAUDE.md` dostaje wskazanie i rozszerzenie istniejącej reguły pomiaru na cel
+pomiarowy Makefile'a, **pozostając wskaźnikiem, a nie drugą instrukcją** (D13).
+
+**Uzasadnienie.** Sam plik nie zmienia nawyku. `Makefile`, o którym dokumenty
+milczą, przegrywa z pamięcią mięśniową w tydzień, a wtedy wejście do projektu
+jest rozsypane po **czterech** miejscach zamiast trzech. Dziś stan dokumentów
+wprost do tego zaprasza:
+
+- `docs/architecture.md` opisuje procesy jednym wierszem „Skróty uruchomieniowe:
+  `composer test`, `composer stan`, `composer cs`, `composer cs:check`” —
+  **cztery z ośmiu** procesów projektu; o sprawdzeniu środowiska, pomiarze,
+  budowie i uruchomieniu dokument źródłowy nie mówi nic;
+- `SKILL.md` — plik ładowany przy pisaniu kodu w `src/`/`tests/` — **nie zawiera
+  ani jednego polecenia**, więc nie odpowiada na pytanie „czym sprawdzić, co
+  właśnie napisałem”;
+- `CLAUDE.md` jest jedynym miejscem mówiącym o jakimkolwiek procesie i mówi
+  o jednym: o pomiarze.
+
+**Druga połowa reguły jest ważniejsza od pierwszej.** Wywołanie procesu
+z pamięci zamiast celem `make` kosztuje niewiele; napisanie **własnej pętli
+`microtime()` zamiast `bin/render-bench`** kosztuje wynik, którego nie da się
+porównać z żadnym wzorcem, nie niesie metryczki środowiska i nie zostawia śladu
+— czyli pracę do wyrzucenia. Ta sama zasada obejmuje dokładanie scenariuszy do
+`ScenarioFactory` zamiast obok niej i sprawdzanie wejścia terminala
+`bin/terminal-probe` zamiast doraźną powłoką.
+
+**Granica zapisana od razu:** reguła dotyczy **procesów**, nie zabrania
+narzędzi. Zawężenie przebiegu wolno wołać wprost (pojedynczy test filtrem
+PHPUnita, jedna oś `bin/render-bench`, `composer` przy pracy nad zależnościami);
+zakazane jest **dorabianie równoległej drogi** do procesu, który wejście już ma.
+Jak ostro to sformułować — czy jako twardą regułę w rejestrze „nie odstępuj bez
+jawnej zgody”, czy jako zalecenie — rozstrzyga użytkownik na starcie kroku
+(pytanie nr 11), tak samo jak miejsce spisu w `docs/architecture.md`
+(pytanie nr 12).
+
+**Odrzucone alternatywy:** zostawienie reguły wyłącznie w `README.md` — README
+czyta człowiek przy pierwszym kontakcie, a proces uruchamia się przy każdym
+kroku planu; przeniesienie całej treści do `CLAUDE.md` — plik ma być krótkim,
+bezwarunkowo ładowanym wskaźnikiem (D13), a nie miejscem, gdzie mieszka wiedza;
+wymuszanie reguły hookami gita — mechanizm egzekwujący za plecami zamiast
+zapisanej konwencji jest osobną decyzją i tego kroku nie dotyczy; opisanie
+procesów w samym `Makefile` (komentarze w celach) — to jest pomoc przy
+wywołaniu, nie miejsce, do którego ktoś zajrzy, zanim wywoła coś innego.

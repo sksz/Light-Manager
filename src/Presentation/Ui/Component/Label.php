@@ -43,11 +43,18 @@ final class Label implements ComponentInterface
         $room = $bounds->columns;
 
         if ($this->right !== '') {
-            $width = mb_strlen($this->right);
+            // Wartość też się przycina, i to nie jest symetria dla symetrii.
+            // Do poprawki z 2026-08-12 przycinała się wyłącznie treść po lewej,
+            // a wartość szła na płótno w całości: opis od polecenia `file`,
+            // długi na 128 znaków, rysował się w czterdziestokolumnowym panelu
+            // jako napis kończący się osiemdziesiąt osiem kolumn **za** jego
+            // krawędzią — czyli po sąsiednim panelu.
+            $right = self::fit($this->right, $bounds->columns);
+            $width = mb_strlen($right);
             $primitives[] = new TextRun(
                 $bounds->row,
                 $bounds->column + max(0, $bounds->columns - $width),
-                $this->right,
+                $right,
                 $this->role,
                 $this->clearBehind,
             );

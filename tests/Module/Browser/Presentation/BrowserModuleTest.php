@@ -277,8 +277,16 @@ final class BrowserModuleTest extends TestCase
         self::assertSame([], $preview->content->draw(new Rect(10, 2, 6, 60)), 'katalog nie ma miniatury');
     }
 
-    /** Klawisze przeglądarki nie zmieniły się co do znaku. */
-    public function testKeyBindingsAreUnchanged(): void
+    /**
+     * Klawisze przeglądarki — spis zamknięty, więc każdy nowy widać w teście.
+     *
+     * Do kroku 30 zdanie brzmiało „nie zmieniły się co do znaku” i pilnowało
+     * obietnicy kroku 21: przenosiny do modułu nie dotykają zachowania. Filtr
+     * dokłada tu **jedną** pozycję i to jest cała zmiana; `Esc` dochodzi
+     * warunkowo i sprawdza go osobny test, bo bez zawężenia nie ma prawa się
+     * pokazać.
+     */
+    public function testKeyBindingsGrewByTheFilterOnly(): void
     {
         $keys = array_map(
             static fn (object $binding): string => (string) $binding->descriptionKey,
@@ -286,7 +294,13 @@ final class BrowserModuleTest extends TestCase
         );
 
         self::assertSame(
-            ['help.key.move', 'module.browser.help.open', 'module.browser.help.up', 'module.browser.help.hidden'],
+            [
+                'help.key.move',
+                'module.browser.help.open',
+                'module.browser.help.up',
+                'module.browser.help.hidden',
+                'module.browser.help.filter',
+            ],
             $keys,
         );
     }

@@ -28,6 +28,9 @@ return [
     'module.file-info.setting.checksumLimit' => 'Limit rozmiaru sumy (MiB)',
     'module.file-info.setting.diskUsage' => 'Zajętość katalogu na dysku (du)',
     'module.file-info.setting.backgroundTimeout' => 'Limit czasu pracy w tle (s)',
+    'module.file-info.setting.textPreview' => 'Podgląd treści plików tekstowych',
+    'module.file-info.setting.lineNumbers' => 'Numery wierszy w podglądzie',
+    'module.file-info.setting.textWrap' => 'Zawijanie wierszy w podglądzie',
 
     // Nagłówki sekcji.
     'module.file-info.section.identity' => 'TOŻSAMOŚĆ',
@@ -95,10 +98,12 @@ return [
         . 'o niej bloki i-węzła.',
     'module.file-info.diskUsage.failed' => 'Polecenie „du” nie podało wyniku.',
 
-    // Prawy panel: miniatura albo powód jej braku.
+    // Prawy panel: miniatura, treść pliku tekstowego albo powód, dla którego
+    // nie ma ani jednego.
     'module.file-info.preview.none' => '(brak podglądu)',
     'module.file-info.preview.unreadable' => 'Nie udało się odczytać obrazu.',
     'module.file-info.preview.tooLarge' => 'Plik przekracza limit {limit} MB — bez podglądu.',
+    'module.file-info.preview.binary' => '(plik binarny — bez podglądu treści)',
 
     // Zapis „ile temu”.
     'module.file-info.ago.now' => 'przed chwilą',
@@ -125,8 +130,17 @@ return [
     // Własna część zakładki pomocy — to, czego z deklaracji wyczytać się nie da.
     'module.file-info.help.checksum' => 'policz sumę kontrolną',
     'module.file-info.help.diskUsage' => 'policz zajętość katalogu',
+    'module.file-info.help.scrollPreview' => 'przewiń podgląd o panel',
+    'module.file-info.help.scrollLine' => 'przewiń podgląd o linijkę',
+    'module.file-info.help.edges' => 'początek i koniec pliku',
+    'module.file-info.help.sectionEdges' => 'pierwsza i ostatnia sekcja',
+    'module.file-info.help.focus' => 'przejście między opisem a podglądem',
+    'module.file-info.help.wrap' => 'zawijanie wierszy w podglądzie',
     'module.file-info.help.enter' => 'Opis dotyczy wpisu zaznaczonego na liście plików — także katalogu.',
     'module.file-info.help.sections' => 'Sekcje zwija się Enterem; suma kontrolna liczy się dopiero po '
         . 'naciśnięciu s, bo czyta cały plik, a zajętość katalogu po naciśnięciu d, bo przechodzi całe '
         . 'drzewo.',
+    'module.file-info.help.preview' => 'W prawym panelu stoi treść pliku tekstowego: PgUp i PgDn przewijają '
+        . 'ją o panel, Home wraca na początek, a Alt+Z przełącza zawijanie wierszy. Czytany jest wyłącznie '
+        . 'widoczny fragment, więc plik o dowolnym rozmiarze otwiera się natychmiast.',
 ];

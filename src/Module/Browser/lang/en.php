@@ -20,6 +20,15 @@ return [
     'module.browser.empty' => '(this directory is empty)',
     'module.browser.hidden' => '• hidden',
 
+    // List filter (step 30). The path-line marker is the only trace of the
+    // narrowing once the field is closed, so it carries the typed fragment.
+    'module.browser.filter.zone' => 'FILTER',
+    'module.browser.filter.prompt' => 'find: ',
+    'module.browser.filter.marker' => '• filter: {fragment}',
+    'module.browser.filter.none' => '(nothing matches the filter)',
+    'module.browser.filter.key.accept' => 'keep the list narrowed',
+    'module.browser.filter.key.cancel' => 'drop the filter and go back',
+
     // Settings tab entries.
     'module.browser.setting.showHidden' => 'Show hidden entries',
     'module.browser.setting.split' => 'Split into two panes',
@@ -43,6 +52,8 @@ return [
     'module.browser.help.up' => 'parent directory',
     'module.browser.help.hidden' => 'show or hide hidden entries',
     'module.browser.help.focus' => 'move to the other pane',
+    'module.browser.help.filter' => 'narrow the list by a name fragment',
+    'module.browser.help.filter.clear' => 'drop the filter',
 
     // Module command.
     'module.browser.command.jump' => 'jump to the given directory',

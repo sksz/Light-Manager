@@ -146,10 +146,36 @@ final class KeySequenceParser
         return match ($buffer[1]) {
             '[' => $this->parseControlSequence($buffer, $mayGrow),
             'O' => $this->parseSingleShift($buffer, $mayGrow),
-            // ESC + dowolny inny bajt (np. Alt+znak) — Escape jest osobnym
-            // zdarzeniem, następny bajt zostanie odczytany przy kolejnym wywołaniu.
-            default => $this->loneEscape(),
+            default => $this->parseAltCharacter($buffer),
         };
+    }
+
+    /**
+     * `ESC` + znak drukowalny ASCII = `Alt`+znak (krok 29).
+     *
+     * Do kroku 29 ta gałąź oddawała samotny `Escape`, a następny bajt czekał na
+     * kolejne wywołanie. Zmiana ma cenę i trzeba ją nazwać wprost:
+     * **`Esc` naciśnięty tuż przed literą jest nierozróżnialny od `Alt`+litery**,
+     * bo terminal wysyła w obu wypadkach dokładnie te same dwa bajty. Rozstrzyga
+     * o tym wyłącznie czas — a że pętla czyta STDIN raz na takt, oba naciśnięcia
+     * w jednym takcie trafiają do bufora razem. Tak samo rozstrzygają to
+     * emulatory terminala i edytory od czasów VT100; rozdzielić je umie dopiero
+     * rozszerzony protokół klawiatury (poza zakresem — jak w kroku 19).
+     *
+     * Bajt niedrukowalny po `ESC` — w tym drugi `ESC` — zostaje przy dawnej
+     * odpowiedzi: samotny `Escape`, reszta przy następnym wywołaniu. `Alt`
+     * ze znakiem spoza ASCII nie powstaje, bo nie ma go kto nacisnąć: skróty
+     * aplikacji wiszą na literach.
+     */
+    private function parseAltCharacter(string $buffer): ParsedKey
+    {
+        $code = ord($buffer[1]);
+
+        if ($code < 0x20 || $code > 0x7E) {
+            return $this->loneEscape();
+        }
+
+        return new ParsedKey(KeyPress::alt($buffer[1]), 2);
     }
 
     private function parseSingleShift(string $buffer, bool $mayGrow): ?ParsedKey
