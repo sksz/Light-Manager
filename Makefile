@@ -204,8 +204,8 @@ run: $(AUTOLOAD) ## Uruchamia aplikację w bieżącym terminalu
 run-window: $(AUTOLOAD) ## Uruchamia aplikację w oknie GLFW (--window)
 	./bin/light-manager --window $(ARGS)
 
-run-xterm: $(AUTOLOAD) ## Uruchamia aplikację w XTermie z zasobami trybu graficznego
-	./bin/run.sh
+run-xterm: $(AUTOLOAD) ## Uruchamia aplikację w XTermie (ARGS='100x22' zmienia rozmiar okna)
+	./bin/run.sh $(ARGS)
 
 probe: $(AUTOLOAD) ## Podgląd wejścia terminala (bin/terminal-probe) — także odpowiedź DA1
 	./bin/terminal-probe

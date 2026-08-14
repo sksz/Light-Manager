@@ -254,7 +254,6 @@ final class BrowserModuleTest extends TestCase
         $header = $screen->header();
 
         self::assertNotNull($header);
-        self::assertNull($screen->preview(), 'pas podglądu przeszedł do modułu opisu pliku');
         self::assertSame('layout.zone.path', $header->labelKey);
 
         $texts = self::textsOf($header->content->draw(new Rect(0, 2, 1, 60)));

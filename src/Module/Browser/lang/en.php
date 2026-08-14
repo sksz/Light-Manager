@@ -102,6 +102,7 @@ return [
     // comes on the line, because a command cannot open an overlay (D75, no. 5).
     'module.browser.command.rename' => 'rename the selected entry',
     'module.browser.command.mkdir' => 'create a directory in the pane directory',
+    'module.browser.command.delete' => 'delete the selected entry',
     'module.browser.argument.path' => 'path',
     'module.browser.argument.name' => 'name',
     'module.browser.jump.failed' => 'Cannot open the directory "{path}".',
@@ -119,6 +120,7 @@ return [
     'module.browser.delete.counting' => 'Counting the contents of "{name}"',
     'module.browser.delete.deleting' => 'Deleting "{name}"',
     'module.browser.delete.doneOne' => 'Deleted "{name}".',
+    'module.browser.delete.needsOverlay' => 'Deleting needs a confirmation — use F8 or the F9 menu.',
     'module.browser.delete.done' => [
         'Deleted {count} entry.',
         'Deleted {count} entries.',
@@ -140,6 +142,7 @@ return [
     'module.browser.problem.invalidPath' => '"{path}" is not an absolute directory path.',
     'module.browser.problem.fallback' => 'Cannot read the directory "{requested}" — opened "{opened}" instead.',
     'module.browser.problem.noSelection' => 'There is no selected entry.',
+    'module.browser.problem.noEntry' => 'This directory has no entry named "{name}".',
 
     // The module's own part of the help tab.
     'module.browser.help.default' => 'The browser is the default module: Esc returns to it from any other '

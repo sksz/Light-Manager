@@ -194,10 +194,12 @@ final class GameLoopTest extends TestCase
      * Reguła „strefa, której nie ma, oddaje wiersze środkowi” — sprawdzana od
      * kroku 21 na przeglądarce, bo była wtedy jedynym ekranem z pasem podglądu.
      *
-     * Od D76 **nie zamawia go żaden ekran**, więc test mówi to samo z drugiej
-     * strony: panel listy jest tak wysoki jak panel ekranu bez pasa i **wyższy od
-     * tego, co zostawiłby układ z pasem** — czyli lista dostała te wiersze
-     * naprawdę, a nie tylko w rachunku `HudLayout`.
+     * Od D76 nie zamawiał go żaden ekran, a od kroku 47 (D78) **nie ma go
+     * w kontrakcie w ogóle** — więc test zmienia zdanie po raz drugi i mówi to
+     * samo z trzeciej strony: panel listy sięga w klatce 30×80 pełnych
+     * dwudziestu trzech wierszy. Piętnaście zostawiał mu układ z pasem, osiem
+     * brał pas — i te osiem widać tu policzone na narysowanej obwódce, a nie
+     * w rachunku `HudLayout`.
      */
     public function testTheListTakesTheRowsOfTheAbsentPreviewStrip(): void
     {
@@ -212,11 +214,12 @@ final class GameLoopTest extends TestCase
         ]))->run();
 
         self::assertSame($browserRows, self::listRowsOf($this->renderer), 'oba ekrany są bez pasa');
-        self::assertGreaterThan(
-            (new HudLayout(30, 80, true, true))->list->rows,
+        self::assertSame(
+            (new HudLayout(30, 80, wideStatus: true))->list->rows,
             $browserRows,
-            'panel listy jest wyższy niż przy zamówionym pasie podglądu',
+            'panel rysuje się dokładnie na strefie, którą wyliczył układ',
         );
+        self::assertSame(23, $browserRows, 'piętnaście wierszy listy plus osiem po pasie podglądu');
     }
 
     /** Wysokość panelu listy odczytana z jego obwódki w płaszczyźnie oprawy. */

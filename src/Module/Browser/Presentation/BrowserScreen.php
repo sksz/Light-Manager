@@ -39,8 +39,9 @@ use LightManager\Presentation\Ui\SplitAxis;
  * Do kroku 20 był ekranem **rdzenia**, wpisanym w dno stosu i w stan pętli. Krok
  * 21 nie zmienia w nim ani jednego klawisza i ani jednego napisu — zmienia to,
  * skąd bierze katalog (z `BrowserState`, nie z `LoopState`) i ile stref klatki
- * rysuje. Do kroku 20 rysował środkowy panel; dziś zamawia wszystkie trzy, bo
- * rdzeń stracił katalog, a wraz z nim podstawę do rysowania ścieżki i podglądu.
+ * rysuje. Do kroku 20 rysował środkowy panel; od kroku 21 zamawia także pas
+ * ścieżki, bo rdzeń stracił katalog, a wraz z nim podstawę do jej rysowania.
+ * Pas podglądu zamawiał do D76, a od kroku 47 nie ma go w kontrakcie wcale.
  *
  * Kontekstu sesji ten ekran **nie czyta** — on go wydaje. Publikacją zajmuje się
  * `BrowserState`, bo katalog zmienia nie tylko klawisz, ale i komenda
@@ -121,25 +122,6 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
             'layout.zone.path',
             new PathLine($this->panes->focused()->directory()->path(), $this->suffix()),
         );
-    }
-
-    /**
-     * **Przeglądarka nie ma pasa podglądu** — i to jest zmiana wobec kroków 12, 13
-     * i 21, w których stał on tu bezwarunkowo (D76).
-     *
-     * Powód jest jeden: miniaturę zaznaczonego pliku pokazuje od kroku 25 moduł
-     * `FileInfo` (`Ctrl`+`D`), i pokazuje ją **lepiej** — w całym panelu, obok
-     * rozmiaru, praw dostępu i podglądu tekstu, a nie w czterech wierszach nad
-     * paskiem stanu. Dwa miejsca robiące to samo znaczyły dwa razy ten sam odczyt
-     * obrazu w klatce i dwie ścieżki do poprawiania przy każdej zmianie podglądu.
-     *
-     * `null` znaczy „strefa nie powstaje, **jej wiersze idą do środka**” (reguła 12),
-     * więc lista plików zyskuje cztery wiersze — i to jest widoczny zysk tej zmiany,
-     * a nie jej skutek uboczny.
-     */
-    public function preview(): ?ScreenZone
-    {
-        return null;
     }
 
     private function suffix(): string
@@ -402,7 +384,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
         }
 
         if ($key->key === Key::F8 || $key->key === Key::Delete) {
-            return $this->entries->deleteRequest();
+            return $this->entries->deletePrompt();
         }
 
         if ($this->panes->focusShowsTree()) {

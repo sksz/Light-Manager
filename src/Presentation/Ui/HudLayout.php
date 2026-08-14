@@ -11,26 +11,26 @@ use LightManager\Presentation\Ui\Container\Slot;
 use LightManager\Presentation\Ui\Container\VStack;
 
 /**
- * Podział okna na cztery strefy układu „HUD”: ścieżkę, listę, pas podglądu
- * i pasek stanu.
+ * Podział okna na trzy strefy układu „HUD”: ścieżkę, listę i pasek stanu.
  *
  * Sam podział robi `VStack` — tu mieszka **polityka**, czyli odpowiedź na
- * pytanie, ile która strefa chce dostać przy danej wysokości okna. Progi są te
- * same, co w usuniętym `HudFrameLayoutService`, i nie wynikają z arytmetyki:
- * przy dwudziestu wierszach pas podglądu **mieści się**, a mimo to go nie ma, bo
- * zabierałby liście więcej, niż daje. Takiej reguły żaden kontener nie zgadnie
- * sam z siebie i dlatego nie próbuje.
+ * pytanie, ile która strefa chce dostać przy danej wysokości okna. Progi nie
+ * wynikają z arytmetyki: mieszczą się i przy niższym oknie, a mimo to ustępują,
+ * bo zabierałyby liście więcej, niż dają. Takiej reguły żaden kontener nie
+ * zgadnie sam z siebie i dlatego nie próbuje.
  *
- * Kolejność ustępowania jest w szczelinach — pas podglądu oddaje wiersze
- * pierwszy, lista ostatnia — i przy dzisiejszych progach nie uruchamia się
+ * **Stref było cztery do kroku 47** — pas podglądu wyszedł z kontraktu ekranu
+ * wraz z `preview()` (D76, D78), bo po wyprowadzeniu miniatury do modułu
+ * `FileInfo` nie zamawiał go ani jeden ekran.
+ *
+ * Kolejność ustępowania jest w szczelinach — ścieżka oddaje wiersze przed
+ * paskiem stanu, lista ostatnia — i przy dzisiejszych progach nie uruchamia się
  * nigdy poza oknem niższym niż trzy wiersze. Zostaje jako siatka bezpieczeństwa
  * na progi, których nikt nie przewidział.
  *
- * Od kroku 21 obie strefy skrajne są **zamawiane przez ekran**: `$withHeader`
- * i `$withPreview` mówią, czy ekran w ogóle wystawił `ScreenZone`. Progi zostają
- * nietknięte — zmienia się wyłącznie źródło odpowiedzi „czy strefa ma powstać”.
- * Strefa niezamówiona nie dostaje ani jednego wiersza, a jej miejsce zabiera
- * szczelina elastyczna, czyli lista.
+ * Od kroku 21 strefa górna jest **zamawiana przez ekran**: `$withHeader` mówi,
+ * czy ekran w ogóle wystawił `ScreenZone`. Strefa niezamówiona nie dostaje ani
+ * jednego wiersza, a jej miejsce zabiera szczelina elastyczna, czyli lista.
  *
  * Krok 40 dokłada pytanie, którego ten podział wcześniej nie znał: `$wideStatus`
  * mówi, czy podpowiedzi mieszczą się w jednym wierszu. Jest to **pierwsza
@@ -40,24 +40,20 @@ use LightManager\Presentation\Ui\Container\VStack;
  */
 final class HudLayout
 {
-    /** Poniżej tylu wierszy pas podglądu zabierałby liście więcej, niż daje. */
-    private const ROWS_FOR_PREVIEW = 26;
-
     /**
      * Poniżej tylu wierszy pasek stanu nie rośnie do dwóch wierszy, choćby
      * podpowiedzi się nie mieściły.
      *
-     * Próg liczy się **z pasem podglądu**, i to jest cała jego treść: wiersz
-     * dokładany stopce zabiera się liście (jedyna szczelina elastyczna), a przy
-     * `ROWS_FOR_PREVIEW` lista właśnie oddała podglądowi osiem wierszy. Zabranie
-     * jej dziewiątego dokładnie w tym miejscu odwracałoby powód, dla którego
-     * tamten próg w ogóle istnieje. Dwa wiersze zapasu ponad nim znaczą, że pasek
-     * rośnie dopiero wtedy, gdy jest z czego — a w niskim oknie podpowiedzi
-     * ustępują pozycjami, nie wierszem listy.
+     * Treść progu jest ta sama, co przed krokiem 47, tylko liczona bez
+     * składnika, którego już nie ma: wiersz dokładany stopce zabiera się liście
+     * (jedyna szczelina elastyczna), więc rośnie ona dopiero wtedy, gdy liście
+     * zostaje z czego oddać. Do kroku 47 próg brzmiał `ROWS_FOR_PREVIEW + 2`
+     * (czyli 28), bo dokładnie tam lista oddawała osiem wierszy pasowi podglądu.
+     * Pas zniknął (D76, D78), więc lista ma przy **dwudziestu** wierszach tyle
+     * samo, co miała przy dwudziestu ośmiu z pasem — i tam stoi ten próg.
+     * W niższym oknie podpowiedzi ustępują pozycjami, nie wierszem listy.
      */
-    private const ROWS_FOR_STATUS_LINES = self::ROWS_FOR_PREVIEW + 2;
-
-    private const PREVIEW_INNER_ROWS = 6;
+    private const ROWS_FOR_STATUS_LINES = 20;
 
     private const ROWS_FOR_HEADER_PANEL = 18;
 
@@ -74,8 +70,6 @@ final class HudLayout
 
     public readonly Rect $list;
 
-    public readonly Rect $preview;
-
     public readonly Rect $status;
 
     private readonly int $rows;
@@ -91,7 +85,6 @@ final class HudLayout
         int $rows,
         int $columns,
         bool $withHeader = true,
-        bool $withPreview = false,
         bool $wideStatus = false,
     ) {
         $this->rows = max(1, $rows);
@@ -102,7 +95,6 @@ final class HudLayout
         $heights = (new VStack([
             Slot::fixed($spacer, $withHeader ? $this->headerRows() : 0, 2),
             Slot::flexible($spacer),
-            Slot::fixed($spacer, $withPreview ? $this->previewRows() : 0, 0),
             Slot::fixed($spacer, $this->statusRows(), 3),
         ]))->distribute($this->rows);
 
@@ -114,7 +106,7 @@ final class HudLayout
             $top += $height;
         }
 
-        [$this->header, $this->list, $this->preview, $this->status] = $zones;
+        [$this->header, $this->list, $this->status] = $zones;
     }
 
     public function headerIsPanel(): bool
@@ -130,11 +122,6 @@ final class HudLayout
     public function statusIsPanel(): bool
     {
         return $this->status->rows >= 3;
-    }
-
-    public function previewIsPanel(): bool
-    {
-        return $this->preview->rows >= 3;
     }
 
     /**
@@ -195,8 +182,4 @@ final class HudLayout
         };
     }
 
-    private function previewRows(): int
-    {
-        return $this->rows >= self::ROWS_FOR_PREVIEW ? self::PREVIEW_INNER_ROWS + 2 : 0;
-    }
 }

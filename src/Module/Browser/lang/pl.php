@@ -122,6 +122,7 @@ return [
     // w wierszu, bo komenda nie umie otworzyć okna nakładanego (D75, nr 5).
     'module.browser.command.rename' => 'zmień nazwę zaznaczonego wpisu',
     'module.browser.command.mkdir' => 'utwórz katalog w katalogu panelu',
+    'module.browser.command.delete' => 'usuń zaznaczony wpis',
     'module.browser.argument.path' => 'ścieżka',
     'module.browser.argument.name' => 'nazwa',
     'module.browser.jump.failed' => 'Nie można otworzyć katalogu „{path}”.',
@@ -142,6 +143,7 @@ return [
     'module.browser.delete.counting' => 'Liczenie zawartości „{name}”',
     'module.browser.delete.deleting' => 'Usuwanie „{name}”',
     'module.browser.delete.doneOne' => 'Usunięto „{name}”.',
+    'module.browser.delete.needsOverlay' => 'Usunięcie wymaga potwierdzenia — użyj klawisza F8 albo menu F9.',
     'module.browser.delete.done' => [
         'Usunięto {count} wpis.',
         'Usunięto {count} wpisy.',
@@ -165,6 +167,7 @@ return [
     'module.browser.problem.invalidPath' => '„{path}” nie jest bezwzględną ścieżką katalogu.',
     'module.browser.problem.fallback' => 'Nie można odczytać katalogu „{requested}” — otwarto „{opened}”.',
     'module.browser.problem.noSelection' => 'Nie ma zaznaczonego wpisu.',
+    'module.browser.problem.noEntry' => 'W tym katalogu nie ma wpisu „{name}”.',
 
     // Własna część zakładki pomocy — to, czego z deklaracji wyczytać się nie da.
     'module.browser.help.default' => 'Przeglądarka jest modułem domyślnym: Esc wraca do niej z każdego '

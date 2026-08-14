@@ -9,7 +9,12 @@
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
-xterm -ti vt340 -fa 'DejaVu Sans Mono' -fs 14 -geometry 100x30 \
+# Rozmiar okna jest argumentem, a nie stałą (krok 47): wysokość terminala bywa
+# treścią sprawdzenia, a nie tłem — zakładka ustawień przewija się dopiero
+# poniżej pewnej liczby wierszy, a pasek stanu rośnie do dwóch dopiero powyżej.
+GEOMETRY=${1:-100x30}
+
+xterm -ti vt340 -fa 'DejaVu Sans Mono' -fs 14 -geometry "$GEOMETRY" \
   -xrm 'XTerm*maxGraphicSize: 4000x4000' \
   -xrm 'XTerm*disallowedWindowOps: 1,2,3,4,5,6,7,8,9,11,13,18,19,20,21,GetSelection,SetSelection,SetWinLines,SetXprop' \
   -e sh -c "cd '$ROOT' && ./bin/light-manager"

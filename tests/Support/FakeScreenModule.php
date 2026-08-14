@@ -69,11 +69,6 @@ final class FakeScreenModule implements ModuleInterface, ProvidesScreen, ScreenI
         return null;
     }
 
-    public function preview(): ?ScreenZone
-    {
-        return null;
-    }
-
     public function bindings(): array
     {
         return [];

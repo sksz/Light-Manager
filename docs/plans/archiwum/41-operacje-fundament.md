@@ -10,7 +10,7 @@
 
 **Ukończony z zastrzeżeniem** (2026-08-14). Rozstrzygnięcia startowe —
 trzynaście, z czego cztery wynikły z odpowiedzi na pytanie nr 4, a jedno odwraca
-zapis planu — leżą w [00-decyzje.md](00-decyzje.md), D75.
+zapis planu — leżą w [00-decyzje.md](../00-decyzje.md), D75.
 
 **Zastrzeżenie:** rozstrzygnięcie nr 5 planu („dwie czynności w menu kontekstowym
 przez `AppliesToSelection`”) okazało się **niewykonalne w dzisiejszym rdzeniu** —
@@ -34,7 +34,7 @@ plik w połowie.
 
 ## Rozstrzygnięcie wykonywane wbrew dotychczasowej regule — najważniejsza treść tego pliku
 
-Użytkownik rozstrzygnął (2026-08-13, [00-decyzje.md](00-decyzje.md), D66,
+Użytkownik rozstrzygnął (2026-08-13, [00-decyzje.md](../00-decyzje.md), D66,
 rozstrzygnięcie 2), że operacje zapisu mieszkają **w rdzeniu, jako usługa
 wspólna**. To jest odwrócenie części D40 i wchodzi w spór z regułą 15
 Skilla, więc musi być zapisane wprost, zanim powstanie pierwsza linia kodu.
@@ -313,7 +313,7 @@ argumentem. `README.md` — nowe klawisze.
 
 ### 2026-08-14 — rozstrzygnięcia startowe i cały kod kroku
 
-**Rozstrzygnięć wyszło trzynaście, a nie dziewięć** ([00-decyzje.md](00-decyzje.md),
+**Rozstrzygnięć wyszło trzynaście, a nie dziewięć** ([00-decyzje.md](../00-decyzje.md),
 D75). Cztery dołożyła odpowiedź na pytanie nr 4: „rekurencyjnie, z liczbą wpisów”
 postawiło w tym kroku **pracę dłuższą od klatki**, którą plan rezerwował dla kroku
 42 — a wraz z nią okno liczenia, okno postępu, takt pracy w pętli i pytanie, co
@@ -430,7 +430,7 @@ domowego.
 **Pomiar:** krok **nie dokłada ani jednego prymitywu** i nie dotyka ścieżki
 rysowania — operacje dzieją się w fazie „aktualizuj stan” pętli. Powody pominięcia
 scenariuszy dla obu nowych okien oraz dla samych operacji zapisane
-w [docs/pomiary/README.md](../pomiary/README.md).
+w [docs/pomiary/README.md](../../pomiary/README.md).
 
 ### 2026-08-14 — pomiar i sprawdzenie w prawdziwym terminalu
 

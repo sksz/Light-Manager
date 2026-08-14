@@ -33,31 +33,46 @@ final class ContextMenuFlowTest extends TestCase
         $this->app = self::fixture();
     }
 
-    /** Menu na katalogu: wejście do niego i opis wpisu — obie pozycje z rejestru. */
+    /**
+     * Menu na katalogu: wejście, opis wpisu i **trzy operacje na plikach**.
+     *
+     * Do kroku 47 pozycje były dwie, bo czynności kroku 41 nie umiały otworzyć
+     * okna (D75, rozstrzygnięcie 5). Zdolność `OpensOverlay` to zmieniła i ten
+     * test jest dowodem spłaty tamtego długu.
+     */
     public function testMenuOnADirectoryShowsWhatCanBeDoneWithADirectory(): void
     {
         $this->special(Key::F9);
 
         self::assertTrue($this->app->state->overlays()->isOpen());
-        self::assertSame(['browser.open', 'file-info.show'], $this->itemsOnScreen());
+        self::assertSame(
+            ['browser.delete', 'browser.mkdir', 'browser.open', 'browser.rename', 'file-info.show'],
+            $this->itemsOnScreen(),
+        );
     }
 
     /**
-     * Menu na pliku traci pozycję wejścia — i to jest cała różnica, jaką menu
-     * wnosi ponad okno komend poza wyborem bez pisania.
+     * Menu na pliku traci pozycję wejścia — bo tylko ona wymaga katalogu.
+     * Operacje zostają: zmienić nazwę i usunąć wolno jedno i drugie.
      */
     public function testMenuOnAFileShowsLess(): void
     {
         $this->special(Key::ArrowDown);
         $this->special(Key::F9);
 
-        self::assertSame(['file-info.show'], $this->itemsOnScreen());
+        self::assertSame(
+            ['browser.delete', 'browser.mkdir', 'browser.rename', 'file-info.show'],
+            $this->itemsOnScreen(),
+        );
     }
 
     /**
-     * Przełączniki widoku są w rejestrze, ale **nie w menu**: dotyczą panelu,
-     * a nie zaznaczenia. To jest granica, na której menu różni się od okna
-     * komend.
+     * Przełączniki widoku są w rejestrze, ale **nie w menu**, i po kroku 47
+     * granica brzmi inaczej niż w D69: menu pokazuje czynności zmieniające
+     * **zawartość miejsca**, a nie **sposób oglądania** tego miejsca. Przy
+     * takiej granicy `browser.mkdir` wchodzi (tworzy wpis), a `browser.hidden`
+     * i `browser.tree` zostają poza — mimo że żadna z tych trzech nie dotyczy
+     * zaznaczenia.
      */
     public function testViewCommandsStayOutOfTheMenu(): void
     {
@@ -71,14 +86,24 @@ final class ContextMenuFlowTest extends TestCase
         self::assertNotNull($this->app->commandRegistry->find('browser.tree'));
     }
 
-    /** Pusty katalog: menu się **nie otwiera**, tylko mówi, że nie ma czego pokazać. */
-    public function testEmptyDirectoryGetsASentenceInsteadOfAnEmptyWindow(): void
+    /**
+     * Pusty katalog: menu **otwiera się z jedną pozycją** — i to jest zmiana,
+     * którą przyniósł krok 47.
+     *
+     * Do niego pusty katalog dostawał zdanie „nie ma czego pokazać”, bo każda
+     * pozycja wymagała zaznaczenia, a zaznaczenia w pustym katalogu nie ma.
+     * `browser.mkdir` zaznaczenia nie wymaga i jest jedyną czynnością, która ma
+     * tu sens — pusty katalog to dokładnie to miejsce, w którym chce się coś
+     * utworzyć. Sam mechanizm „menu bez pozycji się nie otwiera” zostaje
+     * i pilnuje go `MenuOverlayTest`.
+     */
+    public function testEmptyDirectoryOffersTheOnlyThingThatMakesSenseThere(): void
     {
         $this->special(Key::Enter);
         $this->special(Key::F9);
 
-        self::assertFalse($this->app->state->overlays()->isOpen());
-        self::assertSame('menu.empty', $this->app->state->message()?->text);
+        self::assertTrue($this->app->state->overlays()->isOpen());
+        self::assertSame(['browser.mkdir'], $this->itemsOnScreen());
     }
 
     /**
@@ -92,6 +117,11 @@ final class ContextMenuFlowTest extends TestCase
     {
         $throughMenu = self::fixture();
         $throughMenu->input->handle(KeyPress::special(Key::F9, ''), $throughMenu->state, self::NOW);
+
+        // `browser.open` stoi w menu trzecia (po `delete` i `mkdir`), a wybór
+        // idzie strzałkami — pozycji nie wskazuje się numerem nigdzie indziej.
+        $throughMenu->input->handle(KeyPress::special(Key::ArrowDown, ''), $throughMenu->state, self::NOW);
+        $throughMenu->input->handle(KeyPress::special(Key::ArrowDown, ''), $throughMenu->state, self::NOW);
         $throughMenu->input->handle(KeyPress::special(Key::Enter, "\r"), $throughMenu->state, self::NOW);
 
         $throughWindow = self::fixture();
@@ -117,6 +147,10 @@ final class ContextMenuFlowTest extends TestCase
     {
         $this->special(Key::ArrowDown);
         $this->special(Key::F9);
+
+        // Na pliku menu ma cztery pozycje, a `file-info.show` jest ostatnia.
+        $this->special(Key::ArrowDown);
+        $this->special(Key::ArrowDown);
         $this->special(Key::ArrowDown);
         $this->special(Key::Enter);
 
@@ -151,6 +185,8 @@ final class ContextMenuFlowTest extends TestCase
     public function testMenuDoesNotWriteToTheCommandHistory(): void
     {
         $this->special(Key::F9);
+        $this->special(Key::ArrowDown);
+        $this->special(Key::ArrowDown);
         $this->special(Key::Enter);
 
         self::assertSame([], $this->app->history->entries);

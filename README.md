@@ -328,8 +328,15 @@ bo jest śladem pracy, a nie ustawieniem.
 ### Menu kontekstowe
 
 `F9` otwiera pośrodku klatki listę czynności **dla tego, co jest zaznaczone** —
-bez pamiętania klawisza i bez pisania nazwy. Na katalogu widać wejście do niego
-i opis wpisu, na pliku — sam opis.
+bez pamiętania klawisza i bez pisania nazwy. Na katalogu widać wejście do niego,
+opis wpisu i trzy operacje na plikach (zmiana nazwy, nowy katalog, usunięcie);
+na pliku znika samo wejście, bo dotyczy wyłącznie katalogów.
+
+Pozycja, która potrzebuje okna, otwiera je zamiast pytać o nazwę w wierszu:
+usunięcie stawia to samo pytanie, co `F8`, a zmiana nazwy — to samo pole, co
+`F6`. Menu pokazuje przy tym czynności zmieniające **zawartość miejsca**, a nie
+sposób jego oglądania — dlatego są w nim operacje na plikach, a nie ma
+przełącznika wpisów ukrytych ani drzewa.
 
 | Klawisz | Działanie |
 |---|---|
@@ -343,6 +350,12 @@ pozycji robi dokładnie to, co komenda o tej nazwie. Widać to w wierszu — naz
 komendy stoi po lewej, jej opis po prawej — i wynika z tego jedna praktyczna
 rzecz: komenda dopisana przez moduł pojawia się w menu sama, o ile zadeklaruje,
 jakiego zaznaczenia dotyczy.
+
+Te same trzy operacje mają nazwy w oknie komend i **argument jest w nich
+opcjonalny**: `browser.rename` bez nazwy otwiera pole z nazwą bieżącą,
+`browser.mkdir` bez nazwy — pole puste, a `browser.delete` pyta o zgodę, zanim
+cokolwiek usunie. Z nazwą w wierszu (`browser.rename umowa.txt`) działają od
+razu, bez okna.
 
 Do menu trafiają wyłącznie czynności **na zaznaczeniu**. `browser.hidden`
 i `browser.tree` są w rejestrze, ale w menu ich nie ma: dotyczą panelu, a nie
@@ -363,6 +376,12 @@ starcie** — jego wartości to identyfikatory modułów, które naprawdę wnosz
 a lista powstaje przy starcie, nie w kodzie. Kursor zaczyna na pasku zakładek: `←` / `→` przełączają wtedy
 zakładkę, a `↓` wchodzi w pozycje. Na pozycji `←` / `→` zmieniają wartość,
 `↑` / `↓` chodzą po liście, `Esc` wraca do plików.
+
+Zakładka **dłuższa od okna przewija się**: `PageUp` / `PageDown` skaczą o stronę,
+`Home` / `End` na pierwszą i ostatnią pozycję, a przy krawędzi pojawia się suwak.
+Pasek zakładek zostaje przy tym nieruchomy, bo jest jedynym wskaźnikiem tego,
+gdzie się stoi; każda zakładka pamięta swoje położenie osobno. Do wersji, w której
+to powstało, pozycja, która nie mieściła się w oknie, **znikała bez śladu**.
 
 Pozycja tekstowa (np. argumenty polecenia w module `file-info`) zachowuje się
 inaczej: `Enter` wchodzi w nią i zatwierdza wpisaną wartość, `Esc` porzuca

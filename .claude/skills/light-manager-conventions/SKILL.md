@@ -358,8 +358,17 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     a nie odpowiadać „nie”. Granica biegnie po **zaznaczeniu, nie po module**:
     `browser.hidden` i `browser.tree` są w rejestrze, ale w menu ich nie ma.
     Czynność mająca dwa wejścia (klawisz i komenda) mieszka w **jednym** miejscu
-    (`HiddenEntries`) — dwie implementacje rozjeżdżają się przy pierwszej
-    poprawce. Kontekst przychodzi migawką przy otwarciu (`useContext()`, nie
+    (`HiddenEntries`, `EntryOperations`) — dwie implementacje rozjeżdżają się przy
+    pierwszej poprawce.
+    **Komenda potrzebująca okna deklaruje `Presentation\Ui\Command\OpensOverlay`**
+    (krok 47, D78) — `overlayFor()` oddaje okno albo `null` („wykonaj mnie
+    zwyczajnie”), a pytają o to obaj wołający komend: okno komend i menu. Granica
+    warstw nie była tu nigdy przeszkodą i nie próbuj jej obchodzić
+    identyfikatorem: **wszystkie** komendy leżą w `Presentation`, w `Application`
+    leży sam kontrakt. Granica menu brzmi odtąd: pokazuje czynności zmieniające
+    **zawartość miejsca**, a nie **sposób oglądania** go — dlatego `browser.mkdir`
+    jest w menu mimo że nie dotyczy zaznaczenia, a `browser.hidden` i
+    `browser.tree` nadal nie są. Kontekst przychodzi migawką przy otwarciu (`useContext()`, nie
     `Resettable`: stos woła `reset()` po otwarciu i skasowałby policzone
     pozycje), okno staje pośrodku jak `ConfirmOverlay`, a menu bez pozycji
     **nie otwiera się** i mówi zdaniem w pasku stanu.
@@ -397,8 +406,9 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     miejscu **musi** tam stać w spisie — i odwrotnie. Pilnuje tego jeden test
     dla wszystkich ekranów i położeń (`tests/Functional/StatusHintsFlowTest.php`).
     Pasek wolno urosnąć do **dwóch wierszy**: to jedyna odpowiedź `HudLayout`
-    zależna od treści, wiersz bierze się **liście** (nigdy pasowi podglądu) i tylko
-    powyżej progu liczonego z tym pasem. Dawne zdanie z kroków 14 i 18 — „stopka nie
+    zależna od treści, wiersz bierze się **liście** (jedynej szczelinie
+    elastycznej) i tylko powyżej progu **dwudziestu wierszy** — przesuniętego tam
+    z 28 w kroku 47, gdy zniknął pas podglądu, z którego był liczony. Dawne zdanie z kroków 14 i 18 — „stopka nie
     jest ściągawką, tylko wskazaniem, gdzie ściągawka leży” — jest **odwołane co do
     zasięgu**; źródłem podpowiedzi pozostaje `KeyBinding`, nigdy napis w katalogu.
 11. **Nowy element interfejsu to nowy komponent w `Presentation/Ui/Component`**,
@@ -410,13 +420,21 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     rdzenia (krok 21: `PathLine`, `PreviewBox`); tą samą zasadą okno nakładane
     znające stan modułu leży w jego `Presentation/Overlay` (krok 30:
     `FilterOverlay`).
-12. **Ekran rysuje trzy strefy, nie jedną** (krok 21, D42): `header()`
-    i `preview()` oddają `?ScreenZone` — klucz etykiety obwódki plus komponent
+12. **Ekran rysuje dwie strefy, nie jedną** (krok 21, D42; krok 47, D78):
+    `header()` oddaje `?ScreenZone` — klucz etykiety obwódki plus komponent
     z treścią — a `null` znaczy „strefa nie powstaje, jej wiersze idą do środka”.
     Rdzeniowi zostają **oprawa stref i pasek stanu**; ekran nie rysuje ramek —
     z jednym wyjątkiem, którym jest ekran podzielony (`DrawsOwnFrame`, reguła 11c).
     Zasada kroku 20 „moduł dostaje środkowy panel i nic poza nim” **nie
     obowiązuje**. `headerSuffix()` i `usesPreview()` nie istnieją.
+    **Stref było trzy do kroku 47** — `preview()` (pas podglądu) wyszedł
+    z kontraktu wraz ze strefą w `HudLayout`, jej progiem i płaszczyzną
+    w `FrameComposer`, bo po wyprowadzeniu miniatury do modułu `FileInfo` (D76)
+    nie zamawiał go **ani jeden** ekran, a mechanizm rdzenia bez odbiorcy łamie
+    regułę 13. Skutek uboczny do zapamiętania: **próg dwuwierszowego paska stanu
+    przesunął się z 28 na 20 wierszy**, bo był liczony jako `ROWS_FOR_PREVIEW + 2`
+    — uzasadnienie zostało to samo, zmieniła się arytmetyka. Ekran, który znowu
+    zechce strefę skrajną, dowozi ją **razem z odbiorcą**.
 13. **Żaden komponent nie powstaje bez prawdziwego użytkownika w aplikacji**
     (krok 18, P5) — komponent pokryty samym testem to API zaprojektowane na
     domysł. Ta sama zasada odsunęła podpowiadanie ścieżek z kroku 19 do 20:
@@ -428,6 +446,10 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     oba tryby mają użytkownika w aplikacji. To **nie jest precedens**: następny
     komponent bez użytkownika wymaga takiej samej jawnej zgody, a nie powołania
     się na ten — a cena odroczenia wyniosła w tym wypadku trzy kroki planu.
+    **Reguła działa też wstecz** (krok 47, D78): mechanizm, który **stracił**
+    ostatniego odbiorcę, wychodzi z rdzenia, a nie zostaje na zapas. Tak zniknął
+    pas podglądu z kontraktu ekranu — decyzja D76 zostawiła go bez użytkownika
+    i zapisała to jako dług, a nie jako wyjątek.
 14. PHPStan `level: max`. Zamiast obniżać poziom — punktowy
     `@phpstan-ignore-line` z komentarzem uzasadniającym.
 15. **Nowa funkcja to moduł w `src/Module/`, nie zmiana w rdzeniu** (krok 20).

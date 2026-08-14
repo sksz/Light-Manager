@@ -26,7 +26,7 @@ z istniejącym — jak `highlight` z `columns`.
 | pasek zaznaczenia (`Highlight`) | `selection` | każdy wiersz zaznaczony — sufit ceny |
 | `Scrollbar` | `scrollbar` | |
 | `StatusBar` — **wraz z wariantem dwuwierszowym** | `chrome-text` | krok 40; stopka kontekstowa jest tam pełnej długości, więc pasek rośnie do dwóch wierszy w **każdym** scenariuszu z chromem |
-| `ImageBox` | `thumbnail` | jedyny scenariusz z bitmapą i paletą 256. Od D76 **żaden ekran aplikacji nie zamawia pasa podglądu**, a scenariusz nadal go buduje — i tak ma zostać: mierzy koszt bitmapy w klatce, który płaci dziś prawy panel modułu opisu pliku. Prostokąt jest inny, prymitywy te same |
+| `ImageBox` | `thumbnail` | jedyny scenariusz z bitmapą i paletą 256. Od kroku 47 mierzy ją **tam, gdzie aplikacja ją rysuje**: w prawym panelu podzielonej klatki, czyli w układzie modułu opisu pliku (`PreviewPane`). Do D76 stała w pasie podglądu, a po nim scenariusz budował pas, którego żaden ekran już nie zamawiał — po zniesieniu strefy (D78) nie było z czego go zbudować |
 | `Dialog` | `popup` | |
 | `TextInput` (z karetką) | `command` | |
 | `Section`, `SectionList` | `sections` | także znaki spoza ASCII |

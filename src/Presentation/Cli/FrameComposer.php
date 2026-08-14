@@ -96,7 +96,6 @@ final class FrameComposer
         }
 
         $header = $screen->header();
-        $preview = $screen->preview();
 
         $rows = $this->viewport->rows();
         $columns = max(self::MINIMUM_COLUMNS, $this->viewport->columns());
@@ -111,7 +110,6 @@ final class FrameComposer
             $rows,
             $columns,
             $header !== null,
-            $preview !== null,
             // Pasek rośnie **z potrzeby**, nie z samej wysokości okna
             // (rozstrzygnięcie nr 6 kroku 40): pytamy o miejsce w wierszu, który
             // dzieli się z komunikatem, bo to on jest wąskim gardłem.
@@ -129,8 +127,8 @@ final class FrameComposer
         $ownFrame = $screen instanceof DrawsOwnFrame ? $screen->ownFrame($layout->list) : [];
 
         $planes = [
-            $this->chrome($layout, $screen, $header, $preview, $ownFrame),
-            $this->content($layout, $screen, $state, $header, $preview, $ownFrame !== [], $hints),
+            $this->chrome($layout, $screen, $header, $ownFrame),
+            $this->content($layout, $screen, $state, $header, $ownFrame !== [], $hints),
         ];
 
         if ($overlay !== null) {
@@ -150,14 +148,12 @@ final class FrameComposer
         HudLayout $layout,
         ScreenInterface $screen,
         ?ScreenZone $header,
-        ?ScreenZone $preview,
         array $ownFrame,
     ): Plane {
         $primitives = $ownFrame;
         $panels = [
             [$layout->header, $layout->headerIsPanel(), $header->labelKey ?? ''],
             [$layout->list, $layout->listIsPanel() && $ownFrame === [], $screen->labelKey()],
-            [$layout->preview, $layout->previewIsPanel(), $preview->labelKey ?? ''],
             [$layout->status, $layout->statusIsPanel(), ''],
         ];
 
@@ -176,13 +172,12 @@ final class FrameComposer
         return new Plane('chrome', new Rect(0, 0, $layout->status->bottom() + 1, $layout->header->columns), $primitives);
     }
 
-    /** Treść: trzy strefy oddane ekranowi i pasek stanu, który zostaje rdzeniowi. */
+    /** Treść: dwie strefy oddane ekranowi i pasek stanu, który zostaje rdzeniowi. */
     private function content(
         HudLayout $layout,
         ScreenInterface $screen,
         LoopState $state,
         ?ScreenZone $header,
-        ?ScreenZone $preview,
         bool $ownFrame,
         StatusHints $hints,
     ): Plane {
@@ -198,10 +193,6 @@ final class FrameComposer
         $list = $ownFrame ? $layout->list : HudLayout::contentOf($layout->list, $layout->listIsPanel());
 
         foreach ($screen->draw($list) as $primitive) {
-            $primitives[] = $primitive;
-        }
-
-        foreach ($this->zoneOf($preview, $layout->preview, $layout->previewIsPanel()) as $primitive) {
             $primitives[] = $primitive;
         }
 

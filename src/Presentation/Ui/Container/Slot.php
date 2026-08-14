@@ -12,7 +12,8 @@ use LightManager\Presentation\Ui\ComponentInterface;
  *
  * Trzy liczby zamiast jednej, bo podział okna w tej aplikacji nie jest
  * proporcjonalny. Drabinka z kroku 13 mówi wprost, **w jakiej kolejności**
- * strefy mają ustępować w niskim oknie: najpierw znika pas podglądu, potem
+ * strefy mają ustępować w niskim oknie: najpierw znikał pas podglądu (do kroku
+ * 47), potem
  * obwódki, a lista dostaje zawsze co najmniej jeden wiersz. Kontener, który
  * umie tylko dzielić po równo albo po udziałach, nie odtworzyłby tego nigdy.
  *

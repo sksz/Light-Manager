@@ -267,7 +267,7 @@ z powodem — nienazwana, otworzyłaby rdzeń na wszystko.
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 41 | Fundament operacji: nazwa, nowy katalog, usunięcie | [41-operacje-fundament.md](41-operacje-fundament.md) | 14, 15, 18, 19, 21, 24, 28, 38 | Opus | high | Ukończony z zastrzeżeniem |
+| 41 | Fundament operacji: nazwa, nowy katalog, usunięcie | [41-operacje-fundament.md](archiwum/41-operacje-fundament.md) | 14, 15, 18, 19, 21, 24, 28, 38 | Opus | high | Ukończony z zastrzeżeniem |
 | 42 | Kopiowanie i przenoszenie po kawałku, z postępem | [42-kopiowanie-i-przenoszenie.md](42-kopiowanie-i-przenoszenie.md) | 23, 24, 25, 38, 41 | Fable | xhigh | Nie rozpoczęty |
 | 43 | Zaznaczenie wielokrotne jako mnożnik operacji | [43-zaznaczenie-wielokrotne.md](43-zaznaczenie-wielokrotne.md) | 21, 27, 28, 30, 38, 41 | Opus | high | Nie rozpoczęty |
 | 44 | Kosz i cofnięcie ostatniej operacji | [44-kosz-i-cofanie.md](44-kosz-i-cofanie.md) | 6, 14, 15, 19, 29, 38, 41, 42 | Opus | high¹ | Nie rozpoczęty |
@@ -275,6 +275,11 @@ z powodem — nienazwana, otworzyłaby rdzeń na wszystko.
 ¹ **Fable / xhigh**, jeśli rozstrzygnięcie startowe nr 1 tamtego kroku wprowadzi
 `Shift` do słownika wejścia — wtedy krok zmienia trzy tory wejścia naraz. Model
 wybiera się **po** tej odpowiedzi, nie przed nią.
+
+**Między krokiem 41 a 42 wchodzi krok 47** (Faza XVI): spłaca dług, o który
+kroki 42 i 43 oprą swoje pozycje w menu i okna wywoływane komendą. Kolejność
+wykonania jest tu ważniejsza od numeru — powód stoi przy opisie tamtej fazy
+i w grafie zależności.
 
 ### Faza XV — Rozbudowa modułu dźwięku
 
@@ -295,6 +300,32 @@ i wyłącznie dla wygody, tu bez niej funkcja nie istnieje.
 | 45 | Ekran modułu dźwięku i playlista | [45-ekran-audio-i-playlista.md](45-ekran-audio-i-playlista.md) | 9, 14, 15, 16, 18, 20, 21, 36 | Opus | xhigh | Nie rozpoczęty |
 | 46 | Efekty specjalne: zdarzenia aplikacji dostają dźwięk | [46-efekty-specjalne.md](46-efekty-specjalne.md) | 18, 19, 20, 24, 27, 36, 45 | Opus | high | Nie rozpoczęty |
 
+### Faza XVI — Spłata długów
+
+Faza bez ani jednej nowej funkcji ([00-decyzje.md](00-decyzje.md), D77): zbiera
+trzy długi, które **nie mają właściciela** w żadnym zaplanowanym kroku —
+zobowiązanie kroku 41 wobec kroku 32 (komenda nie umie otworzyć okna, D75
+rozstrzygnięcie 5), skutek uboczny D76 (trzecia strefa została bez odbiorcy,
+wbrew regule 13) i defekt zauważony w kroku 29 (zakładka ustawień dłuższa od okna
+gubi pozycje zamiast je przewijać). Długi **z właścicielem** do fazy nie wchodzą:
+szerokość okna liczona z długości napisu należy do kroku 42, autostart muzyki do
+kroku 45, a skala treści czeka na sprzęt, nie na krok.
+
+**Numer ma wyższy, wykonuje się wcześniej** — zaraz po kroku 41, **przed krokiem
+42**. Powód jest mechaniczny: kroki 42 i 43 dokładają czynności, z których każda
+zechce pozycji w menu i okna wywołanego komendą. Spłacony dług obsłuży je za
+darmo, niespłacony każe przerabiać to samo miejsce trzy razy. Ten sam rachunek
+dotyczy wzorców pomiarowych w trzech torach — przelicza się je raz.
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 47 | Spłata długów: komenda otwiera okno, strefa bez odbiorcy, zakładka bez przewijania | [47-splata-dlugow.md](47-splata-dlugow.md) | 14, 18, 19, 21, 22, 29, 32, 33, 38, 40, 41 | Fable² | xhigh | Ukończony |
+
+² Model **rozstrzygnięty 2026-08-14** (D78, rozstrzygnięcie 4): trzecia strefa
+wychodzi z `ScreenInterface`, więc krok rusza kontrakt ekranu, układ, kompozytor
+klatki i wszystkie trzy renderery naraz — czyli zachodzi warunek, dla którego
+przypis przewidywał `Fable / xhigh` zamiast `Opus / xhigh`.
+
 ### Dokumenty towarzyszące (praca projektowa)
 
 | Krok | Plik | Aktualizowany | Model | Wysiłek | Status |
@@ -303,10 +334,12 @@ i wyłącznie dla wygody, tu bez niej funkcja nie istnieje.
 
 ## Graf zależności
 
-Kolejność realizacji pokrywa się z numeracją (01…44) **do kroku 26 włącznie**;
+Kolejność realizacji pokrywa się z numeracją (01…47) **do kroku 26 włącznie**;
 Faza VII łańcuchem już nie jest, a kroki 33–40 (Fazy VIII–XIII) stoją poza nią
 zupełnie (patrz opisy na końcu tej listy). Faza XIV (41–44) jest **znowu
-łańcuchem**, i to jedyna po Fazie VI. Poza prostym
+łańcuchem**, i to jedyna po Fazie VI — z jednym wtrąceniem: **krok 47 wchodzi
+między 41 a 42**, bo spłaca dług, na którym tamte kroki się oprą (opis na końcu
+tej listy). Poza prostym
 łańcuchem `01→02→…→26` istnieją węzły zbiegające się z dwóch gałęzi:
 
 - **04** (dokumentacja + Skill) zależy od **01, 02 i 03** — potrzebuje
@@ -653,6 +686,28 @@ zupełnie (patrz opisy na końcu tej listy). Faza XIV (41–44) jest **znowu
     „plik skasowany” jest najciekawszym kandydatem na zdarzenie, ale krok obejdzie
     się bez niego, jeśli tamta faza wykona się później.
 
+- **47** (spłata długów) jest jedynym krokiem planu, którego **numer nie mówi nic
+  o kolejności**: idzie zaraz po **41**, przed **42**. Zależy od **41** twardo
+  (dług A powstał tam i tam leży `EntryOperations`, w które menu ma trafić), od
+  **32** (`MenuOverlay` i `AppliesToSelection`, czyli odbiorca długu A), od **19**
+  (`CommandOutcome` i `InputHandler::openById()` — jedyne dziś tłumaczenie
+  identyfikatora na obiekt) oraz od **18** (`OverlayInterface`, `ScreenInterface`,
+  `ScreenOutcome::opens()` — wszystkie trzy długi leżą w tym, co tam powstało).
+  Od **40** zależy nieoczywiście i to jest najciekawsza z jego zależności: próg
+  dwuwierszowego paska stanu jest **wyprowadzony** z progu pasa podglądu
+  (`ROWS_FOR_PREVIEW + 2`), więc usunięcie strefy wraca do rachunku tamtego kroku
+  i każe mu napisać nowe uzasadnienie, nie nową liczbę. Od **12, 13, 21 i 25**
+  bierze pochodzenie pasa podglądu i miejsce, w którym miniatura została
+  (`PreviewPane`, `ImageBox`); od **14, 22, 29 i 33** — ekran ustawień, wzorzec
+  pamięci przewijania pod kluczem, miejsce zauważenia długu C i rozmiar okna,
+  bez którego dług C byłby nieosiągalny; od **38** — wzorce i przebiegi
+  w trzech torach.
+
+  Kroki **42, 43 i 44** zależą od niego **miękko, ale realnie**: wykonany
+  wcześniej daje ich czynnościom drogę do menu i do okien z komend za darmo.
+  Wykonany później znaczy trzykrotną przeróbkę tego samego miejsca — i to jest
+  cały powód, dla którego numer i kolejność się tu rozjeżdżają.
+
 Żaden krok nie da się sensownie zacząć przed ukończeniem swoich zależności
 z tabel powyżej.
 
@@ -660,7 +715,7 @@ z tabel powyżej.
 
 Katalog `docs/plans/` trzyma **wyłącznie kroki, przed którymi jeszcze praca**:
 nierozpoczęte, w toku i zablokowane. Kroki ukończone przenoszą się do
-[archiwum/](archiwum/) — dziś jest ich 40 z 46, więc bez tego podziału lista
+[archiwum/](archiwum/) — dziś jest ich 41 z 47, więc bez tego podziału lista
 tego, co zostało do zrobienia, ginęła w historii projektu.
 
 Trzy rzeczy, które przy tym **nie** zmieniają miejsca, bo są dokumentami
@@ -698,9 +753,10 @@ zakończeniu pracy nad krokiem:
   kroki 24 (dwa panele) i 28 (okno potwierdzenia)
 - ~~Podgląd plików tekstowych~~ — wszedł do planu jako krok **29** (D48)
   i **został wykonany**; pozycja jest zamknięta od 2026-08-12
-- Przewijanie ekranu ustawień — zakładka dłuższa od okna gubi dziś pozycje
+- ~~Przewijanie ekranu ustawień~~ — zakładka dłuższa od okna gubi dziś pozycje
   zamiast je przewijać (`Slot::fixed()`, reguła 11e). Zauważone w kroku 29, gdy
-  zakładka `file-info` urosła do dziesięciu pozycji; zachowanie jest starsze
+  zakładka `file-info` urosła do dziesięciu pozycji (dziś ma jedenaście);
+  zachowanie jest starsze. **Weszło do planu jako krok 47** (D77)
 - Rozpoznawanie UTF-32 bez znacznika kolejności bajtów — świadomie pominięte
   w kroku 29 (kodowanie z BOM-em i UTF-16 bez BOM-u są obsługiwane)
 - ~~Widok dwupanelowy~~ — wszedł do planu jako krok **24** (D43)

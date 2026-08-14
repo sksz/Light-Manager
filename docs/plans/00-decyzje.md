@@ -100,6 +100,15 @@ Kolumna **Stan** mówi, co się z decyzją stało w kodzie:
 | [D59](#d59--ósmy-prymityw-jest-napisem-na-tle-filtr-mieszka-w-panelu-a-esc-odmawia) | Ósmy prymityw jest napisem na tle, filtr mieszka w panelu, a `Esc` odmawia | krok 30 | 2026-08-12 | Wdrożona |
 | [D60](#d60--podgląd-tekstu-dostaje-ognisko-a-przewijanie-liczy-się-w-linijkach-panelu) | Podgląd tekstu dostaje ognisko, a przewijanie liczy się w linijkach panelu | kroki 25, 29 | 2026-08-12 | Wdrożona |
 | [D61](#d61--diagnostyka-benchmark-i-testy-funkcjonalne-wchodzą-do-planu-jako-faza-xi-z-krokiem-38) | Diagnostyka, benchmark i testy funkcjonalne wchodzą do planu jako Faza XI z krokiem 38 | krok 38 | 2026-08-13 | Czeka |
+| [D77](#d77--trzy-długi-bez-właściciela-wchodzą-do-planu-jako-faza-xvi-z-krokiem-47) | Trzy długi bez właściciela wchodzą do planu jako Faza XVI z krokiem 47 | krok 47 | 2026-08-14 | W realizacji |
+| [D78](#d78--rozstrzygnięcia-startowe-kroku-47-zdolność-zamiast-rejestru-strefa-wychodzi-z-kontraktu-granica-menu-przerysowana) | Rozstrzygnięcia startowe kroku 47: zdolność zamiast rejestru, strefa wychodzi z kontraktu, granica menu przerysowana | krok 47 | 2026-08-14 | W realizacji |
+
+> **Indeks jest niekompletny od D62 wzwyż.** Wpisy **D62–D76** stoją w treści
+> dziennika, ale wiersza tutaj nie dostały — regułę „nowy wpis to dwie czynności”
+> przestano stosować przy kroku 39 i nikt tego nie zauważył. Wiersz D77 dopisano
+> zgodnie z regułą; uzupełnienie brakujących piętnastu jest osobną pracą
+> porządkową, bo kolumna „Stan” wymaga przy każdym rozstrzygnięcia, a nie odpisu
+> z nagłówka.
 
 **Dwie uwagi do numeracji**, obie wynikłe z tego, że dziennik pisało wiele
 sesji równolegle:
@@ -3701,7 +3710,7 @@ w osiemdziesięciu kolumnach nie ma o czym mówić.
 ### D66 — Operacje na plikach wchodzą jako Faza XIV: cztery kroki, usługa zapisu w rdzeniu, praca kawałkowa
 
 **Dotyczy:** kroków 41–44 (pełna treść:
-[41-operacje-fundament.md](41-operacje-fundament.md),
+[41-operacje-fundament.md](archiwum/41-operacje-fundament.md),
 [42-kopiowanie-i-przenoszenie.md](42-kopiowanie-i-przenoszenie.md),
 [43-zaznaczenie-wielokrotne.md](43-zaznaczenie-wielokrotne.md),
 [44-kosz-i-cofanie.md](44-kosz-i-cofanie.md)) i struktury planu
@@ -4541,7 +4550,7 @@ napisem-ściągawką w katalogu — czyli dokładnie tym, czego zakazuje kryteri
 ### D75 — Rozstrzygnięcia startowe kroku 41: port rzucający, usuwanie rekurencyjne jako praca kawałkowa, okno posuwające pracę i dwa okna rdzenia
 
 **Dotyczy:** kroku 41 (pełna treść:
-[41-operacje-fundament.md](41-operacje-fundament.md)), `Application/Port`
+[41-operacje-fundament.md](archiwum/41-operacje-fundament.md)), `Application/Port`
 (`FileOperationsPort`), `Application/Dto` (`RemovalState`, `RemovalStage`,
 `WorkProgress`), `Domain/Exception` (`FileOperationException`),
 `Infrastructure/FileSystem` (`FileOperationsService`), `Presentation/Ui`
@@ -4713,3 +4722,187 @@ sprawdza teraz, że panel listy jest **wyższy niż zostawiłby układ z pasem**
 sięgają paska stanu, lista pokazuje **20 wierszy zamiast 13**, pustego prostokąta
 po pasie nie ma. Miniatura działa tam, gdzie ma działać — `Ctrl`+`D` na pliku PNG
 pokazuje ją w prawym panelu opisu wraz z wymiarami i formatem.
+
+### D77 — Trzy długi bez właściciela wchodzą do planu jako Faza XVI z krokiem 47
+
+**Dotyczy:** kroku 47 (pełna treść: [47-splata-dlugow.md](47-splata-dlugow.md)),
+a przez niego: `Application/Command/CommandOutcome`,
+`Presentation/Cli/InputHandler`, `Presentation/Ui/OverlayInterface`,
+`Presentation/Ui/ScreenInterface`, `Presentation/Ui/HudLayout`,
+`Presentation/Cli/Screen/SettingsScreen`,
+`Infrastructure/Diagnostics/ScenarioFactory` oraz wzorców pomiarowych i złotych
+klatek w trzech torach.
+
+**Data:** 2026-08-14, na żądanie użytkownika, zaraz po zamknięciu kroku 41.
+
+**Decyzja:** długi, które **nie mają właściciela w żadnym zaplanowanym kroku**,
+dostają własny krok planu, a nie kolejną adnotację „do zrobienia przy okazji”.
+Krok zbiera trzy:
+
+1. **Komenda nie umie otworzyć okna** — zobowiązanie kroku 41 wobec kroku 32
+   (D75, rozstrzygnięcie 5). Skutek w aplikacji: `browser.delete` nie istnieje,
+   a menu `F9` nie ma ani jednej operacji na plikach.
+2. **Trzecia strefa została bez odbiorcy** — skutek uboczny D76. `preview()`
+   oddaje `null` we **wszystkich** pięciu ekranach, a strefę zamawia już tylko
+   scenariusz pomiarowy: narzędzie mierzy kawałek klatki, którego aplikacja nie
+   rysuje. Reguła 13 jest złamana w rdzeniu.
+3. **Zakładka ustawień dłuższa od okna gubi pozycje** — zauważone w kroku 29,
+   od tamtej pory w „Zakresie poza MVP”. `VStack` nie rysuje szczeliny, która nie
+   dostała wiersza, więc pozycja znika bez śladu; przy jedenastu pozycjach
+   zakładki `file-info` dzieje się to już w oknie o 22 wierszach.
+
+**Kolejność: krok wykonuje się przed krokiem 42, choć ma wyższy numer.** Jest to
+pierwszy i jedyny krok planu, którego numer nie mówi nic o kolejności — numer
+bierze się z chronologii planowania, a kolejność z rachunku: kroki 42 i 43
+dokładają czynności, z których każda zechce pozycji w menu i okna wywołanego
+komendą. Dług spłacony przed nimi obsłuży je za darmo; spłacony po nich znaczy
+trzykrotną przeróbkę tego samego miejsca i trzykrotne przeliczenie wzorców.
+
+**Uzasadnienie osobnego kroku, a nie poprawek przy okazji:** „przy okazji” już
+było i właśnie dlatego długi są trzy. Każdy z nich jest **niezapłaconą ceną
+decyzji podjętej świadomie**, a nie usterką do cichej naprawy — więc każdy wymaga
+rozstrzygnięcia użytkownika, a rozstrzygnięcia startowe ma krok planu, nie
+poprawka w przelocie. D76 wprost odesłał swój dług „do rozstrzygnięcia przy
+następnym module, który zechce strefę skrajną”, a takiego modułu w planie nie ma.
+
+**Co do kroku świadomie nie weszło:** długi **z właścicielem**. Szerokość okna
+liczona z długości napisu (`ConfirmOverlay` przy bardzo długiej nazwie) należy do
+kroku 42, bo to on dowiezie pierwszego prawdziwego odbiorcę; autostart muzyki do
+kroku 45 (Faza XV znosi warunek, który go blokował); skala treści HiDPI czeka na
+sprzęt, nie na krok. Sprawdzono przy tym dług „okno edycji wartości tekstowej”
+z kroku 14 — **jest spłacony inaczej, niż zakładano**: pozycja tekstowa działa
+w miejscu przez `TextInput` (krok 20, P13), więc okna nie potrzebuje i do kroku
+nie wchodzi.
+
+**Odrzucone alternatywy:**
+
+- **Dopisać każdy dług do kroku, który go dotyka** (A do 42, B do 45, C do
+  któregokolwiek) — odrzucone, bo dwa z trzech nie mają takiego kroku wcale,
+  a dług A doklejony do kroku 42 zniknąłby w kroku o nieodwracalnym ryzyku
+  utraty danych.
+- **Zrobić je bez kroku planu, jako poprawki** — odrzucone: każdy wymaga
+  rozstrzygnięcia (czy strefa wychodzi z kontraktu, jak komenda zamawia okno),
+  a rozstrzygnięcia zapadają na starcie kroku i lądują w tym dzienniku.
+- **Wstawić krok jako 42 z przenumerowaniem 42–46 na 43–47** — odrzucone przez
+  użytkownika: numeracja oddawałaby kolejność, ale kosztem poprawek w indeksie,
+  dzienniku i sześciu plikach kroków. Rozjazd numeru z kolejnością jest tańszy,
+  o ile jest **zapisany** — i dlatego stoi w opisie Fazy XVI, w grafie zależności
+  i tutaj.
+
+**Model:** Opus / xhigh, z zastrzeżeniem: **Fable / xhigh**, jeśli
+rozstrzygnięcie startowe nr 4 wyprowadzi trzecią strefę z `ScreenInterface` —
+wtedy krok rusza kontrakt ekranu, układ, kompozytor klatki i wszystkie trzy
+renderery naraz. Model wybiera się **po** tej odpowiedzi, wzorem kroku 44.
+
+### D78 — Rozstrzygnięcia startowe kroku 47: zdolność zamiast rejestru, strefa wychodzi z kontraktu, granica menu przerysowana
+
+**Dotyczy:** kroku 47 ([47-splata-dlugow.md](47-splata-dlugow.md)),
+`Presentation/Ui/Command/OpensOverlay` (nowe), `Presentation/Ui/ScreenInterface`,
+`Presentation/Ui/HudLayout`, `Presentation/Cli/FrameComposer`,
+`Presentation/Cli/Screen/SettingsScreen`, `Infrastructure/Diagnostics/ScenarioFactory`,
+`Module/Browser/Presentation/Command/*` oraz wzorców pomiarowych i złotych klatek
+w trzech torach.
+
+**Data:** 2026-08-14, rozstrzygnięcia użytkownika na starcie kroku.
+
+**Rozstrzygnięć jest dziewięć.** Trzy z nich zmieniają to, co plan kroku
+zakładał, a jedno przerysowuje granicę postawioną w D69.
+
+**1. Komenda zamawia okno zdolnością, nie identyfikatorem.** Powstaje
+`Presentation\Ui\Command\OpensOverlay` — interfejs o jednej metodzie, deklarowany
+**osobno**, jak `AppliesToSelection`, `RunsWork`, `NeedsTime` i `DrawsOwnFrame`.
+`MenuOverlay` i `CommandOverlay` pytają `instanceof` i biorą okno **obiektem**.
+
+Sprawdzenie przed rozstrzygnięciem pokazało rzecz, która odwraca opis długu
+z planu kroku: **granica warstw nigdy nie była przeszkodą**. Wszystkie komendy
+w projekcie — rdzenia i modułów — leżą w `Presentation`
+(`Presentation/Cli/Command`, `Module/*/Presentation/Command`); w `Application`
+leży sam **kontrakt**. Obie strony rozmowy widzą więc `OverlayInterface`
+legalnie, a rozdzielał je wyłącznie `CommandOutcome` stojący pośrodku. Miejsce
+zdolności bierze się z precedensu kontraktu modułu (D38, P2): dane i rejestr
+w `Application`, **zdolności wymieniające typy z `Presentation/Ui` — w
+`Presentation/Ui`**.
+
+Odrzucono: **rejestr wytwórni pod identyfikatorem** (dwa nowe pojęcia —
+identyfikator okna i wytwórnia — po to, żeby przejść granicę, której nie trzeba
+przechodzić), **okno opisane danymi w `CommandOutcome`** (`Application` zyskałby
+słownik okien rosnący przy każdym nowym oknie, a łańcuch okien usuwania i tak by
+się w nim nie zmieścił) oraz **brakujący argument proszący o siebie** (nie
+dokłada pojęć, ale pytania przed usunięciem nie obsłuży, bo pytanie nie jest
+argumentem).
+
+**2. Do menu `F9` wchodzą wszystkie trzy czynności kroku 41 — i to przerysowuje
+granicę z D69.** Tamta decyzja mówiła: „granica biegnie po **zaznaczeniu**, nie
+po module — `browser.hidden` i `browser.tree` są w rejestrze, ale w menu ich nie
+ma”. `browser.mkdir` zaznaczenia nie dotyczy: działa na katalogu panelu, który
+`ModuleContext` niesie osobnym polem (`path`). Wpuszczenie go **tym samym
+argumentem wpuściłoby także tamte dwie**, więc granica dostaje nowe brzmienie,
+a nie wyjątek:
+
+> Menu pokazuje czynności zmieniające **zawartość miejsca**, w którym stoi
+> zaznaczenie. Nie pokazuje czynności zmieniających **sposób oglądania** tego
+> miejsca.
+
+Przy tej granicy `browser.mkdir` jest w menu (tworzy wpis tam, gdzie stoi
+kursor), a `browser.hidden` i `browser.tree` zostają poza nim (zmieniają widok,
+nie dysk) — czyli wynik D69 zostaje nietknięty, a uzasadnienie przestaje zależeć
+od tego, czy czynność czyta zaznaczenie. Nazwa `AppliesToSelection` opisuje odtąd
+**migawkę kontekstu**, a nie sam zaznaczony wpis; zmiany nazwy interfejsu ten
+krok nie robi, bo kosztowałaby cztery klasy i nic nie wyjaśniła.
+
+**3. `browser.delete` przyjmuje opcjonalny argument z nazwą.** Bez argumentu
+bierze wpis pod kursorem (jak `F8`), z argumentem — wskazany, po sprawdzeniu, że
+istnieje w katalogu panelu. Spójne z `browser.rename <nazwa>`
+i `browser.mkdir <nazwa>` z kroku 41.
+
+**4. Trzecia strefa wychodzi z kontraktu.** `ScreenInterface::preview()` znika,
+`HudLayout` traci strefę i próg, `FrameComposer` płaszczyznę, `ScenarioFactory`
+przestaje ją zamawiać. Reguła 13 przestaje być złamana w rdzeniu, a rdzeń robi
+się o pojęcie mniejszy. Odrzucono zostawienie mechanizmu jako zadeklarowanego
+wyjątku (dług zostałby długiem, tylko udokumentowanym) oraz dopisanie odbiorcy
+w kroku 45 (znaczyłoby dowiezienie funkcji w kroku, który miał nie dokładać
+żadnej).
+
+**Cena, znana z góry:** przeliczenie wszystkich wzorców pomiarowych i złotych
+klatek w trzech torach — i **model kroku zmienia się na `Fable / xhigh`**,
+dokładnie tak, jak przewidywał przypis przy tabeli Fazy XVI.
+
+**5. Próg dwuwierszowego paska stanu przesuwa się o wysokość zniesionej strefy:
+28 → 20.** Argument kroku 40 zostaje **dosłownie ten sam** — „wiersz dokładany
+stopce zabiera się liście, a przy progu lista właśnie oddała osiem wierszy” —
+tylko liczony bez składnika, którego już nie ma: strefa brała osiem wierszy, więc
+bez niej lista ma przy 20 tyle samo, co miała przy 28. Odrzucono warunek liczony
+z `ROWS_FOR_LIST_PANEL` (uzasadnienie stałoby samo, ale zmieniałby zachowanie
+w oknach, które wzorce już opisują) i pozostawienie 28 (pilnowałoby zapasu,
+którego nikt już nie zużywa).
+
+**6. Scenariusz `thumbnail` przenosi się do panelu modułu `FileInfo`.** Miniaturę
+rysuje `PreviewPane` tym samym komponentem `ImageBox`, więc pomiar mierzy odtąd
+obraz tam, gdzie aplikacja go naprawdę rysuje. Odrzucono sztuczną strefę
+w narzędziu (mierzyłaby układ, który przestał istnieć) i skasowanie scenariusza
+(koszt dekodowania obrazu przestałby być mierzony w którymkolwiek z trzech
+torów — a jest to jedyny scenariusz, który go mierzy).
+
+**7. Pasek zakładek zostaje nieruchomy, przycisk „przywróć domyślne” przewija się
+z pozycjami** jako ostatnia z nich. Położenie pamięta się **osobno dla każdej
+zakładki** (`ScrollWindow::useContext()`, wzorem `SectionState` z kroku 22).
+Odrzucono przycisk przyklejony na dole (zabierałby wiersz także zakładce
+o czterech pozycjach) i przewijanie całości wraz z paskiem zakładek (użytkownik
+traciłby jedyny wskaźnik, gdzie stoi).
+
+**8. Przewijanie ustawień bierze sześć klawiszy:** strzałki, `PageUp`/`PageDown`
+i `Home`/`End` — komplet, który `FileInfoScreen` ma już dziś. Sprawdzenie
+poprawiło przy tym pytanie planu, które zakładało koszt: **słownik wejścia zna
+wszystkie sześć** (`Application\Dto\Key`), więc trzy tory wejścia zostają
+nietknięte.
+
+**9. Kolejność potwierdzona: krok 47 wykonuje się przed krokiem 42** (D77),
+mimo że użytkownik poprosił najpierw o rozpoczęcie tamtego. Sprawdzenie stanu
+zastanego kroku 42 pokazało przy okazji, że **trzy założenia jego planu są
+nieaktualne** — krok 41 dowiózł `RunsWork` (pracę posuwa okno, raz na takt
+w `GameLoop`, nie ekran w `draw()`), gotowy i ogólny `ProgressOverlay` oraz pracę
+kawałkową **wewnątrz** `FileOperationsPort`. Rozstrzygnięcie 1 tamtego kroku
+(„kto posuwa pracę”) jest przez to rozstrzygnięte precedensem, punkt 7 („pasek
+nad listą”) wchodzi w spór z regułą „jeden pasek, jedno miejsce”, a zdanie
+„kopiowanie nie ma prawa dojść do portu operacji” trzeba rozstrzygnąć od nowa.
+Poprawki w pliku kroku 42 należą do jego startu, nie do tego kroku.

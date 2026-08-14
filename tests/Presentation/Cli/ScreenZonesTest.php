@@ -55,20 +55,43 @@ final class ScreenZonesTest extends TestCase
     }
 
     /**
-     * **Pasa podglądu nie zamawia dziś żaden ekran** (D76).
+     * **Pasa podglądu nie ma już w kontrakcie ekranu** (krok 47, D78).
      *
-     * Do tej zmiany zamawiała go przeglądarka i była jedyna; podgląd przeszedł
-     * w całości do modułu `FileInfo`, który rysuje go **w prawym panelu**, a nie
-     * w strefie skrajnej. Strefa zostaje w kontrakcie ekranu, bo `null` jest jej
-     * poprawną odpowiedzią od kroku 21 — ale nie ma odtąd ani jednego użytkownika,
-     * i ten test jest miejscem, w którym to widać.
+     * Ten test zmienia zdanie po raz drugi i to jest właściwy zapis obu decyzji.
+     * Po D76 brzmiał „żaden ekran go nie zamawia”, bo podgląd przeszedł w całości
+     * do modułu `FileInfo`, który rysuje go w prawym panelu. Mechanizm bez
+     * odbiorcy był jednak złamaniem reguły 13, więc `preview()` wyszło
+     * z `ScreenInterface` — i dziś sprawdza się to, czego **nie da się** już
+     * zawołać.
      */
-    public function testNoScreenOrdersThePreviewStripAnyMore(): void
+    public function testThePreviewStripIsGoneFromTheScreenContract(): void
     {
-        self::assertNull($this->app->browser->preview());
-        self::assertNull($this->app->help->preview());
-        self::assertNull($this->app->settings->preview());
-        self::assertNull($this->app->fileInfo->preview());
+        $contract = self::methodsOf(\LightManager\Presentation\Ui\ScreenInterface::class);
+
+        self::assertContains('header', $contract, 'strefa górna zostaje — ma odbiorców');
+        self::assertNotContains('preview', $contract, 'strefa skrajna wyszła z kontraktu');
+
+        // Układ stracił ją razem z kontraktem, a nie tylko przestał ją zamawiać.
+        $layout = self::methodsOf(\LightManager\Presentation\Ui\HudLayout::class);
+
+        self::assertNotContains('previewIsPanel', $layout);
+        self::assertContains('listIsPanel', $layout);
+    }
+
+    /**
+     * @param class-string $type
+     *
+     * @return list<string>
+     */
+    private static function methodsOf(string $type): array
+    {
+        $names = [];
+
+        foreach ((new \ReflectionClass($type))->getMethods() as $method) {
+            $names[] = $method->getName();
+        }
+
+        return $names;
     }
 
     private static function textOf(\LightManager\Presentation\Ui\ScreenZone $zone): string

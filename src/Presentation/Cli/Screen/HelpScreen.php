@@ -173,11 +173,6 @@ final class HelpScreen implements ScreenInterface, Resettable
         );
     }
 
-    public function preview(): ?ScreenZone
-    {
-        return null;
-    }
-
     public function reset(): void
     {
         $this->tab = self::TAB_KEYS;

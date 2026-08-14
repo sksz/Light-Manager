@@ -68,11 +68,6 @@ final class LoopScenarioScreen implements ScreenInterface
         return new ScreenZone('layout.zone.path', new Label(self::PATH . '  —  12/240'));
     }
 
-    public function preview(): ?ScreenZone
-    {
-        return null;
-    }
-
     public function draw(Rect $bounds): array
     {
         $rows = [];

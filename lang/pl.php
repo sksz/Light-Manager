@@ -76,6 +76,7 @@ return [
     'help.key.quit' => 'wyjście',
     'help.key.change' => 'zmiana wartości',
     'help.key.scroll' => 'przewijanie',
+    'help.key.page' => 'strona w górę lub w dół, początek i koniec',
     'help.key.tab' => 'zmiana zakładki',
     'help.key.restore' => 'przywróć ustawienia domyślne',
     'help.key.commands' => 'okno komend',
@@ -91,6 +92,7 @@ return [
     // tam lepiej; w stopce pozycji jest kilkanaście naraz i liczy się kolumna.
     // Klucza bez pary `.short` nie brakuje — znaczy „ten opis jest już krótki”.
     'help.key.move.short' => 'zaznaczenie',
+    'help.key.page.short' => 'strona',
     'help.key.back.short' => 'powrót',
     'help.key.change.short' => 'wartość',
     'help.key.tab.short' => 'zakładka',

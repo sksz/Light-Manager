@@ -27,6 +27,7 @@ use LightManager\Module\Browser\Domain\Repository\DirectoryRepositoryInterface;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
 use LightManager\Module\Browser\Infrastructure\EntryComparator;
 use LightManager\Module\Browser\Infrastructure\FilesystemDirectoryRepository;
+use LightManager\Module\Browser\Presentation\Command\DeleteCommand;
 use LightManager\Module\Browser\Presentation\Command\HiddenCommand;
 use LightManager\Module\Browser\Presentation\Command\JumpCommand;
 use LightManager\Module\Browser\Presentation\Command\MakeDirectoryCommand;
@@ -188,6 +189,7 @@ final class BrowserModule implements
                 new TreeCommand($panes),
                 new RenameCommand($entries, $this->translator),
                 new MakeDirectoryCommand($entries, $this->translator),
+                new DeleteCommand($entries, $this->translator),
             ],
         ];
     }

@@ -208,7 +208,7 @@ komunikat, podgląd, tryb renderowania i położenie okna listy.
 | Ognisko | `DeclaresFocus`, `FocusHint` | Presentation | `Presentation/Ui` | **Miejsce, na którym stoi kursor** — nazwane i zadeklarowane przez ekran (krok 40). `FocusHint` niesie klucz etykiety miejsca i jego wiązania; zdolność `DeclaresFocus` deklaruje się osobno, jak `NeedsTime`, bo ekran o jednym miejscu nie ma czego deklarować. Ogniska **nie da się odkryć**: drzewa komponentów aplikacja nie przechowuje. |
 | Wiązanie klawisza | `KeyBinding` | Presentation | `Presentation/Ui` | Klawisz wraz z **dwoma** kluczami opisu — długim dla okna pomocy i krótkim dla paska stanu (krok 40; brak krótkiego znaczy „użyj długiego”). Jedno źródło dla obsługi, podpowiedzi w stopce i spisu w pomocy. |
 | Podpowiedzi stopki | `StatusHints`, `Hint` | Presentation | `Presentation/Ui` | Trzy poziomy złożone w jeden ciąg: **miejsce z ogniskiem → ekran albo okno nakładane → klawisze globalne wraz ze skrótami modułów**. Ustępowanie idzie od końca, powtórzenia odsiewa zgodność klawiszy **i** klucza opisu, `F1` jest przypięty. Pozycja nie mieści się w całości — znika w całości. |
-| Ekran | `ScreenInterface` | Presentation | `Presentation/Ui` | Treść **trzech stref** klatki wraz z obsługą klawiszy: górnego pasa (`header()`), środkowego panelu (`draw()`) i pasa podglądu (`preview()`). Rdzeniowi zostają oprawa stref i pasek stanu. **Pasa podglądu nie zamawia dziś żaden ekran** (D76): przeglądarka go straciła, a opis pliku rysuje miniaturę w swoim prawym panelu — strefa zostaje w kontrakcie, bo `null` jest jej poprawną odpowiedzią od kroku 21. |
+| Ekran | `ScreenInterface` | Presentation | `Presentation/Ui` | Treść **dwóch stref** klatki wraz z obsługą klawiszy: górnego pasa (`header()`) i środkowego panelu (`draw()`). Rdzeniowi zostają oprawa stref i pasek stanu. **Pas podglądu wyszedł z kontraktu w kroku 47** (D78): po D76 nie zamawiał go ani jeden ekran, a mechanizm bez odbiorcy łamie regułę 13 — więc `preview()`, strefa w `HudLayout` i jej próg zniknęły razem. |
 | Strefa ekranu | `ScreenZone` | Presentation | `Presentation/Ui` | Zamówienie strefy skrajnej: klucz etykiety obwódki plus komponent z treścią. `null` znaczy „strefa nie powstaje, jej wiersze idą do środka”. |
 | Kontekst sesji | `ModuleContext` | Application | `Application/Module` | Gdzie użytkownik stoi i co ma zaznaczone — **dane pierwotne** (napis, napis, enum). Publikuje go ten, kto zna bieżące miejsce; czyta każdy ekran z `ReadsContext`. |
 | Okno nakładane | `OverlayInterface` | Presentation | `Presentation/Ui` | Płaszczyzna **nad** ekranem, która sama mówi, gdzie stanąć, i **zużywa albo przepuszcza** klawisz. Przepuszczony trafia wyłącznie do klawiszy globalnych — nigdy do ekranu pod spodem. |
@@ -915,11 +915,21 @@ trakcie** działania pętli:
    i wynik `save()`), który warstwa wyżej stawia w pasku stanu. `ConfigException`
    istnieje, ale żyje wyłącznie wewnątrz `Infrastructure/Config`.
 
-**Klatka i strefy** (kroki 14, 18 i 21): przez port przechodzi sam `Frame` —
+**Klatka i strefy** (kroki 14, 18, 21 i 47): przez port przechodzi sam `Frame` —
 stos płaszczyzn — a podział okna na strefy liczy `HudLayout` po stronie
-`Presentation`. O tym, które strefy w ogóle powstaną, decyduje **pokazywany
-ekran**: `header()` i `preview()` oddające `?ScreenZone`. Strefa niezamówiona nie
-dostaje ani jednego wiersza, a jej miejsce zabiera lista.
+`Presentation`. O tym, czy powstanie strefa górna, decyduje **pokazywany
+ekran**: `header()` oddające `?ScreenZone`. Strefa niezamówiona nie dostaje ani
+jednego wiersza, a jej miejsce zabiera lista.
+
+**Stref było trzy do kroku 47.** Pas podglądu wyszedł z kontraktu wraz
+z `preview()` (D78), bo po wyprowadzeniu miniatury do modułu `FileInfo` (D76) nie
+zamawiał go żaden ekran — a mechanizm rdzenia bez odbiorcy jest złamaniem reguły
+13, nie zapasem na przyszłość. Razem z nim zniknęły `previewIsPanel()`, próg
+`ROWS_FOR_PREVIEW` i płaszczyzna podglądu w `FrameComposer`, a **próg
+dwuwierszowego paska stanu przesunął się z 28 na 20 wierszy**: był liczony jako
+`ROWS_FOR_PREVIEW + 2`, a jego uzasadnienie („przy progu lista właśnie oddała
+podglądowi osiem wierszy”) zostaje w mocy dosłownie — bez pasa lista ma przy
+dwudziestu wierszach dokładnie tyle, ile miała przy dwudziestu ośmiu z pasem.
 
 Do kroku 20 pasek ścieżki i pas podglądu rysował rdzeń, bo miał czym: katalog
 leżał w stanie pętli. Krok 21 zabrał mu ten katalog, więc obie strefy przeszły do

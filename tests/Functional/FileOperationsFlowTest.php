@@ -345,6 +345,115 @@ final class FileOperationsFlowTest extends TestCase
         );
     }
 
+    /**
+     * **Kryterium spłaty długu A** (krok 47): usunięcie da się wywołać z menu
+     * `F9`, a pytanie stoi tam, gdzie przy klawiszu `F8`.
+     */
+    public function testDeleteFromTheContextMenuAsksBeforeItTouchesTheDisk(): void
+    {
+        $this->select('notatka.txt');
+
+        $this->press(Key::F9);
+        $this->press(Key::Enter);
+
+        self::assertSame('confirm', $this->app->state->overlays()->current()?->id());
+        self::assertFileExists($this->root . '/notatka.txt', 'pytanie jeszcze nie usunęło niczego');
+
+        $this->confirm();
+
+        self::assertFileDoesNotExist($this->root . '/notatka.txt');
+        self::assertNotContains('notatka.txt', $this->names());
+    }
+
+    /** Odmowa w oknie otwartym z menu nie dotyka dysku — tak samo jak przy klawiszu. */
+    public function testSayingNoInTheMenuPathTouchesNothing(): void
+    {
+        $this->select('notatka.txt');
+
+        $this->press(Key::F9);
+        $this->press(Key::Enter);
+        $this->press(Key::Enter);
+
+        self::assertFileExists($this->root . '/notatka.txt');
+        self::assertFalse($this->app->state->overlays()->isOpen());
+    }
+
+    /** `browser.delete <nazwa>` — argument wskazuje wpis, pytanie zostaje. */
+    public function testDeleteCommandWithANameAsksAboutThatEntry(): void
+    {
+        $this->command('browser.delete notatka.txt');
+
+        self::assertSame('confirm', $this->app->state->overlays()->current()?->id());
+
+        $this->confirm();
+
+        self::assertFileDoesNotExist($this->root . '/notatka.txt');
+    }
+
+    /** Nazwa spoza katalogu: zdanie o tym wprost, dysk nietknięty. */
+    public function testDeleteCommandWithAnUnknownNameSaysSoAndDeletesNothing(): void
+    {
+        $before = $this->names();
+
+        $this->command('browser.delete nie-ma-takiego');
+
+        self::assertStringStartsWith('module.browser.problem.noEntry', (string) $this->message());
+        self::assertSame($before, $this->names());
+        self::assertFalse($this->app->state->overlays()->isOpen());
+    }
+
+    /**
+     * `browser.rename` **bez nazwy** otwiera to samo okno, co `F6` — i to jest
+     * druga połowa spłaty długu A: komenda przestała wymagać nazwy z wiersza.
+     */
+    public function testRenameCommandWithoutANameOpensThePrompt(): void
+    {
+        $this->select('notatka.txt');
+
+        $this->command('browser.rename');
+
+        self::assertSame('prompt', $this->app->state->overlays()->current()?->id());
+
+        $this->clear();
+        $this->type('umowa.txt');
+        $this->press(Key::Enter);
+
+        self::assertFileExists($this->root . '/umowa.txt');
+        self::assertFileDoesNotExist($this->root . '/notatka.txt');
+    }
+
+    /** `browser.rename <nazwa>` działa jak dotąd — bez okna, od razu. */
+    public function testRenameCommandWithANameNeedsNoWindow(): void
+    {
+        $this->select('notatka.txt');
+
+        $this->command('browser.rename umowa.txt');
+
+        self::assertFalse($this->app->state->overlays()->isOpen());
+        self::assertFileExists($this->root . '/umowa.txt');
+    }
+
+    /** `browser.mkdir` bez nazwy otwiera okno z pustym polem. */
+    public function testMakeDirectoryCommandWithoutANameOpensThePrompt(): void
+    {
+        $this->command('browser.mkdir');
+
+        self::assertSame('prompt', $this->app->state->overlays()->current()?->id());
+
+        $this->type('projekty');
+        $this->press(Key::Enter);
+
+        self::assertDirectoryExists($this->root . '/projekty');
+    }
+
+    /** Komenda wpisana w oknie komend — droga użytkownika, nie wywołanie klasy. */
+    private function command(string $line): void
+    {
+        $this->press(Key::F12);
+        $this->type($line);
+        $this->press(Key::Enter);
+    }
+
     private function fixture(): ScreenFixture
     {
         $directories = new FilesystemDirectoryRepository(EntryComparator::create());

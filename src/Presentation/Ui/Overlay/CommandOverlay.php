@@ -17,6 +17,7 @@ use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
+use LightManager\Presentation\Ui\Command\OpensOverlay;
 use LightManager\Presentation\Ui\Component\ListRow;
 use LightManager\Presentation\Ui\Component\ListView;
 use LightManager\Presentation\Ui\Component\Panel;
@@ -127,8 +128,7 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
     public function bounds(int $rows, int $columns): Rect
     {
         // Pasek stanu należy do rdzenia i okno nie ma prawa go zasłonić; jego
-        // wysokość zależy wyłącznie od wysokości terminala, więc pas podglądu
-        // niczego tu nie zmienia.
+        // wysokość zależy wyłącznie od wysokości terminala.
         $bottom = (new HudLayout($rows, $columns))->status->row - 1;
 
         if ($bottom < 0) {
@@ -386,6 +386,21 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
         $command = $parsed->command;
         /** @var \LightManager\Application\Command\CommandInput $input */
         $input = $parsed->input;
+
+        // Komenda, która potrzebuje okna, dostaje je **przed** wykonaniem
+        // (krok 47, D78): `browser.rename` bez nazwy otwiera pole zamiast
+        // odmawiać, a `browser.delete` pytanie, bez którego usuwać nie wolno.
+        // Okno komend ustępuje mu miejsca — stos ma jedno piętro.
+        if ($command instanceof OpensOverlay) {
+            $opened = $command->overlayFor($input);
+
+            if ($opened !== null) {
+                $this->reset();
+
+                return $opened;
+            }
+        }
+
         $outcome = $command->execute($input);
 
         if ($outcome->transition === CommandTransition::Stay) {

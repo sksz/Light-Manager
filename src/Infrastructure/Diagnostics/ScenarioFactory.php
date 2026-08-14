@@ -174,7 +174,6 @@ final class ScenarioFactory
         $layout = new HudLayout(
             $rows,
             $columns,
-            withPreview: $scenario === Scenario::Thumbnail,
             // Pytanie zadane dokładnie tak, jak zadaje je `FrameComposer` — inaczej
             // scenariusz mierzyłby pasek jednowierszowy, a aplikacja rysowała
             // dwuwierszowy.
@@ -209,7 +208,6 @@ final class ScenarioFactory
         $panels = [
             [$layout->header, $layout->headerIsPanel(), 'PATH'],
             [$layout->list, $layout->listIsPanel(), 'FILES'],
-            [$layout->preview, $layout->previewIsPanel(), 'PREVIEW'],
             [$layout->status, $layout->statusIsPanel(), ''],
         ];
 
@@ -217,7 +215,11 @@ final class ScenarioFactory
             // Klatka podzielona ma w miejscu strefy środkowej **dwie** obwódki
             // zamiast jednej — i tak samo jak jedna, leżą one w płaszczyźnie
             // spodniej, bo między klatkami się nie zmieniają.
-            if ($scenario === Scenario::Split && $label === 'FILES') {
+            // Miniatura od kroku 47 mierzy się tam, gdzie aplikacja ją rysuje:
+            // w **prawym panelu podziału**, czyli w klatce modułu opisu pliku
+            // (`PreviewPane`). Pas podglądu, w którym stała do tej pory, wyszedł
+            // z kontraktu ekranu wraz z `preview()` (D76, D78).
+            if (($scenario === Scenario::Split || $scenario === Scenario::Thumbnail) && $label === 'FILES') {
                 foreach ($this->splitFrames($layout) as $primitive) {
                     $primitives[] = $primitive;
                 }
@@ -460,7 +462,8 @@ final class ScenarioFactory
 
     /**
      * Pełna klatka przeglądarki: ścieżka, lista z zaznaczeniem i suwakiem,
-     * komunikat i podpowiedzi, a przy scenariuszu z miniaturą — pas podglądu.
+     * komunikat i podpowiedzi, a przy scenariuszu z miniaturą — **podzielona
+     * klatka opisu pliku**: lista po lewej, obraz po prawej.
      *
      * @return list<Primitive>
      */
@@ -468,17 +471,29 @@ final class ScenarioFactory
     {
         $primitives = $this->pathLine($layout);
 
-        foreach ($this->list($list, selected: 2, scroll: $this->scroll($list->rows)) as $primitive) {
-            $primitives[] = $primitive;
-        }
+        if ($scenario === Scenario::Thumbnail) {
+            [$left, $right] = Split::halves($layout->list, SplitAxis::Vertical);
+            $listBounds = Panel::inner($left);
 
-        if ($scenario === Scenario::Thumbnail && !$layout->preview->isEmpty()) {
-            $preview = HudLayout::contentOf($layout->preview, $layout->previewIsPanel());
-            $box = new ImageBox($this->imagePath, '1600 × 1200 · JPEG · 412,3 kB');
-
-            foreach ($box->draw($preview) as $primitive) {
+            foreach ($this->list($listBounds, selected: 2, scroll: $this->scroll($listBounds->rows)) as $primitive) {
                 $primitives[] = $primitive;
             }
+
+            $box = new ImageBox($this->imagePath, '1600 × 1200 · JPEG · 412,3 kB');
+
+            foreach ($box->draw(Panel::inner($right)) as $primitive) {
+                $primitives[] = $primitive;
+            }
+
+            foreach ($this->statusLine($layout) as $primitive) {
+                $primitives[] = $primitive;
+            }
+
+            return $primitives;
+        }
+
+        foreach ($this->list($list, selected: 2, scroll: $this->scroll($list->rows)) as $primitive) {
+            $primitives[] = $primitive;
         }
 
         foreach ($this->statusLine($layout) as $primitive) {

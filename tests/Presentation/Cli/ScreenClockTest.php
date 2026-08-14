@@ -110,11 +110,6 @@ final class MovingScreen implements ScreenInterface, NeedsTime
         return null;
     }
 
-    public function preview(): ?ScreenZone
-    {
-        return null;
-    }
-
     public function bindings(): array
     {
         return [];
@@ -145,11 +140,6 @@ final class StillScreen implements ScreenInterface
     }
 
     public function header(): ?ScreenZone
-    {
-        return null;
-    }
-
-    public function preview(): ?ScreenZone
     {
         return null;
     }

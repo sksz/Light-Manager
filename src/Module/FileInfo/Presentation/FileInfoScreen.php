@@ -154,15 +154,6 @@ final class FileInfoScreen implements
         return new ScreenZone('layout.zone.path', new Label($this->state->context()->path));
     }
 
-    /**
-     * Pasa podglądu ten ekran nie zamawia i po kroku 25 tym bardziej: miniatura
-     * stoi w **prawym panelu**, obok sekcji, a nie pod nimi.
-     */
-    public function preview(): ?ScreenZone
-    {
-        return null;
-    }
-
     public function reset(): void
     {
         $this->state->reset();

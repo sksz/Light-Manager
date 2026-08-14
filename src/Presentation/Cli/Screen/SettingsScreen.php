@@ -18,6 +18,7 @@ use LightManager\Application\Module\ModuleSetting;
 use LightManager\Application\Module\ModuleSettingKind;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
+use LightManager\Application\Ui\Primitive\Scrollbar;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Application\UseCase\ChangeSettingUseCase;
@@ -43,6 +44,7 @@ use LightManager\Presentation\Ui\Resettable;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
 use LightManager\Presentation\Ui\ScreenZone;
+use LightManager\Presentation\Ui\ScrollWindow;
 
 /**
  * Ekran ustawień: pasek zakładek u góry, pod nim pozycje aktywnej zakładki.
@@ -81,6 +83,27 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
     private ?TextInput $input = null;
 
     /**
+     * Okno przewijania zakładki — **osobne dla każdej z nich**.
+     *
+     * Piąty użytkownik `ScrollWindow` i pierwszy, który korzysta z `useContext()`
+     * po to, żeby pamiętać położenie **na zakładkę**: zakładki mają różną długość,
+     * a wracanie do zakładki od jej początku gubiłoby miejsce, w którym się było
+     * (wzorzec `SectionState` z kroku 22).
+     */
+    private readonly ScrollWindow $window;
+
+    /**
+     * Ile pozycji zmieściło się w ostatniej narysowanej klatce.
+     *
+     * `PageUp`/`PageDown` muszą wiedzieć, o ile skoczyć, a wysokość strefy zna
+     * wyłącznie rysowanie — kontrakt ekranu nie niesie prostokąta do `handle()`.
+     * Wartość z ostatniej klatki jest zawsze aktualna: pętla rysuje przed
+     * czytaniem wejścia, a rozmiar okna zmienia się między klatkami, nie w środku
+     * (reguła 11f).
+     */
+    private int $page = 1;
+
+    /**
      * @param SettingsPort      $configuration źródło **położenia** pliku; wartości
      *                                         czyta się ze stanu pętli, nie stąd
      * @param list<SettingsTab> $tabs          zakładki tego uruchomienia, złożone w `Bootstrap`
@@ -96,6 +119,7 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
         private readonly ?ModuleRegistry $modules = null,
     ) {
         $this->cursor = new SettingsCursor($this->tabs);
+        $this->window = new ScrollWindow();
     }
 
     public function id(): string
@@ -121,11 +145,6 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
         return new ScreenZone('layout.zone.settings.file', new Label($this->configuration->location()));
     }
 
-    public function preview(): ?ScreenZone
-    {
-        return null;
-    }
-
     /** Wejście na ekran zaczyna go od początku — kursor wraca na pasek zakładek. */
     public function reset(): void
     {
@@ -133,6 +152,20 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
         $this->stopEditing();
     }
 
+    /**
+     * Pasek zakładek **stoi**, treść zakładki **przewija się** (krok 47, D78).
+     *
+     * Do tego kroku każda pozycja była osobną szczeliną `Slot::fixed`, a szczelina,
+     * której nie starczyło wiersza, po prostu **nie rysowała się wcale**
+     * (`Distribution`, reguła 11e). Zakładka `file-info` ma jedenaście pozycji plus
+     * pasek, dwa odstępy i przycisk — piętnaście wierszy — więc w oknie o 22
+     * wierszach znikał przycisk „przywróć domyślne”, a niżej znikały ustawienia.
+     * Bez śladu: ani przycięcia, ani wielokropka.
+     *
+     * Pasek zakładek zostaje poza przewijaniem, bo jest jedynym wskaźnikiem tego,
+     * gdzie użytkownik stoi; przycisk czynności przewija się razem z pozycjami,
+     * bo jest ostatnią z nich, a nie stopką zakładki.
+     */
     public function draw(Rect $bounds): array
     {
         $tab = $this->cursor->activeTab();
@@ -141,16 +174,60 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
             Slot::fixed(new Spacer(), 1),
         ];
 
-        foreach ($this->rows($tab) as $row) {
+        $items = $this->rows($tab);
+
+        if ($tab !== null && $tab->hasAction()) {
+            $items[] = new Spacer();
+            $items[] = $this->restoreButton();
+        }
+
+        $chrome = count($slots);
+        $capacity = max(0, $bounds->rows - $chrome);
+        $this->page = max(1, $capacity - 1);
+        $this->window->useContext((string) $this->cursor->tab);
+        $offset = $this->window->keepVisible($this->cursorRow($tab), count($items), $capacity);
+        $position = $this->window->position(count($items), $capacity);
+        $scrolls = $position !== null && $position->isNeeded();
+
+        foreach (array_slice($items, $offset, $capacity) as $row) {
             $slots[] = Slot::fixed($row, 1);
         }
 
-        if ($tab !== null && $tab->hasAction()) {
-            $slots[] = Slot::fixed(new Spacer(), 1);
-            $slots[] = Slot::fixed($this->restoreButton(), 1);
+        // Suwak dostaje **własną kolumnę**, a treść oddaje mu ją na czas
+        // przewijania — wzorem `Table` (reguła 11e). Bez tego szyna wchodzi na
+        // wartości wyrównane do prawej krawędzi; widać to wyłącznie w prawdziwym
+        // terminalu i tam właśnie zostało zauważone.
+        $content = $scrolls ? $bounds->columnsFrom(0, $bounds->columns - 1) : $bounds;
+        $primitives = (new VStack($slots))->draw($content);
+
+        if ($scrolls) {
+            // Szyna stoi **przy samej treści**, a nie przy krawędzi całej strefy:
+            // pasek zakładek się nie przewija, więc suwak nad nim kłamałby o tym,
+            // czego dotyczy.
+            $primitives[] = new Scrollbar(
+                new Rect($bounds->row + $chrome, $bounds->right(), $capacity, 1),
+                $position,
+            );
         }
 
-        return (new VStack($slots))->draw($bounds);
+        return $primitives;
+    }
+
+    /**
+     * Numer wiersza, na którym stoi ognisko — liczony w **pozycjach zakładki**,
+     * bo tak samo liczy je okno przewijania.
+     *
+     * Kursor na pasku zakładek nie jest w treści, więc oddaje `null`: okno ma
+     * wtedy zostać tam, gdzie było, a nie skakać na początek. Przycisk czynności
+     * ma numer o dwa większy od ostatniej pozycji, bo między nimi stoi odstęp.
+     */
+    private function cursorRow(?SettingsTab $tab): ?int
+    {
+        if ($this->cursor->item === null || $tab === null) {
+            return null;
+        }
+
+        return $this->cursor->isOnAction() ? $tab->itemCount() + 1 : $this->cursor->item;
     }
 
     /**
@@ -350,6 +427,15 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
 
         $move = KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move', 'help.key.move.short');
 
+        // Przewijanie stroną działa **wszędzie w treści zakładki**, więc wszędzie
+        // tam musi stać w spisie — inaczej stopka kłamie (reguła 11p). Na pasku
+        // zakładek go nie ma, bo tam nie ma czego przewijać.
+        $page = KeyBinding::of(
+            [Key::PageUp, Key::PageDown, Key::Home, Key::End],
+            'help.key.page',
+            'help.key.page.short',
+        );
+
         if ($this->cursor->isOnTabBar()) {
             return new FocusHint('settings.focus.tabs', [
                 $move,
@@ -364,6 +450,7 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
         if ($this->cursor->isOnAction()) {
             return new FocusHint('settings.focus.action', [
                 $move,
+                $page,
                 KeyBinding::of([Key::Enter], 'help.key.restore', 'help.key.restore.short'),
             ]);
         }
@@ -371,12 +458,14 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
         if ($this->cursor->setting()?->kind === ModuleSettingKind::Text) {
             return new FocusHint('settings.focus.item', [
                 $move,
+                $page,
                 KeyBinding::of([Key::Enter], 'help.key.edit', 'help.key.edit.short'),
             ]);
         }
 
         return new FocusHint('settings.focus.item', [
             $move,
+            $page,
             KeyBinding::of(
                 [Key::ArrowLeft, Key::ArrowRight, Key::Enter],
                 'help.key.change',
@@ -410,6 +499,12 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
             Key::Escape, Key::F2 => ScreenOutcome::close(),
             Key::ArrowUp => $this->moved(-1),
             Key::ArrowDown => $this->moved(1),
+            // Przewijanie stroną i skok na koniec (krok 47): komplet, który
+            // `FileInfoScreen` ma od kroku 29, a słownik wejścia zna od kroku 06.
+            Key::PageUp => $this->moved(-$this->page),
+            Key::PageDown => $this->moved($this->page),
+            Key::Home => $this->moved(-($this->cursor->item ?? 0)),
+            Key::End => $this->moved($this->itemCount()),
             Key::ArrowLeft => $this->shift(-1),
             Key::ArrowRight => $this->shift(1),
             Key::Enter => $this->enter(),
@@ -486,6 +581,20 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
         $this->cursor = $this->cursor->movedBy($delta);
 
         return ScreenOutcome::stay();
+    }
+
+    /**
+     * Ile pozycji ma zakładka wraz z wierszem czynności — miara skoku na koniec.
+     *
+     * Liczba, a nie `PHP_INT_MAX`: `SettingsCursor::movedBy()` dodaje przesunięcie
+     * do numeru pozycji, a dodanie największego całkowitego zamieniłoby wynik
+     * w liczbę zmiennoprzecinkową, zanim zdążyłby go przyciąć.
+     */
+    private function itemCount(): int
+    {
+        $tab = $this->cursor->activeTab();
+
+        return ($tab?->itemCount() ?? 0) + ($tab !== null && $tab->hasAction() ? 1 : 0);
     }
 
     /**

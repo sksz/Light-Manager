@@ -89,15 +89,21 @@ final class EntryOperations
     /** `F6` — okno z nazwą bieżącą jako treścią początkową. */
     public function renamePrompt(): ScreenOutcome
     {
+        return self::forScreen($this->renameRequest());
+    }
+
+    /** To samo dla komendy `browser.rename` wywołanej bez nazwy (krok 47, D78). */
+    public function renameRequest(): OverlayOutcome
+    {
         $selection = $this->selection();
 
         if ($selection === null) {
-            return ScreenOutcome::stay($this->info('module.browser.problem.noSelection'));
+            return OverlayOutcome::close($this->info('module.browser.problem.noSelection'));
         }
 
         [, $entry] = $selection;
 
-        return ScreenOutcome::opens(new PromptOverlay(
+        return OverlayOutcome::replace(new PromptOverlay(
             'module.browser.rename.title',
             ['name' => $entry->name],
             $entry->name,
@@ -120,7 +126,13 @@ final class EntryOperations
      */
     public function directoryPrompt(): ScreenOutcome
     {
-        return ScreenOutcome::opens(new PromptOverlay(
+        return self::forScreen($this->directoryRequest());
+    }
+
+    /** To samo dla komendy `browser.mkdir` wywołanej bez nazwy (krok 47, D78). */
+    public function directoryRequest(): OverlayOutcome
+    {
+        return OverlayOutcome::replace(new PromptOverlay(
             'module.browser.mkdir.title',
             [],
             '',
@@ -185,23 +197,41 @@ final class EntryOperations
      * policzenia zawartości, bo pytanie ma podać liczbę wpisów, które znikną —
      * a policzenie bywa dłuższe od klatki (D75, rozstrzygnięcia 4 i 10).
      */
-    public function deleteRequest(): ScreenOutcome
+    public function deletePrompt(?string $name = null): ScreenOutcome
     {
-        $selection = $this->selection();
+        return self::forScreen($this->deleteRequest($name));
+    }
 
-        if ($selection === null) {
-            return ScreenOutcome::stay($this->info('module.browser.problem.noSelection'));
+    /**
+     * To samo dla komendy `browser.delete [nazwa]` (krok 47, D78).
+     *
+     * Nazwa jest **opcjonalna**: bez niej idzie wpis pod kursorem, z nią —
+     * wskazany, po sprawdzeniu, że w katalogu panelu w ogóle jest. Sprawdzenie
+     * należy tutaj, a nie do komendy: to jest jedyne miejsce, które wie, na co
+     * patrzy panel czynny.
+     */
+    public function deleteRequest(?string $name = null): OverlayOutcome
+    {
+        $target = $name === null ? $this->selection() : $this->entryNamed($name);
+
+        if ($target === null) {
+            return OverlayOutcome::close($name === null
+                ? $this->info('module.browser.problem.noSelection')
+                : Message::error($this->translator->translate(
+                    'module.browser.problem.noEntry',
+                    ['name' => $name],
+                )));
         }
 
-        [$directory, $entry] = $selection;
+        [$directory, $entry] = $target;
         $this->successor = self::successorOf($directory, $entry->name);
 
         if (!$entry->isDirectory()) {
             if (!$this->asks()) {
-                return ScreenOutcome::stay($this->deleteOne($directory, $entry->name));
+                return OverlayOutcome::close($this->deleteOne($directory, $entry->name));
             }
 
-            return ScreenOutcome::opens(new ConfirmOverlay(
+            return OverlayOutcome::replace(new ConfirmOverlay(
                 'module.browser.delete.confirm.file',
                 ['name' => $entry->name],
                 fn (): OverlayOutcome => OverlayOutcome::close($this->deleteOne($directory, $entry->name)),
@@ -221,7 +251,7 @@ final class EntryOperations
      * Reguła wynika z rozstrzygnięcia nr 10 („plik i pusty katalog bez okien
      * pracy”) rozciągniętego na przypadek, którego z góry rozpoznać nie sposób.
      */
-    private function counted(Directory $directory, string $name): ScreenOutcome
+    private function counted(Directory $directory, string $name): OverlayOutcome
     {
         $state = $this->operations->beginRemoval($directory->path()->child($name)->value);
 
@@ -230,12 +260,14 @@ final class EntryOperations
         }
 
         if ($state->stage === RemovalStage::Scanning) {
-            return ScreenOutcome::opens($this->countingOverlay($directory, $name, $state));
+            return OverlayOutcome::replace($this->countingOverlay($directory, $name, $state));
         }
 
         [$overlay, $message] = $this->afterCounting($directory, $name, $state);
 
-        return $overlay === null ? ScreenOutcome::stay($message) : ScreenOutcome::opens($overlay);
+        return $overlay === null
+            ? OverlayOutcome::close($message)
+            : OverlayOutcome::replace($overlay, $message);
     }
 
     /** Okno liczenia: sama nazwa wpisu dokładanego do listy, bez paska (nie ma z czego). */
@@ -482,6 +514,45 @@ final class EntryOperations
         $entry = $directory->selectedEntry();
 
         return $entry === null ? null : [$directory, $entry];
+    }
+
+    /**
+     * Katalog i wpis o podanej nazwie — dla komendy z argumentem (krok 47).
+     *
+     * Szuka **wyłącznie w katalogu panelu czynnego**: nazwa jest nazwą, nie
+     * ścieżką, tą samą regułą, którą kieruje się `EntryName` przy tworzeniu
+     * i zmianie nazwy. Wpisu ukrytego przed listą nie znajdzie i tak ma być —
+     * usunąć wolno to, co widać.
+     *
+     * @return ?array{Directory, Entry}
+     */
+    private function entryNamed(string $name): ?array
+    {
+        $directory = $this->panes->focusedDirectory();
+
+        foreach ($directory->entries() as $entry) {
+            if ($entry->name === $name) {
+                return [$directory, $entry];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Skutek okna przełożony na skutek ekranu — jedno miejsce dla obu wejść.
+     *
+     * `EntryOperations` istnieje po to, żeby klawisz i komenda prowadziły w to
+     * samo (wzorzec `HiddenEntries`), więc i przekład typów należy tutaj, a nie
+     * do trzech komend osobno. Okno wchodzi jako `replace()`, bo dla komendy
+     * znaczy „ustąp mi miejsca”; ekran żadnego okna nie zamyka, więc `closes`
+     * jest przy tłumaczeniu bez znaczenia.
+     */
+    private static function forScreen(OverlayOutcome $outcome): ScreenOutcome
+    {
+        return $outcome->next === null
+            ? ScreenOutcome::stay($outcome->message)
+            : ScreenOutcome::opens($outcome->next);
     }
 
     private function asks(): bool

@@ -15,6 +15,7 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Rect;
 use LightManager\Domain\ValueObject\Message;
+use LightManager\Presentation\Ui\Command\OpensOverlay;
 use LightManager\Presentation\Ui\Component\Dialog;
 use LightManager\Presentation\Ui\Component\ListRow;
 use LightManager\Presentation\Ui\Component\ListView;
@@ -266,7 +267,21 @@ final class MenuOverlay implements OverlayInterface
             return OverlayOutcome::stay();
         }
 
-        $outcome = $command->execute($command->inputFor($this->context));
+        $input = $command->inputFor($this->context);
+
+        // Pozycja, która potrzebuje okna, dostaje je zamiast wykonania (krok 47,
+        // D78) — i to jest cały mechanizm, dzięki któremu operacje na plikach
+        // trafiły wreszcie do menu. Menu ustępuje miejsca oknu, bo stos ma jedno
+        // piętro; pozycja bez okna wykonuje się jak dotąd.
+        if ($command instanceof OpensOverlay) {
+            $opened = $command->overlayFor($input);
+
+            if ($opened !== null) {
+                return $opened;
+            }
+        }
+
+        $outcome = $command->execute($input);
 
         if ($outcome->transition === CommandTransition::Quit) {
             return OverlayOutcome::quit();

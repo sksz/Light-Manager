@@ -62,6 +62,7 @@ return [
     'help.key.quit' => 'quit',
     'help.key.change' => 'change value',
     'help.key.scroll' => 'scroll',
+    'help.key.page' => 'page up or down, first and last',
     'help.key.tab' => 'switch tab',
     'help.key.restore' => 'restore default settings',
     'help.key.commands' => 'command window',
@@ -74,6 +75,7 @@ return [
 
     // Short descriptions — for the status bar only (step 40).
     'help.key.move.short' => 'select',
+    'help.key.page.short' => 'page',
     'help.key.back.short' => 'back',
     'help.key.change.short' => 'value',
     'help.key.tab.short' => 'tab',

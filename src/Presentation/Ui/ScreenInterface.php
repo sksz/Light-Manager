@@ -7,7 +7,7 @@ namespace LightManager\Presentation\Ui;
 use LightManager\Application\Dto\KeyPress;
 
 /**
- * Ekran aplikacji — treść trzech stref klatki wraz z obsługą klawiszy.
+ * Ekran aplikacji — treść dwóch stref klatki wraz z obsługą klawiszy.
  *
  * Do kroku 18 ekran był przypadkiem enuma `Screen`, a to, co rysuje i jak
  * reaguje, rozstrzygały dwa `match`-e: jeden w `GameLoop`, drugi
@@ -17,8 +17,15 @@ use LightManager\Application\Dto\KeyPress;
  * Do kroku 20 ekran zajmował **wyłącznie środkowy panel**: pasek u góry i pas
  * podglądu rysował rdzeń, bo miał czym — katalog leżał w `LoopState`. Krok 21
  * zabrał mu ten katalog i wraz z nim podstawę, więc obie strefy przeszły do
- * ekranu (D40, P6). Ekran zamawia je przez `header()` i `preview()`, a `null`
- * znaczy „strefa nie powstaje, jej wiersze idą do środka”.
+ * ekranu (D40, P6). Ekran zamawia górną przez `header()`, a `null` znaczy
+ * „strefa nie powstaje, jej wiersze idą do środka”.
+ *
+ * **Stref było trzy do kroku 47** (D76, D78). Pas podglądu wyszedł z kontraktu
+ * wraz z `preview()`, bo po wyprowadzeniu miniatury do modułu `FileInfo` nie
+ * zamawiał go **ani jeden ekran** — a mechanizm rdzenia bez odbiorcy jest
+ * złamaniem reguły 13, nie zapasem na przyszłość. Ekran, który znowu zechce
+ * strefę skrajną, dostanie ją razem z odbiorcą; do tego czasu rdzeń jest
+ * o pojęcie mniejszy.
  *
  * Rdzeniowi zostają **oprawa i pasek stanu**: obwódki, nawiasy narożne, etykiety
  * stref (`ScreenZone::labelKey`), progi ustępowania w `HudLayout` oraz komunikat
@@ -47,15 +54,6 @@ interface ScreenInterface extends ComponentInterface
      * nazwę i wersję aplikacji, ustawienia — położenie pliku konfiguracyjnego.
      */
     public function header(): ?ScreenZone;
-
-    /**
-     * Pas podglądu — `null` zastępuje dawne `usesPreview() === false`.
-     *
-     * O tym, czy strefa naprawdę powstanie, decyduje jeszcze wysokość okna:
-     * `HudLayout` odmawia jej miejsca poniżej swojego progu, tak samo jak przed
-     * zmianą.
-     */
-    public function preview(): ?ScreenZone;
 
     /**
      * Wiązania klawiszy tego ekranu — źródło podpowiedzi w pasku stanu i spisu
