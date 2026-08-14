@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace LightManager\Infrastructure\Diagnostics;
 
+use GL\Buffer\UByteBuffer;
+use Imagick;
 use LightManager\Application\Dto\BackgroundHandle;
 use LightManager\Application\Port\BackgroundProcessPort;
 use LightManager\Infrastructure\Glfw\GlfwWindowService;
-use LightManager\Infrastructure\Process\BackgroundProcessService;
 use LightManager\Infrastructure\Rendering\OpenGlFrameRenderer;
 use LightManager\Infrastructure\Rendering\RenderingOptions;
 
@@ -23,83 +24,90 @@ use LightManager\Infrastructure\Rendering\RenderingOptions;
  * palety w tym torze nie ma i zero w kolumnie mówi to wprost. Bajtów też
  * nie ma: klatka nie opuszcza procesu.
  *
- * Metodyka po staremu: rozgrzewka przed pomiarem (pierwsza klatka płaci za
- * atlas glifów i tekstury), jedna instancja renderera na cały przebieg,
- * proces towarzyszący scenariusza `background` doglądany w czasie klatki.
+ * Metodyka po staremu i wspólna z pozostałymi torami (`AbstractBenchmarkRunner`):
+ * rozgrzewka przed pomiarem, pierwsza jej próbka raportowana jako zimna klatka
+ * — tu płaci ona za **atlas glifów i tekstury podglądów**, a nie za bitmapy
+ * wierszy — jedna instancja renderera na cały przebieg i proces towarzyszący
+ * scenariusza `background` doglądany w czasie klatki.
  */
-final class WindowBenchmarkRunner
+final class WindowBenchmarkRunner extends AbstractBenchmarkRunner implements ScenarioImageSource
 {
-    private const COMPANION_SECONDS = 300;
-
-    private readonly BackgroundProcessPort $processes;
-
     public function __construct(
         private readonly OpenGlFrameRenderer $renderer,
-        private readonly ScenarioFactory $factory,
-        private readonly BenchmarkOptions $options,
+        ScenarioFactory $factory,
+        BenchmarkOptions $options,
         private readonly RenderingOptions $rendering,
         ?BackgroundProcessPort $processes = null,
     ) {
-        $this->processes = $processes ?? BackgroundProcessService::getInstance();
+        parent::__construct($factory, $options, $processes);
     }
 
     /**
-     * @param list<Scenario> $scenarios
-     *
-     * @return list<ScenarioResult>
+     * Okno zostaje ukryte przez cały pomiar; rozmiar ustawia oś `--size`,
+     * a `glfwPollEvents()` doręcza zmianę, zanim spadnie pierwsza klatka.
      */
-    public function run(array $scenarios): array
+    protected function prepareRun(): void
     {
-        // Okno zostaje ukryte przez cały pomiar; rozmiar ustawia oś `--size`,
-        // a `glfwPollEvents()` doręcza zmianę, zanim spadnie pierwsza klatka.
         GlfwWindowService::getInstance()->resizeContent(
             $this->options->widthPixels,
             $this->options->heightPixels,
         );
         glfwPollEvents();
-
-        $results = [];
-
-        foreach ($scenarios as $scenario) {
-            $results[] = $this->runOne($scenario);
-        }
-
-        return $results;
     }
 
-    private function runOne(Scenario $scenario): ScenarioResult
+    /**
+     * Zrzut klatki **prosto z bufora GPU** (krok 38) — czyli to, co naprawdę
+     * narysowała karta, a nie to, co narysowałby na jej miejscu Imagick.
+     *
+     * Dwie rzeczy są tu obowiązkowe i obie wynikają z tego, jak działa OpenGL.
+     * `glFinish()` przed odczytem, bo bez niego czytalibyśmy bufor, do którego
+     * sterownik jeszcze nie skończył rysować. I **odwrócenie w pionie**, bo
+     * początek układu współrzędnych OpenGL leży w lewym dolnym rogu, a obrazu —
+     * w lewym górnym; bez tego wzorzec byłby klatką do góry nogami.
+     */
+    public function imageOf(Scenario $scenario): Imagick
     {
+        $this->prepareRun();
         $prepared = $this->factory->build($scenario);
-        $work = $scenario->needsBackgroundWork()
-            ? $this->processes->start('sleep ' . self::COMPANION_SECONDS, self::COMPANION_SECONDS)
-            : null;
 
-        try {
-            for ($index = 0; $index < $this->options->warmupIterations; ++$index) {
-                $this->sample($prepared, $work);
-            }
+        $this->renderer->drawFrame($prepared->frame, $this->rendering, $prepared->rows, $prepared->columns);
+        $this->renderer->present();
+        glFinish();
 
-            $samples = [];
+        ['width' => $width, 'height' => $height] = GlfwWindowService::getInstance()->framebufferSize();
+        $pixels = new UByteBuffer();
+        $pixels->reserve($width * $height * 4);
+        glReadPixels(0, 0, $width, $height, GL_RGBA, GL_UNSIGNED_BYTE, $pixels);
 
-            for ($index = 0; $index < max(1, $this->options->iterations); ++$index) {
-                $samples[] = $this->sample($prepared, $work);
-            }
-        } finally {
-            if ($work !== null) {
-                $this->processes->stop($work);
-            }
-        }
+        $image = new Imagick();
+        $image->readImageBlob($this->portableHeader($width, $height) . $pixels->dump());
+        $image->flipImage();
 
-        return ScenarioResult::fromSamples($scenario, $samples);
+        return $image;
     }
 
-    private function sample(ScenarioFrame $prepared, ?BackgroundHandle $work = null): PhaseSample
+    /**
+     * Nagłówek PAM (`P7`) doklejany przed surowe bajty z karty.
+     *
+     * Bez niego trzeba by ImagickowI wyjaśniać rozmiar i głębię osobnymi
+     * wywołaniami, a przy budowie Q16 „osiem bitów na kanał” nie jest wartością
+     * domyślną — obraz wyszedłby przemieszany. `MAXVAL 255` mówi to wprost
+     * i jest odporne na wersję biblioteki.
+     */
+    private function portableHeader(int $width, int $height): string
+    {
+        return sprintf(
+            "P7\nWIDTH %d\nHEIGHT %d\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n",
+            $width,
+            $height,
+        );
+    }
+
+    protected function sample(ScenarioFrame $prepared, ?BackgroundHandle $work = null): PhaseSample
     {
         $started = microtime(true);
 
-        if ($work !== null) {
-            $this->processes->poll($work);
-        }
+        $this->pollCompanion($work);
 
         $this->renderer->drawFrame(
             $prepared->frame,

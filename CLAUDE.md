@@ -11,11 +11,19 @@ lub modyfikować kod w `src/`/`tests/`, zastosuj konwencje z:
 
 Zamiast podejmować decyzje pytaj użytkownika.
 
-**Przed pomiarem wydajności (`bin/render-bench`) oraz przed sprawdzeniem
-działania aplikacji w prawdziwym terminalu (zrzuty ekranu, klatka pod XTermem)
-poproś użytkownika o zwolnienie mocy obliczeniowej hosta** — zatrzymanie
-kompilacji, kontenerów, przeglądarki i innych zadań — i **poczekaj na
-potwierdzenie**. Obciążona maszyna daje rozrzut, przy którym `--save` odmawia
+**Procesy projektu uruchamiaj celami `make`** — `make` bez argumentów wypisuje
+spis, bramka jakości to `make qa`. **Tam, gdzie projekt ma własne narzędzie
+(`bin/render-bench`, `bin/terminal-probe`), używaj jego, zamiast dorabiać
+zastępnik doraźnie.** Zawężenie przebiegu wolno wołać wprost (pojedynczy test
+filtrem, jedna oś pomiaru); zakazana jest równoległa droga do procesu, który
+wejście już ma. Pełny spis „proces → wejście”: `docs/architecture.md`, rozdz. 8.
+
+**Przed pomiarem wydajności (`make bench*`, `bin/render-bench`) oraz przed
+sprawdzeniem działania aplikacji w prawdziwym terminalu (zrzuty ekranu, klatka
+pod XTermem, `make run*`) poproś użytkownika o zwolnienie mocy obliczeniowej
+hosta** — zatrzymanie kompilacji, kontenerów, przeglądarki i innych zadań —
+i **poczekaj na potwierdzenie**. Cele pomiarowe nie mają bariery technicznej,
+mają tę regułę. Obciążona maszyna daje rozrzut, przy którym `--save` odmawia
 zapisu wzorca, a liczby z takiego przebiegu nie nadają się na punkt odniesienia
 (zdarzyło się w kroku 22).
 

@@ -35,6 +35,9 @@ return [
     'module.browser.setting.splitVertical' => 'Panes side by side',
     'module.browser.setting.details' => 'Detail columns (date, permissions)',
     'module.browser.setting.columnHeader' => 'Column names above the list',
+    // The settings screen shows choice values raw, so "no limit" travels as the
+    // infinity sign — readable without a translation.
+    'module.browser.setting.treeDepth' => 'Tree levels (Ctrl+T)',
 
     // Column headings (step 27), shown only when the toggle above is on.
     'module.browser.column.name' => 'Name',
@@ -55,10 +58,27 @@ return [
     'module.browser.help.filter' => 'narrow the list by a name fragment',
     'module.browser.help.filter.clear' => 'drop the filter',
 
-    // Module command.
+    // Directory tree (step 31). The arrow descriptions show up only in a pane
+    // displaying the tree — in the list the same keys mean something else.
+    'module.browser.help.tree' => 'pane as a tree or a list',
+    'module.browser.help.tree.expand' => 'expand the branch',
+    'module.browser.help.tree.collapse' => 'collapse the branch or go one level up',
+    'module.browser.tree.depth' => [
+        'The tree shows at most {count} level — change it in the module settings.',
+        'The tree shows at most {count} levels — change it in the module settings.',
+    ],
+
+    // Module commands. The last three arrived in step 32: they name actions
+    // the browser had under a key alone.
     'module.browser.command.jump' => 'jump to the given directory',
+    'module.browser.command.open' => 'enter the selected directory',
+    'module.browser.command.hidden' => 'show or hide hidden entries',
+    'module.browser.command.tree' => 'pane as a tree or as a list',
     'module.browser.argument.path' => 'path',
     'module.browser.jump.failed' => 'Cannot open the directory "{path}".',
+    'module.browser.open.failed' => 'Cannot open the selected directory.',
+    'module.browser.open.notDirectory' => 'The selected entry is not a directory.',
+    'module.browser.hidden.failed' => 'Cannot read the directory again — the setting stays unchanged.',
 
     // Sentences built from the module's own exceptions (`DescribesProblem`).
     'module.browser.problem.unreadable' => 'Cannot read the directory "{path}".',

@@ -53,6 +53,37 @@ final class ScenarioResultTest extends TestCase
         self::assertTrue($result->medians()->unstable);
     }
 
+    /**
+     * Zimna klatka jedzie **obok** mediany, a nie w niej: gdyby weszła do
+     * próbek, podniosłaby medianę o koszt, którego ustalona klatka nie płaci.
+     */
+    public function testColdFrameTravelsBesideTheMedianAndNotInsideIt(): void
+    {
+        $result = ScenarioResult::fromSamples(
+            Scenario::Thumbnail,
+            [
+                new PhaseSample(10.0, 1.0, 1.0, 100),
+                new PhaseSample(10.0, 1.0, 1.0, 100),
+                new PhaseSample(10.0, 1.0, 1.0, 100),
+            ],
+            new PhaseSample(387.0, 5.0, 8.0, 100),
+            48 * 1024 * 1024,
+        );
+
+        self::assertSame(12.0, $result->total->median);
+        self::assertSame(400.0, $result->medians()->coldMilliseconds);
+        self::assertSame(48 * 1024 * 1024, $result->medians()->peakMemoryBytes);
+    }
+
+    /** Przebieg bez rozgrzewki nie ma zimnej klatki — i ma to powiedzieć wprost. */
+    public function testWithoutWarmupThereIsNoColdFrameAtAll(): void
+    {
+        $medians = ScenarioResult::fromSamples(Scenario::Text, [new PhaseSample(1.0, 1.0, 1.0, 10)])->medians();
+
+        self::assertNull($medians->coldMilliseconds);
+        self::assertNull($medians->toArray()['cold']);
+    }
+
     public function testMediansCarryTheBlobSizeAsWholeBytes(): void
     {
         $medians = ScenarioResult::fromSamples(Scenario::Popup, [

@@ -72,7 +72,9 @@ final class BrowserModuleTest extends TestCase
      *
      * Od kroku 24 stoją obok niego dwie pozycje podziału — i to jest treść tej
      * asercji: podział jest ustawieniem **modułu**, a nie rdzenia, bo to moduł
-     * rozstrzyga, jak wygląda jego własny interfejs.
+     * rozstrzyga, jak wygląda jego własny interfejs. Krok 31 dokłada szóstą,
+     * i jest ona zarazem **jedyną pozycją wyboru** w tej zakładce: „bez limitu”
+     * nie jest liczbą, więc głębokość drzewa nie mogła zostać przełącznikiem.
      */
     public function testSettingsTabCarriesTheHiddenEntriesToggle(): void
     {
@@ -92,6 +94,7 @@ final class BrowserModuleTest extends TestCase
                 BrowserSettings::SPLIT_VERTICAL,
                 BrowserSettings::DETAILS,
                 BrowserSettings::COLUMN_HEADER,
+                BrowserSettings::TREE_DEPTH,
             ],
             $keys,
         );
@@ -285,6 +288,11 @@ final class BrowserModuleTest extends TestCase
      * dokłada tu **jedną** pozycję i to jest cała zmiana; `Esc` dochodzi
      * warunkowo i sprawdza go osobny test, bo bez zawężenia nie ma prawa się
      * pokazać.
+     *
+     * Krok 31 dokłada drugą — klawisz widoku — i stawia ją **na końcu**, bo
+     * dotyczy panelu, a nie tego, co w nim jest. Reszta spisu zostaje nietknięta,
+     * bo panel pokazujący listę zachowuje się tak, jak przed tym krokiem;
+     * spisu drzewa pilnuje osobny test.
      */
     public function testKeyBindingsGrewByTheFilterOnly(): void
     {
@@ -300,6 +308,7 @@ final class BrowserModuleTest extends TestCase
                 'module.browser.help.up',
                 'module.browser.help.hidden',
                 'module.browser.help.filter',
+                'module.browser.help.tree',
             ],
             $keys,
         );

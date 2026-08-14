@@ -34,7 +34,11 @@ final class VgContextService extends AbstractSingleton
      */
     private const BASE_FONT_SIZE = 16.0;
 
-    private readonly VGContext $vg;
+    /**
+     * `null` po zwolnieniu — kontekst ginie przy zamykaniu okna, a nie przy
+     * sprzątaniu procesu (patrz `release()`). Dlatego nie jest `readonly`.
+     */
+    private ?VGContext $vg;
 
     private readonly int $cellWidthPixels;
 
@@ -46,9 +50,13 @@ final class VgContextService extends AbstractSingleton
 
         // Okno musi istnieć, zanim powstanie kontekst wektorowy — samo
         // `getInstance()` gwarantuje kolejność niezależnie od drogi wejścia.
-        GlfwWindowService::getInstance();
+        $window = GlfwWindowService::getInstance();
 
         $this->vg = new VGContext(VGContext::ANTIALIAS | VGContext::STENCIL_STROKES);
+
+        // Ta sama kolejność, tylko od końca: kontekst powstaje po oknie, więc
+        // ma zginąć przed nim.
+        $window->releaseBeforeClose($this->release(...));
 
         $path = (new GlfwFontLocator())->locate();
 
@@ -61,7 +69,19 @@ final class VgContextService extends AbstractSingleton
 
     public function context(): VGContext
     {
-        return $this->vg;
+        return $this->vg ?? throw GlfwException::forReleasedContext();
+    }
+
+    /**
+     * Zwolnienie kontekstu, póki kontekst OpenGL jeszcze żyje. Woła to
+     * `GlfwWindowService::close()`, a nie sprzątanie procesu — destruktor
+     * `VGContext` wywołany po `glfwTerminate()` kończy proces naruszeniem
+     * ochrony pamięci (krok 39). Po tym wywołaniu nikt nie ma prawa prosić
+     * o kontekst i `context()` mówi to wyjątkiem, zamiast oddać `null`.
+     */
+    private function release(): void
+    {
+        $this->vg = null;
     }
 
     /** Szerokość komórki siatki w pikselach — z szerokości znaku fontu. */
@@ -85,15 +105,17 @@ final class VgContextService extends AbstractSingleton
      */
     private function measureCell(): array
     {
-        $this->vg->beginFrame(1.0, 1.0, 1.0);
+        $vg = $this->context();
+
+        $vg->beginFrame(1.0, 1.0, 1.0);
 
         try {
-            $this->vg->fontFace(self::FONT_NAME);
-            $this->vg->fontSize(self::BASE_FONT_SIZE);
+            $vg->fontFace(self::FONT_NAME);
+            $vg->fontSize(self::BASE_FONT_SIZE);
 
-            $advance = $this->vg->textBounds(0.0, 0.0, 'M');
+            $advance = $vg->textBounds(0.0, 0.0, 'M');
         } finally {
-            $this->vg->cancelFrame();
+            $vg->cancelFrame();
         }
 
         return [

@@ -52,11 +52,10 @@ final class BenchmarkOptions
         public readonly int $iterations = self::DEFAULT_ITERATIONS,
         public readonly int $warmupIterations = self::DEFAULT_WARMUP_ITERATIONS,
         /**
-         * Tor okienkowy (krok 35, D54): klatka idzie przez renderer OpenGL
-         * do ukrytego okna zamiast przez potok Sixela. Osobna oś, bo wyniki
-         * obu torów nie mają prawa się porównywać.
+         * Którym z trzech tłumaczy słownika prymitywów idzie klatka. Osobna oś,
+         * bo wyniki torów nie mają prawa się porównywać — pilnuje tego podpis.
          */
-        public readonly bool $windowed = false,
+        public readonly BenchmarkTrack $track = BenchmarkTrack::Sixel,
     ) {
     }
 
@@ -94,7 +93,7 @@ final class BenchmarkOptions
             $this->textAntialias ? 1 : 0,
             $this->strokeAntialias ? 1 : 0,
             $this->font ?? 'auto',
-            $this->windowed ? ' window' : '',
+            $this->track->signatureSuffix(),
         );
     }
 
@@ -113,14 +112,22 @@ final class BenchmarkOptions
             'font' => $this->font,
             'iterations' => $this->iterations,
             'warmupIterations' => $this->warmupIterations,
-            'windowed' => $this->windowed,
+            'track' => $this->track->value,
         ];
     }
 
-    /** @param array<string, mixed> $data */
+    /**
+     * Wzorce sprzed kroku 38 niosą przełącznik `windowed` zamiast nazwy toru
+     * i mają dalej dać się wczytać — inaczej krok, który nie dotknął potoku
+     * renderowania, unieważniłby siedemnaście punktów odniesienia.
+     *
+     * @param array<string, mixed> $data
+     */
     public static function fromArray(array $data): self
     {
         $font = $data['font'] ?? null;
+        $track = BenchmarkTrack::tryFrom(JsonValue::string($data, 'track'))
+            ?? (JsonValue::bool($data, 'windowed') ? BenchmarkTrack::Window : BenchmarkTrack::Sixel);
 
         return new self(
             JsonValue::int($data, 'widthPixels', self::DEFAULT_WIDTH_PIXELS),
@@ -134,7 +141,7 @@ final class BenchmarkOptions
             is_string($font) ? $font : null,
             JsonValue::int($data, 'iterations', self::DEFAULT_ITERATIONS),
             JsonValue::int($data, 'warmupIterations', self::DEFAULT_WARMUP_ITERATIONS),
-            JsonValue::bool($data, 'windowed'),
+            $track,
         );
     }
 }

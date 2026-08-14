@@ -35,11 +35,6 @@ final class ScenarioFactoryTest extends TestCase
         $this->factory = new ScenarioFactory(new BenchmarkOptions(), '/tmp/obraz.jpg');
     }
 
-    protected function tearDown(): void
-    {
-        $this->unpinLanguage();
-    }
-
     /** @return array<string, array{Scenario}> */
     public static function everyScenario(): array
     {
@@ -174,6 +169,68 @@ final class ScenarioFactoryTest extends TestCase
 
         self::assertCount(3, $built->frame->planes);
         self::assertSame('modal', $built->frame->planes[2]->id);
+    }
+
+    /**
+     * Scenariusz ustawień rozlicza się **w parze** z `chrome-text`, więc obwódki
+     * muszą być w obu takie same co do prymitywu. Gdyby się rozjechały, różnica
+     * między nimi przestałaby być ceną treści ekranu ustawień.
+     */
+    public function testSettingsScenarioSharesItsChromeWithTheListScenario(): void
+    {
+        $settings = $this->factory->build(Scenario::Settings);
+        $list = $this->factory->build(Scenario::ChromeWithText);
+
+        self::assertSame(
+            $list->frame->planes[0]->signature(),
+            $settings->frame->planes[0]->signature(),
+        );
+    }
+
+    /**
+     * Klatka ma nieść wszystko, czego nie mierzy żaden inny scenariusz: pasek
+     * zakładek, pozycję przełączaną, pozycję wybieraną i wiersz czynności.
+     */
+    public function testSettingsScenarioCarriesTabsPositionsAndTheActionRow(): void
+    {
+        $texts = [];
+
+        foreach (self::ofType($this->factory->build(Scenario::Settings), TextRun::class) as $run) {
+            self::assertInstanceOf(TextRun::class, $run);
+            $texts[] = $run->text;
+        }
+
+        $joined = implode("\n", $texts);
+
+        self::assertStringContainsString('Wygląd', $joined, 'pasek zakładek');
+        self::assertStringContainsString('Motyw graficzny', $joined, 'pozycja wybierana');
+        self::assertStringContainsString('tak', $joined, 'pozycja przełączana');
+        self::assertStringContainsString('Przywróć', $joined, 'wiersz czynności');
+    }
+
+    /**
+     * Powtórzona **etykieta** trafiałaby w pamięć podręczną napisów (D34; klucz
+     * to treść, kolor i metryka fontu), a pomiar pokazywałby wtedy koszt jednego
+     * wiersza zamiast kosztu panelu.
+     *
+     * Wartości powtarzać się mogą i mają — „tak”, „nie”, „Grafit” powtarzają się
+     * także na prawdziwym ekranie ustawień, więc ich trafienia w pamięć są
+     * wiernością, a nie zaniżeniem pomiaru.
+     */
+    public function testSettingsPositionLabelsDoNotRepeatThemselves(): void
+    {
+        $labels = [];
+
+        foreach (self::ofType($this->factory->build(Scenario::Settings), TextRun::class) as $run) {
+            self::assertInstanceOf(TextRun::class, $run);
+
+            if (preg_match('/ \d{2}$/', $run->text) === 1) {
+                $labels[] = $run->text;
+            }
+        }
+
+        self::assertGreaterThan(10, count($labels), 'pozycje wypełniają panel');
+        self::assertSame(count($labels), count(array_unique($labels)));
     }
 
     public function testGridTravelsWithTheFrame(): void

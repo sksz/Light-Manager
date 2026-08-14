@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Presentation\Cli;
 
+use Closure;
 use LightManager\Application\Command\CommandHistory;
 use LightManager\Application\Command\CommandLineParser;
 use LightManager\Application\Command\CommandRegistry;
@@ -16,6 +17,7 @@ use LightManager\Application\Module\ModuleRegistry;
 use LightManager\Application\Module\ModuleRejection;
 use LightManager\Application\Module\ProvidesCommands;
 use LightManager\Application\Module\ProvidesSettingsTab;
+use LightManager\Application\Port\FrameRendererPort;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Application\UseCase\ChangeSettingUseCase;
 use LightManager\Application\UseCase\LoadSettingsUseCase;
@@ -24,6 +26,10 @@ use LightManager\Domain\ValueObject\Message;
 use LightManager\Domain\ValueObject\RendererMode;
 use LightManager\Infrastructure\Config\CommandHistoryService;
 use LightManager\Infrastructure\Config\SettingsService;
+use LightManager\Infrastructure\Diagnostics\BenchmarkTrack;
+use LightManager\Infrastructure\Diagnostics\DumpingFrameRenderer;
+use LightManager\Infrastructure\Diagnostics\FrameDumpService;
+use LightManager\Infrastructure\Diagnostics\TrackImageGrabbers;
 use LightManager\Infrastructure\Glfw\GlfwInputService;
 use LightManager\Infrastructure\Glfw\GlfwViewportService;
 use LightManager\Infrastructure\Glfw\GlfwWindowService;
@@ -37,8 +43,11 @@ use LightManager\Infrastructure\Rendering\ThemeService;
 use LightManager\Infrastructure\Terminal\SixelCapabilityService;
 use LightManager\Infrastructure\Terminal\TerminalService;
 use LightManager\Infrastructure\Terminal\TerminalSizeService;
+use LightManager\Module\Audio\Presentation\AudioModule;
 use LightManager\Module\Browser\Presentation\BrowserModule;
 use LightManager\Module\FileInfo\Presentation\FileInfoModule;
+use LightManager\Presentation\Cli\Command\DumpFrameCommand;
+use LightManager\Presentation\Cli\Command\FullscreenCommand;
 use LightManager\Presentation\Cli\Command\QuitCommand;
 use LightManager\Presentation\Cli\Command\ScreenCommand;
 use LightManager\Presentation\Cli\Command\SettingCommand;
@@ -46,6 +55,7 @@ use LightManager\Presentation\Cli\Screen\HelpScreen;
 use LightManager\Presentation\Cli\Screen\SettingsScreen;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
 use LightManager\Presentation\Ui\Overlay\CommandOverlay;
+use LightManager\Presentation\Ui\Overlay\MenuOverlay;
 use LightManager\Presentation\Ui\ScreenInterface;
 
 /**
@@ -123,12 +133,19 @@ final class Bootstrap
             $vg = VgContextService::getInstance();
 
             $settings = SettingsService::getInstance()->current();
-            GlfwWindowService::getInstance()->showAtGrid(
+            $window = GlfwWindowService::getInstance();
+            $window->showAtGrid(
                 $settings->windowColumns,
                 $settings->windowRows,
                 $vg->cellWidthPixels(),
                 $vg->cellHeightPixels(),
             );
+
+            // Dopiero **za** pokazaniem okna (krok 37): od tej chwili rozmiar
+            // nadany przez użytkownika wraca przy następnym starcie, a wcześniej
+            // nie ma czego pamiętać — rozmiar tymczasowy i ten z ustawień nie są
+            // niczyim wyborem podjętym teraz.
+            $window->rememberSize($vg->cellWidthPixels(), $vg->cellHeightPixels());
 
             GlfwInputService::getInstance();
 
@@ -182,19 +199,24 @@ final class Bootstrap
             self::$windowed
                 ? RendererMode::OpenGl->name
                 : SixelCapabilityService::getInstance()->detect()->name,
+            self::contentScale($translator),
         );
 
-        $commands = self::createCommandOverlay($state, $settings, $translator, $modules);
+        [$commands, $menu] = self::createCommandWindows($state, $settings, $translator, $modules);
         $floor = self::floor($modules, $state, $translator);
+        $fullscreen = self::fullscreenToggle();
 
         // Pomoc składa spis klawiszy z wiązań, więc musi poznać pozostałe ekrany
-        // — wraz ze sobą, bo własne klawisze też są częścią spisu — oraz okno
-        // komend, które ekranem nie jest, a klawisze ma. Ekrany modułów idą przez
-        // `knowAboutModules()`, bo dostają własne zakładki.
+        // — wraz ze sobą, bo własne klawisze też są częścią spisu — oraz oba okna
+        // rejestru komend, które ekranami nie są, a klawisze mają. Ekrany modułów
+        // idą przez `knowAboutModules()`, bo dostają własne zakładki.
         $help->knowAbout(
             [$settingsScreen, $help],
-            InputHandler::globalBindings(),
-            ['layout.zone.command' => $commands->bindings()],
+            InputHandler::globalBindings(self::$windowed),
+            [
+                'layout.zone.command' => $commands->bindings(),
+                'menu.title' => $menu->bindings(),
+            ],
         );
         $help->knowAboutModules($modules->accepted());
 
@@ -208,10 +230,12 @@ final class Bootstrap
         return new GameLoop(
             self::$windowed ? GlfwInputService::getInstance() : TerminalService::getInstance(),
             new FrameComposer(
-                self::$windowed ? new OpenGlFrameRenderer() : RendererService::getInstance(),
+                self::dumpingRenderer(
+                    self::$windowed ? new OpenGlFrameRenderer() : RendererService::getInstance(),
+                ),
                 self::$windowed ? GlfwViewportService::getInstance() : TerminalSizeService::getInstance(),
                 $translator,
-                InputHandler::globalBindings(),
+                InputHandler::globalBindings(self::$windowed),
             ),
             $screens,
             new InputHandler(
@@ -221,9 +245,82 @@ final class Bootstrap
                 self::problemPresenter(),
                 $commands,
                 self::moduleScreens($modules),
+                $fullscreen,
+                $menu,
             ),
             $state,
         );
+    }
+
+    /**
+     * Przełącznik pełnego ekranu — domknięcie albo `null` poza torem okienkowym
+     * (krok 37).
+     *
+     * Jedno domknięcie obsługuje obie drogi: komendę `core.fullscreen` i skrót
+     * `F11`. Dzięki niemu ani komenda, ani `InputHandler` nie znają
+     * `Infrastructure/Glfw` — nazwę usługi okna wymienia wyłącznie ta klasa,
+     * dokładnie tak samo jak przy pozostałych portach toru okienkowego.
+     *
+     * @return ?Closure(): bool
+     */
+    private static function fullscreenToggle(): ?Closure
+    {
+        if (!self::$windowed) {
+            return null;
+        }
+
+        return static fn (): bool => GlfwWindowService::getInstance()->toggleFullscreen();
+    }
+
+    /**
+     * Gęstość wyświetlacza gotowa do pokazania w oknie pomocy albo `null`, gdy
+     * nie ma jej kto zmierzyć (krok 37, rozstrzygnięcie nr 4).
+     *
+     * Wartość jest **czytana i pokazywana, a nie stosowana**: maszyna projektu
+     * ma skalę 1.0, więc przeliczanie komórki byłoby kodem bez sprawdzenia.
+     * Osie rozdzielamy, bo `glfwGetWindowContentScale` oddaje dwie liczby —
+     * a wyświetlacz, na którym się różnią, jest właśnie tym, o czym chcielibyśmy
+     * usłyszeć.
+     */
+    private static function contentScale(TranslatorService $translator): ?string
+    {
+        if (!self::$windowed) {
+            return null;
+        }
+
+        $scale = GlfwWindowService::getInstance()->contentScale();
+
+        return $translator->number($scale['x'], 2) . ' × ' . $translator->number($scale['y'], 2);
+    }
+
+    /**
+     * Renderer opakowany zamówieniem zrzutu klatki (krok 38, komenda
+     * `core.dump`).
+     *
+     * Dekorator zamiast zmiany w `FrameComposer`: w ścieżce klatki zostaje
+     * sprawdzenie jednego pola, a składanie klatki jest nietknięte. Sposób
+     * oddania obrazu wybiera **`Bootstrap`, bo tylko on wie, który tor został
+     * wybrany** — usługa zrzutu nie ma prawa tego zgadywać, a zrzut z cudzego
+     * toru nie byłby dowodem na nic.
+     */
+    private static function dumpingRenderer(FrameRendererPort $renderer): FrameRendererPort
+    {
+        $dumps = FrameDumpService::getInstance();
+        $dumps->useGrabber(TrackImageGrabbers::forTrack(self::dumpTrack()));
+
+        return new DumpingFrameRenderer($renderer, $dumps);
+    }
+
+    /** Tor, którym idzie klatka tego uruchomienia — okno, Sixel albo tekst. */
+    private static function dumpTrack(): BenchmarkTrack
+    {
+        if (self::$windowed) {
+            return BenchmarkTrack::Window;
+        }
+
+        return SixelCapabilityService::getInstance()->detect() === RendererMode::Sixel
+            ? BenchmarkTrack::Sixel
+            : BenchmarkTrack::Text;
     }
 
     /**
@@ -258,6 +355,9 @@ final class Bootstrap
                 ImagePreviewService::getInstance(),
                 BackgroundProcessService::getInstance(),
             ),
+            // Trzecia pozycja i **cały koszt modułu dźwięku w rdzeniu** (krok 36).
+            // Rdzeń nie wie o nim nic ponad to: ani że gra, ani czym.
+            new AudioModule($state, $translator, $settings),
         ];
     }
 
@@ -403,30 +503,50 @@ final class Bootstrap
     }
 
     /**
-     * Okno komend wraz z rejestrem, parserem i historią.
+     * Oba okna rejestru komend: okno komend wraz z parserem i historią oraz menu
+     * kontekstowe (krok 32).
+     *
+     * Powstają w jednym miejscu, bo **dzielą rejestr** — i to jest cały sens
+     * kroku 32: menu jest drugim wejściem do tego samego zbioru czynności, a nie
+     * drugim zbiorem. Rejestr zbudowany dwa razy byłby dwoma zbiorami niezależnie
+     * od tego, że powstałyby z tej samej listy.
      *
      * Kolejność jest wymuszona: rejestr musi znać komplet komend, zanim okno
      * poprosi o **podpowiedzi stałe** (`prepare()`), bo te liczą się raz i już
      * się nie odświeżą. Komendy zmieniające ustawienia dostają stan pętli, żeby
      * zmiana obowiązywała od następnej klatki, a nie od następnego uruchomienia.
+     *
+     * @return array{CommandOverlay, MenuOverlay}
      */
-    private static function createCommandOverlay(
+    private static function createCommandWindows(
         LoopState $state,
         SettingsService $settings,
         TranslatorService $translator,
         ModuleRegistry $modules,
-    ): CommandOverlay {
+    ): array {
         $themes = ThemeService::getInstance();
         $change = new ChangeSettingUseCase($settings, $themes, $translator, self::startupModules($modules));
         $registry = new CommandRegistry();
 
-        $registry->add(CommandRegistry::CORE, [
+        $core = [
             new ScreenCommand('core.help', 'help'),
             new ScreenCommand('core.settings', 'settings'),
             new SettingCommand('core.theme', SettingKey::Theme, 'theme', $themes->names(), $state, $change),
             new SettingCommand('core.language', SettingKey::Language, 'language', self::languageCodes(), $state, $change),
+            new DumpFrameCommand($translator),
             new QuitCommand(),
-        ]);
+        ];
+
+        // Pełny ekran wchodzi do spisu **wyłącznie w torze okienkowym** (krok 37):
+        // w terminalu nie znaczy nic, a okno komend ma pokazywać to, co działa tu
+        // i teraz. To pierwsza komenda rdzenia, której obecność zależy od trybu.
+        $fullscreen = self::fullscreenToggle();
+
+        if ($fullscreen !== null) {
+            $core[] = new FullscreenCommand($translator, $fullscreen);
+        }
+
+        $registry->add(CommandRegistry::CORE, $core);
 
         // Komendy modułu wchodzą pod jego własną przestrzenią nazw — nazwy spoza
         // niej odsiewa rejestr, dokładnie tak samo, jak katalog napisów odsiewa
@@ -447,7 +567,7 @@ final class Bootstrap
         );
         $overlay->prepare();
 
-        return $overlay;
+        return [$overlay, new MenuOverlay($registry, $translator)];
     }
 
     /** @return list<string> */
@@ -522,6 +642,11 @@ final class Bootstrap
         // rejestrowaną w konstruktorze usługi, na wyjścia, których ta ścieżka
         // nie dosięga.
         if (self::$windowed) {
+            // Rozmiar nadany oknu w ostatniej pół sekundzie nie zdążył się
+            // uspokoić, a jest równie prawdziwym wyborem, co każdy wcześniejszy
+            // (krok 37). Zapis idzie **przed** zamknięciem okna, bo po nim nie ma
+            // już czego zmierzyć.
+            GlfwWindowService::getInstance()->saveSizeIfPending();
             GlfwWindowService::getInstance()->close();
 
             return;

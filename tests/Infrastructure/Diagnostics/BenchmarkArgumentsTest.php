@@ -7,6 +7,7 @@ namespace LightManager\Tests\Infrastructure\Diagnostics;
 use LightManager\Infrastructure\Diagnostics\BenchmarkArguments;
 use LightManager\Infrastructure\Diagnostics\BenchmarkMode;
 use LightManager\Infrastructure\Diagnostics\BenchmarkOptions;
+use LightManager\Infrastructure\Diagnostics\BenchmarkTrack;
 use LightManager\Infrastructure\Diagnostics\DiagnosticsException;
 use LightManager\Infrastructure\Diagnostics\DiagnosticsProblem;
 use LightManager\Infrastructure\Diagnostics\Scenario;
@@ -198,25 +199,38 @@ final class BenchmarkArgumentsTest extends TestCase
         self::assertSame(128, BenchmarkArguments::parse(['--palette=16', '--palette=128'])->options->paletteColors);
     }
 
-    /** Tor okienkowy jest osobną osią i domyślnie wyłączony (krok 35). */
-    public function testWindowedPathIsOptedIntoExplicitly(): void
+    /** Tor sixelowy jest domyślny; pozostałe dwa wybiera się jawnie (kroki 35 i 38). */
+    public function testTrackIsSixelUnlessAskedOtherwise(): void
     {
-        self::assertFalse(BenchmarkArguments::parse([])->options->windowed);
-        self::assertTrue(BenchmarkArguments::parse(['--window'])->options->windowed);
-        self::assertFalse(BenchmarkArguments::parse(['--window=0'])->options->windowed);
+        self::assertSame(BenchmarkTrack::Sixel, BenchmarkArguments::parse([])->options->track);
+        self::assertSame(BenchmarkTrack::Window, BenchmarkArguments::parse(['--window'])->options->track);
+        self::assertSame(BenchmarkTrack::Text, BenchmarkArguments::parse(['--text'])->options->track);
+        self::assertSame(BenchmarkTrack::Sixel, BenchmarkArguments::parse(['--window=0'])->options->track);
     }
 
     /**
-     * Podpis konfiguracji rozróżnia tory, więc wzorzec okienkowy nie ma jak
-     * zostać porównany z sixelowym — a to jedyne zabezpieczenie przed
-     * przeczytaniem dwóch różnych pomiarów jako jednego szeregu.
+     * Podpis konfiguracji rozróżnia **wszystkie trzy** tory, więc żaden wzorzec
+     * nie ma jak zostać porównany z wzorcem innego toru — a to jedyne
+     * zabezpieczenie przed przeczytaniem dwóch różnych pomiarów jako jednego
+     * szeregu.
      */
-    public function testWindowedSignatureDiffersFromTheTerminalOne(): void
+    public function testEveryTrackHasItsOwnSignature(): void
     {
-        self::assertNotSame(
+        $signatures = [
             BenchmarkArguments::parse([])->options->signature(),
             BenchmarkArguments::parse(['--window'])->options->signature(),
-        );
+            BenchmarkArguments::parse(['--text'])->options->signature(),
+        ];
+
+        self::assertSame($signatures, array_unique($signatures));
+    }
+
+    /** Dwa tory naraz nie znaczą „zmierz oba” — nie ma takiej tabeli. */
+    public function testTwoTracksAtOnceAreRefused(): void
+    {
+        $this->expectException(DiagnosticsException::class);
+
+        BenchmarkArguments::parse(['--window', '--text']);
     }
 
     /**

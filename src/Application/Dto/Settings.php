@@ -42,8 +42,14 @@ final class Settings
     public const DEFAULT_STARTUP_MODULE = 'browser';
 
     /**
-     * Rozmiar startowy okna trybu okienkowego, w komórkach (krok 34, D53).
-     * Wartości, po których chodzą strzałki — wzorem `PALETTE_CHOICES`.
+     * Rozmiar okna trybu okienkowego, w komórkach (krok 34, D53). Wartości, po
+     * których chodzą strzałki — wzorem `PALETTE_CHOICES`.
+     *
+     * Od kroku 37 lista **nie jest już zakresem dopuszczalnych wartości**, tylko
+     * przystankami strzałek: okno zapamiętuje rozmiar nadany przeciągnięciem rogu,
+     * a ten wypada między przystankami dziewięć razy na dziesięć. Zakresu pilnują
+     * `WINDOW_*_MIN`/`MAX`, a strzałka z wartości spoza listy idzie do sąsiada
+     * w swoją stronę, nie na początek listy (`nextStop()`).
      */
     public const WINDOW_COLUMNS_CHOICES = [80, 100, 120, 140, 160, 200];
 
@@ -52,6 +58,20 @@ final class Settings
     public const DEFAULT_WINDOW_COLUMNS = 100;
 
     public const DEFAULT_WINDOW_ROWS = 30;
+
+    /**
+     * Granice zapamiętanego rozmiaru (krok 37). Dolna jest tam, gdzie okno
+     * przestaje cokolwiek pokazywać, górna — bezpiecznie ponad najszerszym
+     * dzisiejszym monitorem; obie istnieją po to, żeby ręcznie ruszony plik
+     * konfiguracji nie otworzył okna o zerowej albo monstrualnej siatce.
+     */
+    public const WINDOW_COLUMNS_MIN = 20;
+
+    public const WINDOW_COLUMNS_MAX = 1000;
+
+    public const WINDOW_ROWS_MIN = 5;
+
+    public const WINDOW_ROWS_MAX = 400;
 
     /** @param array<string, array<string, bool|int|string>> $modules `id modułu` → klucz → wartość */
     public function __construct(
@@ -95,10 +115,10 @@ final class Settings
                 self::next(self::PALETTE_CHOICES, $this->paletteColors, $direction),
             ),
             SettingKey::WindowColumns => $this->withWindowColumns(
-                self::next(self::WINDOW_COLUMNS_CHOICES, $this->windowColumns, $direction),
+                self::nextStop(self::WINDOW_COLUMNS_CHOICES, $this->windowColumns, $direction),
             ),
             SettingKey::WindowRows => $this->withWindowRows(
-                self::next(self::WINDOW_ROWS_CHOICES, $this->windowRows, $direction),
+                self::nextStop(self::WINDOW_ROWS_CHOICES, $this->windowRows, $direction),
             ),
         };
     }
@@ -141,6 +161,18 @@ final class Settings
     public function withWindowRows(int $windowRows): self
     {
         return $this->copy(windowRows: $windowRows);
+    }
+
+    /** Czy liczba kolumn nadaje się na rozmiar okna — granica pliku ruszonego ręcznie (krok 37). */
+    public static function allowsWindowColumns(int $columns): bool
+    {
+        return $columns >= self::WINDOW_COLUMNS_MIN && $columns <= self::WINDOW_COLUMNS_MAX;
+    }
+
+    /** Czy liczba wierszy nadaje się na rozmiar okna — granica pliku ruszonego ręcznie (krok 37). */
+    public static function allowsWindowRows(int $rows): bool
+    {
+        return $rows >= self::WINDOW_ROWS_MIN && $rows <= self::WINDOW_ROWS_MAX;
     }
 
     /** @param array<string, array<string, bool|int|string>> $modules */
@@ -248,5 +280,35 @@ final class Settings
         }
 
         return $choices[($position + $step + $count) % $count];
+    }
+
+    /**
+     * Przystanek za bieżącą wartością, cyklicznie — dla list liczbowych
+     * ułożonych rosnąco.
+     *
+     * Różni się od `next()` traktowaniem wartości **spoza listy**, a to od kroku
+     * 37 przypadek zwykły, nie awaryjny: rozmiar zapamiętany po przeciągnięciu
+     * rogu prawie nigdy nie trafia w przystanek. `next()` odsyłałby wtedy na
+     * początek listy, czyli strzałka „w prawo” z 137 kolumn dawałaby 80 — tutaj
+     * daje 140, a „w lewo” 120. Wartość leżąca poza całą listą wraca na jej
+     * skrajny przystanek, jak przy zwykłym zawinięciu.
+     *
+     * @param list<int> $choices przystanki ułożone rosnąco
+     */
+    private static function nextStop(array $choices, int $current, int $direction): int
+    {
+        if ($choices === []) {
+            return $current;
+        }
+
+        if ($direction < 0) {
+            $smaller = array_filter($choices, static fn (int $choice): bool => $choice < $current);
+
+            return $smaller === [] ? $choices[count($choices) - 1] : max($smaller);
+        }
+
+        $larger = array_filter($choices, static fn (int $choice): bool => $choice > $current);
+
+        return $larger === [] ? $choices[0] : min($larger);
     }
 }

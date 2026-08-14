@@ -11,6 +11,8 @@ use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
 use LightManager\Domain\ValueObject\ScrollPosition;
 use LightManager\Presentation\Ui\Component\Align;
+use LightManager\Presentation\Ui\Component\Button;
+use LightManager\Presentation\Ui\Component\Choice;
 use LightManager\Presentation\Ui\Component\Column;
 use LightManager\Presentation\Ui\Component\Dialog;
 use LightManager\Presentation\Ui\Component\ImageBox;
@@ -21,13 +23,21 @@ use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\ProgressBar;
 use LightManager\Presentation\Ui\Component\Section;
 use LightManager\Presentation\Ui\Component\SectionList;
+use LightManager\Presentation\Ui\Component\Spacer;
 use LightManager\Presentation\Ui\Component\Split;
 use LightManager\Presentation\Ui\Component\StatusBar;
 use LightManager\Presentation\Ui\Component\Table;
 use LightManager\Presentation\Ui\Component\TableRow;
+use LightManager\Presentation\Ui\Component\Tabs;
 use LightManager\Presentation\Ui\Component\TextInput;
 use LightManager\Presentation\Ui\Component\TextSpan;
 use LightManager\Presentation\Ui\Component\TextView;
+use LightManager\Presentation\Ui\Component\Toggle;
+use LightManager\Presentation\Ui\Component\TreeNode;
+use LightManager\Presentation\Ui\Component\TreeView;
+use LightManager\Presentation\Ui\ComponentInterface;
+use LightManager\Presentation\Ui\Container\Slot;
+use LightManager\Presentation\Ui\Container\VStack;
 use LightManager\Presentation\Ui\HudLayout;
 use LightManager\Presentation\Ui\SplitAxis;
 
@@ -80,6 +90,41 @@ final class ScenarioFactory
      * słabnie wraz z wysokością terminala, jest gorszy niż brak pomiaru.
      */
     private const HIGHLIGHT_CHARACTERS = 3;
+
+    /**
+     * Zakładki ekranu ustawień — dwie rdzenia, spis modułów i po jednej na
+     * moduł, czyli tyle, ile widzi użytkownik przy obu modułach włączonych.
+     *
+     * @var list<string>
+     */
+    private const SETTINGS_TABS = ['Wygląd', 'Grafika', 'Moduły', 'przeglądarka', 'opis pliku'];
+
+    /** @var list<string> */
+    private const SETTINGS_LABELS = [
+        'Język interfejsu',
+        'Motyw graficzny',
+        'Wygładzanie tekstu',
+        'Kolory palety Sixela',
+        'Wygładzanie obrysów',
+        'Szerokość okna w kolumnach',
+        'Zawijanie długich wierszy',
+        'Wysokość okna w wierszach',
+    ];
+
+    /** @var list<string> */
+    private const SETTINGS_VALUES = ['polski', 'Grafit', '64', '100', 'nordyk', '30', 'browser', 'papier'];
+
+    /**
+     * Ile poziomów schodzi drzewo w scenariuszu `tree` i ile węzłów ma każdy.
+     *
+     * Cztery poziomy po trzy węzły dają dwanaście wierszy na gałąź — tyle, żeby
+     * w panelu stanęły obok siebie wcięcia od zerowego do trzeciego. Głębiej
+     * scenariusz nie schodzi, bo mierzyłby wtedy skracanie wcięcia
+     * (`TreeView::MINIMUM_LABEL`), a nie samo wcięcie.
+     */
+    private const TREE_LEVELS = 4;
+
+    private const TREE_CHILDREN = 3;
 
     public function __construct(
         private readonly BenchmarkOptions $options,
@@ -163,7 +208,9 @@ final class ScenarioFactory
             Scenario::Columns => $this->columns($list, marked: false),
             Scenario::Highlight => $this->columns($list, marked: true),
             Scenario::TextView => $this->textView($list),
+            Scenario::Tree => $this->tree($list),
             Scenario::Split => $this->splitLists($layout),
+            Scenario::Settings => $this->settingsScreen($layout, $list),
             default => $this->fullContent($layout, $list, $scenario),
         };
     }
@@ -289,6 +336,69 @@ final class ScenarioFactory
         return $primitives;
     }
 
+    /**
+     * Drzewo wypełniające panel: gałęzie rozwinięte do czterech poziomów, kursor
+     * na węźle z drugiego.
+     *
+     * Kursor stoi **głębiej niż na pierwszym poziomie** i nie jest to szczegół:
+     * pasek zaznaczenia idzie na cały wiersz, więc leżąc na wierszu z wcięciem,
+     * mierzy razem z nim tę samą rzecz, co w aplikacji.
+     *
+     * @return list<Primitive>
+     */
+    private function tree(Rect $bounds): array
+    {
+        $nodes = [];
+        $group = 0;
+
+        while (count($nodes) < max(1, $bounds->rows)) {
+            $this->branch($nodes, [], $group, 0);
+            ++$group;
+        }
+
+        return (new TreeView($nodes, 0, 1, $this->scroll($bounds->rows)))->draw($bounds);
+    }
+
+    /**
+     * Jedna gałąź: katalog rozwinięty, katalog zwinięty i plik — czyli wszystkie
+     * trzy kształty wiersza naraz, i tak na każdym poziomie.
+     *
+     * Pierwsze dziecko rozwija się dalej, więc na jego poziomie biegnie pionowa
+     * prowadnica (`│`) aż do ostatniego rodzeństwa. Bez tego układu scenariusz
+     * mierzyłby samo wcięcie spacjami, czyli rzecz, która nie kosztuje nic.
+     *
+     * @param list<TreeNode> $nodes
+     * @param list<bool>     $guides
+     */
+    private function branch(array &$nodes, array $guides, int $group, int $level): void
+    {
+        for ($index = 0; $index < self::TREE_CHILDREN; ++$index) {
+            $last = $index === self::TREE_CHILDREN - 1;
+            $file = $last;
+            $expanded = $index === 0 && $level < self::TREE_LEVELS - 1;
+
+            $nodes[] = new TreeNode(
+                sprintf('%02d-%d-%d', $group, $level, $index),
+                $file
+                    ? sprintf('plik-%02d-%02d.txt', $group, $index)
+                    : sprintf('katalog-%02d-%02d/', $group, $index),
+                $guides,
+                $last,
+                !$file,
+                $expanded,
+                $file ? sprintf('%d,%d kB', 1 + $index, $group % 10) : '',
+                $file ? Role::Text : Role::Accent,
+            );
+
+            if ($expanded) {
+                // Rozwija się **pierwszy** z trojga rodzeństwa, więc pod nim
+                // zawsze zostają jeszcze dwa — i prowadnica na jego poziomie
+                // biegnie przez całe poddrzewo. Stąd `true` wprost, a nie `!$last`.
+                $this->branch($nodes, [...$guides, true], $group, $level + 1);
+            }
+        }
+    }
+
     /** @return list<ListRow> */
     private function sectionRows(int $section): array
     {
@@ -312,8 +422,7 @@ final class ScenarioFactory
      */
     private function fullContent(HudLayout $layout, Rect $list, Scenario $scenario): array
     {
-        $primitives = (new Label(self::SAMPLE_PATH . '  —  12/240'))
-            ->draw(HudLayout::contentOf($layout->header, $layout->headerIsPanel()));
+        $primitives = $this->pathLine($layout);
 
         foreach ($this->list($list, selected: 2, scroll: $this->scroll($list->rows)) as $primitive) {
             $primitives[] = $primitive;
@@ -328,13 +437,110 @@ final class ScenarioFactory
             }
         }
 
-        $status = new StatusBar('· Pomiar wydajności potoku renderowania.', Role::Info, self::HINTS);
-
-        foreach ($status->draw(HudLayout::contentOf($layout->status, $layout->statusIsPanel())) as $primitive) {
+        foreach ($this->statusLine($layout) as $primitive) {
             $primitives[] = $primitive;
         }
 
         return $primitives;
+    }
+
+    /**
+     * Wiersz ścieżki w strefie górnej — wspólny dla klatek pełnych.
+     *
+     * Wydzielony w kroku 38, żeby scenariusz `settings` mógł mieć strefy skrajne
+     * **co do prymitywu takie same** jak `chrome-text`: para rozlicza się tylko
+     * wtedy, gdy różni je wyłącznie to, co się mierzy.
+     *
+     * @return list<Primitive>
+     */
+    private function pathLine(HudLayout $layout): array
+    {
+        return (new Label(self::SAMPLE_PATH . '  —  12/240'))
+            ->draw(HudLayout::contentOf($layout->header, $layout->headerIsPanel()));
+    }
+
+    /** @return list<Primitive> */
+    private function statusLine(HudLayout $layout): array
+    {
+        return (new StatusBar('· Pomiar wydajności potoku renderowania.', Role::Info, self::HINTS))
+            ->draw(HudLayout::contentOf($layout->status, $layout->statusIsPanel()));
+    }
+
+    /**
+     * Pełna klatka ekranu ustawień: zakładki, pozycje, wiersz czynności — w tym
+     * samym chromie i z tymi samymi strefami skrajnymi, co `chrome-text`
+     * (krok 38).
+     *
+     * @return list<Primitive>
+     */
+    private function settingsScreen(HudLayout $layout, Rect $list): array
+    {
+        $primitives = $this->pathLine($layout);
+
+        foreach ($this->settingsRows($list) as $primitive) {
+            $primitives[] = $primitive;
+        }
+
+        foreach ($this->statusLine($layout) as $primitive) {
+            $primitives[] = $primitive;
+        }
+
+        return $primitives;
+    }
+
+    /**
+     * Treść zakładki: pasek zakładek, odstęp, pozycje wypełniające panel, odstęp
+     * i wiersz czynności — złożone tym samym `VStack`iem, co w `SettingsScreen`.
+     *
+     * Kursor stoi na **pozycji**, a nie na pasku zakładek, bo tak wygląda ekran
+     * przez większość czasu, a pasek kursora pod wierszem jest tym, co w tej
+     * klatce kosztuje.
+     *
+     * @return list<Primitive>
+     */
+    private function settingsRows(Rect $bounds): array
+    {
+        $slots = [
+            Slot::fixed(new Tabs(self::SETTINGS_TABS, 1, false), 1),
+            Slot::fixed(new Spacer(), 1),
+        ];
+
+        // Cztery wiersze zabierają: pasek zakładek, dwa odstępy i wiersz
+        // czynności — reszta panelu należy do pozycji.
+        $positions = max(1, $bounds->rows - 4);
+
+        for ($index = 0; $index < $positions; ++$index) {
+            $slots[] = Slot::fixed($this->settingsPosition($index, $index === 2), 1);
+        }
+
+        $slots[] = Slot::fixed(new Spacer(), 1);
+        $slots[] = Slot::fixed(
+            new Button('Przywróć ustawienia domyślne', static function (): void {
+            }, 'help.key.restore'),
+            1,
+        );
+
+        return (new VStack($slots))->draw($bounds);
+    }
+
+    /**
+     * Pojedyncza pozycja zakładki: co trzecia przełączana, reszta wybierana
+     * z listy wartości.
+     *
+     * Etykieta niesie numer pozycji i to nie jest ozdoba: pamięć podręczna
+     * wierszy (D34) buduje klucz z treści, więc osiem powtórzonych etykiet
+     * dałoby osiem trafień i pomiar pokazałby koszt jednego wiersza zamiast
+     * kosztu panelu.
+     */
+    private function settingsPosition(int $index, bool $selected): ComponentInterface
+    {
+        $label = sprintf('%s %02d', self::SETTINGS_LABELS[$index % count(self::SETTINGS_LABELS)], $index);
+
+        if ($index % 3 === 2) {
+            return new Toggle($label, $index % 2 === 0, 'tak', 'nie', $selected);
+        }
+
+        return new Choice($label, self::SETTINGS_VALUES[$index % count(self::SETTINGS_VALUES)], $selected);
     }
 
     /**

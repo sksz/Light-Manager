@@ -1,0 +1,2 @@
+plane chrome rect=0,0 30x100 opaque=0 primitives=0
+plane content rect=0,0 30x100 opaque=0 primitives=0

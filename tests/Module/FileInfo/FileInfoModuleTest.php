@@ -17,6 +17,7 @@ use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
 use LightManager\Module\Browser\Domain\ValueObject\Entry;
 use LightManager\Module\FileInfo\Application\FileInfoSettings;
 use LightManager\Module\FileInfo\Application\UseCase\InspectSelectedEntryUseCase;
+use LightManager\Module\FileInfo\Presentation\Command\ShowCommand;
 use LightManager\Module\FileInfo\Presentation\FileInfoScreen;
 use LightManager\Presentation\Ui\Transition;
 use LightManager\Tests\Support\InMemoryDirectoryRepository;
@@ -88,19 +89,26 @@ final class FileInfoModuleTest extends TestCase
     }
 
     /**
-     * Moduł deklaruje `ProvidesCommands`, ale dziś nie wnosi żadnej komendy.
+     * Moduł wnosi jedną komendę i **nie jest to skok**.
      *
      * `file-info.jump` przeniosła się w kroku 21 do modułu przeglądarki — po
-     * wyprowadzeniu nawigacji tylko ona umie zmienić katalog. Deklaracja zostaje,
-     * bo moduł ma się rozrastać, a rejestr komend znosi pustą listę bez szkody.
+     * wyprowadzeniu nawigacji tylko ona umie zmienić katalog — i lista komend
+     * została pusta. Krok 32 wypełnił ją `file-info.show`: nazwą dla czynności,
+     * którą moduł umiał od kroku 20, ale wyłącznie pod skrótem `Ctrl`+`D`.
      */
-    public function testDeclaresCommandsButBringsNoneAfterTheJumpMoved(): void
+    public function testBringsTheShowCommandAndNotTheJumpThatMoved(): void
     {
         $module = $this->app->module('file-info');
 
         self::assertInstanceOf(ProvidesCommands::class, $module);
-        self::assertSame([], $module->commands());
         self::assertNull($this->app->commandRegistry->find('file-info.jump'));
+
+        self::assertInstanceOf(ShowCommand::class, $this->app->commandRegistry->find('file-info.show'));
+
+        $commands = $module->commands();
+
+        self::assertCount(1, $commands);
+        self::assertInstanceOf(ShowCommand::class, $commands[0]);
     }
 
     /**

@@ -51,4 +51,19 @@ final class GlfwException extends InfrastructureException
             'No monospace TTF font was found; the windowed renderer cannot draw text.',
         );
     }
+
+    /**
+     * Prośba o kontekst wektorowy po jego zwolnieniu — czyli po zamknięciu okna
+     * (krok 39). Rodzaj awarii jest ten sam, co przy oknie, bo z punktu widzenia
+     * użytkownika to jedno zdarzenie: okna nie ma. Nowego rodzaju nie zakładamy,
+     * żeby nie dokładać zdania do katalogu napisów dla stanu, do którego
+     * poprawny przebieg nie dochodzi.
+     */
+    public static function forReleasedContext(): self
+    {
+        return new self(
+            GlfwProblem::WindowFailure,
+            'The vector context was released together with the window; nothing may ask for it now.',
+        );
+    }
 }

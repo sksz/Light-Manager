@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Tests\Presentation\Cli;
 
+use Closure;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Ui\Rect;
@@ -11,12 +12,16 @@ use LightManager\Domain\ValueObject\MessageTone;
 use LightManager\Module\Browser\Application\BrowserSettings;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
 use LightManager\Module\Browser\Domain\ValueObject\Entry;
+use LightManager\Presentation\Cli\InputHandler;
+use LightManager\Presentation\Cli\ProblemPresenter;
+use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\Module\ReadsContext;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Tests\Support\InMemoryDirectoryRepository;
 use LightManager\Tests\Support\InMemorySettings;
 use LightManager\Tests\Support\ScreenFixture;
 use LightManager\Tests\Support\StubFileStat;
+use LightManager\Tests\Support\StubTranslator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -541,6 +546,82 @@ final class InputHandlerTest extends TestCase
 
         $this->special(Key::F2);
         self::assertTrue($this->special(Key::F10));
+    }
+
+    /**
+     * Pełny ekran wisi na `F11` **wyłącznie w torze okienkowym** (krok 37).
+     * Spis klawiszy pokazuje to, co działa tu i teraz, więc w terminalu `F11`
+     * nie ma prawa się w nim pojawić.
+     */
+    public function testFullscreenKeyBelongsToTheWindowedTrackOnly(): void
+    {
+        self::assertSame(
+            ['help.key.help', 'help.key.settings', 'help.key.menu', 'help.key.commands', 'help.key.quit'],
+            self::descriptionsOf(InputHandler::globalBindings()),
+        );
+        self::assertSame(
+            [
+                'help.key.help',
+                'help.key.settings',
+                'help.key.menu',
+                'help.key.commands',
+                'help.key.quit',
+                'help.key.fullscreen',
+            ],
+            self::descriptionsOf(InputHandler::globalBindings(true)),
+        );
+    }
+
+    public function testFullscreenKeyTogglesTheWindowWhenThereIsOneToToggle(): void
+    {
+        $toggles = 0;
+        $handler = $this->handlerWithFullscreen(function () use (&$toggles): bool {
+            ++$toggles;
+
+            return true;
+        });
+
+        $quits = $handler->handle(KeyPress::special(Key::F11, ''), $this->app->state, self::NOW);
+
+        self::assertSame(1, $toggles);
+        self::assertFalse($quits);
+    }
+
+    /**
+     * W terminalu `F11` nie ma czego przełączać, więc klawisz schodzi niżej —
+     * a że żaden ekran go nie zna, nie dzieje się nic. Zaznaczenie ma zostać
+     * tam, gdzie było.
+     */
+    public function testFullscreenKeyDoesNothingWithoutAWindow(): void
+    {
+        $before = $this->selectedName();
+
+        self::assertFalse($this->special(Key::F11));
+        self::assertSame($before, $this->selectedName());
+    }
+
+    /** @param callable(): bool $toggle */
+    private function handlerWithFullscreen(callable $toggle): InputHandler
+    {
+        return new InputHandler(
+            $this->app->screens,
+            $this->app->help,
+            $this->app->settings,
+            new ProblemPresenter(new StubTranslator()),
+            $this->app->commands,
+            [],
+            Closure::fromCallable($toggle),
+        );
+    }
+
+    /**
+     * @param list<KeyBinding> $bindings
+     *
+     * @return list<string>
+     */
+    private static function descriptionsOf(array $bindings): array
+    {
+        return array_map(static fn (KeyBinding $binding): string => $binding->descriptionKey, $bindings);
     }
 
     /**

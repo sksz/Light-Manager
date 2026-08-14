@@ -171,6 +171,7 @@ komunikat, podgląd, tryb renderowania i położenie okna listy.
 | Rozdział miejsca | `Span`, `Distribution` | Presentation | `Presentation/Ui/Container` | Jedna reguła na **obie osie** (krok 27): `Span` niesie minimum, rozmiar preferowany i kolejność ustępowania, `Distribution` je dzieli. Wołają ją `VStack` (wiersze) i `Table` (kolumny). |
 | Tabela | `Column`, `TableRow`, `Table` | Presentation | `Presentation/Ui/Component` | Lista o wielu kolumnach wyrównanych w pionie. `Column` mówi, **czego chce**; szerokości liczy tabela raz na klatkę, dla wszystkich wierszy naraz. Stoi **obok** `ListView`, nie zamiast niego. |
 | Widok tekstu | `TextView` | Presentation | `Presentation/Ui/Component` | Treść pliku w prostokącie (krok 29). Dostaje **gotowe wiersze**, a nie ścieżkę: nie czyta, nie dekoduje, nie zna pliku ani kodowania. Zawijanie łamie **po znaku, nie po słowie** (podgląd kodu ma pokazywać wcięcia) i **nie ma górnego progu**: wiersz dłuższy od całego prostokąta wypełnia panel, bo rysowanie kończy się na dolnej krawędzi tak czy owak (poprawka z 2026-08-12; wcześniej próg sprawiał, że najdłuższe wiersze jako jedyne się nie zawijały). Suwakowi oddaje kolumnę, zamiast kłaść go na treści jak `ListView` — i oddaje ją **z chwilą podania położenia**, a kolumnę numerów liczy z wysokości prostokąta, żeby szerokość treści nie zmieniała się wraz z treścią. Regułę tej szerokości wystawia `contentColumns()`, bo potrzebuje jej także ten, kto czyta plik. |
+| Drzewo | `TreeNode`, `TreeView` | Presentation | `Presentation/Ui/Component` | Drzewo **już spłaszczone** (krok 31), czyli wpisane w listę wierszy. `TreeNode` jest **daną** (jak `ListRow` i `Section`) i nie ma ani wskaźnika na rodzica, ani listy dzieci; `TreeView` liczy wcięcie, prowadnice (`│`, `├─`, `└─`) i znacznik gałęzi, wycina okno, a rysowanie oddaje `ListView`owi. Wcięcie ustępuje **od lewej**, gdy nazwie zostałoby mniej niż `MINIMUM_LABEL` kolumn. |
 | Kursor | `FocusableInterface` | Presentation | `Presentation/Ui` | Komponent przyjmujący klawisze; `handle()` oddaje `bool`, więc nieobsłużony klawisz wędruje wyżej. |
 | Wiązanie klawisza | `KeyBinding` | Presentation | `Presentation/Ui` | Klawisz wraz z kluczem opisu — jedno źródło dla obsługi, podpowiedzi w stopce i spisu w pomocy. |
 | Ekran | `ScreenInterface` | Presentation | `Presentation/Ui` | Treść **trzech stref** klatki wraz z obsługą klawiszy: górnego pasa (`header()`), środkowego panelu (`draw()`) i pasa podglądu (`preview()`). Rdzeniowi zostają oprawa stref i pasek stanu. |
@@ -180,6 +181,8 @@ komunikat, podgląd, tryb renderowania i położenie okna listy.
 | Okno pytające | `ConfirmOverlay` | Presentation | `Presentation/Ui/Overlay` | Okno nakładane, które **czegoś chce od wołającego** (krok 28). Decyzja wraca domknięciem podanym przy tworzeniu: po „tak” wykonuje się ono i oddaje komunikat, a okno pakuje go w `OverlayOutcome::close()`. Ognisko startuje na „nie”, `Esc` znaczy to samo co „nie”. |
 | Karetka | `TextInput` | Presentation | `Presentation/Ui/Component` | Miejsce wpisywania **wewnątrz** komponentu — w odróżnieniu od kursora, który wędruje **między** komponentami. |
 | Komenda | `CommandInterface` | Application | `Application/Command` | Czynność wywoływana po nazwie wraz z deklaracją argumentów. Nazwa nosi przestrzeń właściciela (`core.*`), a wynik wskazuje ekran **identyfikatorem**, bo `Application` nie widzi `ScreenInterface`. |
+| Zdolność komendy „czego dotyczę” | `AppliesToSelection` | Application | `Application/Command` | Doklejana **obok** kontraktu, wzorem `SuggestsArguments` (krok 32): `appliesTo()` mówi, dla jakiego zaznaczenia komenda ma sens, `inputFor()` składa z kontekstu jej argumenty. Komenda bez tej zdolności nie wchodzi do menu kontekstowego — i to jest właściwa domyślna odpowiedź. |
+| Menu kontekstowe | `MenuOverlay` | Presentation | `Presentation/Ui/Overlay` | **Widok na rejestr komend, nie drugi rejestr** (krok 32). Pokazuje wyłącznie te komendy, które deklarują `AppliesToSelection` i pasują do zaznaczenia; wybór wywołuje `execute()`, czyli tę samą linię, co okno komend. Składa się z `Dialog`u i `ListView` — komponentu nie dokłada. |
 
 Granica między tymi dwiema połówkami jest jednozdaniowa i wynika z reguły
 zależności: **komponent wie, jak wyglądać; prymityw jest tym, co z tej wiedzy
@@ -198,12 +201,28 @@ mieszka **obok** komponentu, a właścicielem jest ekran:
 | `ScrollWindow` | `Presentation/Ui` | Który wycinek listy jest widoczny i jak podąża za kursorem. | 18 |
 | `SectionState` | `Presentation/Ui` | Które sekcje są zwinięte i na której stoi kursor. | 22 |
 | `SplitState` | `Presentation/Ui` | Który panel podziału jest czynny — wraz z regułą, że wyłączony podział sprowadza ognisko na pierwszy. | 24 |
+| `TreeState` | `Presentation/Ui` | Które gałęzie drzewa są rozwinięte i na którym węźle stoi kursor. | 31 |
 
-Obie mają tę samą metodę `useContext(string)` i to nie jest przypadek: zmiana
-kontekstu — inny katalog, inna zakładka, inny opisywany plik — zaczyna oglądanie
-od początku. `SectionState` trzyma przy tym zwinięcie **pod kluczem sekcji, a nie
-pod jej numerem**, żeby sekcja, która zniknęła z listy i wróciła, wróciła w tym
-samym stanie.
+Trzy z nich mają tę samą metodę `useContext(string)` i to nie jest przypadek:
+zmiana kontekstu — inny katalog, inna zakładka, inny opisywany plik — zaczyna
+oglądanie od początku. `SectionState` trzyma przy tym zwinięcie **pod kluczem
+sekcji, a nie pod jej numerem**, żeby sekcja, która zniknęła z listy i wróciła,
+wróciła w tym samym stanie.
+
+`TreeState` powtarza tę regułę o wymiar głębiej i różni się od `SectionState`
+trzema rzeczami naraz — wszystkie trzy wynikają z tego, że drzewo zmienia się
+częściej niż lista sekcji:
+
+- trzyma **rozwinięcia**, a nie zwinięcia: gałąź bez wpisu jest **zwinięta**,
+  sekcja bez wpisu — **rozwinięta**;
+- jego kursor jest **kluczem, a nie numerem**, bo numer wiersza zmienia każde
+  rozwinięcie i zwinięcie czegokolwiek powyżej;
+- **zwinięcie gałęzi przenosi na nią kursor**, zamiast zostawiać go na numerze,
+  który przejął przypadkowy sąsiad.
+
+Rozwinięcia przeżywają przy tym zmianę kontekstu — kursor nie. Klucz gałęzi jest
+bezwzględny, więc po powrocie do poprzedniego korzenia znaczy dokładnie to samo,
+i na tym stoi obietnica „drzewo wraca takie, jakie się je zostawiło”.
 
 #### Element żyjący własnym rytmem a takt pętli (od kroku 23)
 
@@ -267,6 +286,38 @@ z tego wynikają i o których trzeba pamiętać przy każdym podobnym podglądzi
   i wszystko po niej byłoby śmieciem. Wszystkie kotwice są z tego samego powodu
   wyrównane do jednostki, a bufor urwany budżetem docina się do niej.
 
+#### Komponent dostaje drzewo spłaszczone (od kroku 31)
+
+`TreeView` rysuje drzewo, a **drzewa nie zna**: dostaje listę `TreeNode`ów, w której
+gałęzie zostały już rozwinięte do wierszy. Węzeł nie ma wskaźnika na rodzica ani
+listy dzieci i to nie jest oszczędność — komponent, który sam schodziłby po
+gałęziach, musiałby wiedzieć, **skąd biorą się dzieci**, a biorą się z odczytu
+katalogu. Wracamy tym samym do granicy z kroku 29: *komponent wie, jak wyglądać* —
+a nie skąd wziąć treść. Spłaszcza więc moduł (`BrowserTree`), dokładnie tak, jak
+w kroku 22 spłaszczał ekran.
+
+Konsekwencje, które z tego wynikają:
+
+- **Węzeł niesie prowadnice, a nie samą głębokość** (`guides`, po jednej wartości
+  logicznej na przodka). Z liczby poziomów nie da się narysować pionowej kreski:
+  poziom przodka, który był ostatnim dzieckiem, musi zostać pusty. Głębokość jest
+  przez to długością tej listy — dwa pola mówiące to samo rozjechałyby się przy
+  pierwszym spłaszczeniu liczonym inaczej.
+- **Spłaszczenie jest zapamiętane, nie liczone co klatkę.** Klatka, w której nic
+  się nie zmieniło, kosztuje trzy porównania zamiast tysiąca konstruktorów — i to
+  jest cała odpowiedź na pytanie, czy rozwinięta gałąź o tysiącu wpisów gubi
+  klatkę.
+- **Gałąź czyta się na żądanie i najwyżej jedną na klatkę.** Rozwinięcie klawiszem
+  czyta od razu, bo kosztuje tyle, co `Enter` w liście i użytkownik właśnie o to
+  poprosił. Gałęzie **odtwarzane** — po powrocie do katalogu, po przełączeniu
+  wpisów ukrytych — dochodzą po jednej na takt, wzorcem pracy kawałkowej (D46):
+  dziesięć odczytów naraz nie mieści się w klatce, a dziesięć klatek to jedna
+  trzecia sekundy.
+- **Drzewo pokazuje to, co przeczytało.** Pamięć odczytanych gałęzi jest trwalsza
+  od korzenia, więc wejście katalog niżej i powrót nie kosztuje ani jednego
+  sięgnięcia na dysk. Ceną jest brak śledzenia zmian w systemie plików — świadomy
+  i wykluczony z zakresu kroku.
+
 #### Rozmiar okna terminala nie jest stałą uruchomienia (od kroku 33)
 
 **O rozmiar okna pyta się co klatkę i niczego się z niego nie zapamiętuje.**
@@ -283,8 +334,8 @@ Konsekwencje dla piszącego kod:
 
 - **Nie zapamiętuj wierszy, kolumn ani pikseli między klatkami.** Prostokąty
   liczą się w każdej klatce od nowa z `ViewportPort`; stan żyjący między
-  klatkami (`ScrollWindow`, `SectionState`, `SplitState`) ścina się do
-  pojemności przy rysowaniu i to wystarcza.
+  klatkami (`ScrollWindow`, `SectionState`, `SplitState`, `TreeState`) ścina się
+  do pojemności przy rysowaniu i to wystarcza.
 - **Pamięć podręczna zależna od rozmiaru ma rozmiar w kluczu** (D34) — wtedy
   zmiana okna unieważnia ją sama, bez ścieżki unieważnienia. Krok 33 niczego
   w pamięciach nie zmienił i to była teza tego wzorca, sprawdzona w praktyce.
@@ -331,6 +382,17 @@ Reguły, których pilnują testy (`WindowedModeTouchesNoTerminalTest`):
   drogi prowadzą do tego samego `break`, a sprzątanie (`glfwTerminate`)
   idzie jak wszędzie dwiema drogami: jawnie w `Bootstrap::shutdown()`
   i funkcją zamknięcia procesu.
+- **Zasób OpenGL ginie przed kontekstem, nie razem z procesem** (poprawka
+  z kroku 39). Obiekty rozszerzenia zwalniają zasoby GL w destruktorach, a te
+  wołają się przy sprzątaniu procesu — czyli **po** `glfwTerminate()`, kiedy
+  kontekstu już nie ma; skutkiem jest naruszenie ochrony pamięci po ostatniej
+  linii kodu. Dlatego twórca zasobu zamawia jego zwolnienie przez
+  `GlfwWindowService::releaseBeforeClose()`, a `close()` wykonuje zamówienia
+  w odwrotnej kolejności, zanim zniszczy okno. Dziś zamawia jeden —
+  `VgContextService` ze swoim `VGContext`; `VGImage` z pamięci tekstur
+  przeżywa kontekst bez szkody (sprawdzone). Reguła na przyszłość: **nowy
+  długo żyjący obiekt rozszerzenia to nowe zamówienie**, a nie założenie, że
+  zdąży zginąć sam.
 - **Rozmiar startowy okna pochodzi z ustawień** (`windowColumns` ×
   `windowRows`, domyślnie 100×30 komórek, D53) — dlatego w torze okienkowym
   konfiguracja czyta się **przed** otwarciem okna; pułapki znanej z toru
@@ -338,6 +400,54 @@ Reguły, których pilnują testy (`WindowedModeTouchesNoTerminalTest`):
 - Kontekst OpenGL to **3.3 core** (D53) — pod obie techniki rysowania
   rozważane w kroku 35; rytm klatek zostaje stałym taktem pętli
   z `glfwSwapInterval(0)`, żeby oba tory zachowywały się identycznie.
+
+#### Okno pamięta, jak je ustawiono (od kroku 37)
+
+Te same dwa klucze rdzenia (`windowColumns`/`windowRows`) są od kroku 37
+**zarazem pamięcią rozmiaru**: okno zapisuje pod nie siatkę nadaną
+przeciągnięciem rogu albo maksymalizacją, więc następny start zastaje je
+takim, jakim je zostawiono (D67).
+
+- **Rozmiar mierzy się w komórkach, nie w pikselach.** Klucze zostają jedne,
+  a ekran ustawień nadal przełącza je strzałkami. Ceną jest okno zmieniające
+  rozmiar w pikselach po zmianie fontu — świadoma, bo siatka jest tym, co
+  użytkownik ustawiał.
+- **Lista `WINDOW_*_CHOICES` przestała być zakresem dopuszczalnych wartości**
+  i jest wyłącznie **przystankami strzałek**; wartości pilnują odtąd granice
+  `WINDOW_*_MIN`/`MAX`. Strzałka z wartości spoza listy idzie do sąsiada
+  w swoją stronę (`Settings::nextStop()`), a nie na początek listy — po
+  przeciągnięciu rogu wartość spoza listy jest stanem zwykłym, nie awaryjnym.
+- **Zapis następuje po uspokojeniu zmian, nie przy każdym zdarzeniu.**
+  Przeciąganie rogu sypie zdarzeniami dziesiątkami na sekundę;
+  `WindowSizeSettle` (czysty, bez GLFW) odnotowuje chwilę zmiany, a pytanie
+  „czy już cisza” pada raz na takt, zaraz po `glfwPollEvents()`. Zmianę, która
+  nie zdążyła się uspokoić, dopisuje `Bootstrap::shutdown()`.
+- **Pamiętanie włącza się jawnie** (`GlfwWindowService::rememberSize()`, za
+  pokazaniem okna). `bin/render-bench --window` przemierza w jednym przebiegu
+  kilkanaście rozmiarów okna ukrytego i żaden z nich nie jest wyborem
+  użytkownika — narzędzie pomiarowe nie ma prawa zapisać niczego do ustawień.
+- **Pełny ekran** (`core.fullscreen` oraz `F11`) zapamiętuje położenie
+  i rozmiar okna, bo `glfwSetWindowMonitor()` ich nie przechowuje. Powrót
+  wymaga **dwóch rzeczy, nie jednej**: samo `glfwSetWindowMonitor()` oddaje
+  obszar treści niższy o pasek tytułu (menedżer okien liczy podaną geometrię
+  jako geometrię ramki), a poprawiające to `glfwSetWindowSize()` działa
+  **dopiero po zakończeniu przejścia** — więc dopominanie się o właściwy
+  rozmiar idzie z taktu na takt (`restoreAfterFullscreen()`, sufit sekundy).
+  Rozmiar narzucony pełnym ekranem **nie jest** wyborem użytkownika i do
+  ustawień nie trafia — ani w trakcie, ani w czasie powrotu. `F11` jest
+  pierwszym klawiszem rdzenia, którego obecność zależy od trybu — w terminalu
+  nie znaczyłby nic, a spis klawiszy pokazuje to, co działa tu i teraz.
+- **Ikona okna idzie okrężną drogą, bo prostej nie ma**: rozszerzenie
+  PHP-GLFW 2.2 nie wystawia `glfwSetWindowIcon`. Okno przedstawia się klasą
+  (`WM_CLASS` z podpowiedzi `GLFW_X11_CLASS_NAME`), a wpis `.desktop` wraz
+  z ikoną zakłada `bin/install-desktop-entry` — ikonę **rysuje z ról
+  włączonego motywu**, więc w repozytorium nie leży ani jeden plik binarny.
+  Warunkiem powodzenia jest zgodność `StartupWMClass` z `WM_CLASS`; pilnuje
+  jej test.
+- **Skala treści jest czytana i pokazywana, a nie stosowana** (rozstrzygnięcie
+  nr 4 kroku 37): `glfwGetWindowContentScale` trafia do zakładki „Aplikacja”
+  okna pomocy, bo maszyna projektu ma skalę 1.0 i przeliczanie komórki byłoby
+  kodem, którego nie da się tu sprawdzić.
 
 #### Trzeci tłumacz słownika: renderer OpenGL (od kroku 35)
 
@@ -419,6 +529,50 @@ Przesunięcie liczy się w **znakach**, bo rysuje się je w kolumnach — nazwa
 `zażółć.txt` ma dziewięć znaków i trzynaście bajtów, a zakres liczony bajtami
 wylądowałby w połowie znaku.
 
+#### Dźwięk gra obok klatki (od kroku 36)
+
+Muzyka jest **modułem** (`src/Module/Audio/`), a nie rozbudową rdzenia, i to jest
+rozstrzygnięcie użytkownika ze startu kroku (D70) zgodne z regułą 15: nowa
+funkcja dopisuje się modułem. Rdzeń kosztuje przez to dokładnie tyle, ile reguła
+przewiduje — **jedną pozycję na liście w `Bootstrapie`** — i nie wie o dźwięku
+nic ponad to: ani że gra, ani czym.
+
+Moduł jest przy tym **sprawdzianem kontraktu z drugiej strony niż krok 21**:
+tamten pytał, czy kontrakt udźwignie główną funkcję aplikacji, ten — czy
+udźwignie moduł, **który nic nie rysuje**. Udźwignął bez zmiany: `shortcut()`
+wolno oddać `null`, zdolności deklaruje się osobno, a moduł bez ani jednej z nich
+jest legalny. Zostają dwie komendy (`audio.music`, `audio.volume`), zakładka
+ustawień, zakładka pomocy i własne napisy — bez ekranu, bez skrótu i **bez ani
+jednego komponentu**.
+
+Granica, której ten krok nie przekracza, brzmi: **dźwięk nie wchodzi do ścieżki
+klatki**. Silnik miksuje we własnym wątku, więc pętla główna, renderery
+i komponenty nie dowiadują się, że cokolwiek gra. Gdyby moduł czegokolwiek od
+nich potrzebował, byłby to znak, że stoi źle.
+
+Port (`Module/Audio/Application/Port/AudioPort`) ma **dwie implementacje i to jest
+cały mechanizm degradacji**: `GlAudioService` na `GL\Audio\Engine` oraz
+`SilentAudioService` — pusty obiekt dla środowisk bez rozszerzenia `glfw`. Wybór
+zapada **raz**, przy składaniu modułu, więc brak rozszerzenia nie jest
+rozgałęzieniem w kodzie komend. Silnik audio **nie potrzebuje okna** (sprawdzone
+na starcie kroku: startuje bez `glfwInit()` i bez kontekstu OpenGL), więc muzyka
+gra także w obu torach terminalowych — zależność od Fazy IX przez to nie
+stwardniała.
+
+Trzy rzeczy, które warto znać, zanim się ten kod ruszy. **Referencja do `Sound`
+musi przeżyć całą grę** — obiekt zebrany przez odśmiecacz zabiera ze sobą dźwięk,
+a testu na to napisać się nie da. **`Sound::stop()` jest pauzą, nie
+przewinięciem** — stąd jedna komenda-przełącznik zamiast pary „graj”
+i „zatrzymaj”. **Autostartu nie ma**, bo kontrakt modułu nie zna cyklu życia:
+nikt modułu przy starcie nie budzi, a dokładanie rdzeniowi zdolności „obudź mnie”
+dla jednego użytkownika byłoby rozszerzaniem rdzenia dla wygody modułu.
+
+Sprzątanie idzie **dwiema drogami naraz** (D47): jawnie i przez
+`register_shutdown_function` rejestrowaną przy starcie silnika. Testy silnika nie
+uruchamiają **w ogóle** — test, który go uruchomi, gra muzykę na maszynie ciągłej
+integracji i zostawia po sobie wątek; sprawdzać wolno wszystko przed pierwszą
+prośbą o granie.
+
 #### Jeden ekran, dwa panele (od kroku 24)
 
 Podział ekranu **nie znosi zasady „jeden ekran naraz”** i to jest jego
@@ -453,6 +607,36 @@ ogniska albo zmiana katalogu zmienia podpis i oprawa powstaje na nowo raz.
 
 Zasada ogólniejsza, którą to wyraża: **wszystko, co między klatkami się nie
 zmienia, należy do płaszczyzny spodniej — niezależnie od tego, kto to narysował.**
+
+#### Dwa wejścia do jednego rejestru komend (od kroku 32)
+
+Menu kontekstowe (`F9`) jest **widokiem na `CommandRegistry`, a nie drugim
+zbiorem czynności** — i to nie jest opis implementacji, tylko warunek, pod
+którym w ogóle powstało. Zbiór działań, który trzeba uzgadniać przy każdej nowej
+komendzie, jest dokładnie tym długiem, przed którym ostrzega reguła 15: dopisanie
+modułu ma kosztować **jedną** zmianę w rdzeniu.
+
+Ponad okno komend menu wnosi dwie rzeczy i ani jednej więcej: **wybór bez
+pisania** oraz **zawężenie do zaznaczenia**. To drugie wymaga, żeby komenda umiała
+powiedzieć, czego dotyczy — stąd `AppliesToSelection`, doklejana obok kontraktu
+jak `SuggestsArguments`, a nie dopisana do `CommandInterface`. Różnica jest
+praktyczna: siedem komend rdzenia zostaje nietkniętych, bo `core.theme` nie jest
+czynnością na pliku i nie ma powodu, żeby o tym mówiła.
+
+Granica biegnie po **zaznaczeniu**, nie po module: `browser.hidden` i
+`browser.tree` są w rejestrze, ale do menu nie wchodzą, bo dotyczą panelu, a nie
+wpisu pod kursorem. Nazwa dla czynności, którą aplikacja umiała wyłącznie pod
+klawiszem, jest przy tym osobną wartością — komenda i klawisz mają jednak
+prowadzić do **jednego** miejsca w kodzie (`HiddenEntries`), bo dwie
+implementacje tej samej czynności rozjeżdżają się przy pierwszej poprawce.
+
+Zaznaczenie przychodzi do okna **przy otwarciu**, migawką z `LoopState::context()`:
+okno zużywa klawisze, więc dopóki stoi, zaznaczenie nie ma jak się zmienić.
+Prostokąt staje pośrodku, jak okno potwierdzenia — rdzeń nie wie, gdzie moduł
+narysował kursor (lista czy drzewo, który z dwóch paneli), a pytanie ekranu
+o współrzędne otworzyłoby `ScreenInterface` na współrzędne, których żaden kontrakt
+nie zna. Menu bez ani jednej pozycji **nie otwiera się wcale**: mówi zdaniem
+w pasku stanu, zamiast prosić o zamknięcie pustego prostokąta.
 
 #### Rozdział miejsca: jedna reguła na dwie osie (od kroku 27)
 
@@ -743,12 +927,59 @@ klasy.
   (zero I/O). `Infrastructure`/`Presentation` — testy automatyczne w miarę
   możliwości, reszta do weryfikacji manualnej. Preferuj
   `self::assertSame()` nad `assertEquals()`.
+- **Dwie grupy testów od kroku 38** (`phpunit.xml.dist`): `unit` — klasy;
+  `functional` — **przebiegi użytkownika** w `tests/Functional/`, nazwane
+  `{Przebieg}FlowTest`. Przebieg to sekwencja klawiszy przez `ScreenFixture`
+  (komplet ekranów i prawdziwych modułów bez FS, terminala i Imagicka)
+  z asercjami w punktach kontrolnych; start aplikacji i zmiana rozmiaru okna
+  idą dodatkowo przez `GameLoop` ze `ScriptedTerminal`, bo taktu bez pętli
+  sprawdzić się nie da. Katalog jest **spisem zachowań**, a nie zbiorem
+  skutków ubocznych kolejnych kroków — brak przebiegu w spisie jest luką do
+  uzupełnienia, a nie stanem naturalnym.
+- **Złote klatki**: `tests/Golden/<scenariusz>.txt` — serializacja prymitywów
+  klatek `ScenarioFactory`, porównywana niezależnie od renderera. Odnawia je
+  **wyłącznie** `./bin/render-bench --golden-save`, po przeczytaniu różnicy;
+  plik regenerowany automatem przestaje być testem.
 - Konfiguracje (`.php-cs-fixer.dist.php`, `phpstan.neon.dist`,
   `phpunit.xml.dist`) — zaprojektowane w
-  [docs/plans/03-standardy-stylu-kodowania.md](plans/03-standardy-stylu-kodowania.md),
+  [docs/plans/archiwum/03-standardy-stylu-kodowania.md](plans/archiwum/03-standardy-stylu-kodowania.md),
   utworzone w korzeniu repozytorium w kroku 05 (bez zmian względem planu).
-  Skróty uruchomieniowe: `composer test`, `composer stan`, `composer cs`,
-  `composer cs:check`.
+- **Definicje poleceń jakości mieszkają w `composer.json`** (`cs`, `cs:check`,
+  `stan`, `test`) i to je wołają cele `make cs`, `cs-check`, `stan`, `test` —
+  Makefile jest cienką warstwą, nie drugą definicją (krok 39, D72). Wejściem do
+  procesu jest cel `make`: pełny spis w rozdz. 8 „Procesy projektu”.
+
+### Diagnostyka i pomiar (kroki 16, 35, 38)
+
+Jedyną drogą do pomiaru jest `bin/render-bench` — doraźna pętla `microtime()`
+daje wynik, którego nie da się z niczym porównać, nie niesie metryczki
+środowiska i nie zostawia śladu. Narzędzie mierzy **cztery tory**, każdy
+odpowiadający na inne pytanie:
+
+| Tor | Wywołanie | Fazy |
+|---|---|---|
+| sixelowy | *(domyślny)* | rysowanie → kwantyzacja → kodowanie |
+| okienkowy | `--window` | rysowanie → zamiana buforów |
+| tekstowy | `--text` | prymitywy → bufor komórek → bajty ANSI |
+| takt pętli | `--loop` | wejście → stan → złożenie klatki (bez renderera) |
+
+Zasady, których nie wolno cicho odwrócić:
+
+- **Zero wywołań pomiarowych w kodzie produkcyjnym** (D28). Zegar stoi po
+  stronie narzędzia; renderery są rozbite na **publiczne kroki**
+  (`SixelFrameEncoder` w kroku 16, `TextFrameRenderer` w kroku 38) i to jedyne
+  przyznane szwy.
+- **Każdy element interfejsu ma scenariusz albo zapisany powód pominięcia** —
+  spis w [docs/pomiary/README.md](pomiary/README.md); nowy scenariusz musi dać
+  się rozliczyć **w parze** z istniejącym.
+- **Zimna klatka jedzie obok mediany, nie zamiast niej** i nigdy nie podnosi
+  alarmu regresji.
+- **Obciążenie maszyny wchodzi do metryczki wzorca**; przy zapisie ostrzega,
+  ale nie odmawia — odmowa zostaje strażnikowi rozrzutu (1,35×).
+- **Regresję wizualną wykrywa porównanie zrzutów** (`--png-compare`, metryka
+  AE), a nie oko; wzorcowe PNG leżą w `docs/pomiary/wzorce-png/`.
+- **Zrzut z żywej aplikacji** robi komenda `core.dump` — prymitywy i obraz
+  **wierny torowi** (płótno, bufor karty albo rasteryzacja bufora ANSI).
 
 ## 5. Konwencje nazewnictwa
 
@@ -924,8 +1155,77 @@ z separatorem z katalogu (`format.decimal`) — ta sama zasada, którą D20 przy
 dla `Collator`. Grupowanie tysięcy jest wyłączone, żeby obie ścieżki dawały
 identyczny napis.
 
-## 8. Co dalej
+## 8. Procesy projektu (od kroku 39)
+
+Wejściem do każdego procesu jest **cel `make`**. `make` bez argumentów wypisuje
+spis wszystkich celów z opisami; cel, którego w tym spisie nie ma, nie istnieje.
+
+| Proces | Wejście | Co się pod tym kryje |
+|---|---|---|
+| Sprawdzenie środowiska | `make check-env` | Powłoka, **przed** instalacją zależności: PHP `^8.3`, `ext-imagick`, `ext-pcntl`, `stty`, Composer 2.x jako wymogi twarde; koder `SIXEL` jako ostrzeżenie (bez niego tryb tekstowy); `glfw`, `intl`, `xterm` jako informacja |
+| Instalacja | `make install` | `composer install`; cel plikowy — powtórzony nie robi nic. Obejście SIGSEGV Composera: `make install-safe COMPOSER_INI_SCAN_DIR=…` |
+| Jakość | `make qa` | `cs-check` → `stan` → `test`, **stop na pierwszym błędzie**. `make qa-full` przechodzi całość ze zbiorczym podsumowaniem; osobno `make cs`, `cs-check`, `stan` |
+| Testy | `make test` | Obie grupy naraz; `make test-unit` i `make test-functional` — grupy z `phpunit.xml.dist` osobno. Zawężenie: `make test ARGS='--filter …'` |
+| Pokrycie | `make coverage` | Raport HTML do `build/coverage/`; bez Xdebuga albo PCOV-u cel **czytelnie odmawia** — żadne z nich nie jest wymaganiem projektu |
+| Pomiar wydajności | `make bench`, `bench-window`, `bench-text`, `bench-loop`, `bench-xterm` | `bin/render-bench` i jego cztery tory; `bench-xterm` idzie przez `bin/run-render-bench.sh`, bo faza przesyłu wymaga prawdziwego XTerma. **Poza bramką jakości** — krok 16 odrzucił bramkę wydajności i to nie zmieniło się |
+| Budowa | `make build` | `bin/build-phar`: `build/light-manager-<wersja>.phar` (wersja z `composer.json`) plus `assets/` **obok** archiwum. Kończy się sprawdzeniem, że wynik się ładuje |
+| Uruchomienie | `make run`, `run-window`, `run-xterm` | `bin/light-manager`, ten sam z `--window`, `bin/run.sh` (XTerm z zasobami trybu graficznego) |
+| Podgląd wejścia terminala | `make probe`, `probe-xterm` | `bin/terminal-probe` — **jedyna** droga do sprawdzenia odpowiedzi DA1, bo wymaga interaktywnego terminala w trybie surowym |
+| Sprzątanie | `make clean`, `dist-clean` | `clean` usuwa wytwory narzędzi i `build/`; `dist-clean` dokłada `vendor/`. Żaden nie tyka `docs/pomiary/` (wzorce są w repozytorium celowo, D33) ani konfiguracji w `HOME` |
+
+### Reguła pierwszeństwa (D63)
+
+Reguła ma dwie połowy i **druga jest ważniejsza**, bo to ona zapobiega
+faktycznej stracie pracy:
+
+1. **Wejściem do procesu jest cel `make`.** Bramki, instalacji, budowy, testów
+   i pomiaru nie składa się z pamięci.
+2. **Narzędzie repozytorium ma pierwszeństwo przed doraźnym zastępnikiem.**
+   Pomiar wydajności robi `bin/render-bench` — z jego fazami, wzorcami
+   i metryczką środowiska — a nie własna pętla `microtime()`; wejście terminala
+   sprawdza `bin/terminal-probe`, a nie `read` w powłoce; scenariusz pomiarowy
+   dokłada się **do** `ScenarioFactory`, a nie obok niej. Doraźny zastępnik nie
+   jest szybszy — jest **niepodpięty do niczego**: nie porówna się z wzorcem,
+   nie zostawi śladu i nie odpowie następnym razem.
+
+**Granica, bez której reguła staje się dogmatem:** zawężenie przebiegu wolno
+wołać wprost — pojedynczy test filtrem PHPUnita, jedna oś `bin/render-bench`,
+`composer` przy pracy nad zależnościami. Cel `make` jest wejściem do **procesu**,
+a nie kagańcem na narzędzie. Zakazane jest dorabianie **równoległej drogi** do
+procesu, który wejście już ma.
+
+**Makefile nie jest drugim źródłem prawdy.** Cele wołają `composer`,
+`bin/render-bench`, `bin/run*.sh` i `bin/build-phar`; konfiguracji tych narzędzi
+nie powtarzają własnymi słowami. Definicje poleceń jakości mieszkają
+w `composer.json`, zasoby XTerma — w skryptach `bin/run*.sh`, podział testów —
+w `phpunit.xml.dist`.
+
+**Pomiar ma ponadto regułę własną, starszą od tego rozdziału** (reguła 17
+Skilla): przed uruchomieniem celu pomiarowego i przed oglądaniem klatki
+w prawdziwym terminalu poproś użytkownika o zwolnienie mocy hosta i **poczekaj
+na potwierdzenie**. Cele `bench*` nie mają bariery technicznej — mają regułę.
+
+### Co budowa wkłada do archiwum, a czego nie
+
+`bin/build-phar` bierze `src/`, `lang/`, `bin/light-manager`, `composer.json`,
+`composer.lock` oraz `vendor/` zainstalowane **bez zależności deweloperskich**,
+z autoloaderem z mapy klas. Nie bierze `tests/`, `docs/` ani narzędzi
+repozytorium: `bin/render-bench` liczy ścieżki do `docs/pomiary/`
+i `tests/Golden/`, a `bin/install-desktop-entry` potrzebuje `realpath()` pliku
+wykonywalnego — spod `phar://` żadnego z tych miejsc nie ma.
+
+Dwie rzeczy, które z postaci archiwum wynikają i o których trzeba wiedzieć:
+
+- **Katalogi napisów czytają się spod `phar://` bez zmian** — `Catalog` robi
+  `is_file()` i `require`, a ścieżki liczą się z `dirname(__DIR__, …)`. Dotyczy
+  to również katalogów modułów (`ModuleInterface::translations()`).
+- **`assets/` leżą obok archiwum, nie w nim** — silnik `GL\Audio` jest
+  rozszerzeniem C i pliku spod `phar://` nie przeczyta. W zbudowanej aplikacji
+  utwór wskazuje się **ścieżką bezwzględną** w ustawieniach modułu audio;
+  ścieżka względna liczy się od korzenia projektu, którego dystrybucja nie ma.
+
+## 9. Co dalej
 
 Tabela mapująca kroki wdrożenia (05–12) na warstwy/katalogi:
-[docs/plans/01-warstwy-ddd-i-struktura-katalogow.md](plans/01-warstwy-ddd-i-struktura-katalogow.md#tabela-kroki-0512-planu-wdrożenia--warstwy--katalogi).
+[docs/plans/archiwum/01-warstwy-ddd-i-struktura-katalogow.md](plans/archiwum/01-warstwy-ddd-i-struktura-katalogow.md#tabela-kroki-0512-planu-wdrożenia--warstwy--katalogi).
 Bieżący status realizacji: [docs/plans/00-index.md](plans/00-index.md).

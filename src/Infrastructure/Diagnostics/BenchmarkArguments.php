@@ -34,7 +34,19 @@ final class BenchmarkArguments
         public readonly float $thresholdPercent,
         public readonly string $pngPath,
         public readonly Scenario $pngScenario,
+        /**
+         * Próg porównania zrzutów w **promilach** różniących się pikseli;
+         * `null` znaczy „weź domyślny dla toru” — inny dla potoku Imagicka,
+         * inny dla sterownika GPU (krok 38).
+         */
+        public readonly ?float $imageThresholdPerMille = null,
     ) {
+    }
+
+    /** Próg porównania zrzutów: podany osią albo domyślny dla toru. */
+    public function imageThreshold(): float
+    {
+        return $this->imageThresholdPerMille ?? $this->options->track->defaultImageThresholdPerMille();
     }
 
     /**
@@ -59,6 +71,8 @@ final class BenchmarkArguments
         $mode = BenchmarkMode::Run;
         $scenarios = Scenario::all();
         $windowed = false;
+        $textual = false;
+        $loop = false;
         $transfer = false;
         $save = false;
         $saveName = 'render';
@@ -67,6 +81,7 @@ final class BenchmarkArguments
         $threshold = BaselineComparison::DEFAULT_THRESHOLD_PERCENT;
         $pngPath = '';
         $pngScenario = Scenario::ChromeWithText;
+        $imageThreshold = null;
 
         foreach ($argv as $argument) {
             [$name, $value, $hasValue] = self::split($argument);
@@ -139,6 +154,14 @@ final class BenchmarkArguments
                     $windowed = self::flag($argument, $value, $hasValue);
 
                     break;
+                case '--text':
+                    $textual = self::flag($argument, $value, $hasValue);
+
+                    break;
+                case '--loop':
+                    $loop = self::flag($argument, $value, $hasValue);
+
+                    break;
                 case '--transfer':
                     $transfer = self::flag($argument, $value, $hasValue);
 
@@ -162,6 +185,24 @@ final class BenchmarkArguments
                     $pngPath = self::nonEmpty($argument, $value);
 
                     break;
+                case '--golden-save':
+                    $mode = BenchmarkMode::GoldenSave;
+
+                    break;
+                case '--png-save':
+                    $mode = BenchmarkMode::ImageSave;
+
+                    break;
+                case '--png-compare':
+                    $mode = BenchmarkMode::ImageCompare;
+
+                    break;
+                case '--png-threshold':
+                    // Ułamek promila ma sens: przy płótnie 1000×600 jeden promil
+                    // to sześćset pikseli, a zjedzony obrys bywa mniejszy.
+                    $imageThreshold = self::nonNegativeFraction($argument, $value);
+
+                    break;
                 case '--scenario':
                     $pngScenario = Scenario::fromNames([self::nonEmpty($argument, $value)])[0];
 
@@ -171,13 +212,50 @@ final class BenchmarkArguments
             }
         }
 
-        // Przesył mierzy potok Sixela, a zrzut PNG bierze płótno Imagicka —
-        // w torze okienkowym nie istnieje ani jedno, ani drugie. Głośna odmowa
-        // zamiast cichego pominięcia, jak przy każdej literówce.
+        // Tor jest jeden na przebieg. Dwa naraz nie znaczą „zmierz oba” — nie ma
+        // takiej tabeli, bo liczby torów są nieporównywalne.
+        if (count(array_filter([$windowed, $textual, $loop])) > 1) {
+            throw DiagnosticsException::forInvalidArgument($loop ? '--loop' : '--text');
+        }
+
+        // Takt pętli nie ma ani bajtów do wypchnięcia, ani obrazu do zapisania:
+        // klatka kończy w nim swoją drogę jako prymitywy.
+        if ($loop && ($transfer || self::wantsImage($mode))) {
+            throw DiagnosticsException::forInvalidArgument('--loop');
+        }
+
+        // Zrzut płótna (`--png`) bierze obraz Imagicka, którego w oknie nie ma —
+        // tam zrzut robi się odczytem bufora GPU, czyli trybami `--png-save`
+        // i `--png-compare`. Przesył mierzy się natomiast w obu torach
+        // terminalowych: w tekstowym idą do terminala prawdziwe bajty i ich
+        // koszt jest tak samo prawdziwy.
         if ($windowed && ($transfer || $mode === BenchmarkMode::Snapshot)) {
             throw DiagnosticsException::forInvalidArgument(
                 $transfer ? '--transfer' : '--png',
             );
+        }
+
+        // Tor tekstowy nie rysuje obrazu w ogóle — jego klatka to znaki
+        // i atrybuty. Zrzut z niego robi dopiero żywa aplikacja, rasteryzując
+        // bufor ANSI (krok 38, D64); narzędzie pomiarowe mówi to wprost zamiast
+        // podstawiać obraz z innego toru.
+        if ($textual && self::wantsImage($mode)) {
+            throw DiagnosticsException::forInvalidArgument('--text');
+        }
+
+        $track = match (true) {
+            $windowed => BenchmarkTrack::Window,
+            $textual => BenchmarkTrack::Text,
+            $loop => BenchmarkTrack::Loop,
+            default => BenchmarkTrack::Sixel,
+        };
+
+        // Tor taktu mierzy **jedno**: drogę klatki od klawisza do prymitywów.
+        // Osi scenariuszy w nim nie ma, bo treść składa `LoopScenarioScreen`,
+        // a nie fabryka — szesnaście wierszy z tą samą liczbą byłoby tabelą
+        // udającą pomiar. Wiersz zostaje jeden i nosi nazwę pełnej klatki.
+        if ($loop) {
+            $scenarios = [Scenario::ChromeWithText];
         }
 
         return new self(
@@ -194,7 +272,7 @@ final class BenchmarkArguments
                 $font,
                 $iterations,
                 $warmup,
-                $windowed,
+                $track,
             ),
             $scenarios,
             $transfer,
@@ -205,7 +283,24 @@ final class BenchmarkArguments
             $threshold,
             $pngPath,
             $pngScenario,
+            $imageThreshold,
         );
+    }
+
+    /** Czy tryb w ogóle potrzebuje obrazu klatki. */
+    private static function wantsImage(BenchmarkMode $mode): bool
+    {
+        return in_array($mode, [BenchmarkMode::Snapshot, BenchmarkMode::ImageSave, BenchmarkMode::ImageCompare], true);
+    }
+
+    /** Liczba nieujemna, także ułamkowa — próg porównania zrzutów w promilach. */
+    private static function nonNegativeFraction(string $argument, string $value): float
+    {
+        if (preg_match('/^\d+(\.\d+)?$/', $value) !== 1) {
+            throw DiagnosticsException::forInvalidArgument($argument);
+        }
+
+        return (float) $value;
     }
 
     /** @return array{string, string, bool} nazwa, wartość, czy wartość podano */

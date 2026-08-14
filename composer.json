@@ -3,13 +3,14 @@
     "description": "Menadżer plików w terminalu — cała klatka ekranu rysowana przez Imagick i wypychana protokołem Sixel.",
     "type": "project",
     "license": "proprietary",
+    "version": "0.1.0",
     "require": {
         "php": "^8.3",
         "ext-imagick": "*",
         "ext-pcntl": "*"
     },
     "suggest": {
-        "ext-glfw": "Windowed mode (--window): a native window with an OpenGL context via PHP-GLFW (https://phpgl.net). Terminal modes work without it."
+        "ext-glfw": "Windowed mode (--window): a native window with an OpenGL context via PHP-GLFW (https://phpgl.net), and music playback in the audio module (GL\\Audio, no window needed). Terminal modes and the rest of the application work without it."
     },
     "autoload": {
         "psr-4": {

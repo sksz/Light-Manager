@@ -27,6 +27,7 @@ use LightManager\Module\FileInfo\Infrastructure\ChecksumService;
 use LightManager\Module\FileInfo\Infrastructure\FileInspectorService;
 use LightManager\Module\FileInfo\Infrastructure\FileStatService;
 use LightManager\Module\FileInfo\Infrastructure\TextPreviewService;
+use LightManager\Module\FileInfo\Presentation\Command\ShowCommand;
 use LightManager\Module\FileInfo\Presentation\Component\PreviewPane;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
@@ -134,16 +135,18 @@ final class FileInfoModule implements
     }
 
     /**
-     * Dziś pusta — i deklaracja zostaje mimo to.
+     * Pusta była do kroku 32 — `file-info.jump` przeniosła się w kroku 21 do
+     * modułu przeglądarki, bo po wyprowadzeniu nawigacji tylko ona umie zmienić
+     * katalog, a zdolność została w zapasie „na wyrost”.
      *
-     * `file-info.jump` przeniosła się w kroku 21 do modułu przeglądarki, bo po
-     * wyprowadzeniu nawigacji tylko ona umie zmienić katalog. Zdolność zostaje,
-     * bo moduł ma się rozrastać (krok 25: pełny obraz stanu pliku), a rejestr
-     * komend znosi pustą listę bez szkody.
+     * Zapas się przydał: `file-info.show` nazywa czynność, którą moduł umiał od
+     * kroku 20, ale wyłącznie pod skrótem `Ctrl`+`D`. Komenda **nie dokłada
+     * funkcji** — dokłada jej nazwę, bez której menu kontekstowe nie miałoby
+     * czego pokazać (krok 32).
      */
     public function commands(): array
     {
-        return [];
+        return [new ShowCommand()];
     }
 
     public function screen(): ScreenInterface

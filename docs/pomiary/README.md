@@ -11,30 +11,134 @@ odniesienia trzymany poza repozytorium przepadłby razem z maszyną, na której
 powstał — a wtedy rozliczenie sprowadza się do wrażeń. Decyzja o miejscu:
 [00-decyzje.md](../plans/00-decyzje.md), D33.
 
+## Spis: element interfejsu → scenariusz
+
+Przegląd domknięty w kroku 38. Reguła jest jedna i nie ma od niej wyjątku:
+**każdy element interfejsu ma scenariusz albo zapisany tutaj powód
+pominięcia**, a nowy scenariusz musi dać się **rozliczyć w parze**
+z istniejącym — jak `highlight` z `columns`.
+
+| Element | Scenariusz | Uwaga |
+|---|---|---|
+| `Panel` — obwódka, nawiasy, etykieta | `chrome` | |
+| `Label` | `chrome-text` | wiersz ścieżki |
+| `ListView`, `ListRow` | `text`, `chrome-text` | |
+| pasek zaznaczenia (`Highlight`) | `selection` | każdy wiersz zaznaczony — sufit ceny |
+| `Scrollbar` | `scrollbar` | |
+| `StatusBar` | `chrome-text` | |
+| `ImageBox` | `thumbnail` | jedyny scenariusz z bitmapą i paletą 256 |
+| `Dialog` | `popup` | |
+| `TextInput` (z karetką) | `command` | |
+| `Section`, `SectionList` | `sections` | także znaki spoza ASCII |
+| `ProgressBar` — **oba tryby** | `progress` | prostokąt inny w każdej klatce |
+| `Split` | `split` | obwódki w płaszczyźnie treści |
+| `Table`, `TableRow`, `Column` | `columns` | |
+| `TextView` | `text-view` | z zawijaniem |
+| `TextMark` — podświetlenie dopasowania | `highlight` | rozlicza się w parze z `columns` |
+| `Tabs`, `Choice`, `Toggle`, `Button`, `Spacer`, `VStack` | `settings` | krok 38; rozlicza się w parze z `chrome-text` |
+| `TreeNode`, `TreeView` | `tree` | krok 31; wcięcie i prowadnice, znak spoza ASCII **na poziom**; rozlicza się w parze z `sections` — ten sam prostokąt, ten sam `ListView`, różnicą jest sam przedrostek |
+| proces potomny obok pętli | `background` | jedyny scenariusz sięgający poza PHP |
+
+### Pominięcia i ich powody
+
+| Element | Dlaczego bez scenariusza |
+|---|---|
+| `ConfirmOverlay` | ta sama obwódka i te same wiersze, co `Dialog` — koszt mieści się w `popup` (zapisane w kroku 28) |
+| `MessageOverlay` | rysuje się `Dialog`iem, czyli jest `popup`em pod inną nazwą |
+| `FilterOverlay` (panel filtra) | `Panel` plus `TextInput`, czyli **okno komend bez listy podpowiedzi** — prymitywy są podzbiorem `command`, a zawężona lista pod spodem jest treścią `highlight`. Osobny scenariusz nie izolowałby kosztu, którego nie izoluje już któryś z tych dwóch, więc nie dałby się rozliczyć w parze z niczym |
+| `HelpScreen` | treść ekranu to `SectionList` (mierzy `sections`), a oprawa i pasek stanu — `chrome-text`. Scenariusz powtarzałby sumę dwóch istniejących |
+| `StartupScreen` | nie rysuje klatki; wybiera ekran dna stosu |
+| zmiana rozmiaru okna | przebudowę po `SIGWINCH` mierzy **zimna klatka** (kolumna „Zimna”), a nie osobny scenariusz — rozstrzygnięcie kroku 33 |
+| pamięć rozmiaru, pełny ekran, ikona, skala treści (krok 37) | żadna z tych czterech rzeczy **nie wchodzi do ścieżki klatki**: rozmiar zapisuje się poza rysowaniem i najwyżej raz na pół sekundy, pełny ekran zmienia wyłącznie rozmiar okna (a ten mierzy zimna klatka, wzorem kroku 33), ikonę rysuje `bin/install-desktop-entry` poza aplikacją, a skala treści jest odczytem pokazywanym w pomocy. Jedyny nowy element klatki to wiersz `ListRow` w zakładce „Aplikacja” — czyli treść mierzona już przez `chrome-text` |
+| `MenuOverlay` (menu kontekstowe) | krok 32 **nie dowiózł ani jednego komponentu**, więc nie ma czego mierzyć osobno: okno to `Dialog` (mierzy `popup`) z listą `ListView` w środku (mierzy `text`). Wiersze są dwa albo trzy, czyli mniej, niż niesie którykolwiek z tych dwóch scenariuszy — pomiar pokazałby ich sumę pomniejszoną, a rozliczyć w parze nie dałby się z niczym |
+| `EntryTree` (drzewo w panelu modułu) | `TreeView` wewnątrz wcięcia pod obwódkę, czyli to samo, co mierzy `tree`; z prymitywów dochodzi wyłącznie suwak, mierzony osobno przez `scrollbar` |
+| moduł `Audio` (krok 36) | **nie rysuje niczego**: nie wnosi ekranu ani komponentu, a jedyny jego ślad w klatce to trzy wiersze zakładki ustawień — czyli treść mierzona już przez `settings`. Muzyka gra we własnym wątku silnika, **poza ścieżką klatki**, więc mierzyć trzeba by nie klatkę, tylko jej brak zmiany; robi to porównanie taktu pętli (`--loop`) przy graniu i bez |
+
 ## Nazwa pliku
 
-`RRRR-MM-DD-nazwa.json`. Data w nazwie układa katalog chronologicznie;
-`--compare` bez wskazanego pliku bierze **ostatni po nazwie**, a nie po czasie
-modyfikacji — kopiowanie plików potrafi przestawić znacznik systemu plików.
+**Konwencja od kroku 38:** `RRRR-MM-DD-po-kroku-NN.json` dla wzorca zamykającego
+krok planu, `RRRR-MM-DD-nazwa.json` dla wszystkiego innego (`przed-krokiem-NN`,
+`window`, `render`). Data w nazwie układa katalog chronologicznie; `--compare`
+bez wskazanego pliku bierze **ostatni po nazwie**, a nie po czasie modyfikacji —
+kopiowanie plików potrafi przestawić znacznik systemu plików.
 
-Od kroku 35 katalog mieszczą **dwa tory naraz**: terminalowy (Sixel) i okienkowy
-(OpenGL, wzorce z `--window`, rozpoznawalne po słowie `window` w podpisie).
-Ich liczby są z założenia nieporównywalne — inne fazy, inna jednostka pracy —
-więc wybór bez wskazanego pliku bierze najnowszy wzorzec **porównywalny
-z bieżącym przebiegiem**, a nie najnowszy w ogóle. Dzięki temu `--compare`
-i `--window --compare` trafiają każdy do swojego, choć leżą obok siebie.
+**Datę dokłada narzędzie, a przyrostek toru — nie.** `--save=po-kroku-31` daje
+`RRRR-MM-DD-po-kroku-31.json`, więc data w wartości opcji zdublowałaby się
+w nazwie. Tor natomiast **nie wchodzi do nazwy sam z siebie**: `--text --save=X`
+i `--loop --save=X` zapiszą się do tego samego pliku i nadpiszą sixelowy wzorzec
+o tej nazwie (zdarzyło się w kroku 31). Przyrostek trzeba podać ręcznie:
+`--text --save=po-kroku-31-text`.
+
+Pliki sprzed tej konwencji zostają pod swoimi nazwami: przemianowanie zerwałoby
+związek z dziennikami kroków, które je cytują.
+
+Od kroku 38 katalog mieszczą **cztery tory naraz**, rozpoznawalne po przyrostku
+w podpisie konfiguracji:
+
+| Przyrostek | Tor | Czym mierzy |
+|---|---|---|
+| *(brak)* | sixelowy | rysowanie → kwantyzacja → kodowanie |
+| `window` | okienkowy (krok 35) | rysowanie → zamiana buforów |
+| `text` | tekstowy (krok 38) | prymitywy → bufor komórek → bajty ANSI |
+| `loop` | takt pętli (krok 38) | wejście → stan → złożenie klatki, bez renderera |
+
+Liczby torów są z założenia **nieporównywalne** — inne fazy, inna jednostka
+pracy — więc wybór bez wskazanego pliku bierze najnowszy wzorzec **porównywalny
+z bieżącym przebiegiem**, a nie najnowszy w ogóle. Dzięki temu `--compare`,
+`--window --compare` i `--text --compare` trafiają każdy do swojego, choć leżą
+obok siebie.
 
 ## Jak czytać zawartość
 
 | Klucz | Znaczenie |
 |---|---|
 | `signature` | konfiguracja pomiaru; dwa wzorce o różnych podpisach są **nieporównywalne** i narzędzie odmówi ich zestawienia |
-| `environment` | wersja PHP, wersja ImageMagicka, użyty font, data — bez tego liczby nie mają kontekstu |
-| `options` | pełny zestaw osi, łącznie z liczbą przebiegów |
-| `scenarios.<nazwa>` | mediany trzech faz i sumy, rozmiar bloba, znacznik niestabilności |
+| `environment` | wersja PHP, wersja ImageMagicka, użyty font, data oraz `loadPerCore` — obciążenie maszyny w chwili pomiaru |
+| `options` | pełny zestaw osi, łącznie z liczbą przebiegów i nazwą toru (`track`) |
+| `scenarios.<nazwa>` | mediany trzech faz i sumy, rozmiar bloba, znacznik niestabilności, `cold` i `peakBytes` |
 | `transfer` | pomiar przesyłu; `null`, gdy przebieg szedł bez terminala |
 
 Czasy są w milisekundach, rozmiary w bajtach.
+
+Trzy kolumny doszły w kroku 38 i każda niesie inną obietnicę:
+
+- **`cold`** — czas **pierwszej klatki rozgrzewki**, czyli pojedyncza próbka,
+  nie mediana. Puste są w niej pamięci podręczne klatki (wiersze, płaszczyzna
+  spodnia, miniatura), ale proces, font i singletony są już ciepłe. Tyle płaci
+  start aplikacji i każda zmiana rozmiaru okna. **Nie podnosi alarmu regresji** —
+  rozrzut jednej próbki jest większy niż próg, którym mierzy się mediany.
+- **`peakBytes`** — szczyt pamięci procesu w obrębie scenariusza; licznik jest
+  zerowany przed każdym, więc liczba nie niesie szczytu poprzedników.
+- **`loadPerCore`** — średnie obciążenie z ostatniej minuty na rdzeń. Powyżej
+  0,5 `--save` **ostrzega, ale zapisuje**: narzędzie zna tu przesłankę, a nie
+  skutek, więc decyzję podejmuje człowiek. `null` znaczy „system nie podaje”.
+
+## Wzorcowe zrzuty (`wzorce-png/`)
+
+Regresję wizualną wykrywa `--png-compare`, a nie oko: bieżąca klatka jest
+porównywana z plikiem `wzorce-png/<tor>-<scenariusz>.png` **metryką AE**, czyli
+liczbą różniących się pikseli. Przy przekroczeniu progu narzędzie zapisuje obok
+obraz różnicy (`-roznica.png`, poza repozytorium) i kończy się kodem 1.
+
+- Próg podaje `--png-threshold` w **promilach** pikseli; domyślnie 0 ‰ dla toru
+  sixelowego (potok Imagicka jest deterministyczny) i 5 ‰ dla okienkowego,
+  gdzie różnice subpikselowe między sterownikami są normą. **Wzorzec okienkowy
+  jest związany z maszyną i wersją sterownika** — to znana cena decyzji
+  o trzymaniu go w repozytorium (D64).
+- Każdy wzorcowy PNG niesie w metadanych podpis konfiguracji, więc porównanie
+  z klatką w innym motywie kończy się słowem „nieporównywalny”, a nie fałszywą
+  regresją.
+- Zapis: `./bin/render-bench --png-save` (i `--window --png-save`).
+
+## Złote klatki (`tests/Golden/`)
+
+Ten sam katalog scenariuszy służy testom: `tests/Golden/<scenariusz>.txt` to
+serializacja **prymitywów** klatki, porównywana przez `GoldenFrameTest`
+niezależnie od renderera. Łapie przesunięty napis, zgubiony suwak i panel niższy
+o wiersz — czyli to, czego nie widać ani w czasach, ani w rozmiarze bloba.
+
+Regeneracja: `./bin/render-bench --golden-save`, **wyłącznie po przeczytaniu
+różnicy**. Złoty plik odnowiony automatem przestaje być testem.
 
 ## Czego wzorzec NIE gwarantuje
 

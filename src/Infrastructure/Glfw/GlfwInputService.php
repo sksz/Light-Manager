@@ -92,6 +92,13 @@ final class GlfwInputService extends AbstractSingleton implements InputPort
         if ($this->queue === []) {
             $this->altConsumedCharacter = false;
             glfwPollEvents();
+
+            // Zdarzenia zmiany rozmiaru wpadają dokładnie tutaj, bo GLFW doręcza
+            // je w środku pompowania kolejki. Czynności okna zależne od tego, co
+            // menedżer okien zdążył zrobić, należą więc zaraz za nim — i jest to
+            // jedyne miejsce w takcie, w którym da się je postawić bez dotykania
+            // pętli (krok 37).
+            GlfwWindowService::getInstance()->afterPollEvents();
         }
 
         return array_shift($this->queue);

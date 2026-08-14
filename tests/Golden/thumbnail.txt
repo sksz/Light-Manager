@@ -1,0 +1,46 @@
+plane chrome rect=0,0 30x100 opaque=0 primitives=11
+  R0,1,3,98,-,Border,Round
+  C0,1,3,98,Accent,Round
+  T0,8,Muted,Background,PATH
+  R3,1,16,98,-,Border,Round
+  C3,1,16,98,Accent,Round
+  T3,8,Muted,Background,FILES
+  R19,1,8,98,-,Border,Round
+  C19,1,8,98,Accent,Round
+  T19,8,Muted,Background,PREVIEW
+  R27,1,3,98,-,Border,Round
+  C27,1,3,98,Accent,Round
+plane content rect=0,0 30x100 opaque=0 primitives=33
+  T1,2,Text,-,/home/uzytkownik/projekty/light-manager/src/Infrastructure  —  12/240
+  T4,2,Accent,-,katalog-0000/
+  T5,2,Text,-,plik-0001.txt
+  T5,92,Text,-,2,1 kB
+  R6,2,1,96,Selection,-,Soft
+  B6,2,1,96,Accent,Edge
+  T6,2,SelectionText,-,plik-0002.txt
+  T6,92,SelectionText,-,3,2 kB
+  T7,2,Text,-,plik-0003.txt
+  T7,92,Text,-,4,3 kB
+  T8,2,Text,-,plik-0004.txt
+  T8,92,Text,-,5,4 kB
+  T9,2,Text,-,plik-0005.txt
+  T9,92,Text,-,6,5 kB
+  T10,2,Accent,-,katalog-0006/
+  T11,2,Text,-,plik-0007.txt
+  T11,92,Text,-,8,7 kB
+  T12,2,Text,-,plik-0008.txt
+  T12,92,Text,-,9,8 kB
+  T13,2,Text,-,plik-0009.txt
+  T13,91,Text,-,10,9 kB
+  T14,2,Text,-,plik-0010.txt
+  T14,91,Text,-,11,0 kB
+  T15,2,Text,-,plik-0011.txt
+  T15,91,Text,-,12,1 kB
+  T16,2,Accent,-,katalog-0012/
+  T17,2,Text,-,plik-0013.txt
+  T17,91,Text,-,14,3 kB
+  S4,97,14,1,28,14,70,Border,Accent
+  I20,2,6,32,-,1600 × 1200 · JPEG · 412,3 kB
+  T28,2,Info,-,· Pomiar wydajności potoku renderowania.
+  T28,60,Muted,-,F1 pomoc · F2 ustawienia · F10 wyjście
+  B28,59,1,1,Border,Hairline

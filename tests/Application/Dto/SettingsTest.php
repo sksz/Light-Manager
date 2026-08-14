@@ -123,6 +123,52 @@ final class SettingsTest extends TestCase
         );
     }
 
+    public function testWindowSizeWalksThroughItsStops(): void
+    {
+        $settings = new Settings();
+
+        self::assertSame(120, $settings->shifted(SettingKey::WindowColumns, 1, self::THEMES)->windowColumns);
+        self::assertSame(80, $settings->shifted(SettingKey::WindowColumns, -1, self::THEMES)->windowColumns);
+        self::assertSame(40, $settings->shifted(SettingKey::WindowRows, 1, self::THEMES)->windowRows);
+    }
+
+    /**
+     * Rozmiar zapamiętany po przeciągnięciu rogu prawie nigdy nie trafia
+     * w przystanek, więc strzałka ma iść do **sąsiada w swoją stronę**, a nie
+     * na początek listy (krok 37).
+     */
+    public function testWindowSizeOffTheStopsMovesToTheNeighbourInThatDirection(): void
+    {
+        $dragged = (new Settings())->withWindowColumns(137);
+
+        self::assertSame(140, $dragged->shifted(SettingKey::WindowColumns, 1, self::THEMES)->windowColumns);
+        self::assertSame(120, $dragged->shifted(SettingKey::WindowColumns, -1, self::THEMES)->windowColumns);
+    }
+
+    /** Poza całą listą strzałka zawija się tak samo, jak na jej końcu. */
+    public function testWindowSizeBeyondEveryStopWrapsAround(): void
+    {
+        $wide = (new Settings())->withWindowColumns(400);
+        $narrow = (new Settings())->withWindowColumns(20);
+
+        self::assertSame(80, $wide->shifted(SettingKey::WindowColumns, 1, self::THEMES)->windowColumns);
+        self::assertSame(200, $narrow->shifted(SettingKey::WindowColumns, -1, self::THEMES)->windowColumns);
+    }
+
+    /** Granice istnieją dla pliku ruszonego ręcznie, nie dla przełącznika. */
+    public function testWindowSizeAcceptsAnythingWithinItsRange(): void
+    {
+        self::assertTrue(Settings::allowsWindowColumns(137));
+        self::assertTrue(Settings::allowsWindowColumns(Settings::WINDOW_COLUMNS_MIN));
+        self::assertTrue(Settings::allowsWindowColumns(Settings::WINDOW_COLUMNS_MAX));
+        self::assertFalse(Settings::allowsWindowColumns(Settings::WINDOW_COLUMNS_MIN - 1));
+        self::assertFalse(Settings::allowsWindowColumns(Settings::WINDOW_COLUMNS_MAX + 1));
+
+        self::assertTrue(Settings::allowsWindowRows(37));
+        self::assertFalse(Settings::allowsWindowRows(0));
+        self::assertFalse(Settings::allowsWindowRows(Settings::WINDOW_ROWS_MAX + 1));
+    }
+
     /** Klucz każdego ustawienia wskazuje napis w katalogu, a nie sam napis. */
     public function testEverySettingNamesItsLabelByKey(): void
     {

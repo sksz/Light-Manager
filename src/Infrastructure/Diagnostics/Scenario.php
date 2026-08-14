@@ -151,6 +151,52 @@ enum Scenario: string
      */
     case Highlight = 'highlight';
 
+    /**
+     * Pełna klatka **ekranu ustawień**: pasek zakładek, pozycje przełączane
+     * i wybierane, wiersz czynności (krok 38).
+     *
+     * Domyka lukę zauważoną przy przeglądzie „element → scenariusz”: `Tabs`,
+     * `Choice`, `Toggle`, `Button` i `Spacer` to **jedyne komponenty rdzenia,
+     * których nie mierzył żaden scenariusz**, a stoją na ekranie odwiedzanym
+     * przy każdej zmianie ustawień. Ekran pomocy i pasek filtra takiej luki nie
+     * tworzą (powody zapisane w kroku 38, sekcja „Spis element → scenariusz”).
+     *
+     * **Rozlicza się w parze z `chrome-text`**: obwódki, wiersz ścieżki i pasek
+     * stanu są tu co do prymitywu takie same, więc różnica między nimi jest
+     * ceną **treści ekranu ustawień wobec listy plików** o tej samej liczbie
+     * wierszy. Stąd pozycje wypełniają panel do końca, choć najdłuższa
+     * prawdziwa zakładka ma ich dziesięć: mierzymy koszt pozycji **na wiersz**,
+     * a przy ośmiu wierszach różnica utonęłaby w rozrzucie.
+     */
+    case Settings = 'settings';
+
+    /**
+     * Panel wypełniony **drzewem** o zmiennej głębokości (krok 31).
+     *
+     * Mierzy dokładnie to, czym drzewo różni się od listy, którą krok 27 zmierzył
+     * już scenariuszem `columns`: **wcięcie i prowadnice gałęzi**. Każdy poziom
+     * dokłada do wiersza znak spoza podstawowej strony kodowej (`│`, `├─`, `└─`),
+     * a taki znak rasteryzuje się osobno i osobno ląduje w pamięci podręcznej
+     * wierszy (D34) — więc jeśli prowadnice kosztują, ma to być widać tutaj. To ta
+     * sama konstrukcja, co przy `sections`, tylko że tam znaki spoza ASCII stały
+     * po jednym na wiersz, a nie po jednym na poziom.
+     *
+     * **Rozlicza się w parze z `sections`**, a nie z `chrome-text`, i to jest
+     * wybór, nie przypadek: obydwa wypełniają ten sam prostokąt wierszami
+     * rysowanymi przez `ListView`, obydwa mają w wierszu znak spoza ASCII i żaden
+     * nie rysuje pasa ścieżki ani paska stanu. Różnicą jest **wyłącznie
+     * przedrostek**, czyli dokładnie to, co ten scenariusz ma wycenić. Para
+     * z `chrome-text` mierzyłaby przy okazji dwa pasy klatki, a para z `columns` —
+     * różnicę między jednym napisem w wierszu a czterema.
+     *
+     * Wiersze mają zmienną głębokość i **wszystkie trzy kształty naraz** — gałąź
+     * rozwiniętą, zwiniętą i liść — bo klucz pamięci podręcznej buduje się
+     * z treści wiersza, a wiersz drzewa jest treścią rzadziej powtarzalną niż
+     * sama nazwa: to samo `plik-03.txt` na dwóch różnych poziomach daje dwa różne
+     * wiersze.
+     */
+    case Tree = 'tree';
+
     /** @return list<self> kolejność wydruku: od najtańszego do najbogatszego */
     public static function all(): array
     {
@@ -192,7 +238,8 @@ enum Scenario: string
         return match ($this) {
             self::Chrome, self::ChromeWithText, self::Thumbnail, self::Popup,
             self::Command, self::Sections, self::Progress, self::Split,
-            self::Background, self::Columns, self::TextView, self::Highlight => true,
+            self::Background, self::Columns, self::TextView, self::Highlight,
+            self::Settings, self::Tree => true,
             default => false,
         };
     }

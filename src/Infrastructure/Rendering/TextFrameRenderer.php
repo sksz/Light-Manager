@@ -60,11 +60,32 @@ final class TextFrameRenderer implements FrameRendererPort
     {
         // Motyw nie jest wstrzykiwany raz przy budowie, tylko pobierany przy
         // każdej klatce — inaczej zmiana palety na ekranie ustawień wymagałaby
-        // restartu.
-        $this->theme = ThemeService::getInstance()->active();
-
+        // restartu. Rozmiar czytany co klatkę z tego samego powodu (reguła 11f).
         $size = TerminalSizeService::getInstance()->size();
-        $buffer = new CellBuffer(max(1, $size->rows), max(1, $size->columns));
+
+        TerminalService::getInstance()->write($this->encode(
+            $this->composeBuffer($frame, ThemeService::getInstance()->active(), $size->rows, $size->columns),
+        ));
+    }
+
+    /**
+     * Krok pierwszy: **prymitywy → bufor komórek**.
+     *
+     * Publiczny, bo tor tekstowy `bin/render-bench` mierzy go osobno od
+     * składania bajtów (krok 38, rozstrzygnięcie nr 3). To jedyna zmiana
+     * produkcyjna zrobiona w tym kroku dla pomiaru i jest tym samym szwem, co
+     * rozbicie `SixelFrameEncoder` w kroku 16: **zegar zostaje po stronie
+     * narzędzia**, w rendererze nie ma ani jednego wywołania pomiarowego (D28).
+     *
+     * Motyw przychodzi parametrem zamiast z singletonu, żeby narzędzie mogło
+     * zmierzyć motyw wskazany osią `--theme`, a nie ten akurat ustawiony.
+     * Rozmiar też — bo pomiar dzieje się w siatce z osi `--grid`, a nie
+     * w oknie terminala, w którym akurat stoi.
+     */
+    public function composeBuffer(Frame $frame, Theme $theme, int $rows, int $columns): CellBuffer
+    {
+        $this->theme = $theme;
+        $buffer = new CellBuffer(max(1, $rows), max(1, $columns));
 
         foreach ($frame->planes as $plane) {
             if ($plane->opaque) {
@@ -76,9 +97,20 @@ final class TextFrameRenderer implements FrameRendererPort
             }
         }
 
-        TerminalService::getInstance()->write(
-            self::CURSOR_HOME . self::CLEAR_SCREEN . $buffer->toAnsi($this->palette),
-        );
+        return $buffer;
+    }
+
+    /**
+     * Krok drugi: **bufor komórek → bajty**, dokładnie te, które lecą na
+     * wyjście, wraz z ustawieniem kursora i wyczyszczeniem ekranu.
+     *
+     * Sekwencje sterujące są częścią zwracanego napisu, a nie dopisywane po
+     * pomiarze — inaczej mierzony rozmiar bloba różniłby się od tego, co
+     * naprawdę idzie do terminala.
+     */
+    public function encode(CellBuffer $buffer): string
+    {
+        return self::CURSOR_HOME . self::CLEAR_SCREEN . $buffer->toAnsi($this->palette);
     }
 
     private function draw(CellBuffer $buffer, Primitive $primitive): void

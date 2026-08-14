@@ -1,0 +1,80 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use LightManager\Infrastructure\Desktop\DesktopEntryInstaller;
+use LightManager\Infrastructure\Desktop\DesktopException;
+use LightManager\Infrastructure\Desktop\DesktopFailure;
+use LightManager\Infrastructure\I18n\TranslatorService;
+use LightManager\Infrastructure\Rendering\ThemeService;
+
+$autoload = __DIR__ . '/../vendor/autoload.php';
+
+// Ten jeden napis nie może przejść przez katalog: bez autoloadera nie ma
+// jeszcze ani tłumacza, ani czym go wczytać.
+if (!is_file($autoload)) {
+    fwrite(STDERR, 'Composer dependencies are missing. Run: composer install' . PHP_EOL);
+
+    exit(1);
+}
+
+require $autoload;
+
+// Ikona rysuje się Imagickiem — tym samym, którym rysuje się klatka w torze
+// sixelowym. Rozszerzenia `glfw` skrypt nie wymaga: wpis pulpitu wolno założyć
+// zawczasu, także na maszynie, na której tryb okienkowy jeszcze nie ruszy.
+if (!extension_loaded('imagick')) {
+    fwrite(STDERR, TranslatorService::getInstance()->translate('problem.missingImagick') . PHP_EOL);
+
+    exit(1);
+}
+
+$translator = TranslatorService::getInstance();
+$home = getenv('HOME');
+
+if (!is_string($home) || $home === '') {
+    fwrite(STDERR, $translator->translate('desktop.problem.home') . PHP_EOL);
+
+    exit(1);
+}
+
+$executable = realpath(__DIR__ . '/light-manager');
+
+if ($executable === false) {
+    fwrite(STDERR, $translator->translate('desktop.problem.executable') . PHP_EOL);
+
+    exit(1);
+}
+
+// Ikona bierze kolory z **włączonego** motywu, więc przełączony motyw i ponowne
+// uruchomienie tego skryptu dają inną ikonę. To jest zamierzone.
+$installer = new DesktopEntryInstaller(
+    ThemeService::getInstance()->active(),
+    $home,
+    $executable,
+    $translator->translate('app.name'),
+    $translator->translate('desktop.comment'),
+);
+
+try {
+    $written = $installer->install();
+} catch (DesktopException $exception) {
+    fwrite(STDERR, $translator->translate(
+        match ($exception->failure) {
+            DesktopFailure::UnwritableDirectory => 'desktop.problem.directory',
+            DesktopFailure::UnwritableFile => 'desktop.problem.file',
+        },
+        ['path' => $exception->path],
+    ) . PHP_EOL);
+
+    exit(1);
+}
+
+foreach ($written as $path) {
+    echo $translator->translate('desktop.written', ['path' => $path]), PHP_EOL;
+}
+
+echo PHP_EOL, $translator->translate('desktop.hint'), PHP_EOL;
+
+exit(0);

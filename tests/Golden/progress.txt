@@ -1,0 +1,80 @@
+plane chrome rect=0,0 30x100 opaque=0 primitives=8
+  R0,1,3,98,-,Border,Round
+  C0,1,3,98,Accent,Round
+  T0,8,Muted,Background,PATH
+  R3,1,24,98,-,Border,Round
+  C3,1,24,98,Accent,Round
+  T3,8,Muted,Background,FILES
+  R27,1,3,98,-,Border,Round
+  C27,1,3,98,Accent,Round
+plane content rect=0,0 30x100 opaque=0 primitives=70
+  B4,2,1,96,Surface,Fill
+  T4,36,Text,-,sha256 pliku obraz-00.jpg 0%
+  B5,2,1,96,Surface,Fill
+  B5,2,1,5,Accent,Fill
+  T5,36,Text,-,sha256 pliku obraz-01.jpg 5%
+  B6,2,1,96,Surface,Fill
+  B6,2,1,10,Accent,Fill
+  T6,35,Text,-,sha256 pliku obraz-02.jpg 10%
+  B7,2,1,96,Surface,Fill
+  B7,58,1,24,Accent,Fill
+  T7,39,Text,-,licze rozmiar katal
+  T7,58,Background,-,ogu
+  B8,2,1,96,Surface,Fill
+  B8,2,1,19,Accent,Fill
+  T8,35,Text,-,sha256 pliku obraz-04.jpg 20%
+  B9,2,1,96,Surface,Fill
+  B9,2,1,24,Accent,Fill
+  T9,35,Text,-,sha256 pliku obraz-05.jpg 25%
+  B10,2,1,96,Surface,Fill
+  B10,2,1,29,Accent,Fill
+  T10,35,Text,-,sha256 pliku obraz-06.jpg 30%
+  B11,2,1,96,Surface,Fill
+  B11,16,1,24,Accent,Fill
+  T11,39,Background,-,l
+  T11,40,Text,-,icze rozmiar katalogu
+  B12,2,1,96,Surface,Fill
+  B12,2,1,38,Accent,Fill
+  T12,35,Background,-,sha25
+  T12,40,Text,-,6 pliku obraz-08.jpg 40%
+  B13,2,1,96,Surface,Fill
+  B13,2,1,43,Accent,Fill
+  T13,35,Background,-,sha256 pli
+  T13,45,Text,-,ku obraz-09.jpg 45%
+  B14,2,1,96,Surface,Fill
+  B14,2,1,48,Accent,Fill
+  T14,35,Background,-,sha256 pliku ob
+  T14,50,Text,-,raz-10.jpg 50%
+  B15,2,1,96,Surface,Fill
+  B15,63,1,24,Accent,Fill
+  T15,39,Text,-,licze rozmiar katalogu
+  B16,2,1,96,Surface,Fill
+  B16,2,1,58,Accent,Fill
+  T16,35,Background,-,sha256 pliku obraz-12.jpg
+  T16,60,Text,-, 60%
+  B17,2,1,96,Surface,Fill
+  B17,2,1,62,Accent,Fill
+  T17,35,Background,-,sha256 pliku obraz-13.jpg 65%
+  B18,2,1,96,Surface,Fill
+  B18,2,1,67,Accent,Fill
+  T18,35,Background,-,sha256 pliku obraz-14.jpg 70%
+  B19,2,1,96,Surface,Fill
+  B19,11,1,24,Accent,Fill
+  T19,39,Text,-,licze rozmiar katalogu
+  B20,2,1,96,Surface,Fill
+  B20,2,1,77,Accent,Fill
+  T20,35,Background,-,sha256 pliku obraz-16.jpg 80%
+  B21,2,1,96,Surface,Fill
+  B21,2,1,82,Accent,Fill
+  T21,35,Background,-,sha256 pliku obraz-17.jpg 85%
+  B22,2,1,96,Surface,Fill
+  B22,2,1,86,Accent,Fill
+  T22,35,Background,-,sha256 pliku obraz-18.jpg 90%
+  B23,2,1,96,Surface,Fill
+  B23,67,1,24,Accent,Fill
+  T23,39,Text,-,licze rozmiar katalogu
+  B24,2,1,96,Surface,Fill
+  B24,2,1,96,Accent,Fill
+  T24,35,Background,-,sha256 pliku obraz-20.jpg 100%
+  B25,2,1,96,Surface,Fill
+  T25,36,Text,-,sha256 pliku obraz-21.jpg 0%

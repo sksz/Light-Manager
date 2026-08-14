@@ -47,6 +47,9 @@ return [
     'module.browser.setting.splitVertical' => 'Panele obok siebie',
     'module.browser.setting.details' => 'Kolumny szczegółów (data, prawa)',
     'module.browser.setting.columnHeader' => 'Nazwy kolumn nad listą',
+    // Wartości tej pozycji ekran ustawień pokazuje surowo, więc „bez limitu”
+    // niesie znak nieskończoności — czytelny bez tłumaczenia.
+    'module.browser.setting.treeDepth' => 'Poziomy drzewa (Ctrl+T)',
 
     // Nagłówki kolumn listy (krok 27). Widać je wyłącznie po włączeniu
     // przełącznika „Nazwy kolumn nad listą” — sama treść kolumn mówi za siebie.
@@ -68,10 +71,31 @@ return [
     'module.browser.help.filter' => 'zawężenie listy fragmentem nazwy',
     'module.browser.help.filter.clear' => 'zdjęcie filtra',
 
-    // Komenda modułu.
+    // Drzewo katalogów (krok 31). Opisy strzałek widać wyłącznie w panelu
+    // pokazującym drzewo — w liście te same klawisze znaczą co innego.
+    'module.browser.help.tree' => 'panel jako drzewo albo lista',
+    'module.browser.help.tree.expand' => 'rozwinięcie gałęzi',
+    'module.browser.help.tree.collapse' => 'zwinięcie gałęzi lub poziom wyżej',
+    // Liczba poziomów odmienia zdanie, stąd trzy formy. Pierwsza jest dziś
+    // nieosiągalna (najmniejszy wybór to dwa), ale reguła mnoga polskiego ma trzy
+    // formy i katalog ma je podać w komplecie.
+    'module.browser.tree.depth' => [
+        'Drzewo pokazuje najwyżej {count} poziom — zmienisz to w ustawieniach modułu.',
+        'Drzewo pokazuje najwyżej {count} poziomy — zmienisz to w ustawieniach modułu.',
+        'Drzewo pokazuje najwyżej {count} poziomów — zmienisz to w ustawieniach modułu.',
+    ],
+
+    // Komendy modułu. Trzy ostatnie doszły w kroku 32: nazywają czynności,
+    // które przeglądarka miała dotąd wyłącznie pod klawiszem.
     'module.browser.command.jump' => 'przejdź do wskazanego katalogu',
+    'module.browser.command.open' => 'wejdź do zaznaczonego katalogu',
+    'module.browser.command.hidden' => 'pokaż lub ukryj wpisy ukryte',
+    'module.browser.command.tree' => 'panel jako drzewo albo lista',
     'module.browser.argument.path' => 'ścieżka',
     'module.browser.jump.failed' => 'Nie można otworzyć katalogu „{path}”.',
+    'module.browser.open.failed' => 'Nie można otworzyć zaznaczonego katalogu.',
+    'module.browser.open.notDirectory' => 'Zaznaczony wpis nie jest katalogiem.',
+    'module.browser.hidden.failed' => 'Nie można odczytać katalogu ponownie — ustawienie zostaje bez zmian.',
 
     // Zdania dla użytkownika składane z wyjątków modułu (`DescribesProblem`).
     'module.browser.problem.unreadable' => 'Nie można odczytać katalogu „{path}”.',

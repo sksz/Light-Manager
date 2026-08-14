@@ -33,6 +33,7 @@ use LightManager\Presentation\Cli\ScreenStack;
 use LightManager\Presentation\Cli\StartupScreen;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
 use LightManager\Presentation\Ui\Overlay\CommandOverlay;
+use LightManager\Presentation\Ui\Overlay\MenuOverlay;
 use LightManager\Presentation\Ui\ScreenInterface;
 
 /**
@@ -67,6 +68,9 @@ final class ScreenFixture
     public readonly InputHandler $input;
 
     public readonly CommandOverlay $commands;
+
+    /** Menu kontekstowe — drugie wejście do tego samego rejestru (krok 32). */
+    public readonly MenuOverlay $menu;
 
     public readonly ModuleRegistry $modules;
 
@@ -164,11 +168,15 @@ final class ScreenFixture
             $translator,
         );
         $this->commands->prepare();
+        $this->menu = new MenuOverlay($this->commandRegistry, $translator);
 
         $this->help->knowAbout(
             [$this->settings, $this->help],
             InputHandler::globalBindings(),
-            ['layout.zone.command' => $this->commands->bindings()],
+            [
+                'layout.zone.command' => $this->commands->bindings(),
+                'menu.title' => $this->menu->bindings(),
+            ],
         );
         $this->help->knowAboutModules($this->modules->accepted());
 
@@ -186,6 +194,8 @@ final class ScreenFixture
             new ProblemPresenter($translator),
             $this->commands,
             self::moduleScreens($this->modules),
+            null,
+            $this->menu,
         );
     }
 

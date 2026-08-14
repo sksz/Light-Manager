@@ -70,6 +70,8 @@ return [
     'help.key.commit' => 'commit the value',
     'help.key.cancel' => 'discard the change',
     'help.key.collapse' => 'collapse or expand the section',
+    'help.key.fullscreen' => 'fullscreen',
+    'help.key.menu' => 'context menu',
 
     // Module tab in the help window — headings of the declared part.
     'help.module.shortcut' => 'Shortcut',
@@ -86,6 +88,13 @@ return [
     'command.key.erase' => 'erase a character',
     'command.key.dismiss' => 'close the window',
 
+    // Context menu (step 32) — the second door to the command registry.
+    'menu.title' => 'ACTIONS',
+    'menu.empty' => 'There is nothing to do with the selection.',
+    'menu.key.run' => 'run the action',
+    'menu.key.pick' => 'pick from the list',
+    'menu.key.close' => 'close the menu',
+
     // Confirmation overlay (step 28).
     'confirm.title' => 'QUESTION',
     'confirm.title.dangerous' => 'WARNING',
@@ -95,6 +104,7 @@ return [
     'confirm.key.answer' => 'confirm',
     'confirm.key.refuse' => 'refuse',
     'command.history' => 'history',
+    'command.dump.requested' => 'Next frame will be written to {file}-prymitywy.txt and {file}.png',
     'command.problem.empty' => 'no command name was typed',
     'command.problem.unknown' => 'unknown command: {name}',
     'command.problem.missing' => 'missing argument: {argument}',
@@ -106,8 +116,13 @@ return [
     'command.core.settings' => 'open the settings',
     'command.core.help' => 'open the help',
     'command.core.quit' => 'quit the application',
+    'command.core.dump' => 'write the next frame to a file (primitives and image)',
+    'command.core.fullscreen' => 'toggle fullscreen',
+    'command.fullscreen.on' => 'Fullscreen on.',
+    'command.fullscreen.off' => 'Fullscreen off.',
     'command.core.theme' => 'set the colour theme',
     'command.core.language' => 'set the interface language',
+    'command.argument.path' => 'file path (without an extension)',
     'command.argument.theme' => 'theme',
     'command.argument.language' => 'language',
     'help.section.global' => 'Everywhere',
@@ -115,7 +130,34 @@ return [
     'help.tab.about' => 'Application',
     'help.about.version' => 'Version',
     'help.about.renderer' => 'Rendering mode',
+    'help.about.scale' => 'Display scale',
     'help.settings.location' => 'Settings are stored in:',
+
+    'desktop.comment' => 'A file manager for the terminal and the desktop',
+    'desktop.written' => 'Written: {path}',
+    'desktop.hint' => 'Done. The icon shows up on the taskbar the next time the application starts '
+        . 'with --window; some desktops refresh their application list only after you log in again.',
+    'desktop.problem.home' => 'ERROR: the home directory is unknown (the HOME variable is empty).',
+    'desktop.problem.executable' => 'ERROR: bin/light-manager was not found next to this script.',
+    'desktop.problem.directory' => 'ERROR: the directory {path} could not be created.',
+    'desktop.problem.file' => 'ERROR: the file {path} could not be written.',
+
+    // Distribution build (bin/build-phar, `make build`). Assets stay **next to**
+    // the archive: the audio engine is a C extension and cannot read phar://.
+    'build.step.stage' => 'Collecting the distribution contents…',
+    'build.step.deps' => 'Installing dependencies without dev ones…',
+    'build.step.phar' => 'Assembling the archive…',
+    'build.step.assets' => 'Copying assets next to the archive…',
+    'build.step.smoke' => 'Checking that the result loads…',
+    'build.done' => 'Done: {path} ({size} MB)',
+    'build.assets' => 'Assets: {path}',
+    'build.hint.track' => 'In the built application the music track is given as an absolute path '
+        . '(settings → “Audio” tab → Track), e.g. {path}/… — a relative one is resolved against '
+        . 'the project root, which the distribution does not have.',
+    'build.problem.readonly' => 'ERROR: building the archive requires writable PHARs. '
+        . 'Run “make build” or “php -d phar.readonly=0 bin/build-phar”.',
+    'build.problem.install' => 'ERROR: installing the distribution dependencies failed.',
+    'build.problem.smoke' => 'ERROR: the built archive does not load. {details}',
 
     'config.rejected' => [
         'Settings: {keys} — value out of range, the default was used.',
@@ -174,12 +216,25 @@ return [
     // measured frames does not, because its length in characters is part of the
     // measurement (see `ScenarioFactory`).
     'bench.report.title' => 'Rendering pipeline benchmark',
+    'bench.report.title.loop' => 'Loop tick benchmark (no renderer, no transfer)',
     'bench.report.config' => 'Configuration: {config}',
     'bench.report.environment' => 'Environment: PHP {php} · {imagick} · font {font}',
+    'bench.report.load' => 'Machine load: {load} per core.',
+    'bench.report.loadNoisy' => 'Machine load: {load} per core — THE MACHINE WAS BUSY. '
+        . 'The numbers may describe a neighbour, not the code.',
+    'bench.report.loadUnknown' => 'Machine load: unknown (the system does not report it).',
     'bench.report.iterations' => 'Runs: {iterations} measured, {warmup} for warm-up '
         . '(median shown, min–max spread next to it).',
     'bench.report.unstableNote' => 'Rows marked "!" had a spread wider than {ratio}× — '
         . 'those numbers are unreliable and will not be saved as a baseline.',
+    'bench.report.coldNote' => 'The "Cold" column is the FIRST warm-up frame — a single sample, '
+        . 'not a median.' . "\n"
+        . '  Frame caches (rows, base plane, thumbnail) are empty in it; the process, the font and '
+        . 'the' . "\n"
+        . '  singletons are already warm. That is what application start-up and every window resize '
+        . 'pay.' . "\n"
+        . '  It is saved to the baseline but NEVER raises a regression alarm — one sample spreads '
+        . 'wider than the threshold.',
 
     'bench.column.scenario' => 'Scenario',
     'bench.column.draw' => 'Drawing',
@@ -187,8 +242,14 @@ return [
     'bench.column.encode' => 'Encoding',
     'bench.column.swap' => 'Buffers',
     'bench.column.total' => 'Total',
+    'bench.column.cold' => 'Cold',
+    'bench.column.input' => 'Input',
+    'bench.column.state' => 'State',
+    'bench.column.primitives' => 'Primitives',
+    'bench.column.compose' => 'Composition',
     'bench.column.spread' => 'Spread',
     'bench.column.blob' => 'Blob',
+    'bench.column.memory' => 'Memory',
 
     'bench.scenario.empty' => 'empty canvas',
     'bench.scenario.text' => 'text only',
@@ -206,6 +267,8 @@ return [
     'bench.scenario.columns' => 'list with columns',
     'bench.scenario.text-view' => 'text preview',
     'bench.scenario.highlight' => 'list with highlighting',
+    'bench.scenario.settings' => 'settings screen',
+    'bench.scenario.tree' => 'directory tree',
 
     'bench.transfer.title' => 'Frame transfer to the terminal',
     'bench.transfer.blob' => '  frame size:         {kilobytes} kB',
@@ -229,10 +292,28 @@ return [
         'Regression in {count} scenario (marked ▲).',
         'Regressions in {count} scenarios (marked ▲).',
     ],
+    'bench.compare.load' => 'Machine load: baseline {baseline} / now {current} (per core). '
+        . 'A different load means a different environment, not a code change.',
     'bench.compare.incomparable' => 'The baseline was recorded with a different configuration, so the '
         . 'comparison would mean nothing.' . "\n" . '  baseline: {baseline}' . "\n" . '  now:      {current}',
 
+    'bench.image.title' => 'Snapshot comparison against baselines (threshold {threshold} ‰ of pixels)',
+    'bench.image.column.pixels' => 'Differing pixels',
+    'bench.image.column.share' => 'Share',
+    'bench.image.column.verdict' => 'Verdict',
+    'bench.image.verdict.match' => 'matches',
+    'bench.image.verdict.differs' => 'DIFFERS — difference image below',
+    'bench.image.verdict.missing' => 'no baseline — save one: --png-save',
+    'bench.image.verdict.resized' => 'canvas size differs from the baseline',
+    'bench.image.verdict.incomparable' => 'baseline from another configuration — not comparable',
+    'bench.image.saved' => 'Baseline snapshot saved: {file}',
+    'bench.golden.saved' => 'Golden frame saved: {file}',
+
     'bench.save.done' => 'Baseline saved: {file}',
+    'bench.save.noisyLoad' => 'WARNING: machine load was {load} per core (threshold {limit}). '
+        . 'The baseline will be saved,' . "\n"
+        . '  but remember it was recorded on a busy host — in step 22 such a pair of baselines '
+        . 'got 8-18% "faster"' . "\n" . '  without a single change in the code.',
     'bench.save.refusedUnstable' => 'Baseline NOT SAVED: some measurements were unstable. '
         . 'Close other programs and run it again.',
     'bench.snapshot.saved' => 'Canvas snapshot ({scenario}, before quantization) saved: {file}',
@@ -254,13 +335,19 @@ return [
         . '  --warmup=3           number of warm-up runs',
     'bench.help.modes' => 'Modes and output:' . "\n"
         . '  --window             measure the windowed path (OpenGL, hidden window) instead of Sixel' . "\n"
+        . '  --text               measure the text path (ANSI fallback) instead of Sixel' . "\n"
+        . '  --loop               measure the loop tick (input, state, frame composition), no renderer' . "\n"
         . '  --scenarios=a,b      measure only the selected scenarios' . "\n"
         . '  --transfer           also measure the frame transfer (needs a real terminal)' . "\n"
         . '  --save[=name]        save a baseline into docs/pomiary/' . "\n"
         . '  --compare[=file]     compare against a baseline (no value: the newest one)' . "\n"
         . '  --threshold=10       regression threshold in per cent' . "\n"
         . '  --png=FILE           write the canvas to a PNG instead of measuring' . "\n"
-        . '  --scenario=NAME      scenario for the PNG snapshot',
+        . '  --scenario=NAME      scenario for the PNG snapshot' . "\n"
+        . '  --png-save           save baseline snapshots into docs/pomiary/wzorce-png/' . "\n"
+        . '  --png-compare        compare snapshots against baselines (exit code 1 on a mismatch)' . "\n"
+        . '  --png-threshold=0.5  difference threshold in per mille of pixels (0 ‰; 5 ‰ in the window)' . "\n"
+        . '  --golden-save        write golden frames (primitives) into tests/Golden/ — READ the diff first',
     'bench.help.scenarios' => 'Scenarios:',
 
     'bench.problem.emptySampleSet' => 'The benchmark produced no samples at all.',

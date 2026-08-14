@@ -1,0 +1,105 @@
+plane chrome rect=0,0 30x100 opaque=0 primitives=0
+plane content rect=0,0 30x100 opaque=0 primitives=103
+  R0,2,1,96,Selection,-,Soft
+  B0,2,1,96,Accent,Edge
+  T0,2,SelectionText,-,katalog-0000/
+  R1,2,1,96,Selection,-,Soft
+  B1,2,1,96,Accent,Edge
+  T1,2,SelectionText,-,plik-0001.txt
+  T1,92,SelectionText,-,2,1 kB
+  R2,2,1,96,Selection,-,Soft
+  B2,2,1,96,Accent,Edge
+  T2,2,SelectionText,-,plik-0002.txt
+  T2,92,SelectionText,-,3,2 kB
+  R3,2,1,96,Selection,-,Soft
+  B3,2,1,96,Accent,Edge
+  T3,2,SelectionText,-,plik-0003.txt
+  T3,92,SelectionText,-,4,3 kB
+  R4,2,1,96,Selection,-,Soft
+  B4,2,1,96,Accent,Edge
+  T4,2,SelectionText,-,plik-0004.txt
+  T4,92,SelectionText,-,5,4 kB
+  R5,2,1,96,Selection,-,Soft
+  B5,2,1,96,Accent,Edge
+  T5,2,SelectionText,-,plik-0005.txt
+  T5,92,SelectionText,-,6,5 kB
+  R6,2,1,96,Selection,-,Soft
+  B6,2,1,96,Accent,Edge
+  T6,2,SelectionText,-,katalog-0006/
+  R7,2,1,96,Selection,-,Soft
+  B7,2,1,96,Accent,Edge
+  T7,2,SelectionText,-,plik-0007.txt
+  T7,92,SelectionText,-,8,7 kB
+  R8,2,1,96,Selection,-,Soft
+  B8,2,1,96,Accent,Edge
+  T8,2,SelectionText,-,plik-0008.txt
+  T8,92,SelectionText,-,9,8 kB
+  R9,2,1,96,Selection,-,Soft
+  B9,2,1,96,Accent,Edge
+  T9,2,SelectionText,-,plik-0009.txt
+  T9,91,SelectionText,-,10,9 kB
+  R10,2,1,96,Selection,-,Soft
+  B10,2,1,96,Accent,Edge
+  T10,2,SelectionText,-,plik-0010.txt
+  T10,91,SelectionText,-,11,0 kB
+  R11,2,1,96,Selection,-,Soft
+  B11,2,1,96,Accent,Edge
+  T11,2,SelectionText,-,plik-0011.txt
+  T11,91,SelectionText,-,12,1 kB
+  R12,2,1,96,Selection,-,Soft
+  B12,2,1,96,Accent,Edge
+  T12,2,SelectionText,-,katalog-0012/
+  R13,2,1,96,Selection,-,Soft
+  B13,2,1,96,Accent,Edge
+  T13,2,SelectionText,-,plik-0013.txt
+  T13,91,SelectionText,-,14,3 kB
+  R14,2,1,96,Selection,-,Soft
+  B14,2,1,96,Accent,Edge
+  T14,2,SelectionText,-,plik-0014.txt
+  T14,91,SelectionText,-,15,4 kB
+  R15,2,1,96,Selection,-,Soft
+  B15,2,1,96,Accent,Edge
+  T15,2,SelectionText,-,plik-0015.txt
+  T15,91,SelectionText,-,16,5 kB
+  R16,2,1,96,Selection,-,Soft
+  B16,2,1,96,Accent,Edge
+  T16,2,SelectionText,-,plik-0016.txt
+  T16,91,SelectionText,-,17,6 kB
+  R17,2,1,96,Selection,-,Soft
+  B17,2,1,96,Accent,Edge
+  T17,2,SelectionText,-,plik-0017.txt
+  T17,91,SelectionText,-,18,7 kB
+  R18,2,1,96,Selection,-,Soft
+  B18,2,1,96,Accent,Edge
+  T18,2,SelectionText,-,katalog-0018/
+  R19,2,1,96,Selection,-,Soft
+  B19,2,1,96,Accent,Edge
+  T19,2,SelectionText,-,plik-0019.txt
+  T19,91,SelectionText,-,20,9 kB
+  R20,2,1,96,Selection,-,Soft
+  B20,2,1,96,Accent,Edge
+  T20,2,SelectionText,-,plik-0020.txt
+  T20,91,SelectionText,-,21,0 kB
+  R21,2,1,96,Selection,-,Soft
+  B21,2,1,96,Accent,Edge
+  T21,2,SelectionText,-,plik-0021.txt
+  T21,91,SelectionText,-,22,1 kB
+  R22,2,1,96,Selection,-,Soft
+  B22,2,1,96,Accent,Edge
+  T22,2,SelectionText,-,plik-0022.txt
+  T22,91,SelectionText,-,23,2 kB
+  R23,2,1,96,Selection,-,Soft
+  B23,2,1,96,Accent,Edge
+  T23,2,SelectionText,-,plik-0023.txt
+  T23,91,SelectionText,-,24,3 kB
+  R24,2,1,96,Selection,-,Soft
+  B24,2,1,96,Accent,Edge
+  T24,2,SelectionText,-,katalog-0024/
+  R25,2,1,96,Selection,-,Soft
+  B25,2,1,96,Accent,Edge
+  T25,2,SelectionText,-,plik-0025.txt
+  T25,91,SelectionText,-,26,5 kB
+  R26,2,1,96,Selection,-,Soft
+  B26,2,1,96,Accent,Edge
+  T26,2,SelectionText,-,plik-0026.txt
+  T26,91,SelectionText,-,27,6 kB

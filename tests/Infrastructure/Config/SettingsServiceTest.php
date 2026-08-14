@@ -39,7 +39,6 @@ final class SettingsServiceTest extends TestCase
     protected function tearDown(): void
     {
         $this->removeHome();
-        $this->unpinLanguage();
     }
 
     public function testStartWithoutFileGivesDefaultsInSilence(): void
@@ -172,6 +171,33 @@ final class SettingsServiceTest extends TestCase
 
         self::assertTrue($loaded->settings->equals(new Settings()));
         self::assertStringContainsString($expectedLabel, (string) $loaded->problem);
+    }
+
+    /**
+     * Rozmiar okna wypadający między przystankami strzałek jest od kroku 37
+     * stanem zwykłym: tyle komórek zostawił użytkownik, przeciągając róg okna.
+     */
+    public function testRememberedWindowSizeSurvivesANewProcessEvenBetweenTheStops(): void
+    {
+        SettingsService::getInstance()->save((new Settings())->withWindowColumns(137)->withWindowRows(41));
+
+        $this->resetSingleton(SettingsService::class);
+        $reloaded = SettingsService::getInstance()->load(self::THEMES);
+
+        self::assertSame(137, $reloaded->settings->windowColumns);
+        self::assertSame(41, $reloaded->settings->windowRows);
+        self::assertNull($reloaded->problem, 'rozmiar spoza listy przystanków nie jest wadą pliku');
+    }
+
+    /** Zakres zostaje granicą — plik ruszony ręcznie nie otworzy okna o zerowej siatce. */
+    public function testWindowSizeBeyondTheRangeFallsBackAndSaysSo(): void
+    {
+        $this->write('{"windowColumns": 4}');
+
+        $loaded = SettingsService::getInstance()->load(self::THEMES);
+
+        self::assertSame(Settings::DEFAULT_WINDOW_COLUMNS, $loaded->settings->windowColumns);
+        self::assertStringContainsString('Kolumny okna', (string) $loaded->problem);
     }
 
     /** Wartość odrzucona nie ma prawa pociągnąć za sobą pozostałych kluczy. */

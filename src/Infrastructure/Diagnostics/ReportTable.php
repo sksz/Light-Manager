@@ -21,6 +21,9 @@ final class ReportTable
 {
     private const UNSTABLE_MARKER = '!';
 
+    /** Wielkość, której przebieg nie dostarczył — zero byłoby tu kłamstwem. */
+    private const NOT_MEASURED = '—';
+
     private const COLUMN_GAP = '  ';
 
     public function __construct(
@@ -44,7 +47,7 @@ final class ReportTable
         $environment = $report->environment;
 
         return implode("\n", [
-            $this->translator->translate('bench.report.title'),
+            $this->translator->translate($report->options->track->reportTitleKey()),
             '',
             $this->translator->translate('bench.report.config', ['config' => $report->options->signature()]),
             $this->translator->translate('bench.report.environment', [
@@ -52,6 +55,7 @@ final class ReportTable
                 'imagick' => $environment->imageMagickVersion,
                 'font' => $environment->font,
             ]),
+            $this->load($environment),
             $this->translator->translate('bench.report.iterations', [
                 'iterations' => $report->options->iterations,
                 'warmup' => $report->options->warmupIterations,
@@ -61,31 +65,56 @@ final class ReportTable
     }
 
     /**
-     * Tor okienkowy (krok 35) ma inne fazy, więc i inne kolumny: kwantyzacji
-     * nie ma wcale (palety nie ma), bajtów nie ma (klatka nie opuszcza
-     * procesu), a to, co w torze sixelowym jest kodowaniem, tutaj jest
-     * zamianą buforów. Kolumna zer i kolumna zer to nie jest wynik pomiaru.
+     * Wiersz obciążenia maszyny (krok 38).
+     *
+     * Stoi w metryczce, a nie w przypisie, bo to **on** unieważnił pomiary
+     * kroków 16 i 22: różnica środowiska udawała wtedy różnicę kodu przez cztery
+     * przebiegi z rzędu.
+     */
+    private function load(EnvironmentMetadata $environment): string
+    {
+        if ($environment->loadPerCore === null) {
+            return $this->translator->translate('bench.report.loadUnknown');
+        }
+
+        return $this->translator->translate(
+            $environment->isNoisy() ? 'bench.report.loadNoisy' : 'bench.report.load',
+            ['load' => $this->translator->number($environment->loadPerCore, 2)],
+        );
+    }
+
+    /**
+     * Każdy tor ma inne fazy, więc i inne kolumny — a kolumna zer nie jest
+     * wynikiem pomiaru, tylko zaśmieceniem tabeli.
+     *
+     * Tor okienkowy (krok 35) nie ma kwantyzacji (nie ma palety) ani bajtów
+     * (klatka nie opuszcza procesu), a to, co gdzie indziej jest kodowaniem,
+     * jest w nim zamianą buforów. Tor tekstowy (krok 38) nie ma kwantyzacji,
+     * ale bajty ma najprawdziwsze: to one lecą do terminala.
      */
     private function scenarioTable(BenchmarkReport $report): string
     {
-        $windowed = $report->options->windowed;
+        $track = $report->options->track;
 
         $header = [
             $this->translator->translate('bench.column.scenario'),
-            $this->translator->translate('bench.column.draw'),
+            $this->translator->translate($track->firstPhaseLabelKey()),
         ];
 
-        if (!$windowed) {
-            $header[] = $this->translator->translate('bench.column.quantize');
+        if ($track->hasMiddlePhase()) {
+            $header[] = $this->translator->translate($track->middlePhaseLabelKey());
         }
 
-        $header[] = $this->translator->translate($windowed ? 'bench.column.swap' : 'bench.column.encode');
+        $header[] = $this->translator->translate($track->lastPhaseLabelKey());
         $header[] = $this->translator->translate('bench.column.total');
+        $header[] = $this->translator->translate('bench.column.cold');
         $header[] = $this->translator->translate('bench.column.spread');
 
-        if (!$windowed) {
-            $header[] = $this->translator->translate('bench.column.blob');
+        if ($track->producesBlob()) {
+            $header[] = $this->translator->translate($track->blobColumnLabelKey());
         }
+
+        $header[] = $this->translator->translate('bench.column.memory');
 
         $rows = [$header];
 
@@ -95,18 +124,24 @@ final class ReportTable
                 $this->phase($result->draw, $result->total),
             ];
 
-            if (!$windowed) {
+            if ($track->hasMiddlePhase()) {
                 $row[] = $this->phase($result->quantize, $result->total);
             }
 
             $row[] = $this->phase($result->encode, $result->total);
             $row[] = $this->milliseconds($result->total->median);
+            $row[] = $result->cold === null
+                ? self::NOT_MEASURED
+                : $this->milliseconds($result->cold->totalMilliseconds());
             $row[] = $this->spread($result);
 
-            if (!$windowed) {
-                $row[] = $this->kilobytes($result->blobBytes->median);
+            if ($track->producesBlob()) {
+                $row[] = $track->blobIsBytes()
+                    ? $this->kilobytes($result->blobBytes->median)
+                    : $this->translator->number($result->blobBytes->median, 0);
             }
 
+            $row[] = $this->megabytes($result->peakMemoryBytes);
             $rows[] = $row;
         }
 
@@ -122,7 +157,10 @@ final class ReportTable
             ]) . "\n";
         }
 
-        return $table;
+        // Kolumna zimnej klatki bez wyjaśnienia byłaby myląca: liczba jest
+        // pojedynczą próbką, nie medianą, i mówi o zimnych pamięciach
+        // podręcznych klatki, a nie o zimnym procesie (krok 38, D64).
+        return $table . "\n" . $this->translator->translate('bench.report.coldNote') . "\n";
     }
 
     /** Faza z jej udziałem w klatce — bez udziału liczby nie układają się w obraz. */
@@ -183,9 +221,18 @@ final class ReportTable
         return implode("\n", $lines);
     }
 
-    /** @param list<ComparisonRow> $rows */
-    public function renderComparison(array $rows, string $baselinePath, float $thresholdPercent): string
-    {
+    /**
+     * @param list<ComparisonRow> $rows
+     * @param ?EnvironmentMetadata $baselineEnvironment metryczka wzorca — dla
+     *                                                  zestawienia obciążeń
+     */
+    public function renderComparison(
+        array $rows,
+        string $baselinePath,
+        float $thresholdPercent,
+        ?EnvironmentMetadata $baselineEnvironment = null,
+        ?EnvironmentMetadata $currentEnvironment = null,
+    ): string {
         $table = [[
             $this->translator->translate('bench.column.scenario'),
             $this->translator->translate('bench.compare.baseline'),
@@ -206,16 +253,88 @@ final class ReportTable
 
         $regressions = BaselineComparison::regressions($rows, $thresholdPercent);
 
-        return implode("\n", [
+        return implode("\n", array_filter([
             '',
             $this->translator->translate('bench.compare.title', ['file' => basename($baselinePath)]),
             '',
+            $this->comparedLoads($baselineEnvironment, $currentEnvironment),
             $this->layOut($table, [false, true, true, true]),
             $regressions === []
                 ? $this->translator->translate('bench.compare.clean')
                 : $this->translator->plural('bench.compare.regressions', count($regressions)),
             '',
-        ]);
+        ], static fn (string $part): bool => $part !== ''));
+    }
+
+    /**
+     * Obciążenie obu maszyn obok siebie — pusty napis, gdy któregoś nie znamy.
+     *
+     * Dwa przebiegi przy różnym obciążeniu **nie są porównaniem kodu** i to
+     * zdanie ma stać nad tabelą, a nie w cudzej pamięci: para wzorców z kroków
+     * 21 i 22 „potaniała” o 8–18% bez jednej zmiany w kodzie.
+     */
+    private function comparedLoads(?EnvironmentMetadata $baseline, ?EnvironmentMetadata $current): string
+    {
+        if ($baseline?->loadPerCore === null || $current?->loadPerCore === null) {
+            return '';
+        }
+
+        return $this->translator->translate('bench.compare.load', [
+            'baseline' => $this->translator->number($baseline->loadPerCore, 2),
+            'current' => $this->translator->number($current->loadPerCore, 2),
+        ]) . "\n";
+    }
+
+    /**
+     * Tabela porównania zrzutów (krok 38): scenariusz, liczba różniących się
+     * pikseli i werdykt.
+     *
+     * Przy niezgodności wypisujemy **ścieżkę obrazu różnicy**, a nie opis, co
+     * się zmieniło: narzędzie ma odmówić i wskazać plik, oglądanie zostaje
+     * człowiekowi.
+     *
+     * @param list<SnapshotDifference> $differences
+     */
+    public function renderImageComparison(array $differences, float $thresholdPerMille): string
+    {
+        $table = [[
+            $this->translator->translate('bench.column.scenario'),
+            $this->translator->translate('bench.image.column.pixels'),
+            $this->translator->translate('bench.image.column.share'),
+            $this->translator->translate('bench.image.column.verdict'),
+        ]];
+        $files = [];
+
+        foreach ($differences as $difference) {
+            $table[] = [
+                $this->translator->translate($difference->scenario->labelKey()),
+                $difference->verdict === SnapshotVerdict::Match || $difference->verdict === SnapshotVerdict::Differs
+                    ? $this->translator->number($difference->differingPixels, 0)
+                    : self::NOT_MEASURED,
+                $difference->totalPixels === 0
+                    ? self::NOT_MEASURED
+                    : $this->translator->number($difference->perMille(), 2) . ' ‰',
+                $this->translator->translate($difference->verdict->labelKey()),
+            ];
+
+            $file = $difference->differencePath ?? ($difference->verdict === SnapshotVerdict::Missing
+                ? $difference->baselinePath
+                : null);
+
+            if ($file !== null) {
+                $files[] = '  ' . $file;
+            }
+        }
+
+        return implode("\n", array_filter([
+            '',
+            $this->translator->translate('bench.image.title', [
+                'threshold' => $this->translator->number($thresholdPerMille, 2),
+            ]),
+            '',
+            $this->layOut($table, [false, true, true, false]),
+            $files === [] ? '' : implode("\n", $files) . "\n",
+        ], static fn (string $part): bool => $part !== ''));
     }
 
     private function change(ComparisonRow $row, float $thresholdPercent): string
@@ -244,6 +363,12 @@ final class ReportTable
     private function kilobytes(float $bytes): string
     {
         return $this->translator->number($bytes / 1024.0, 1) . ' kB';
+    }
+
+    /** Szczyt pamięci w megabajtach — w bajtach byłaby to kolumna nie do objęcia okiem. */
+    private function megabytes(int $bytes): string
+    {
+        return $this->translator->number($bytes / 1048576.0, 1) . ' MB';
     }
 
     /**

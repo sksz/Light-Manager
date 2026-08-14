@@ -123,9 +123,7 @@ return [
     'module.file-info.timedOut' => 'Polecenie „file” nie odpowiedziało w ciągu {seconds} s — przerwano.',
 
     // Komenda modułu.
-    'module.file-info.command.jump' => 'przejdź do wskazanego katalogu',
-    'module.file-info.argument.path' => 'ścieżka',
-    'module.file-info.jump.failed' => 'Nie można otworzyć katalogu „{path}”.',
+    'module.file-info.command.show' => 'pokaż opis zaznaczonego wpisu',
 
     // Własna część zakładki pomocy — to, czego z deklaracji wyczytać się nie da.
     'module.file-info.help.checksum' => 'policz sumę kontrolną',

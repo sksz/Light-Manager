@@ -23,10 +23,15 @@ namespace LightManager\Application\Dto;
  * wpisów ukrytych jest ustawieniem przeglądarki (`modules.browser.showHidden`),
  * a nie aplikacji.
  *
- * `WindowColumns` i `WindowRows` (krok 34, D53) opisują rozmiar startowy okna
- * trybu okienkowego w komórkach siatki znakowej. W trybach terminalowych nie
- * robią nic — rozmiar dyktuje tam terminal — ale zostają widoczne na ekranie
+ * `WindowColumns` i `WindowRows` (krok 34, D53) opisują rozmiar okna trybu
+ * okienkowego w komórkach siatki znakowej. W trybach terminalowych nie robią
+ * nic — rozmiar dyktuje tam terminal — ale zostają widoczne na ekranie
  * ustawień, bo plik konfiguracji jest jeden dla wszystkich trybów.
+ *
+ * Od kroku 37 nie są już wyłącznie **rozmiarem startowym**: okno zapisuje pod
+ * nie rozmiar nadany przeciągnięciem rogu albo maksymalizacją, więc te dwa
+ * klucze są zarazem jedynym miejscem, w którym pamięta się ustawione okno.
+ * Stąd ich wartości sprawdza zakres, a nie lista przystanków strzałek.
  */
 enum SettingKey: string
 {

@@ -1,0 +1,33 @@
+plane chrome rect=0,0 30x100 opaque=0 primitives=8
+  R0,1,3,98,-,Border,Round
+  C0,1,3,98,Accent,Round
+  T0,8,Muted,Background,PATH
+  R3,1,24,98,-,Border,Round
+  C3,1,24,98,Accent,Round
+  T3,8,Muted,Background,FILES
+  R27,1,3,98,-,Border,Round
+  C27,1,3,98,Accent,Round
+plane content rect=0,0 30x100 opaque=0 primitives=23
+  T4,2,Text,-,public function metoda00(): string
+  T5,2,Text,-,    public function metoda01(): string
+  T6,2,Text,-,        public function metoda02(): string
+  T7,2,Text,-,            $wynik[3] = $this->policz($wpis, $index, 3) ?? null;
+  T8,2,Text,-,public function metoda04(): string
+  T9,2,Text,-,    $wynik[5] = $this->policz($wpis, $index, 5) ?? null;
+  T10,2,Text,-,        public function metoda06(): string
+  T11,2,Text,-,            "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wart
+  T12,2,Text,-,osc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-
+  T13,2,Text,-,7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", 
+  T14,2,Text,-,"wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "war
+  T15,2,Text,-,tosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc
+  T16,2,Text,-,-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7",
+  T17,2,Text,-, "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wa
+  T18,2,Text,-,rtosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartos
+  T19,2,Text,-,c-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7"
+  T20,2,Text,-,, "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "w
+  T21,2,Text,-,artosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "warto
+  T22,2,Text,-,sc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7
+  T23,2,Text,-,", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "wartosc-7", "
+  T24,2,Text,-,wartosc-7", "wartosc-7", 
+  T25,2,Text,-,public function metoda08(): string
+  S4,97,22,1,44,22,110,Border,Accent

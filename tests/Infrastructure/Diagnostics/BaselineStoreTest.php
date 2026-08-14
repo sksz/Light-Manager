@@ -7,6 +7,7 @@ namespace LightManager\Tests\Infrastructure\Diagnostics;
 use LightManager\Infrastructure\Diagnostics\BaselineSnapshot;
 use LightManager\Infrastructure\Diagnostics\BaselineStore;
 use LightManager\Infrastructure\Diagnostics\BenchmarkOptions;
+use LightManager\Infrastructure\Diagnostics\BenchmarkTrack;
 use LightManager\Infrastructure\Diagnostics\DiagnosticsException;
 use LightManager\Infrastructure\Diagnostics\DiagnosticsProblem;
 use LightManager\Infrastructure\Diagnostics\EnvironmentMetadata;
@@ -83,7 +84,7 @@ final class BaselineStoreTest extends TestCase
     {
         $store = new BaselineStore($this->directory);
         $terminal = new BenchmarkOptions();
-        $windowed = new BenchmarkOptions(windowed: true);
+        $windowed = new BenchmarkOptions(track: BenchmarkTrack::Window);
 
         $store->save($this->snapshot($terminal), '2000-01-01-terminal');
         $store->save($this->snapshot($windowed), 'zzz-window');

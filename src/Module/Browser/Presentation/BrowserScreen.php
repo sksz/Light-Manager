@@ -9,15 +9,15 @@ use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
-use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
+use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\Browser\Application\BrowserSettings;
 use LightManager\Module\Browser\Application\UseCase\MoveSelectionUseCase;
 use LightManager\Module\Browser\Application\UseCase\NavigateIntoDirectoryUseCase;
 use LightManager\Module\Browser\Application\UseCase\NavigateUpUseCase;
 use LightManager\Module\Browser\Application\UseCase\PreviewSelectedEntryUseCase;
-use LightManager\Module\Browser\Application\UseCase\ToggleHiddenEntriesUseCase;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Presentation\Component\EntryList;
+use LightManager\Module\Browser\Presentation\Component\EntryTree;
 use LightManager\Module\Browser\Presentation\Component\PathLine;
 use LightManager\Module\Browser\Presentation\Component\PreviewBox;
 use LightManager\Module\Browser\Presentation\Overlay\FilterOverlay;
@@ -25,6 +25,7 @@ use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\Split;
+use LightManager\Presentation\Ui\ComponentInterface;
 use LightManager\Presentation\Ui\DrawsOwnFrame;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\ScreenInterface;
@@ -62,15 +63,32 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
      */
     private const FILTER_MARKER_KEY = 'module.browser.filter.marker';
 
+    /**
+     * Zdanie o tym, dlaczego gałąź się nie rozwija — jedyny komunikat, który
+     * drzewo w ogóle wypisuje.
+     */
+    private const DEPTH_LIMIT_KEY = 'module.browser.tree.depth';
+
+    /**
+     * Litera przełączająca widok panelu na drzewo i z powrotem — **z `Ctrl`**,
+     * rozstrzygnięcie użytkownika ze startu kroku 31.
+     *
+     * Trzeba przy tym wiedzieć, gdzie ten klawisz mieszka: `Ctrl`+litera jest od
+     * kroku 19 przestrzenią **skrótów modułów**, sprawdzaną w `InputHandler` przed
+     * ekranem. Litera bez zarejestrowanego modułu przechodzi niżej i dlatego to
+     * działa — ale moduł ze skrótem `t` przejąłby ją cicho. Pilnuje tego
+     * `BrowserShortcutsTest`, żeby kolizja wyszła na testach, a nie na klawiaturze.
+     */
+    private const TREE_KEY = 't';
+
     public function __construct(
         private readonly BrowserPanes $panes,
         private readonly LoopState $state,
         private readonly MoveSelectionUseCase $moveSelection,
         private readonly NavigateIntoDirectoryUseCase $navigateInto,
         private readonly NavigateUpUseCase $navigateUp,
-        private readonly ToggleHiddenEntriesUseCase $toggleHidden,
+        private readonly HiddenEntries $hidden,
         private readonly PreviewSelectedEntryUseCase $preview,
-        private readonly ChangeModuleSettingUseCase $changeSetting,
         private readonly TranslatorPort $translator,
     ) {
     }
@@ -113,10 +131,20 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
      */
     public function preview(): ScreenZone
     {
-        return new ScreenZone(
-            'layout.zone.preview',
-            new PreviewBox($this->preview, $this->panes->focused()->directory()),
-        );
+        return new ScreenZone('layout.zone.preview', new PreviewBox($this->preview, $this->pointed()));
+    }
+
+    /**
+     * Katalog wraz z zaznaczeniem, na które panel z ogniskiem **wskazuje** — z
+     * listy albo z drzewa.
+     *
+     * Dzięki tej jednej metodzie pas podglądu nie wie, że drzewo istnieje:
+     * `BrowserTree` oddaje zwykły agregat z zaznaczeniem na węźle pod kursorem,
+     * czyli dokładnie to, czym od kroku 21 jest „zaznaczony wpis”.
+     */
+    private function pointed(): Directory
+    {
+        return $this->panes->focusedDirectory();
     }
 
     private function suffix(): string
@@ -126,7 +154,17 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
         $directory = $pane->directory();
         $selection = $directory->selection();
 
-        if ($selection !== null) {
+        if ($this->panes->focusShowsTree()) {
+            // W drzewie liczy się **węzły**, nie wpisy katalogu: numer wpisu
+            // w korzeniu nie powiedziałby nic o tym, gdzie stoi kursor po
+            // rozwinięciu trzech gałęzi.
+            $tree = $this->panes->focusedTree();
+            $index = $tree->cursorIndex();
+
+            if ($index !== null) {
+                $suffix .= sprintf('  —  %d/%d', $index + 1, $tree->count());
+            }
+        } elseif ($selection !== null) {
             $suffix .= sprintf('  —  %d/%d', $selection->index + 1, count($directory->entries()));
         }
 
@@ -184,31 +222,32 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
     public function draw(Rect $bounds): array
     {
         if (!$this->splitsIn($bounds)) {
-            [$state, $window] = $this->panes->pane($this->panes->focusesSecond() ? 1 : 0);
-
-            return (new EntryList(
-                $state->directory(),
-                $window,
-                $this->translator,
-                details: $this->details(),
-                header: $this->columnHeader(),
-                filter: $state->filter(),
-            ))->draw($bounds);
+            return $this->pane($this->panes->focusesSecond() ? 1 : 0, framed: false)->draw($bounds);
         }
 
-        return (new Split($this->list(0), $this->list(1), $this->axis()))->draw($bounds);
+        return (new Split($this->pane(0, framed: true), $this->pane(1, framed: true), $this->axis()))->draw($bounds);
     }
 
-    /** Zawartość jednego panelu — katalog, okno przewijania i wcięcie pod obwódkę. */
-    private function list(int $index): EntryList
+    /**
+     * Zawartość jednego panelu — lista albo drzewo, wraz z wcięciem pod obwódkę.
+     *
+     * Wybór widoku należy do panelu (krok 31) i jest **jedynym** miejscem, w którym
+     * ekran o drzewie w ogóle wie przy rysowaniu: dalej obie gałęzie są zwykłym
+     * komponentem, a podział, oprawa i strefy zostają nietknięte.
+     */
+    private function pane(int $index, bool $framed): ComponentInterface
     {
         [$state, $window] = $this->panes->pane($index);
+
+        if ($this->panes->showsTree($index)) {
+            return new EntryTree($this->panes->tree($index), $this->translator, $framed, $state->filter());
+        }
 
         return new EntryList(
             $state->directory(),
             $window,
             $this->translator,
-            framed: true,
+            framed: $framed,
             details: $this->details(),
             header: $this->columnHeader(),
             filter: $state->filter(),
@@ -227,13 +266,15 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
 
     public function bindings(): array
     {
-        $bindings = [
+        $bindings = $this->panes->focusShowsTree() ? $this->treeBindings() : [
             KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move'),
             KeyBinding::of([Key::Enter, Key::ArrowRight], 'module.browser.help.open'),
             KeyBinding::of([Key::Backspace, Key::ArrowLeft], 'module.browser.help.up'),
             KeyBinding::character('.', 'module.browser.help.hidden'),
             KeyBinding::character('/', 'module.browser.help.filter'),
         ];
+
+        $bindings[] = KeyBinding::ctrl(self::TREE_KEY, 'module.browser.help.tree');
 
         // Klawisz ogniska pokazujemy dopiero wtedy, gdy podział jest włączony:
         // podpowiedź o przenoszeniu ogniska między panelami, których nie ma,
@@ -252,10 +293,44 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
         return $bindings;
     }
 
+    /**
+     * Spis klawiszy panelu pokazującego drzewo.
+     *
+     * Strzałki poziome znaczą tu **co innego** niż w liście i to jest cały powód,
+     * dla którego spis rozdziela się na dwa: w liście `→` wchodzi do katalogu,
+     * w drzewie rozwija gałąź. Jedna wspólna lista musiałaby opisać oba znaczenia
+     * naraz, czyli skłamać w połowie przypadków — a precedens z kroku 30 mówi, że
+     * spis pokazuje wyłącznie to, co działa tu i teraz.
+     *
+     * @return list<KeyBinding>
+     */
+    private function treeBindings(): array
+    {
+        return [
+            KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move'),
+            KeyBinding::of([Key::ArrowRight], 'module.browser.help.tree.expand'),
+            KeyBinding::of([Key::ArrowLeft], 'module.browser.help.tree.collapse'),
+            KeyBinding::of([Key::Enter], 'module.browser.help.open'),
+            KeyBinding::of([Key::Backspace], 'module.browser.help.up'),
+            KeyBinding::character('.', 'module.browser.help.hidden'),
+            KeyBinding::character('/', 'module.browser.help.filter'),
+        ];
+    }
+
     public function handle(KeyPress $key): ScreenOutcome
     {
+        // Litera z `Ctrl` nie jest treścią (reguła 11j) i nie jest też klawiszem
+        // listy: albo przełącza widok panelu, albo nie znaczy w tym ekranie nic.
+        if ($key->key === Key::Character && $key->ctrl) {
+            return $key->raw === self::TREE_KEY ? $this->toggleTree() : ScreenOutcome::stay();
+        }
+
         if ($key->key === Key::Tab) {
             return $this->moveFocus();
+        }
+
+        if ($this->panes->focusShowsTree()) {
+            return $this->inTree($key);
         }
 
         $directory = $this->panes->focused()->directory();
@@ -267,8 +342,9 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
             $key->key === Key::Backspace, $key->key === Key::ArrowLeft => $this->goUp($directory),
             $key->key === Key::Escape => $this->dropFilter(),
             // Litera z modyfikatorem nie jest treścią (reguła 11j): goła kropka
-            // przełącza wpisy ukryte, `Ctrl`+`.` i `Alt`+`.` — nie.
-            $key->key === Key::Character && !$key->ctrl && !$key->alt => $this->character($key->raw),
+            // przełącza wpisy ukryte, `Ctrl`+`.` i `Alt`+`.` — nie. `Ctrl` odpadł
+            // już wyżej, razem z klawiszem widoku, więc zostaje tu sam `Alt`.
+            $key->key === Key::Character && !$key->alt => $this->character($key->raw),
             default => ScreenOutcome::stay(),
         };
     }
@@ -280,6 +356,133 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
             '/' => $this->openFilter(),
             default => ScreenOutcome::stay(),
         };
+    }
+
+    /** Zamiana widoku panelu z ogniskiem: lista na drzewo i z powrotem (krok 31). */
+    private function toggleTree(): ScreenOutcome
+    {
+        $this->panes->toggleTree();
+
+        return ScreenOutcome::stay();
+    }
+
+    /**
+     * Klawisze panelu pokazującego drzewo.
+     *
+     * Osobna gałąź, a nie dopisek do tamtej listy przypadków, bo trzy klawisze
+     * znaczą tu co innego: `→` rozwija zamiast wchodzić, `←` zwija zamiast
+     * wychodzić, a `Enter` zostaje przy swoim znaczeniu z całej aplikacji (P3) —
+     * zatwierdza, czyli wchodzi do katalogu. `Backspace` **nie zmienia znaczenia
+     * nigdy** i to jest tu ważniejsze, niż wygląda: wyjście katalog wyżej ma jedną
+     * drogę niezależną od widoku.
+     */
+    private function inTree(KeyPress $key): ScreenOutcome
+    {
+        $tree = $this->panes->focusedTree();
+
+        return match (true) {
+            $key->key === Key::ArrowUp => $this->treeMoved($tree, -1),
+            $key->key === Key::ArrowDown => $this->treeMoved($tree, 1),
+            $key->key === Key::ArrowRight => $this->treeOpened($tree),
+            $key->key === Key::ArrowLeft => $this->treeClosed($tree),
+            $key->key === Key::Enter => $this->treeEntered($tree),
+            $key->key === Key::Backspace => $this->goUp($this->panes->focused()->directory()),
+            $key->key === Key::Escape => $this->dropFilter(),
+            $key->key === Key::Character && !$key->alt => $this->character($key->raw),
+            default => ScreenOutcome::stay(),
+        };
+    }
+
+    /**
+     * Ruch kursora po węzłach. Kontekst sesji ogłaszamy przy każdym, bo kursor
+     * drzewa **jest** wskazaniem panelu — moduł opisujący plik ma pokazać węzeł,
+     * na którym użytkownik stoi, a nie zaznaczenie listy sprzed przełączenia widoku.
+     */
+    private function treeMoved(BrowserTree $tree, int $delta): ScreenOutcome
+    {
+        $tree->moveBy($delta);
+        $this->panes->publishFocused();
+
+        return ScreenOutcome::stay();
+    }
+
+    /**
+     * `→` — rozwinięcie gałęzi, a na gałęzi już rozwiniętej zejście do jej
+     * pierwszego dziecka.
+     *
+     * Limit głębokości melduje się **zdaniem**, a nie brakiem reakcji: klawisz,
+     * który raz działa, a raz nie, czyta się jak usterka, a ustawienie, którego
+     * skutku nie widać, jak martwy przełącznik.
+     */
+    private function treeOpened(BrowserTree $tree): ScreenOutcome
+    {
+        $node = $tree->cursorNode();
+
+        if ($node === null || !$node->hasChildren) {
+            return ScreenOutcome::stay();
+        }
+
+        if ($node->expanded) {
+            $tree->focusChild($node);
+            $this->panes->publishFocused();
+
+            return ScreenOutcome::stay();
+        }
+
+        if ($tree->expand($node)) {
+            return ScreenOutcome::stay();
+        }
+
+        return ScreenOutcome::stay(Message::info(
+            $this->translator->plural(self::DEPTH_LIMIT_KEY, $tree->limit() ?? 0),
+        ));
+    }
+
+    /**
+     * `←` — zwinięcie gałęzi, na zwiniętej skok do rodzica, a na pierwszym
+     * poziomie wyjście katalog wyżej.
+     *
+     * Trzy znaczenia jednego klawisza wyglądają na dużo, ale są jednym zdaniem
+     * czytanym z góry na dół: **wróć o poziom**. Ostatnie z nich jest przy tym
+     * jedynym miejscem, w którym drzewo zachowuje się dokładnie tak, jak lista —
+     * bo poziom nad pierwszym leży już na dysku, a nie w drzewie.
+     */
+    private function treeClosed(BrowserTree $tree): ScreenOutcome
+    {
+        $node = $tree->cursorNode();
+
+        if ($node !== null && $node->expanded) {
+            $tree->collapse($node);
+            $this->panes->publishFocused();
+
+            return ScreenOutcome::stay();
+        }
+
+        if ($node !== null && $tree->focusParent($node)) {
+            $this->panes->publishFocused();
+
+            return ScreenOutcome::stay();
+        }
+
+        return $this->goUp($this->panes->focused()->directory());
+    }
+
+    /**
+     * `Enter` na węźle-katalogu czyni go katalogiem panelu — czyli robi to samo,
+     * co w liście, tyle że wpis bierze się z dowolnego poziomu drzewa.
+     *
+     * Rozwinięcia zostają: są trzymane pod kluczem bezwzględnym, więc katalog
+     * otwarty i porzucony wraca w tym samym stanie.
+     */
+    private function treeEntered(BrowserTree $tree): ScreenOutcome
+    {
+        $node = $tree->cursorNode();
+
+        if ($node === null || !$node->hasChildren) {
+            return ScreenOutcome::stay();
+        }
+
+        return $this->open($tree->cursorDirectory());
     }
 
     /**
@@ -412,37 +615,16 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
     }
 
     /**
-     * Widoczność wpisów ukrytych wymaga ponownego odczytu katalogu — i to
-     * **przed** zapisem konfiguracji, nie po nim: nieudany odczyt rzuca wyjątek,
-     * więc ustawienie zostaje wtedy takie, jakie było, i lista nie rozjeżdża się
-     * z plikiem na dysku.
+     * Widoczność wpisów ukrytych — czynność wspólna z komendą `browser.hidden`,
+     * więc mieszka w `HiddenEntries`, a nie tutaj (krok 32).
      *
-     * Od kroku 21 zapisem zajmuje się `ChangeModuleSettingUseCase`, bo ustawienie
-     * jest ustawieniem **modułu**. Obie drogi — ten klawisz i pozycja na zakładce
-     * ustawień — kończą się w tym samym miejscu i w tym samym kluczu pliku.
+     * Do tamtej klasy przeniosła się razem z powodem, dla którego kolejność jej
+     * kroków nie jest dowolna: odczyt obu katalogów idzie **przed** zapisem
+     * konfiguracji. Ekranowi zostaje to, co do niego należy — zamiana wyniku na
+     * `ScreenOutcome`.
      */
     private function toggleHidden(): ScreenOutcome
     {
-        $show = !$this->panes->focused()->showsHiddenEntries();
-
-        // Wpisy ukryte są ustawieniem **modułu**, więc dotyczą obu paneli naraz.
-        // Odczyt idzie przez oba, zanim zapiszemy konfigurację: gdy któryś rzuci,
-        // ustawienie zostaje takie, jakie było, i żadna z list nie rozjeżdża się
-        // z dyskiem.
-        foreach ($this->panes->all() as $pane) {
-            $pane->enter($this->toggleHidden->execute($pane->directory(), $show));
-        }
-
-        [$settings, $message] = $this->changeSetting->shift(
-            $this->state->settings(),
-            BrowserSettings::ID,
-            BrowserSettings::declaration(),
-            1,
-        );
-
-        $this->state->applySettings($settings);
-
-        return ScreenOutcome::stay($message);
+        return ScreenOutcome::stay($this->hidden->flip());
     }
-
 }

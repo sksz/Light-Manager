@@ -3,9 +3,23 @@
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="vendor/autoload.php"
          colors="true">
+    <!--
+        Dwie grupy od kroku 38. `unit` sprawdza klasy, `functional` — przebiegi
+        użytkownika: sekwencje klawiszy przez `ScreenFixture` (a przy starcie
+        i zmianie rozmiaru przez `GameLoop` ze `ScriptedTerminal`), z asercjami
+        w punktach kontrolnych.
+
+        Granica jest tu **po to, żeby dało się ją wywołać osobno** — krok 39
+        opiera na niej cele `test-unit` i `test-functional`. Domyślne
+        uruchomienie bez argumentów robi jedno i drugie.
+    -->
     <testsuites>
-        <testsuite name="LightManager">
+        <testsuite name="unit">
             <directory>tests</directory>
+            <exclude>tests/Functional</exclude>
+        </testsuite>
+        <testsuite name="functional">
+            <directory>tests/Functional</directory>
         </testsuite>
     </testsuites>
     <source>

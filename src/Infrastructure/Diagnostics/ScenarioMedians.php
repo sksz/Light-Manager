@@ -21,10 +21,21 @@ final class ScenarioMedians
         public readonly float $totalMilliseconds,
         public readonly int $blobBytes,
         public readonly bool $unstable,
+        /**
+         * Czas **zimnej** klatki (krok 38) — pierwszej po rozgrzaniu procesu,
+         * ale przed rozgrzaniem pamięci podręcznych klatki.
+         *
+         * Wchodzi do wzorca jako zapis i **nigdy nie podnosi alarmu regresji**:
+         * porównanie liczy się z `total`, bo pojedyncza próbka ma rozrzut
+         * większy niż próg, którym mierzy się mediany (D64).
+         */
+        public readonly ?float $coldMilliseconds = null,
+        /** Szczyt pamięci procesu w obrębie scenariusza, w bajtach. */
+        public readonly int $peakMemoryBytes = 0,
     ) {
     }
 
-    /** @return array<string, float|int|bool> */
+    /** @return array<string, float|int|bool|null> */
     public function toArray(): array
     {
         return [
@@ -34,10 +45,17 @@ final class ScenarioMedians
             'total' => round($this->totalMilliseconds, 3),
             'bytes' => $this->blobBytes,
             'unstable' => $this->unstable,
+            'cold' => $this->coldMilliseconds === null ? null : round($this->coldMilliseconds, 3),
+            'peakBytes' => $this->peakMemoryBytes,
         ];
     }
 
-    /** @param array<string, mixed> $data */
+    /**
+     * Wzorce sprzed kroku 38 nie mają kluczy `cold` ani `peakBytes` i mają
+     * pozostać czytelne: brak wartości znaczy „nie zmierzono”, a nie zero.
+     *
+     * @param array<string, mixed> $data
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -47,6 +65,8 @@ final class ScenarioMedians
             JsonValue::float($data, 'total'),
             JsonValue::int($data, 'bytes'),
             JsonValue::bool($data, 'unstable'),
+            JsonValue::nullableFloat($data, 'cold'),
+            JsonValue::int($data, 'peakBytes'),
         );
     }
 }

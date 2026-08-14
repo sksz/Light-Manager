@@ -1,0 +1,203 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use LightManager\Infrastructure\I18n\TranslatorService;
+
+/*
+ * Budowa dystrybucji (krok 39, D72): jedno archiwum PHAR z aplikacją oraz
+ * katalog `assets/` **obok** niego.
+ *
+ * Dlaczego assets zostają na zewnątrz: silnik `GL\Audio` jest rozszerzeniem C
+ * i pliku spod `phar://` nie przeczyta. Ścieżkę do utworu wskazuje się
+ * w zbudowanej aplikacji **bezwzględnie** (ustawienia modułu audio) — tę drogę
+ * `GlAudioService::resolved()` obsługuje bez żadnej zmiany.
+ *
+ * Wołaj przez `make build`; wprost wymaga wyłączonej ochrony zapisu:
+ *   php -d phar.readonly=0 bin/build-phar
+ */
+
+$root = dirname(__DIR__);
+$autoload = $root . '/vendor/autoload.php';
+
+// Ten jeden napis nie może przejść przez katalog: bez autoloadera nie ma
+// jeszcze ani tłumacza, ani czym go wczytać.
+if (!is_file($autoload)) {
+    fwrite(STDERR, 'Composer dependencies are missing. Run: composer install' . PHP_EOL);
+
+    exit(1);
+}
+
+require $autoload;
+
+$translator = TranslatorService::getInstance();
+
+$fail = static function (string $key, array $parameters = []) use ($translator): never {
+    fwrite(STDERR, $translator->translate($key, $parameters) . PHP_EOL);
+
+    exit(1);
+};
+
+if (!Phar::canWrite()) {
+    $fail('build.problem.readonly');
+}
+
+/** Kasuje katalog albo plik razem z zawartością; dowiązania zdejmuje, nie schodzi w nie. */
+$remove = static function (string $path) use (&$remove): void {
+    if (is_link($path) || is_file($path)) {
+        unlink($path);
+
+        return;
+    }
+
+    if (!is_dir($path)) {
+        return;
+    }
+
+    foreach (array_diff(scandir($path) ?: [], ['.', '..']) as $entry) {
+        $remove($path . '/' . $entry);
+    }
+
+    rmdir($path);
+};
+
+/** Kopiuje katalog rekurencyjnie; pliki zachowują prawa dostępu. */
+$copy = static function (string $from, string $to) use (&$copy): void {
+    if (is_file($from)) {
+        copy($from, $to);
+        chmod($to, fileperms($from) & 0777);
+
+        return;
+    }
+
+    if (!is_dir($to)) {
+        mkdir($to, 0755, true);
+    }
+
+    foreach (array_diff(scandir($from) ?: [], ['.', '..']) as $entry) {
+        $copy($from . '/' . $entry, $to . '/' . $entry);
+    }
+};
+
+$manifest = json_decode((string) file_get_contents($root . '/composer.json'), true);
+$version = is_array($manifest) && is_string($manifest['version'] ?? null) ? $manifest['version'] : '0.0.0';
+
+$buildDir = $root . '/build';
+$stage = $buildDir . '/stage';
+$pharPath = $buildDir . '/light-manager-' . $version . '.phar';
+
+$remove($stage);
+$remove($pharPath);
+
+if (!is_dir($buildDir)) {
+    mkdir($buildDir, 0755, true);
+}
+
+// 1. Zawartość dystrybucji. Świadomie **bez** `tests/`, `docs/` i narzędzi
+//    repozytorium: `bin/render-bench` liczy ścieżki do `docs/pomiary/`
+//    i `tests/Golden/`, których w dystrybucji nie ma, a `bin/install-desktop-entry`
+//    potrzebuje `realpath()` pliku wykonywalnego — spod `phar://` go nie dostanie.
+echo $translator->translate('build.step.stage'), PHP_EOL;
+
+mkdir($stage, 0755, true);
+
+foreach (['src', 'lang'] as $directory) {
+    $copy($root . '/' . $directory, $stage . '/' . $directory);
+}
+
+foreach (['composer.json', 'composer.lock'] as $file) {
+    $copy($root . '/' . $file, $stage . '/' . $file);
+}
+
+mkdir($stage . '/bin', 0755, true);
+$copy($root . '/bin/light-manager', $stage . '/bin/light-manager');
+
+// 2. Zależności bez deweloperskich, z autoloaderem zbudowanym z mapy klas.
+echo $translator->translate('build.step.deps'), PHP_EOL;
+
+$command = sprintf(
+    '%s install --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --no-progress --working-dir=%s',
+    escapeshellarg((string) (getenv('COMPOSER') ?: 'composer')),
+    escapeshellarg($stage),
+);
+
+passthru($command, $exitCode);
+
+if ($exitCode !== 0) {
+    $remove($stage);
+    $fail('build.problem.install');
+}
+
+// Dowiązania Composera do plików wykonywalnych są w archiwum bezużyteczne,
+// a `Phar::buildFromDirectory()` potyka się o dowiązanie wskazujące poza drzewo.
+$remove($stage . '/vendor/bin');
+
+// 3. Archiwum. Jedyna transformacja treści w całej budowie: z `bin/light-manager`
+//    znika wiersz `#!`, bo wypisałby się na STDOUT przed pierwszą sekwencją
+//    sterującą — czyli zepsułby pierwszą klatkę.
+echo $translator->translate('build.step.phar'), PHP_EOL;
+
+$phar = new Phar($pharPath);
+$phar->startBuffering();
+$phar->buildFromDirectory($stage);
+
+$entryPoint = (string) file_get_contents($stage . '/bin/light-manager');
+$phar->addFromString('bin/light-manager', (string) preg_replace('/\A#![^\n]*\n/', '', $entryPoint));
+
+$phar->setStub(
+    "#!/usr/bin/env php\n"
+    . "<?php\n"
+    . "Phar::mapPhar('light-manager.phar');\n"
+    . "require 'phar://light-manager.phar/bin/light-manager';\n"
+    . "__HALT_COMPILER();\n",
+);
+
+$phar->stopBuffering();
+unset($phar);
+
+chmod($pharPath, 0755);
+$remove($stage);
+
+// 4. Zasoby obok archiwum — patrz komentarz na górze pliku.
+echo $translator->translate('build.step.assets'), PHP_EOL;
+
+$remove($buildDir . '/assets');
+$copy($root . '/assets', $buildDir . '/assets');
+
+// 5. Sprawdzenie, że wynik w ogóle się ładuje: autoloader i katalog napisów
+//    spod `phar://`. Aplikacji nie da się tu uruchomić — potrzebuje terminala.
+echo $translator->translate('build.step.smoke'), PHP_EOL;
+
+$probe = sprintf(
+    'require %s; echo TranslatorService::getInstance()->translate(%s);',
+    var_export('phar://' . $pharPath . '/vendor/autoload.php', true),
+    var_export('app.name', true),
+);
+
+exec(
+    sprintf(
+        '%s -r %s 2>&1',
+        escapeshellarg(PHP_BINARY),
+        escapeshellarg('use ' . TranslatorService::class . '; ' . $probe),
+    ),
+    $output,
+    $exitCode,
+);
+
+if ($exitCode !== 0 || trim(implode('', $output)) === '') {
+    $fail('build.problem.smoke', ['details' => trim(implode(PHP_EOL, $output))]);
+}
+
+$size = (int) filesize($pharPath);
+
+echo PHP_EOL, $translator->translate('build.done', [
+    'path' => $pharPath,
+    'size' => $translator->number($size / 1048576, 1),
+]), PHP_EOL;
+echo $translator->translate('build.assets', ['path' => $buildDir . '/assets']), PHP_EOL;
+echo PHP_EOL, $translator->translate('build.hint.track', [
+    'path' => $buildDir . '/assets/audio',
+]), PHP_EOL;
+
+exit(0);

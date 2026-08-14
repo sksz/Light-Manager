@@ -252,7 +252,7 @@ odrębnego planu.
 ### D10 — Kluczowe klasyfikacje taktyczne DDD i struktura portów
 
 **Dotyczy:** kroku 01 (pełna treść: sekcja „Specyfikacja” w
-[01-warstwy-ddd-i-struktura-katalogow.md](01-warstwy-ddd-i-struktura-katalogow.md)).
+[01-warstwy-ddd-i-struktura-katalogow.md](archiwum/01-warstwy-ddd-i-struktura-katalogow.md)).
 **Decyzja:**
 - `Directory` jest **agregatem (korzeniem) i encją** — tożsamość przez
   `DirectoryPath`, mutowalną w miejscu (nie w pełni niemutowalną jak Value
@@ -283,7 +283,7 @@ przy każdej zmianie zaznaczenia); umieszczenie portów I/O bezpośrednio w
 ### D11 — Kształt wzorca Singleton, reset w testach, orkiestracja bootstrapu
 
 **Dotyczy:** kroku 02 (pełna treść: sekcja „Specyfikacja” w
-[02-wzorzec-singleton-i-bootstrap.md](02-wzorzec-singleton-i-bootstrap.md)).
+[02-wzorzec-singleton-i-bootstrap.md](archiwum/02-wzorzec-singleton-i-bootstrap.md)).
 **Decyzja:**
 - Wspólny mechanizm Singletona przez **dziedziczenie po klasie
   abstrakcyjnej** `Infrastructure/Support/AbstractSingleton` (late static
@@ -317,7 +317,7 @@ orkiestrującej.
 ### D12 — Wersja PHP i hierarchia wyjątków domenowych
 
 **Dotyczy:** kroku 03 (pełna treść: sekcja „Specyfikacja” w
-[03-standardy-stylu-kodowania.md](03-standardy-stylu-kodowania.md)).
+[03-standardy-stylu-kodowania.md](archiwum/03-standardy-stylu-kodowania.md)).
 **Decyzja:**
 - Wymagana wersja PHP: **`^8.3`** — zgodna z wersją zainstalowaną lokalnie
   (potwierdzone: `php -v` → 8.3.11), zero tarcia przy starcie kroku 05.
@@ -420,7 +420,7 @@ progu awarii (zawodne i wolne).
 ### D16 — Reprezentacja klawisza, wyjątki Infrastructure, testowalność wejścia
 
 **Dotyczy:** kroku 06 (pełna treść: sekcja „Specyfikacja zrealizowana” w
-[06-terminal-io.md](06-terminal-io.md)).
+[06-terminal-io.md](archiwum/06-terminal-io.md)).
 **Decyzja:**
 - **Klawisz jako DTO**: `TerminalPort::readKey(): ?KeyPress`, gdzie `KeyPress`
   łączy enum `Key` (strzałki, Home/End/PageUp/PageDown/Delete, Enter,
@@ -466,7 +466,7 @@ na `AbstractSingleton` zamiast `@phpstan-ignore`.
 ### D17 — Rozdział możliwości Imagicka od terminala, surowe I/O poza portem
 
 **Dotyczy:** kroku 07 (pełna treść: sekcja „Specyfikacja zrealizowana” w
-[07-wykrywanie-sixel.md](07-wykrywanie-sixel.md)).
+[07-wykrywanie-sixel.md](archiwum/07-wykrywanie-sixel.md)).
 **Decyzja:**
 - **Możliwości ImageMagick w osobnym Singletonie**
   `Infrastructure/Imagick/ImagickCapabilityService` — `SixelCapabilityService`
@@ -503,7 +503,7 @@ starcie na terminalu bez Sixela).
 ### D18 — Rozmiar płótna, przejęcie ekranu i jakość tekstu
 
 **Dotyczy:** kroku 08 (pełna treść: sekcja „Specyfikacja zrealizowana” w
-[08-render-imagick-sixel.md](08-render-imagick-sixel.md)).
+[08-render-imagick-sixel.md](archiwum/08-render-imagick-sixel.md)).
 **Decyzja:**
 - **Rozmiar płótna z zapytania o piksele** (`ESC [ 14 t`), tym samym
   mechanizmem co DA1 z kroku 07, z fallbackiem na `stty size` przemnożone przez
@@ -541,7 +541,7 @@ szerokości z listy preferencji zamiast nazwy na sztywno.
 ### D19 — Stały takt, sygnał jako znacznik i kształt punktu wejścia
 
 **Dotyczy:** kroku 09 (pełna treść: sekcja „Specyfikacja zrealizowana” w
-[09-petla-glowna.md](09-petla-glowna.md)).
+[09-petla-glowna.md](archiwum/09-petla-glowna.md)).
 **Decyzja:**
 - **Stały takt 20 klatek na sekundę w obu trybach renderowania**, z
   zachowaniem „pętla się ślizga”: przekroczenie budżetu 50 ms nie powoduje
@@ -589,7 +589,7 @@ wyjątek raz jeszcze.
 ### D20 — Zachowania nawigacji, okienko `file` i czas życia komunikatu
 
 **Dotyczy:** kroku 10 (pełna treść: sekcja „Specyfikacja zrealizowana” w
-[10-nawigacja-fs.md](10-nawigacja-fs.md)).
+[10-nawigacja-fs.md](archiwum/10-nawigacja-fs.md)).
 **Decyzja:**
 - **Sortowanie:** katalogi przed plikami, w obu grupach alfabetycznie **bez
   rozróżniania wielkości liter**, z polskimi znakami tuż przy literach
@@ -647,7 +647,7 @@ sekwencji startowej.
 ### D21 — Kształt klatki, miejsce przewijania i wygląd listy
 
 **Dotyczy:** kroku 11 (pełna treść: sekcja „Specyfikacja zrealizowana” w
-[11-render-listy-plikow.md](11-render-listy-plikow.md)).
+[11-render-listy-plikow.md](archiwum/11-render-listy-plikow.md)).
 **Decyzja:**
 - **`Frame` niesie wiersze z jawnym stylem** (`list<FrameLine>`, enum
   `LineStyle`). Renderer tłumaczy styl na kolory albo kody ANSI i nie zna ani
@@ -753,7 +753,7 @@ wymaga API ≥0.76, więc trzeba by cofnąć także gnome-terminal; snapshot z g
 ### D24 — Miejsce, warstwy i granice podglądu miniatur
 
 **Dotyczy:** kroku 12 (pełna treść: sekcja „Specyfikacja zrealizowana”
-w [12-podglad-miniatur.md](12-podglad-miniatur.md)).
+w [12-podglad-miniatur.md](archiwum/12-podglad-miniatur.md)).
 
 **Decyzja:**
 - **Pas u dołu klatki**, wysoki na 8 wierszy, podążający za zaznaczeniem.
@@ -804,7 +804,7 @@ nie skakała przy zmianie zaznaczenia.
 
 ### D25 — Paleta Grafit, układ panelowy i uproszczony fallback
 
-**Dotyczy:** kroku 13 (pełna treść: [13-motyw-graficzny.md](13-motyw-graficzny.md)).
+**Dotyczy:** kroku 13 (pełna treść: [13-motyw-graficzny.md](archiwum/13-motyw-graficzny.md)).
 
 **Kontekst:** kolory z kroku 08 nigdy nie były projektowane — powstały jako
 dziewięć stałych w `SixelFrameEncoder`, żeby cokolwiek było widać. Jeden
@@ -843,7 +843,7 @@ poprawiłeś”).
 ### D26 — Konfiguracja w pliku i ekran ustawień w aplikacji
 
 **Dotyczy:** kroku 14 (pełna treść:
-[14-konfiguracja-i-ekran-ustawien.md](14-konfiguracja-i-ekran-ustawien.md)).
+[14-konfiguracja-i-ekran-ustawien.md](archiwum/14-konfiguracja-i-ekran-ustawien.md)).
 
 **Decyzja:**
 - **Motyw przełączalny**, nie jeden wpisany na sztywno. Grafit domyślny,
@@ -871,7 +871,7 @@ większy od pozostałych.
 ### D27 — Progi układu, paleta Sixela i wygładzanie
 
 **Dotyczy:** kroku 13 (pełna treść: sekcja „Specyfikacja zrealizowana”
-w [13-motyw-graficzny.md](13-motyw-graficzny.md)).
+w [13-motyw-graficzny.md](archiwum/13-motyw-graficzny.md)).
 
 **Decyzja:**
 - **Degradacja układu ustępuje po kolei, zaczynając od pasa podglądu.**
@@ -882,7 +882,7 @@ w [13-motyw-graficzny.md](13-motyw-graficzny.md)).
   makiety, zamiast jednowierszowej belki.
 - **Etykiety stref po angielsku** (`PATH`, `FILES`, `PREVIEW`), a
   wielojęzyczność całego interfejsu jako osobny krok planu —
-  [krok 15](15-wielojezycznosc.md).
+  [krok 15](archiwum/15-wielojezycznosc.md).
 - **Paleta Sixela: 64 kolory.**
 - **Wygładzanie: tekst bez, obrysy z** — oba jako osobne przełączniki do
   konfiguracji w kroku 14.
@@ -935,7 +935,7 @@ ograniczany do połowy krótszego boku panelu.
 ### D28 — Miejsce, instrumentacja i forma wyników narzędzi pomiarowych
 
 **Dotyczy:** kroku 16 (pełna treść:
-[16-narzedzia-diagnostyczne-wydajnosci.md](16-narzedzia-diagnostyczne-wydajnosci.md)).
+[16-narzedzia-diagnostyczne-wydajnosci.md](archiwum/16-narzedzia-diagnostyczne-wydajnosci.md)).
 
 **Kontekst:** pomiary, na których oparto decyzje kroku 13 (próg palety,
 wygładzanie — D27), powstawały przez podmienianie stałych `sed`-em w kodzie
@@ -969,7 +969,7 @@ konfiguracji dawałby fałszywe alarmy.
 ### D29 — Zakres optymalizacji: takt pętli, kształt wiersza i cel kroku
 
 **Dotyczy:** kroku 17 (pełna treść:
-[17-optymalizacja-wydajnosci.md](17-optymalizacja-wydajnosci.md)).
+[17-optymalizacja-wydajnosci.md](archiwum/17-optymalizacja-wydajnosci.md)).
 
 **Kontekst:** klatka kosztuje 184 ms przy budżecie 50 ms wynikającym z taktu
 20 kl./s (D19), więc pętla nigdy nie zasypia. Rozkład kosztu: ~65% tekst,
@@ -1017,7 +1017,7 @@ do nich nie wracał: złożenie tekstu w jeden `ImagickDraw` (154 wobec
 ### D30 — Kształt mechanizmu modułów: źródło, kontrakt, ekrany i granice
 
 **Dotyczy:** kroku 20, wcześniej 18 (pełna treść:
-[20-moduly-plugins.md](20-moduly-plugins.md)).
+[20-moduly-plugins.md](archiwum/20-moduly-plugins.md)).
 
 **Kontekst:** projekt ma zyskać punkt, w którym dopisuje się funkcję bez
 dotykania rdzenia. Moduł ma cztery punkty zaczepienia: zakładka w oknie
@@ -1101,7 +1101,7 @@ policzona do zakresu kroku 18.
 
 **Dotyczy:** kroku 14 (pełna treść: sekcje „Rozstrzygnięcia ze startu kroku”
 i „Specyfikacja zrealizowana” w
-[14-konfiguracja-i-ekran-ustawien.md](14-konfiguracja-i-ekran-ustawien.md)).
+[14-konfiguracja-i-ekran-ustawien.md](archiwum/14-konfiguracja-i-ekran-ustawien.md)).
 
 **Decyzja:**
 
@@ -1182,7 +1182,7 @@ a nie tworzyć go od zera; treść D30 wymaga w tym punkcie poprawki.
 
 **Dotyczy:** kroku 15 (pełna treść: sekcje „Rozstrzygnięcia ze startu kroku”
 i „Specyfikacja zrealizowana” w
-[15-wielojezycznosc.md](15-wielojezycznosc.md)).
+[15-wielojezycznosc.md](archiwum/15-wielojezycznosc.md)).
 
 **Decyzja:**
 
@@ -1253,7 +1253,7 @@ interfejs aplikacji.
 
 **Dotyczy:** kroku 16 (pełna treść: sekcje „Rozstrzygnięcia ze startu kroku”
 i „Specyfikacja zrealizowana” w
-[16-narzedzia-diagnostyczne-wydajnosci.md](16-narzedzia-diagnostyczne-wydajnosci.md)).
+[16-narzedzia-diagnostyczne-wydajnosci.md](archiwum/16-narzedzia-diagnostyczne-wydajnosci.md)).
 
 **Decyzja:**
 
@@ -1333,7 +1333,7 @@ zakłócone. Do zrobienia na starcie kroku 17, przed pierwszą optymalizacją.
 
 **Dotyczy:** kroku 17 (pełna treść: sekcje „Rozstrzygnięcia ze startu kroku”
 i „Specyfikacja zrealizowana” w
-[17-optymalizacja-wydajnosci.md](17-optymalizacja-wydajnosci.md)).
+[17-optymalizacja-wydajnosci.md](archiwum/17-optymalizacja-wydajnosci.md)).
 
 **Decyzja:**
 
@@ -1409,9 +1409,9 @@ decyzji o takcie do czasu zobaczenia wyniku.
 ### D35 — Komponenty i okno komend przed modułami: przenumerowanie kroków
 
 **Dotyczy:** kolejności planu oraz kroków
-[18-komponenty-i-plaszczyzny.md](18-komponenty-i-plaszczyzny.md),
-[19-okno-komend.md](19-okno-komend.md) i
-[20-moduly-plugins.md](20-moduly-plugins.md).
+[18-komponenty-i-plaszczyzny.md](archiwum/18-komponenty-i-plaszczyzny.md),
+[19-okno-komend.md](archiwum/19-okno-komend.md) i
+[20-moduly-plugins.md](archiwum/20-moduly-plugins.md).
 
 **Kontekst:** dotychczasowy krok 18 („Moduły”) zakładał, że ekran modułu oddaje
 `list<FrameLine>` — czyli że pierwsze publiczne API projektu powstanie wobec
@@ -1463,7 +1463,7 @@ trafią do osobnego wpisu.
 ### D36 — Komponenty interfejsu: kontrakt, płaszczyzny, układ i granice warstw
 
 **Dotyczy:** kroku 18 (pełna treść:
-[18-komponenty-i-plaszczyzny.md](18-komponenty-i-plaszczyzny.md)).
+[18-komponenty-i-plaszczyzny.md](archiwum/18-komponenty-i-plaszczyzny.md)).
 
 **Kontekst:** interfejs aplikacji nie ma słownika własnych części. Okienko ma
 dwie niezależne implementacje (49 linii w `SixelFrameEncoder::drawPopup()`, 28
@@ -1634,7 +1634,7 @@ w `ThumbnailService`, ale kwantyzacja płacona trzydzieści razy na sekundę).
 
 ### D38 — Kontrakt modułu po komponentach: dwie warstwy, `Ctrl` w wejściu, napisy modułu
 
-**Dotyczy:** kroku 20 (pełna treść: [20-moduly-plugins.md](20-moduly-plugins.md)).
+**Dotyczy:** kroku 20 (pełna treść: [20-moduly-plugins.md](archiwum/20-moduly-plugins.md)).
 Uzupełnia D30, która powstała przed krokiem 18 i w trzech punktach jest już
 nieaktualna.
 
@@ -1727,7 +1727,7 @@ komendy zamiast czekać na krok 19.
 
 ### D39 — Okno komend: kontrakt komendy, czynna płaszczyzna modalna i pole tekstowe
 
-**Dotyczy:** kroku 19 (pełna treść: [19-okno-komend.md](19-okno-komend.md)).
+**Dotyczy:** kroku 19 (pełna treść: [19-okno-komend.md](archiwum/19-okno-komend.md)).
 Domyka planowanie rozpoczęte przy kroku 18, którego rozstrzygnięcie P13
 powołało ten krok do życia.
 
@@ -1832,7 +1832,7 @@ dopiero po pierwszym znaku; model Sonnet / high oraz Opus / high.
 > stoi w pliku tam, gdzie powstał, przy kroku 19.
 
 **Dotyczy:** kroku 19 (pełna treść: sekcje „Rozstrzygnięcia wykonawcze ze startu
-kroku” i „Odstępstwa od planu” w [19-okno-komend.md](19-okno-komend.md)).
+kroku” i „Odstępstwa od planu” w [19-okno-komend.md](archiwum/19-okno-komend.md)).
 
 **Decyzja** — siedem rozstrzygnięć wykonawczych i pięć odstępstw, z których trzy
 zmieniają coś, co plan mówił wprost:
@@ -1907,7 +1907,7 @@ osobne klasy na `core.help` i `core.settings`.
 ### D40 — Menadżer plików jako moduł domyślny: rdzeń przestaje wiedzieć o plikach
 
 **Dotyczy:** nowego kroku 21 (pełna treść:
-[21-przegladarka-jako-modul.md](21-przegladarka-jako-modul.md)) oraz dwóch
+[21-przegladarka-jako-modul.md](archiwum/21-przegladarka-jako-modul.md)) oraz dwóch
 poprawek w planie kroku 20.
 
 **Kontekst:** przy doprecyzowaniu kroku 20 użytkownik postawił wymaganie, którego
@@ -2001,7 +2001,7 @@ Opus/high dla kroku 21.
 ### D41 — Moduły: trzy rodzaje zakładek, ustawienia surowe w pliku i miejsce komendy modułu
 
 **Dotyczy:** kroku 20 (pełna treść: sekcje „Rozstrzygnięcia wykonawcze ze startu
-kroku” i „Odstępstwa od planu” w [20-moduly-plugins.md](20-moduly-plugins.md)).
+kroku” i „Odstępstwa od planu” w [20-moduly-plugins.md](archiwum/20-moduly-plugins.md)).
 
 **Decyzja** — osiem rozstrzygnięć wykonawczych podjętych przez użytkownika na
 starcie kroku i pięć odstępstw wynikłych z otwarcia edytora. Warte odnotowania
@@ -2065,7 +2065,7 @@ dopiero po zmianie zaznaczenia; `exec()` zachowany w narzędziu opisującym plik
 ### D42 — Przeglądarka jako moduł: trzy strefy ekranu, wyjątek przedstawiający się sam i dno stosu z konfiguracji
 
 **Dotyczy:** kroku 21 (pełna treść: sekcje „Rozstrzygnięcia wykonawcze ze startu
-kroku” i „Odstępstwa od planu” w [21-przegladarka-jako-modul.md](21-przegladarka-jako-modul.md)).
+kroku” i „Odstępstwa od planu” w [21-przegladarka-jako-modul.md](archiwum/21-przegladarka-jako-modul.md)).
 
 **Decyzja** — osiem rozstrzygnięć wykonawczych podjętych przez użytkownika na
 starcie kroku i dziesięć odstępstw wynikłych z otwarcia edytora. Warte
@@ -2136,14 +2136,14 @@ udający drugi; rozbudowa dostała numer 22).
 
 ### D43 — Pełny obraz pliku wymusza trzy komponenty rdzenia: przenumerowanie kroków 22–25
 
-**Dotyczy:** kroków 22, 23, 24 i 25 (pełna treść: [22-zwijana-sekcja.md](22-zwijana-sekcja.md),
-[23-pasek-postepu.md](23-pasek-postepu.md), [24-podzial-ekranu.md](24-podzial-ekranu.md),
-[25-pelny-obraz-pliku.md](25-pelny-obraz-pliku.md)).
+**Dotyczy:** kroków 22, 23, 24 i 25 (pełna treść: [22-zwijana-sekcja.md](archiwum/22-zwijana-sekcja.md),
+[23-pasek-postepu.md](archiwum/23-pasek-postepu.md), [24-podzial-ekranu.md](archiwum/24-podzial-ekranu.md),
+[25-pelny-obraz-pliku.md](archiwum/25-pelny-obraz-pliku.md)).
 
 **Data:** 2026-08-10.
 
 **Decyzja** — dziewięć rozstrzygnięć użytkownika na starcie kroku „pełny obraz
-stanu pliku” (P1–P9 w [25-pelny-obraz-pliku.md](25-pelny-obraz-pliku.md)), z których
+stanu pliku” (P1–P9 w [25-pelny-obraz-pliku.md](archiwum/25-pelny-obraz-pliku.md)), z których
 **trzy wyszły poza moduł** i przewróciły kolejność planu.
 
 Rozstrzygnięcia dotyczące samego modułu:
@@ -2211,7 +2211,7 @@ powiedzieć wprost, że zależność była wyłącznie kolejnościowa.
 
 ### D44 — Pasek postępu: takt bez wymuszania, zegar dla ekranu i pierwszy użytkownik `Weight::Fill`
 
-**Dotyczy:** kroku 23 (pełna treść: [23-pasek-postepu.md](23-pasek-postepu.md)).
+**Dotyczy:** kroku 23 (pełna treść: [23-pasek-postepu.md](archiwum/23-pasek-postepu.md)).
 
 **Data:** 2026-08-10.
 
@@ -2284,7 +2284,7 @@ użytkownika testowego i istnieje po to, żeby krok 25 miał czym poruszyć pase
 
 ### D45 — Podział ekranu należy do modułu: dwa panele w jednym ekranie, oprawa w płaszczyźnie spodniej
 
-**Dotyczy:** kroku 24 (pełna treść: [24-podzial-ekranu.md](24-podzial-ekranu.md)).
+**Dotyczy:** kroku 24 (pełna treść: [24-podzial-ekranu.md](archiwum/24-podzial-ekranu.md)).
 
 **Data:** 2026-08-10.
 
@@ -2351,7 +2351,7 @@ tyle, ile nikt nie sprawdził.**
 ### D46 — Praca dłuższa od klatki: kawałek na klatkę, na żądanie, z właścicielem — a proces potomny osobnym krokiem
 
 **Dotyczy:** kroków 25 i 26 (pełna treść:
-[25-pelny-obraz-pliku.md](25-pelny-obraz-pliku.md), [26-proces-tlowy.md](26-proces-tlowy.md)).
+[25-pelny-obraz-pliku.md](archiwum/25-pelny-obraz-pliku.md), [26-proces-tlowy.md](archiwum/26-proces-tlowy.md)).
 
 **Data:** 2026-08-10.
 
@@ -2417,7 +2417,7 @@ modułu wyłącznie jego klasę główną, a sprawdza to nowy test w
 
 ### D47 — Proces tłowy: jedna praca z uchwytem, sprzątanie dwiema drogami, a `du` tylko dla katalogów
 
-**Dotyczy:** kroku 26 (pełna treść: [26-proces-tlowy.md](26-proces-tlowy.md)).
+**Dotyczy:** kroku 26 (pełna treść: [26-proces-tlowy.md](archiwum/26-proces-tlowy.md)).
 
 **Data:** 2026-08-11.
 
@@ -2574,7 +2574,7 @@ prawa powstać.
 
 ### D49 — Wiersz wielokolumnowy: jedna reguła podziału na dwie osie, tabela obok listy i `stat` zamiast dwóch pytań
 
-**Dotyczy:** kroku 27 (pełna treść: [27-tabela-kolumn.md](27-tabela-kolumn.md)).
+**Dotyczy:** kroku 27 (pełna treść: [27-tabela-kolumn.md](archiwum/27-tabela-kolumn.md)).
 
 **Data:** 2026-08-11.
 
@@ -2662,7 +2662,7 @@ dowiaduje, że coś było dosunięte.
 
 ### D50 — Krok 33: reakcja na zmianę rozmiaru okna wchodzi do planu jako osobna Faza VIII
 
-**Dotyczy:** kroku 33 (pełna treść: [33-reakcja-na-zmiane-rozmiaru.md](33-reakcja-na-zmiane-rozmiaru.md))
+**Dotyczy:** kroku 33 (pełna treść: [33-reakcja-na-zmiane-rozmiaru.md](archiwum/33-reakcja-na-zmiane-rozmiaru.md))
 i struktury planu ([00-index.md](00-index.md)).
 
 **Data:** 2026-08-11.
@@ -2703,7 +2703,7 @@ należy do użytkownika i stoi jako punkt 1 listy startowej kroku.
 
 ### D51 — Zmiana rozmiaru okna: prawdziwe zapytanie o piksele, samoodświeżanie bez zmian w kontraktach
 
-**Dotyczy:** kroku 33 (pełna treść: [33-reakcja-na-zmiane-rozmiaru.md](33-reakcja-na-zmiane-rozmiaru.md)).
+**Dotyczy:** kroku 33 (pełna treść: [33-reakcja-na-zmiane-rozmiaru.md](archiwum/33-reakcja-na-zmiane-rozmiaru.md)).
 
 **Data:** 2026-08-11.
 
@@ -2763,8 +2763,8 @@ odświeża się sama, bez ścieżki unieważnienia, o której można zapomnieć�
 
 ### D52 — Prezentacja poza terminalem: natywny OpenGL przez PHP-GLFW, Faza IX z dwoma krokami
 
-**Dotyczy:** kroków 34 i 35 (pełna treść: [34-okno-glfw.md](34-okno-glfw.md),
-[35-renderer-opengl.md](35-renderer-opengl.md)) i struktury planu
+**Dotyczy:** kroków 34 i 35 (pełna treść: [34-okno-glfw.md](archiwum/34-okno-glfw.md),
+[35-renderer-opengl.md](archiwum/35-renderer-opengl.md)) i struktury planu
 ([00-index.md](00-index.md)).
 
 **Data:** 2026-08-11.
@@ -2815,7 +2815,7 @@ wszystkie w tym projekcie — należą do użytkownika.
 
 ### D53 — Okno GLFW: flaga `--window`, `RendererMode::OpenGl`, port wejścia pod neutralną nazwą, rozmiar startowy z ustawień
 
-**Dotyczy:** kroku 34 (pełna treść: [34-okno-glfw.md](34-okno-glfw.md)).
+**Dotyczy:** kroku 34 (pełna treść: [34-okno-glfw.md](archiwum/34-okno-glfw.md)).
 
 **Data:** 2026-08-11.
 
@@ -2870,7 +2870,7 @@ zgodnościowy (zamykał drogę API wektorowemu).
 
 ### D54 — Renderer okienkowy: API wektorowe rozszerzenia, font systemowy, natywne ładowanie tekstur, pomiar w render-bench
 
-**Dotyczy:** kroku 35 (pełna treść: [35-renderer-opengl.md](35-renderer-opengl.md)).
+**Dotyczy:** kroku 35 (pełna treść: [35-renderer-opengl.md](archiwum/35-renderer-opengl.md)).
 
 **Data:** 2026-08-11.
 
@@ -2932,7 +2932,7 @@ wzorców przy tych samych scenariuszach.
 > miejsc w kodzie i dokumentacji; treść decyzji o muzyce nie zmieniła się
 > o literę.
 
-**Dotyczy:** kroku 36 (pełna treść: [36-odtwarzanie-muzyki.md](36-odtwarzanie-muzyki.md))
+**Dotyczy:** kroku 36 (pełna treść: [36-odtwarzanie-muzyki.md](archiwum/36-odtwarzanie-muzyki.md))
 i struktury planu ([00-index.md](00-index.md)).
 
 **Data:** 2026-08-11.
@@ -2982,7 +2982,7 @@ użytkownika.
 
 ### D56 — Okno potwierdzenia: decyzja wraca domknięciem, `Esc` znaczy „nie”, wariant groźny wchodzi od razu
 
-**Dotyczy:** kroku 28 (pełna treść: [28-okno-potwierdzenia.md](28-okno-potwierdzenia.md)).
+**Dotyczy:** kroku 28 (pełna treść: [28-okno-potwierdzenia.md](archiwum/28-okno-potwierdzenia.md)).
 
 **Data:** 2026-08-12.
 
@@ -3028,7 +3028,7 @@ dług trzeba było spłacać przez trzy kroki.
 
 ### D57 — Faza IX dostaje trzeci krok: dopracowanie okna
 
-**Dotyczy:** kroku 37 (pełna treść: [37-dopracowanie-okna.md](37-dopracowanie-okna.md))
+**Dotyczy:** kroku 37 (pełna treść: [37-dopracowanie-okna.md](archiwum/37-dopracowanie-okna.md))
 i struktury planu ([00-index.md](00-index.md)).
 
 **Data:** 2026-08-12.
@@ -3061,7 +3061,7 @@ niesprawdzony na sprzęcie albo zastąpiony samym odczytem wartości.
 
 ### D58 — Podgląd tekstu czyta jak edytor: okno po bajtach, kaskada rozpoznania, `Alt` w słowniku wejścia
 
-**Dotyczy:** kroku 29 (pełna treść: [29-podglad-tekstu.md](29-podglad-tekstu.md)),
+**Dotyczy:** kroku 29 (pełna treść: [29-podglad-tekstu.md](archiwum/29-podglad-tekstu.md)),
 komponentu `TextView`, modułu `FileInfo` oraz **warstwy wejścia** z kroków 06,
 19 i 34.
 
@@ -3164,7 +3164,7 @@ scenariusz `text-view` był z tego powodu potrzebny, a nie dołożony dla porzą
 ### D59 — Ósmy prymityw jest napisem na tle, filtr mieszka w panelu, a `Esc` odmawia
 
 **Dotyczy:** kroku 30 (pełna treść:
-[30-filtrowanie-i-podswietlenie.md](30-filtrowanie-i-podswietlenie.md)),
+[30-filtrowanie-i-podswietlenie.md](archiwum/30-filtrowanie-i-podswietlenie.md)),
 słownika prymitywów z kroku 18, **trzech rendererów** (kroki 07, 08, 35) oraz
 modułu przeglądarki.
 
@@ -3344,7 +3344,7 @@ będący jedną linią kończyłby się tam, gdzie się zaczyna.
 ### D61 — Diagnostyka, benchmark i testy funkcjonalne wchodzą do planu jako Faza XI z krokiem 38
 
 **Dotyczy:** kroku 38 (pełna treść:
-[38-rozbudowa-diagnostyki-i-testow.md](38-rozbudowa-diagnostyki-i-testow.md))
+[38-rozbudowa-diagnostyki-i-testow.md](archiwum/38-rozbudowa-diagnostyki-i-testow.md))
 i struktury planu ([00-index.md](00-index.md)).
 
 **Data:** 2026-08-13.
@@ -3390,7 +3390,7 @@ w bramce jakości — odrzucony w kroku 16 i nieprzywracany.
 
 ### D62 — Makefile jako jedno wejście do projektu: osobna Faza XII z krokiem 39
 
-**Dotyczy:** kroku 39 (pełna treść: [39-makefile.md](39-makefile.md))
+**Dotyczy:** kroku 39 (pełna treść: [39-makefile.md](archiwum/39-makefile.md))
 i struktury planu ([00-index.md](00-index.md)).
 
 **Data:** 2026-08-13.
@@ -3462,7 +3462,7 @@ procesu w dokumentach projektu — zobacz **D63**.
 
 ### D63 — Procesy projektu idą przez `make` i narzędzia repozytorium; reguła wchodzi do dokumentów
 
-**Dotyczy:** kroku 39 ([39-makefile.md](39-makefile.md), zakres pkt 8),
+**Dotyczy:** kroku 39 ([39-makefile.md](archiwum/39-makefile.md), zakres pkt 8),
 `CLAUDE.md`, [docs/architecture.md](../architecture.md) oraz
 [SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md).
 
@@ -3517,3 +3517,947 @@ wymuszanie reguły hookami gita — mechanizm egzekwujący za plecami zamiast
 zapisanej konwencji jest osobną decyzją i tego kroku nie dotyczy; opisanie
 procesów w samym `Makefile` (komentarze w celach) — to jest pomoc przy
 wywołaniu, nie miejsce, do którego ktoś zajrzy, zanim wywoła coś innego.
+
+## Decyzje wykonawcze kroku 38 (2026-08-13)
+
+### D64 — Rozstrzygnięcia startowe kroku 38: co narzędzie mierzy, czym wykrywa regresję i gdzie mieszkają przebiegi
+
+**Dotyczy:** kroku 38 (pełna treść:
+[38-rozbudowa-diagnostyki-i-testow.md](archiwum/38-rozbudowa-diagnostyki-i-testow.md)).
+
+**Data:** 2026-08-13, przed pierwszą linią kodu — dziewięć pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku” plus dwa doprecyzowania, które wyszły dopiero
+z odpowiedzi.
+
+**Decyzje użytkownika:**
+
+1. **Zakres pomiaru: potok i przesył zostają główną miarą, takt pętli wchodzi
+   jako pomiar dodatkowy.** Rozstrzygnięcie nr 5 kroku 16 nie jest odwołane —
+   jest **rozszerzone o osobny tryb**. Doprecyzowanie wymusiła budowa
+   narzędzia: szesnaście scenariuszy powstaje w `ScenarioFactory` wprost
+   z prymitywów, **z pominięciem ekranów**, więc taktu pętli nie da się dopiąć
+   do nich jako kolejnej kolumny — potrzebuje własnego źródła treści. Stąd
+   tryb `--loop` z **własną tabelą i własnym wzorcem**: liczby obu pomiarów są
+   nieporównywalne, więc nie mają prawa stać w jednej tabeli.
+2. **Zimna klatka: pierwsza próbka rozgrzewki raportowana osobno, kolumna
+   wchodzi do wzorca.** Przestaje być odrzucana, staje obok mediany. Zimno jest
+   **zimnem pamięci podręcznych klatki, nie zimnem procesu** — singletony
+   i wybór fontu pozostają ciepłe — i tak ma być zapisane, żeby nikt nie czytał
+   tej liczby jako kosztu startu aplikacji. Do wzorca wchodzi jako zapis, ale
+   **nigdy nie podnosi alarmu regresji**: rozrzut pojedynczej próbki jest
+   z natury większy od progu, którym mierzy się mediany.
+3. **Tor tekstowy dostaje jawne kroki pomiarowe w `TextFrameRenderer`** —
+   zmiana produkcyjna, świadoma i nazwana, na wzór rozbicia `SixelFrameEncoder`
+   w kroku 16. D28 („zero wywołań pomiarowych w kodzie produkcyjnym”)
+   **zostaje w mocy**: rozbicie na publiczne kroki nie jest instrumentacją,
+   zegar stoi po stronie narzędzia. To drugi i ostatni renderer, któremu
+   przyznano taki szew.
+4. **Regresja wizualna: wzorcowe PNG w repozytorium, metryka AE.** Miejsce —
+   `docs/pomiary/wzorce-png/`, tą samą zasadą, którą D33 zastosował do wzorców
+   JSON: wzorzec poza repozytorium przepada razem z maszyną. Metryka **AE**
+   (liczba różniących się pikseli) z progiem, a nie RMSE — bo cienki obrys
+   zjedzony przez kwantyzator, czyli dokładnie to odkrycie kroku 13, tonie
+   w średniej po całym obrazie. Przy przekroczeniu progu narzędzie zapisuje
+   obraz różnicy obok i **odmawia, wskazując pliki** — bez GUI i bez raportów.
+5. **Zrzuty robią oba tory, wzorce okienkowe też leżą w repozytorium.**
+   Świadomie przyjęta cena: potok Imagicka jest deterministyczny i znosi ostry
+   próg, a tor okienkowy rysuje przez sterownik GPU, więc jego wzorzec jest
+   związany z maszyną — próg dla niego musi być luźniejszy i to ma być
+   zapisane przy wzorcu, nie odkrywane przy pierwszej „regresji”.
+6. **Komenda zrzutu z żywej aplikacji wchodzi do rejestru komend** i zapisuje
+   **prymitywy oraz PNG we wszystkich trzech torach**. Doprecyzowanie, którego
+   pytanie nie przewidziało: renderer tekstowy nie ma płótna, więc PNG musi
+   skądś powstać — i powstaje **wiernie każdemu torowi**. Sixel oddaje płótno,
+   okno oddaje bufor GPU, a tor tekstowy dostaje **rasteryzację bufora ANSI**
+   fontem stałej szerokości wraz z kolorami. Odrzucono tańsze „PNG rysowane
+   Imagickiem z prymitywów niezależnie od czynnego renderera”: zrzut, który
+   pokazuje, co narysowałby **inny** renderer, nie jest dowodem na to, co
+   narysował ten czynny — a właśnie tego dowodu zabrakło w kroku 29.
+7. **Przebiegi funkcjonalne mieszkają w `tests/Functional/`**, jako nazwane
+   pliki, razem z tymi, które dziś leżą rozsypane. Większość idzie przez
+   `ScreenFixture`; **start aplikacji i zmiana rozmiaru — przez `GameLoop` ze
+   `ScriptedTerminal`**, bo taktu bez pętli sprawdzić się nie da. Osobna
+   testsuite w `phpunit.xml.dist` jest przy okazji **granicą, której potrzebuje
+   krok 39** na rozbicie `test-unit` / `test-functional` (D62) — miękka
+   zależność między krokami zostaje tym samym spłacona po stronie 38.
+8. **Złote klatki: pliki serializacji prymitywów z jawną regeneracją.** Test
+   przy różnicy wskazuje **pierwszy różniący się prymityw**, nie zrzuca całego
+   pliku; regeneracja wyłącznie osobnym poleceniem, **nigdy automatem** — złoty
+   plik regenerowany bez czytania przestaje być testem i to jest jedyne realne
+   ryzyko tego pomysłu.
+9. **Szczyt pamięci wchodzi jako kolumna** — jedna liczba na scenariusz
+   (`memory_get_peak_usage`), bez profilowania funkcja po funkcji, które
+   zostaje poza zakresem tak samo jak w kroku 16.
+10. **`--save` na obciążonej maszynie ostrzega, nigdy nie odmawia.**
+    Obciążenie (loadavg na rdzeń) wchodzi do metryczki wzorca i pokazuje się
+    przy `--compare`. Odmowa zostaje wyłącznie przy strażniku rozrzutu
+    (1,35×), który łapie zakłócone przebiegi po skutku, a nie po przesłance —
+    decyzję o zapisie podejmuje człowiek, mając liczbę przed oczami.
+
+**Uzasadnienie wspólne.** Wszystkie dziesięć rozstrzygnięć układa się w jedną
+zasadę: **narzędzie ma mierzyć to, co dzieje się naprawdę, i mówić wprost,
+czego nie mierzy**. Stąd zimna kolumna obok mediany zamiast zamiast niej, stąd
+zrzut wierny każdemu torowi zamiast jednego wygodnego źródła obrazu, stąd
+osobna tabela dla taktu pętli i stąd ostrzeżenie zamiast odmowy tam, gdzie
+narzędzie zna przesłankę, a nie skutek.
+
+**Granice zapisane od razu:** scenariusze `tree` i `menu` należą do kroków 31
+i 32 (D48); bramka wydajności w CI pozostaje odrzucona (krok 16);
+profilowanie (flame graph, pamięć funkcja po funkcji) zostaje poza zakresem;
+zrzuty spod prawdziwego terminala zostają ręczne, na odciążonej maszynie, jak
+każe `CLAUDE.md` i reguła 17 Skilla.
+
+## Decyzje z planowania Fazy XIII (2026-08-13)
+
+### D65 — Stopka pokazuje podpowiedzi dla elementu z ogniskiem: osobna Faza XIII z krokiem 40
+
+**Dotyczy:** kroku 40 (pełna treść: [40-stopka-kontekstowa.md](40-stopka-kontekstowa.md))
+i struktury planu ([00-index.md](00-index.md)).
+
+**Data:** 2026-08-13.
+
+**Decyzja:** na żądanie użytkownika plan dostaje krok, po którym pasek stanu
+przestaje pokazywać cztery niezmienne klawisze rdzenia, a zaczyna pokazywać
+czynności i skróty **elementu, ekranu albo modułu, na którym stoi ognisko**.
+Krok stoi w osobnej Fazie XIII i nosi numer 40.
+
+**To jest odwrócenie wcześniejszego rozstrzygnięcia** — jedyne takiej wagi od
+czasu D60. Krok 14 postanowił, a krok 18 powtórzył i zapisał w komentarzu
+`FrameComposer::hints()`: „stopka nie jest ściągawką, tylko wskazaniem, gdzie
+ściągawka leży. Pełny spis stoi pod `F1`”. Odwraca się **zasięg**, nie źródło:
+podpowiedzi nadal powstają z `KeyBinding`, czyli z tego samego miejsca, z którego
+pochodzi obsługa klawisza. Powrotu do napisu `browser.hints` w katalogu — który
+potrafił skłamać po zmianie wiązania i który krok 18 usunął — **nie ma i żadne
+rozstrzygnięcie startowe tego kroku nie ma prawa go przywrócić**. Okno pomocy
+zostaje przy tym **pełnym** spisem; stopka pokazuje to, co się mieści.
+
+**Uzasadnienie.** Materiał na stopkę kontekstową jest w kodzie od dawna i już
+dziś jest zależny od stanu — `BrowserScreen` pokazuje `Tab` dopiero przy
+włączonym podziale, `FileInfoScreen` oddaje inne strzałki każdemu z dwóch paneli,
+`BrowserScreen` dokłada `Esc`, dopiero gdy jest co zdejmować. Wszystkie te
+odpowiedzi trafiają **wyłącznie do okna pomocy**, a pasek stanu, który użytkownik
+ma przed oczami cały czas, powtarza te same cztery klawisze od pierwszego
+uruchomienia. Skróty modułów (`Ctrl`+litera) nie pokazują się nawet tam — nie ma
+ich w `globalBindings()`, bo powstają dopiero z rejestru modułów.
+
+**Cztery rozstrzygnięcia startowe użytkownika (2026-08-13):**
+
+1. **Zakres obejmuje formalizację ogniska**, nie samą stopkę. `FocusableInterface`
+   istnieje od kroku 18, ale implementują go dwa komponenty (`TextInput`,
+   `Button`), a prawdziwe ognisko żyje w `SplitState`, `BrowserPanes`
+   i `SettingsCursor` — bez wspólnej nazwy i bez drogi na zewnątrz. Krok robi
+   z tego kontrakt, a `BrowserScreen`, `FileInfoScreen` i `SettingsScreen` są
+   jego prawdziwymi użytkownikami (reguła 13).
+2. **Pasek stanu może urosnąć do dwóch wierszy.** Odrzucone zostały: sztywny jeden
+   wiersz (cała trudność spadłaby na skracanie) oraz piąta strefa układu na
+   podpowiedzi (największa zmiana w `HudLayout` i we wszystkich rendererach
+   wzorców). Wybrany wariant jest najdroższy z punktu widzenia wzorców — zabiera
+   wiersz liście i przelicza wszystkie zrzuty w trzech torach — i **to jest
+   świadoma cena**, nie przeoczenie.
+3. **Klawisze globalne zostają, kontekstowe stoją przed nimi.** Stopka czyta się
+   „to, co tu i teraz” → „to, co wszędzie”. Ustępowanie idzie od końca, bo
+   globalne jedne są niezmienne i stoją w oknie pomocy; `F1` ustępuje ostatni,
+   inaczej znika jedyna droga do pełnego spisu.
+4. **Fable / xhigh** — jak przy krokach 33–35, i z tego samego powodu: zmian jest
+   dużo, są rozproszone (kontrakt, składanie klatki, komponent, progi układu, trzy
+   ekrany, dwa moduły, dwa katalogi napisów, wzorce w trzech torach) i muszą
+   zgodzić się ze sobą naraz.
+
+**Trudność strukturalna zapisana od razu.** Aplikacja **nie ma zachowanego drzewa
+komponentów** — komponent powstaje w `draw()` i ginie z klatką, a stan
+przeżywający takt mieszka obok niego (`ScrollWindow`, `SectionState`,
+`SplitState`). Elementu z ogniskiem nie da się więc odnaleźć chodzeniem po
+drzewie: **ognisko trzeba zadeklarować, a nie odkryć**, i `FrameComposer` ma
+o nie pytać, a nie go szukać. To przesądza o kształcie kontraktu z punktu 1
+i jest właściwym powodem, dla którego krok nie jest drobiazgiem w jednym pliku.
+
+**Pułapka pomiarowa zapisana od razu:** `ScenarioFactory::HINTS` jest **stałą
+tekstową** oderwaną od aplikacji, więc dopóki się jej nie ruszy, pomiar „przed
+i po” nie zobaczy zmiany stopki w ogóle. Zmiana tej stałej jest warunkiem
+sensowności pomiaru, a nie kosmetyką.
+
+**Granice zapisane od razu:** przemapowanie klawiszy przez użytkownika zostaje
+poza zakresem; okno pomocy nie zawęża się do kontekstu — `F1` zostaje pełnym
+spisem; klikalne podpowiedzi odpadają, bo rdzeń nie ma słownika zdarzeń myszy
+(ta sama granica, co w krokach 34–35); ruch i przewijanie w pasku stanu odpadają,
+bo ściągałyby oko z treści; okno komend zostaje przy własnej liście podpowiedzi.
+
+**Styk z krokiem 32** (menu kontekstowe): oba kroki pytają „co da się zrobić
+z tym, na czym stoi kursor”, ale z dwóch stron — menu o **komendy**, stopka
+o **klawisze**. Zależności między nimi nie ma w żadną stronę; jeśli krok 32
+wykona się pierwszy i wprowadzi zdolność „czego dotyczę”, stopka może z niej
+skorzystać, a jeśli nie — nie ma z czego i nic to nie blokuje.
+
+**Odrzucone alternatywy:** dopisanie stopki kontekstowej jako poprawki do
+kroku 37 („dopracowanie okna”) — tamten krok dotyczy okna GLFW, a ten wszystkich
+trzech torów naraz; napis podpowiedzi w katalogu, osobny na ekran (stan sprzed
+kroku 18, usunięty właśnie dlatego, że kłamał); pokazywanie **wszystkich** wiązań
+ekranu bez polityki szerokości — `FileInfoScreen` deklaruje ich osiem, więc
+w osiemdziesięciu kolumnach nie ma o czym mówić.
+
+## Decyzje z planowania Fazy XIV (2026-08-13)
+
+### D66 — Operacje na plikach wchodzą jako Faza XIV: cztery kroki, usługa zapisu w rdzeniu, praca kawałkowa
+
+**Dotyczy:** kroków 41–44 (pełna treść:
+[41-operacje-fundament.md](41-operacje-fundament.md),
+[42-kopiowanie-i-przenoszenie.md](42-kopiowanie-i-przenoszenie.md),
+[43-zaznaczenie-wielokrotne.md](43-zaznaczenie-wielokrotne.md),
+[44-kosz-i-cofanie.md](44-kosz-i-cofanie.md)) i struktury planu
+([00-index.md](00-index.md)).
+
+**Data:** 2026-08-13.
+
+**Decyzja:** na żądanie użytkownika plan dostaje fazę, po której przeglądarka
+przestaje wyłącznie czytać dysk. Zamyka to **pierwszą pozycję „Zakresu poza
+MVP”** — stojącą tam od pierwszej wersji planu — oraz pozycję „zaznaczenie
+wielokrotne”, wyłączoną swego czasu z kroku 32. Wstęp dowiozły kroki **24** (dwa
+panele, czyli źródło i cel) i **28** (okno potwierdzenia, bez którego usuwanie nie
+miało prawa powstać).
+
+**Cztery rozstrzygnięcia startowe użytkownika (2026-08-13):**
+
+1. **Cztery kroki, nie jeden.** Fundament (41: zmiana nazwy, nowy katalog,
+   usunięcie), praca dłuższa od klatki (42: kopiowanie i przenoszenie),
+   mnożnik (43: zaznaczenie wielokrotne) i droga powrotna (44: kosz i cofanie).
+   Odrzucono jeden krok obejmujący całość — byłby najdłuższy w planie i nie dałby
+   się rozliczyć pomiarem „przed i po”, bo mierzone byłyby naraz cztery różne
+   rzeczy.
+2. **Operacje zapisu mieszkają w rdzeniu jako usługa wspólna.** To jest
+   **jawny wyjątek od reguły 15** („nowa funkcja to moduł, nie zmiana w rdzeniu”)
+   i **częściowe odwrócenie D40/D42** („rdzeń przestaje wiedzieć o plikach”).
+   Zakres tej wiedzy jest wyznaczony wąsko i szerszy być nie ma prawa: rdzeń zna
+   **ścieżkę bezwzględną jako napis** i czynność do wykonania, a `Entry`,
+   `Directory`, `DirectoryPath` i `EntryType` **nie mają prawa** trafić do
+   sygnatury czegokolwiek w `src/Application` ani `src/Domain`. Powodem jest
+   druga reguła tej samej pary: „moduł nigdy nie sięga do innego modułu” znaczy
+   przy dwóch odbiorcach (przeglądarka, opis pliku) **dwie kopie kodu piszącego
+   po dysku**. Rachunek `permissionsAsText()` wolno było powtórzyć, bo kosztował
+   dziesięć linii bez skutków ubocznych; powtórzone `unlink()` kosztuje utratę
+   danych w dwóch miejscach zamiast w jednym. **Cena zapisana od razu:** granica
+   wyjątku musi trafić do `SKILL.md` wraz z powodem — nienazwana, otworzyłaby
+   rdzeń na wszystko tym samym argumentem.
+3. **Kopiowanie idzie pracą kawałkową we własnym procesie (D46), nie procesem
+   potomnym.** Trzy powody, wszystkie konkretne: `BackgroundProcessPort` prowadzi
+   **jedną** pracę naraz, więc kopiowanie wypierałoby `du` z modułu opisu pliku;
+   postęp procesu jest nieznany, a bajty skopiowane własną ręką są policzone co
+   do jednego; zachowanie `cp` zależy od systemu, a zachowanie własnej pętli nie.
+   Krok 26 zostaje przez to **wzorcem do świadomego odrzucenia**, a nie do
+   powtórzenia — pierwszy taki przypadek w planie.
+4. **Zaznaczenie wielokrotne wchodzi, a usunięcie ma dwie drogi**: trwałą i do
+   kosza, **rozróżniane użytym skrótem oraz ustawieniem modułu**. To rozstrzygnięcie
+   przesądza o kształcie kroku 44 i o jego modelu — patrz trudność niżej.
+
+**Trudności strukturalne zapisane od razu** (każda odkryta przy planowaniu, nie
+przy pisaniu kodu):
+
+- **Słownik wejścia nie zna `Shift`** — w żadnym z trzech torów.
+  `KeySequenceParser` ma napisane wprost, że modyfikatory CSI nie zmieniają
+  klawisza bazowego; `GlfwKeyMapper` czyta wyłącznie `GLFW_MOD_CONTROL`
+  i `GLFW_MOD_ALT`, i tylko dla liter; `Ctrl`+litera jest **zajęty w całości**
+  przez skróty modułów (krok 20), a `Alt` powstaje z `ESC` + znak drukowalny,
+  więc z klawiszem funkcyjnym się nie składa. Rozstrzygnięcie 4 dotyka tego
+  wprost, dlatego model kroku 44 wybiera się **po** odpowiedzi na jego pytanie
+  startowe nr 1, a nie przed nią.
+- **Praca kawałkowa posuwa się w `draw()` widocznego ekranu.** Dla sumy
+  kontrolnej to zaleta („nikt nie liczy sumy pliku, na który nikt nie patrzy”),
+  dla kopiowania wada: wyjście z przeglądarki wstrzymałoby pracę bez słowa.
+  Krok 42 rekomenduje zostawienie tej zasady wraz z **zapisaną granicą**, bo
+  wariant „praca ponad ekranami” potrzebuje paska postępu widocznego zewsząd,
+  czyli tej samej strefy, którą przelicza krok 40 — a dwa kroki przebudowujące
+  pasek stanu z dwóch powodów naraz to najprostsza droga do sprzeczności.
+- **`ModuleContext` zna jeden wpis**, więc zaznaczenie wielokrotne albo zostaje
+  własnością przeglądarki (rekomendacja kroku 43), albo kontrakt rdzenia rośnie
+  o zbiór — czyli drugi wyjątek od reguły 15 w jednej fazie, i to dla wygody
+  jednego przyszłego widoku, a nie dla niepowielania kodu.
+- **Nazwa scenariusza `selection` jest zajęta** przez kursor na liście od kroku
+  18; scenariusz zaznaczenia wielokrotnego potrzebuje własnej (`marked`).
+
+**Granice zapisane od razu:** kosz obejmuje **wyłącznie** katalog domowy
+(`.Trash-$uid` na wolumenach zewnętrznych zostaje poza zakresem); kolejki zadań
+nie ma, bo jedna praca i jeden pasek to reguła kroków 23, 25 i 26; ponowienia
+cofniętej operacji (`redo`) nie ma, bo bez stosu nie ma czego ponawiać; `chmod`
+i `chown` zostają poza zakresem (wymagają własnego okna i uprawnień, których
+aplikacja mieć nie powinna); śledzenia zmian katalogu z zewnątrz (`inotify`) nie
+ma — lista odświeża się po **własnej** operacji; wznowienia przerwanego
+kopiowania nie ma, bo praca przerwana jest pracą zakończoną.
+
+**Styk z krokiem 32** (menu kontekstowe): jego zastrzeżenie ze szczytu pliku
+mówiło, że menu należy odłożyć „do czasu, aż powstaną operacje na plikach, bo
+dopiero one dadzą mu treść”. Faza XIV tę treść dowozi — zależności to jednak nie
+tworzy w żadną stronę, a samo zastrzeżenie zdejmuje się dopiero przy starcie
+kroku 32.
+
+**Odrzucone alternatywy:** jeden krok obejmujący całość (rozstrzygnięcie 1);
+operacje jako **nowy moduł `FileOps`** — najczystszy podział warstw, ale operacje
+przestałyby być klawiszem na zaznaczonym wpisie, a stałyby się cudzym ekranem;
+kopiowanie procesem potomnym przez `cp`/`mv` (rozstrzygnięcie 3); kopiowanie
+synchroniczne z progiem rozmiaru i odmową powyżej niego — menadżer plików, który
+odmawia skopiowania dużego pliku, jest niepełny; faza bez zaznaczenia
+wielokrotnego (kopiowanie plik po pliku); usuwanie wyłącznie trwałe albo wyłącznie
+do kosza — użytkownik chce obu dróg, rozróżnianych skrótem.
+
+## Decyzje wykonawcze kroku 37 (2026-08-13)
+
+### D67 — Rozstrzygnięcia startowe kroku 37: rozmiar w komórkach po ciszy, pełny ekran dwiema drogami, ikona okrężną drogą i skala tylko pokazana
+
+**Dotyczy:** kroku 37 (pełna treść:
+[37-dopracowanie-okna.md](archiwum/37-dopracowanie-okna.md)).
+
+**Data:** 2026-08-13, przed pierwszą linią kodu — cztery pytania z sekcji „Do
+rozstrzygnięcia na starcie kroku” plus piąte, które wymusiło **sprawdzenie
+rozszerzenia** (patrz niżej).
+
+**Ustalenie, które unieważniło część planu.** Sekcja „Stan zastany” kroku 37
+wymieniała `glfwSetWindowIcon` wśród funkcji „wszystkich obecnych (sprawdzone
+przy kroku 34)”. **W rozszerzeniu PHP-GLFW 2.2.0 tej funkcji nie ma w ogóle** —
+jest wyłącznie `glfwIconifyWindow` (minimalizacja) i to ona zapewne była
+źródłem pomyłki. Pozostałe funkcje wymienione w tamtej tabeli są obecne.
+Rozstrzygnięcie nr 3 zostało więc zadane inaczej, niż przewidywał plan: nie
+„skąd wziąć bitmapę”, tylko „czy w ogóle jest dokąd ją podać”.
+
+**Decyzje użytkownika:**
+
+1. **Rozmiar zapamiętuje się w komórkach, a zapisuje po uspokojeniu zmian.**
+   Klucze zostają te same (`windowColumns`/`windowRows`), więc ekran ustawień
+   nadal przełącza je strzałkami, a zapamiętany rozmiar nie jest osobnym bytem
+   obok rozmiaru startowego — jest **tym samym bytem**. Konsekwencja, której nie
+   dało się uniknąć: `WINDOW_*_CHOICES` przestaje być zakresem dopuszczalnych
+   wartości (bo rozmiar po przeciągnięciu rogu prawie nigdy nie trafia
+   w przystanek) i staje się **wyłącznie przystankami strzałek**; zakresu pilnują
+   odtąd `WINDOW_*_MIN`/`MAX`. Druga konsekwencja: strzałka z wartości spoza
+   listy musiała zmienić zachowanie — `next()` odsyłał na początek listy, więc
+   „w prawo” z 137 kolumn dawałoby 80. Stąd `nextStop()`: sąsiad w stronę ruchu.
+   Wybrany wariant zapisu (po ciszy, nie przy wyjściu) jest **droższy o klasę**
+   (`WindowSizeSettle`) i o pytanie zadawane raz na takt, ale przeżywa `SIGKILL`
+   i zamknięcie okna krzyżykiem. Zapis przy wyjściu **nie zniknął** — został jako
+   druga droga dla zmiany, która nie zdążyła ucichnąć.
+2. **Pełny ekran ma obie drogi naraz: komendę `core.fullscreen` i skrót `F11`,
+   ale wyłącznie w torze okienkowym.** To jest **odstępstwo od planu, świadome
+   i nazwane**: plan uprzedzał, że wariant „komenda i skrót” wymaga zmiany
+   w `InputHandler`, „której plan nie przewiduje”. Zmiana weszła i sprowadza się
+   do jednego: `globalBindings()` przyjmuje odtąd tryb (`bool $windowed`),
+   a `InputHandler` — domknięcie przełączające (`null` w terminalu). `F11` jest
+   przez to **pierwszym klawiszem rdzenia zależnym od trybu**; uzasadnia to
+   precedens kroku 30 („spis pokazuje wyłącznie to, co działa tu i teraz”),
+   rozciągnięty tu z okna pomocy na pasek stanu i na okno komend. Skrót
+   **nie melduje się komunikatem**, komenda tak — bo skutek klawisza widać
+   w tej samej klatce, a okno komend zamyka się razem z wykonaniem.
+3. **Ikona idzie drogą `WM_CLASS` + wpis `.desktop`, a rysuje się z ról
+   motywu.** Skoro `glfwSetWindowIcon` nie istnieje, zostaje droga standardowa
+   obu serwerów wyświetlania: okno przedstawia się klasą
+   (`glfwWindowHintString(GLFW_X11_CLASS_NAME, …)`), a pulpit dopasowuje do niej
+   wpis i bierze ikonę stamtąd. Wpis zakłada **nowy skrypt**
+   `bin/install-desktop-entry` wraz z ikoną rysowaną Imagickiem z ról włączonego
+   motywu — cztery rozmiary w `~/.local/share/icons/hicolor/`. W repozytorium
+   nie ląduje ani jeden plik binarny, a ikona zmienia się razem z motywem.
+   Cena, którą trzeba znać: **krok dowozi możliwość, nie gotowy efekt** — bez
+   uruchomienia skryptu ikony nie będzie, a w środowisku, które nie dopasowuje
+   okien po `WM_CLASS`, nie będzie jej mimo skryptu. Warunkiem powodzenia jest
+   zgodność `StartupWMClass` z `WM_CLASS`; pilnuje jej test, bo rozejście się
+   tych dwóch napisów daje ikonę w spisie programów i ikonę zastępczą na pasku
+   zadań, czyli usterkę, której nie widać w kodzie.
+4. **Skala treści jest czytana i pokazywana, a nie stosowana.** Wartość
+   `glfwGetWindowContentScale` trafia do zakładki „Aplikacja” okna pomocy —
+   i tylko tam. Maszyna projektu ma skalę 1.0, więc przeliczenie komórki
+   byłoby kodem, którego nie da się na niej sprawdzić; pokazana wartość
+   pozwala komuś na innym sprzęcie powiedzieć, co widzi, i **dopiero to** ma
+   zamienić się w przeliczenie. `VgContextService` zostaje nietknięty.
+   Ograniczenie jest zapisane jawnie w README („Znane ograniczenia”), a nie
+   tylko w komentarzu.
+
+**Odrzucone alternatywy:** rozmiar w pikselach w nowych kluczach — wierny co do
+piksela, ale odbierałby ekranowi ustawień możliwość przełączania strzałkami
+i zostawiał `windowColumns`/`windowRows` bez roli; zapis wyłącznie przy wyjściu
+— prostszy o klasę, ale gubiący rozmiar po `SIGKILL`; sam skrót `F11` bez
+komendy — obowiązywałby także tryby terminalowe, w których nic nie znaczy; sama
+komenda bez skrótu — pełny ekran to czynność, po którą sięga się odruchowo,
+a nie z nazwy; pominięcie ikony wraz z zapisem powodu (wariant uczciwy, ale
+zostawiający krok z trzema pozycjami z czterech); ikona przez zewnętrzne
+narzędzie (`xseticon` — niezainstalowany, `xdotool` — tego nie umie); przeliczona
+komórka pisana na ślepo z adnotacją „niesprawdzone na sprzęcie”.
+
+**Co wyszło dopiero z uruchomienia** (i czego nie dało się przewidzieć przy
+rozpisywaniu):
+
+- **Powrót z pełnego ekranu nie trafia w te same piksele jednym wywołaniem.**
+  `glfwSetWindowMonitor()` z zapamiętanymi granicami oddaje obszar treści niższy
+  o pasek tytułu — menedżer okien liczy podaną geometrię jako geometrię **ramki**
+  (zmierzone: 900×600 wracało jako 900×563, a okno zjeżdżało o te 37 pikseli
+  w dół). Dostawienie rozmiaru osobnym `glfwSetWindowSize()` naprawia to
+  w całości, ale **tylko wtedy, gdy pada po zakończeniu przejścia**; wołane
+  w tym samym takcie nie zmienia nic. Stąd `restoreAfterFullscreen()`
+  dopominające się z taktu na takt, z sufitem sekundy — wzorem reguły „element
+  zmieniający się sam z siebie niczego nie wymusza” (11b): skoro pętla i tak
+  pyta co takt, poprawka może poczekać na takt, w którym menedżer okien już
+  odpowiedział. Bez tego pełny ekran **zapisywał do ustawień zmniejszony
+  rozmiar**, czyli psuł pozycję nr 1 tego samego kroku.
+- **Rozmiar wraca zaokrąglony w dół do pełnych komórek** (900×600 → 900×588 przy
+  komórce 21 pikseli). To nie jest usterka, tylko cena rozstrzygnięcia nr 1
+  wypowiedziana do końca: resztka, która nie tworzyła pełnego wiersza, nie ma
+  czego pamiętać. Zapisane w README.
+- **Naruszenie ochrony pamięci przy wyjściu z trybu okienkowego dotyczy także
+  aplikacji**, nie tylko pomiaru — README przypisywał je dotąd samemu
+  `render-bench`. Sprawdzone w osobnym drzewie roboczym na kodzie sprzed kroku
+  37: **usterka jest starsza**, siedzi w sprzątaniu GLFW i pada **po** całym
+  sprzątaniu aplikacji (historia komend i rozmiar okna są zapisane — sprawdzone
+  wyjściem `F10` tuż po zmianie rozmiaru). Zapis README poszerzony.
+
+## Decyzje ze startu kroku 31 (2026-08-14)
+
+### D68 — Rozstrzygnięcia startowe kroku 31: prowadnice, kursor pod kluczem, widok panelu na klawisz i drzewo z plikami
+
+**Dotyczy:** kroku 31 (pełna treść:
+[31-drzewo-katalogow.md](archiwum/31-drzewo-katalogow.md)).
+
+**Data:** 2026-08-14, przed pierwszą linią kodu — pięć pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku” plus trzy, które wynikły dopiero
+z odpowiedzi nr 3 (klawisz widoku, znaczenie strzałek, treść drzewa).
+
+**Decyzje użytkownika:**
+
+1. **Wiersz drzewa dostaje pełne linie łączące** (`├─`, `└─`, `│`) — wariant
+   najdroższy z trzech i wybrany świadomie. Cena jest wymierna i zapisana
+   w komponencie: każdy poziom dokłada znak spoza podstawowej strony kodowej,
+   czyli osobną bitmapę w pamięci podręcznej wierszy (D34), podczas gdy samo
+   wcięcie ze znacznikiem kosztowałoby dwa znaki na całe drzewo — te same `▼`/`▶`,
+   które krok 22 już rozliczył. Rozlicza to scenariusz `tree`.
+2. **Kursor przechodzi na zwijanego rodzica**, a to wymusiło rzecz większą niż
+   samo zachowanie: **kursor drzewa jest kluczem, a nie numerem**. Numer wiersza
+   zmienia bowiem każde rozwinięcie i zwinięcie czegokolwiek powyżej, więc
+   kursor-numer wędrowałby po drzewie sam z siebie. Reguła mieszka w
+   `TreeState::collapse()`, a nie u wołającego, bo nie jest wyborem ekranu:
+   węzły pod zwiniętą gałęzią przestają istnieć w spłaszczonej liście.
+3. **Widok panelu przełącza klawisz, a nie ustawienie** — każdy panel z osobna
+   bywa listą albo drzewem, także bez podziału. To jest **odstępstwo od planu**:
+   plan zakładał „drzewo w jednym panelu podziału, lista w drugim”, a o tym, czy
+   drzewo w ogóle powstaje, miało rozstrzygać ustawienie modułu. Skutki, których
+   plan przez to nie przewidywał: drzewo należy do panelu (`BrowserPanes`), a nie
+   do ustawień; każdy panel ma **własny** `BrowserTree` wraz z własnym oknem
+   przewijania, bo lista i drzewo przewijają się po czym innym; ustawieniem
+   modułu zostaje wyłącznie **głębokość**.
+4. **Limit głębokości jest ustawieniem, z „bez limitu” jako jedną z wartości.**
+   Stąd pozycja **wyboru**, a nie liczbowa — pierwsza taka w zakładce
+   przeglądarki: „bez limitu” nie jest liczbą, a ekran ustawień pokazuje wartości
+   wyboru **surowo**, bez katalogu napisów, więc zero albo wielkie przybliżenie
+   trzeba by odgadywać. Znak `∞` czyta się tak samo w każdym języku. Domyślne
+   osiem, bo limit ma być widoczny; odmowa rozwinięcia **melduje się zdaniem**,
+   bo klawisz, który raz działa, a raz nie, czyta się jak usterka.
+5. **`TreeState` i `SectionState` to dwie klasy.** Różnią się trzema rzeczami
+   naraz i żadna nie jest kosmetyczna: drzewo trzyma **rozwinięcia** (domyślnie
+   zwinięte), sekcja **zwinięcia** (domyślnie rozwinięte); kursor drzewa jest
+   kluczem, sekcji — numerem; zwinięcie gałęzi przenosi kursor, zwinięcie sekcji
+   nie ma czego przenosić. Wspólna klasa musiałaby przyjmować domyślną odpowiedź
+   z zewnątrz, czyli nazywać się już nie stanem, tylko mapą wartości logicznych.
+6. **Klawiszem widoku jest `Ctrl`+`T`** — i to jest rozstrzygnięcie z ceną
+   nazwaną wprost przed wyborem. `Ctrl`+litera jest od kroku 19 przestrzenią
+   **skrótów modułów**, sprawdzaną w `InputHandler` **przed** ekranem; litera bez
+   zarejestrowanego modułu przechodzi niżej i tylko dlatego klawisz działa.
+   Moduł ze skrótem `t` przejąłby go po cichu, więc kolizji pilnuje
+   `BrowserShortcutsTest` — ma wyjść na testach, a nie na klawiaturze.
+7. **W drzewie `→` rozwija, `←` zwija, a `Enter` wchodzi.** `Enter` zostaje przy
+   swoim znaczeniu z całej aplikacji (P3: zatwierdza), więc katalog spod kursora
+   staje się katalogiem panelu — z dowolnego poziomu drzewa. `←` ma trzy
+   znaczenia czytane z góry na dół jako jedno zdanie („wróć o poziom”): zwiń,
+   skocz do rodzica, wyjdź katalog wyżej. `Backspace` **nie zmienia znaczenia
+   nigdy** — wyjście katalog wyżej ma jedną drogę niezależną od widoku.
+8. **Drzewo pokazuje katalogi i pliki**, a nie samą strukturę katalogów. To jest
+   konsekwencja rozstrzygnięcia nr 3 wypowiedziana do końca: skoro drzewo bywa
+   **jedynym** widokiem panelu, drzewo bez plików byłoby regresją wobec listy,
+   którą zastąpiło. Stąd `TreeNode` niesie także `value` — krótką wartość po
+   prawej, jak `ListRow::$right` — i stąd zapis rozmiaru wyprowadził się
+   z `EntryList` do wspólnego `EntrySize`.
+
+**Co wyszło dopiero z rozpisania** (i czego nie było w żadnym z ośmiu pytań):
+
+- **Odczyt gałęzi rozdzielił się na dwie drogi.** Plan przewidywał, że
+  rozwinięcie podlega D46 (praca kawałkowa). Rozwinięcie **klawiszem** jednak
+  jej nie potrzebuje: to jeden odczyt katalogu, czyli dokładnie tyle, co `Enter`
+  w liście, a użytkownik właśnie o niego poprosił. Kawałkowania potrzebuje
+  dopiero **odtwarzanie**: powrót do katalogu, w którym rozwiniętych było
+  dziesięć gałęzi, chciałby dziesięciu odczytów w jednej klatce. Stąd reguła
+  „najwyżej jedna gałąź na klatkę” — dziesięć klatek to jedna trzecia sekundy,
+  w czasie której drzewo dosypuje się na oczach użytkownika.
+- **Pamięć odczytanych gałęzi jest trwalsza od korzenia.** Wynika to z zakresu
+  kroku („drzewo pokazuje to, co przeczytało”), ale skutek jest większy niż
+  wykluczenie śledzenia zmian: wejście katalog niżej i powrót nie kosztuje ani
+  jednego sięgnięcia na dysk. Czyszczona jest wyłącznie przy zmianie widoczności
+  wpisów ukrytych, bo wtedy gałęzie mówią o czymś innym niż korzeń.
+- **`BrowserTree::cursorDirectory()` okazał się szwem całego kroku.** Oddaje
+  zwykły `Directory` z zaznaczeniem na węźle pod kursorem — i dzięki temu pas
+  ścieżki, pas podglądu, kontekst sesji oraz `Enter` **nie wiedzą, że drzewo
+  istnieje**. Bez tej jednej metody każde z tych czterech miejsc musiałoby
+  rozgałęzić się na „lista albo drzewo”.
+- **Korzeniem drzewa jest katalog panelu**, ten sam obiekt, który widzi lista.
+  Skutki dwa: przełączenie widoku klawiszem nie kosztuje ani jednego odczytu,
+  a zawężenie filtrem (krok 30) obowiązuje w drzewie na jego pierwszym poziomie.
+  Drugi odczyt tego samego katalogu dałby panelowi dwie prawdy o jednym miejscu.
+
+## Decyzje ze startu kroku 32 (2026-08-14)
+
+### D69 — Rozstrzygnięcia startowe kroku 32: krok wchodzi z treścią, menu jest widokiem na rejestr, a klawiszem jest `F9`
+
+**Dotyczy:** kroku 32 (pełna treść:
+[32-menu-kontekstowe.md](archiwum/32-menu-kontekstowe.md)).
+
+**Data:** 2026-08-14, przed pierwszą linią kodu — pięć pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku” plus trzy, które wynikły dopiero z odpowiedzi
+nr 1 (klawisz otwierający, kształt zdolności co do liczby metod, treść wiersza).
+
+**Punkt wyjścia — sprawdzenie zastrzeżenia ze szczytu planu.** Plan kroku 32
+kazał **najpierw** sprawdzić w kodzie, czy menu ma z czego powstać, i odłożyć go,
+jeśli okaże się, że potrzebuje własnej listy pozycji. Sprawdzenie dało wynik
+jednoznaczny: rejestr trzymał osiem komend (`core.help`, `core.settings`,
+`core.theme`, `core.language`, `core.dump`, `core.quit`, `core.fullscreen`
+w torze okienkowym, `browser.jump`), z których **z zaznaczeniem związana była
+jedna** — i to tylko dla katalogów. Moduł `FileInfo` wnosił **zero** komend, bo
+opis wpisu otwierał się wyłącznie skrótem `Ctrl`+`D`. Menu zbudowane uczciwie na
+takim rejestrze pokazałoby jedną pozycję na katalogu i **pustą listę na pliku**.
+
+**Decyzje użytkownika:**
+
+1. **Krok wchodzi teraz — ale z treścią, a nie z samym mechanizmem.** Odłożenie
+   do kroku 41 (operacje na plikach) było rekomendacją odrzuconą świadomie; nie
+   przeszedł też wariant „wąski”, czyli mechanizm na dzisiejszym rejestrze.
+   Zamiast tego krok **dowozi komendy dla czynności, które aplikacja miała
+   wyłącznie pod klawiszem**: `file-info.show` (`Ctrl`+`D`), `browser.open`
+   (`Enter`), `browser.hidden` (`.`) i `browser.tree` (`Ctrl`+`T`). Rejestr
+   rośnie z ośmiu pozycji do dwunastu, menu ma dwie pozycje na katalogu i jedną
+   na pliku, a **żadna z tych nazw nie jest drugą implementacją** — obie drogi
+   prowadzą do jednego miejsca w kodzie. Zysk uboczny, którego wariant wąski by
+   nie dał: skrót `Ctrl`+litera działa dopóty, dopóki litery nie zajmie żaden
+   moduł, a nazwa w rejestrze jest od tej kolizji niezależna.
+2. **Osobne okno `MenuOverlay` w rdzeniu**, nie tryb `CommandOverlay`. Tamta
+   klasa to 450 linii o pisaniu, uzupełnianiu i historii, a menu nie ma pola
+   tekstowego, ma inne granice i inaczej traktuje literę — flaga trybu
+   rozgałęziłaby `suggestions()`, `bounds()`, `handle()`, `complete()` i `run()`
+   naraz. Wspólny zostaje **rejestr**, i to on, a nie klasa, jest tu miarą
+   niepowtarzania: `Bootstrap` buduje oba okna w jednym miejscu, z jednego
+   `CommandRegistry`.
+3. **Zdolność „czego dotyczę” to osobny interfejs z dwiema metodami** —
+   `AppliesToSelection::appliesTo(ModuleContext)` i `inputFor(ModuleContext)`.
+   Wariant jednometodowy (`inputFor(): ?CommandInput`) był rekomendowany
+   i odrzucony: rozdział pytań „czy dotyczę” od „czym się wywołuję” jest
+   czytelniejszy i osobno testowalny, a cena — cztery jednolinijkowe
+   `return new CommandInput()` — jest tymczasowa, bo pierwsza komenda
+   z argumentem przyjdzie z krokiem 41. Metoda w `CommandInterface` odpadła
+   z powodu zapisanego już w planie: wypełniałoby ją siedem klas rdzenia
+   powtórzeniami odpowiedzi „nie dotyczę niczego”.
+4. **Klawiszem jest `F9`, globalny** — pytanie, którego plan nie miał, bo
+   wynikło dopiero z rozstrzygnięcia nr 2. W menedżerach plików menu wisi na
+   `F9` od czasów Nortona i Midnight Commandera, a klawisz globalny znaczy tu
+   coś konkretnego: menu czyta zaznaczenie z `LoopState::context()`, więc
+   **moduł nie zmienia się ani o linię**. Wariant „klawisz ekranu przeglądarki”
+   wymagałby podania modułowi rdzeniowego `CommandRegistry`, którego dziś nie
+   widzi żaden.
+5. **Prostokąt staje pośrodku**, jak `ConfirmOverlay`. Powód jest twardy, a nie
+   estetyczny: rdzeń nie wie, gdzie moduł narysował zaznaczenie (lista czy
+   drzewo, który z dwóch paneli), a pytanie ekranu o współrzędne kursora
+   otworzyłoby `ScreenInterface` na współrzędne, których żaden kontrakt nie zna.
+6. **Menu bez ani jednej pozycji nie otwiera się wcale** i mówi zdaniem
+   w pasku stanu (`menu.empty`). Puste okno jest ślepą uliczką — trzeba je
+   zamknąć, żeby dowiedzieć się, że nic w nim nie było; precedens z kroku 30:
+   spis pokazuje wyłącznie to, co działa tu i teraz.
+7. **Wiersz menu: nazwa komendy po lewej, opis po prawej** — układ identyczny
+   z listą podpowiedzi okna komend, więc obie listy czyta się tak samo. Wariant
+   „opis po lewej” był rekomendowany i odrzucony; wybrany uczy przy okazji nazw,
+   czyli robi z menu widoczne dla użytkownika **drugie wejście do tego samego
+   rejestru**, a nie osobny świat.
+
+**Co wyszło dopiero z rozpisania** (i czego nie było w żadnym z ośmiu pytań):
+
+- **Granica menu biegnie po zaznaczeniu, nie po module.** `browser.hidden`
+  i `browser.tree` weszły do rejestru, ale zdolności `AppliesToSelection`
+  **nie deklarują** i w menu ich nie ma: dotyczą panelu, a nie wpisu pod
+  kursorem. Bez tej granicy menu stałoby się oknem komend bez pola tekstowego —
+  czyli dokładnie tym, przed czym ostrzegał plan.
+- **Czynność o dwóch wejściach musi mieć jedno miejsce w kodzie.** Przełączenie
+  wpisów ukrytych to nie jest jedna linia: odczyt **obu** paneli idzie przed
+  zapisem konfiguracji, bo nieudany odczyt rzuca wyjątek i ustawienie ma wtedy
+  zostać takie, jakie było. Przepisanie tego do komendy byłoby przepisaniem
+  pułapki, więc czynność wyprowadziła się z `BrowserScreen` do
+  `Module/Browser/Presentation/HiddenEntries`, a ekran i komenda zamieniają jej
+  wynik na własny typ skutku.
+- **`useContext()` zamiast `Resettable`.** Stos okien woła `reset()` **wewnątrz**
+  `open()`, więc menu resetowane tą drogą kasowałoby pozycje policzone chwilę
+  wcześniej. Migawka kontekstu jest zarazem resetem — i jest to zarazem
+  odpowiedź na pytanie, czego lista dotyczy: tego, na czym stał kursor
+  w chwili naciśnięcia klawisza.
+- **`BrowserPanes::focusedDirectory()` okazał się szwem tego kroku**, tak jak
+  `cursorDirectory()` była szwem kroku 31. Komenda działająca na zaznaczeniu
+  musi widzieć dokładnie to, co widzi kontekst sesji — czyli w widoku drzewa
+  węzeł pod kursorem, a nie zaznaczenie listy. Dwa rachunki tej samej rzeczy
+  rozjechałyby się przy pierwszym widoku, który dojdzie po drzewie; przy okazji
+  zniknął trzeci rachunek, który stał w `BrowserScreen::pointed()`.
+- **Litera przeskakująca do pozycji nie powstała** — jedyne odstępstwo od
+  zakresu planu i świadome. Powód nie jest w koszcie, tylko w słowniku wiązań:
+  `KeyBinding` umie wyrazić klawisz i konkretny znak, ale **nie „dowolną
+  literę”**, więc funkcja nie miałaby jak trafić do stopki ani do okna pomocy —
+  a przy dwóch pozycjach nie ma czego przeskakiwać. Wraca do rozważenia, gdy
+  krok 41 wydłuży listę.
+
+## Decyzje ze startu kroku 36 (2026-08-14)
+
+### D70 — Rozstrzygnięcia startowe kroku 36: dźwięk wchodzi jako **moduł**, gra komendą i nie ma autostartu
+
+**Dotyczy:** kroku 36 (pełna treść:
+[36-odtwarzanie-muzyki.md](archiwum/36-odtwarzanie-muzyki.md)).
+
+**Data:** 2026-08-14, przed pierwszą linią kodu — pięć pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku” plus trzy, które wynikły dopiero z tego, co
+przyniósł sam start: pytanie o postać ścieżki utworu, **odwrócenie całego kroku
+na moduł** i pytanie o cykl życia.
+
+**Co rozstrzygnął pomiar, a nie wybór.** Trzy rzeczy z sekcji „Stan zastany”
+miały status „do potwierdzenia” i potwierdziły się w kwadrans:
+
+- **`GL\Audio\Engine` nie potrzebuje okna** — startuje bez `glfwInit()` i bez
+  kontekstu OpenGL. Muzyka gra więc we **wszystkich trzech torach**, także
+  terminalowych, a zależność od Fazy IX nie stwardniała (pytanie nr 1 planu
+  odpadło samo).
+- **MIDI nie wchodzi.** Plik `.mid`, który użytkownik położył w `assets/audio/`,
+  miniaudio odrzuca: czyta WAV, MP3 i FLAC. Ten sam użytkownik dołożył wersję MP3
+  i to ona jest utworem domyślnym; syntezator riffu z sekcji 2 planu **jest przez
+  to niepotrzebny w całości** — a wraz z nim cała najbogaciej pokryta testami
+  część planowanego kroku.
+- **`Sound::stop()` jest pauzą, nie przewinięciem** — kursor zostaje. Stąd jedna
+  komenda-przełącznik zamiast pary „graj” i „zatrzymaj”: para obiecywałaby
+  rozróżnienie, którego pod spodem nie ma.
+
+**Decyzje użytkownika:**
+
+1. **Utwór wskazuje klucz ustawień z wartością domyślną w repozytorium** —
+   `assets/audio/Deep Purple - Smoke On The Water.mp3`, ścieżka **względna wobec
+   korzenia projektu**, bo bezwzględna zapisałaby się do konfiguracji przy
+   pierwszej zmianie i przestała działać po przeniesieniu katalogu. Wariant
+   „klucz pusty domyślnie” (repozytorium bez cudzego nagrania) został odrzucony
+   świadomie, przy nazwanej wprost cenie: 5,3 MB nagrania w historii gita.
+2. **Głośność 50%, zapętlenie włączone** — połowa, bo menadżer plików uruchamiany
+   w cudzym terminalu nie powinien zacząć od pełnej mocy; zapętlenie, bo pięć
+   i pół minuty kończy się ciszą w środku pracy. Autostart wybrany w tym samym
+   pytaniu jako włączony **odpadł później**, wraz z rozstrzygnięciem nr 5.
+3. **Bez rozszerzenia `glfw`: sama degradacja z komunikatem.** Pusty obiekt
+   (`SilentAudioService`) zamiast odtwarzacza zewnętrznego czy FFI — ta sama
+   zasada, którą tor okienkowy traktuje brak rozszerzenia od kroku 34: możliwość,
+   nie wymóg. Odtwarzacz zewnętrzny odpadł także dlatego, że z listy preferencji
+   planu maszyna projektu ma **wyłącznie `ffplay`**.
+4. **Krok w całości jest modułem `Audio`, a nie rozbudową rdzenia** — i to jest
+   rozstrzygnięcie największe, bo odwraca **plan całego kroku**. Zapadło
+   w odpowiedzi na pytanie, którego plan nie mógł przewidzieć: ścieżka utworu
+   byłaby **pierwszym kluczem rdzenia z wartością tekstową**, a ekran ustawień
+   umie edytować tekst wyłącznie w pozycjach modułu (`ModuleSettingKind::Text`,
+   krok 20). Zamiast dokładać rdzeniowi trzecią drogę edycji, dźwięk poszedł tam,
+   gdzie wedle reguły 15 powinien był iść od początku: **nowa funkcja to moduł**.
+   Skutki, których plan nie przewidywał: port i obie usługi leżą w `src/Module/Audio/`,
+   a nie w rdzeniu; komendy nazywają się `audio.music` i `audio.volume`, bo
+   przedrostka pilnuje rejestr; zakładka ustawień powstaje **za darmo**, razem
+   z pozycją tekstową; rdzeń kosztuje **jedną linię** w `Bootstrapie`.
+5. **Cyklu życia w kontrakcie modułu nie ma i nie przybywa — więc nie ma
+   autostartu.** Rozważana zdolność `RunsWithApplication` (`start()`/`stop()`
+   wołane przez `Bootstrap`) została odrzucona: kontrakt modułu nie zyskał ani
+   jednej metody od kroku 20 i nie zyskuje jej dla wygody jednego modułu. Muzykę
+   uruchamia komenda `audio.music`. Cena jest nazwana wprost: polecenie z D55
+   („domyślnie i na początek”) **nie jest w tej części spełnione**, a pozycja
+   ustawień „autostart” nie powstała, bo nie miałaby czego włączyć. Sprzątanie
+   zostaje przy `register_shutdown_function` w usłudze modułu — czyli przy
+   drugiej z dwóch dróg D47; pierwszej (jawnej, z `Bootstrap::shutdown()`) ten
+   moduł mieć nie może, bo rdzeń go nie zna.
+6. **Nazewnictwo:** port `AudioPort`, katalog usług po **roli**, nie po
+   bibliotece, komendy jako przełącznik i wartość — wzorem `core.fullscreen`
+   i `core.theme`. Po rozstrzygnięciu nr 4 „katalog po roli” znaczy po prostu
+   `src/Module/Audio/`, a przedrostek komend zmienił się z `core.` na `audio.`.
+
+**Co wyszło dopiero z rozpisania:**
+
+- **Pierwsze w projekcie punktowe wyciszenie analizy statycznej.** `GL\Audio\Sound`
+  w zainstalowanym rozszerzeniu (2.2.0) wystawia `isPlaying()`, `getCursor()`
+  i `seekTo()`, ale **stuby `phpgl/ide-stubs` są starsze** i tych metod nie znają.
+  Wyjściem alternatywnym było liczenie stanu „gra / nie gra” po swojemu — i to
+  właśnie ono byłoby obejściem analizy kosztem zachowania: utwór kończy się sam,
+  więc własna flaga kłamałaby przy wyłączonym zapętleniu. Uwaga zniknie, gdy
+  stuby dogonią rozszerzenie; krok 34 obszedł ich dwie błędne stałe literałami
+  i jest to ta sama klasa problemu.
+- **Głośność musi być liczbą z listy przystanków, a nie dowolną z zakresu.**
+  Wymusza to kontrakt ustawień modułu: `ModuleSetting::valueFrom()` sprowadza
+  wartość spoza listy do domyślnej, więc zapisane 63 przepadłoby przy pierwszym
+  odczycie pliku. Stąd `audio.volume` przyjmuje wielokrotności dziesięciu,
+  a wartość spoza listy **nie zamyka okna komend** — jak nazwa motywu spoza listy.
+- **Zapis głośności komendą musiał dostać własny przypadek użycia w module.**
+  Rdzeniowy `ChangeModuleSettingUseCase::set()` zapisuje **napis** (bo służy
+  pozycji tekstowej), a liczba zapisana napisem wróciłaby z pliku jako wartość
+  nieodpowiedniego typu. Strzałki na zakładce idą dalej tamtą drogą (`shift()`),
+  bo one przesuwają się po liście, a nie wpisują wartość.
+- **Głośność ma dwa wejścia o różnym zasięgu w czasie** — i to jest cena braku
+  cyklu życia wypowiedziana do końca: komenda działa **natychmiast**, także
+  w trakcie grania, a pozycja na zakładce obowiązuje **od następnego uruchomienia
+  utworu**, bo moduł bez ekranu nie dostaje od rdzenia ani jednego wywołania na
+  klatkę i nie ma jak zauważyć zmiany. Zdanie o tym stoi w zakładce pomocy
+  modułu, a nie tylko w dokumentacji.
+- **Plik MIDI został w `assets/audio/` i aplikacja go nie odtworzy.** Wskazany
+  w ustawieniach kończy się komunikatem, który wymienia formaty — to jedyne
+  sensowne zachowanie, skoro silnik czyta próbki, a nie zapis nutowy.
+
+## Decyzje z planowania Fazy XV (2026-08-14)
+
+### D71 — Rozbudowa modułu dźwięku wchodzi jako Faza XV: dwa kroki, dwa mechanizmy rdzenia, kontrakt modułu odwraca D70
+
+**Dotyczy:** kroków 45 ([45-ekran-audio-i-playlista.md](45-ekran-audio-i-playlista.md))
+i 46 ([46-efekty-specjalne.md](46-efekty-specjalne.md)).
+
+**Data:** 2026-08-14, tego samego dnia co ukończenie kroku 36 — na polecenie
+użytkownika, który poprosił o okno modułu z dwoma panelami (efekty specjalne po
+lewej, playlista po prawej), o wyniesienie wyboru utworu z ustawień do playlisty
+i o ustawienia odtwarzania playlisty oraz efektów.
+
+**Co rozstrzygnęło rozpoznanie w kodzie, zanim padło pierwsze pytanie.** Trzy
+fakty, wszystkie sprawdzone przed rozpisaniem i wszystkie przesądzające
+o kształcie fazy:
+
+- **Mechanizmu zdarzeń nie ma w ogóle.** `src/Domain/Event/` jest **katalogiem
+  pustym od kroku 01** — nazwę zarezerwowano przy zakładaniu struktury i nigdy
+  nie wypełniono; w całym `src/` nie ma ani jednego `dispatch()`. Efekty
+  specjalne nie mają więc skąd wiedzieć, że cokolwiek się stało.
+- **Moduł nie dostaje wywołania spoza swojego ekranu.** Bez ekranu — nie dostaje
+  go wcale (D70), z ekranem — wyłącznie wtedy, gdy ekran jest na wierzchu.
+  Playlista nie ma jak zauważyć, że utwór się skończył. `NeedsTime` (krok 23) tu
+  nie pomaga: rdzeń pyta o czas ekran i okno nakładane, czyli **to, co widać**.
+- **Ustawienia modułu trzymają wyłącznie skalary** (`bool|int|string`), więc
+  playlista i mapa hooków nie zmieszczą się w konfiguracji. Nośnikiem będzie
+  własny plik modułu, wzorem `~/.light-manager/history` (krok 19).
+
+Ponadto, dla kroku 46: **silnik miksuje kilka dźwięków naraz** — dwa obiekty
+`Sound` z tego samego `Engine` grają równocześnie (sprawdzone 2026-08-14). Efekt
+zagra **na** muzyce, a nie zamiast niej, więc krok nie potrzebuje ani kolejki,
+ani ściszania.
+
+**Decyzje użytkownika:**
+
+1. **Faza z dwóch kroków, nie jeden krok.** Zakres dzieli się wzdłuż **dwóch
+   niezależnych mechanizmów rdzenia**: takt dla playlisty (krok 45) i nazwane
+   zdarzenia dla efektów (krok 46). Jeden mechanizm na krok — rytm z D48 i D66.
+   Wariant „wszystko naraz” odpadł, bo dałby krok większy niż 21 i 35; wariant
+   trzykrokowy — bo krok dowożący playlistę, która nie przechodzi sama dalej,
+   byłby rzeczą świadomie niedokończoną.
+2. **Ustawienia zostają w zakładce modułu**, a nie w osobnym ekranie
+   konfiguracji. Aplikacja ma **jedną** drogę do ustawień (`F2`) i mechanizm
+   z kroku 20 wystarcza na wszystko, czego ta faza potrzebuje: tryb odtwarzania
+   jako pozycja wyboru, głośność, przełącznik efektów. Osobny ekran znaczyłby
+   drugą drogę do ustawień oraz pierwszy moduł wnoszący **więcej niż jeden
+   ekran**, czyli zmianę kontraktu (`ProvidesScreen` oddaje jeden).
+3. **Kontrakt modułu zyskuje takt i zdarzenia — D70 zostaje odwrócone.**
+   Różnica wobec tamtego rozstrzygnięcia jest jedna i musi być zapisana, bo bez
+   niej wygląda to na zmianę zdania: w kroku 36 zdolność miała **jednego
+   użytkownika i wyłącznie dla wygody** (muzykę dało się uruchomić komendą,
+   autostart był udogodnieniem), a tutaj **bez niej funkcja nie istnieje** —
+   playlista, która nie wie, że utwór się skończył, nie jest playlistą, a efekt
+   bez zdarzenia nie ma czego zagrać. Rdzeń dostaje przy tym mechanizm
+   **ogólny, nie wiedzę o dźwięku**: każdy przyszły moduł pracujący poza swoim
+   ekranem korzysta z tego samego.
+
+**Co z tego wynika dla kroków — i czego plany pilnują:**
+
+- **Takt ma trzy reguły od pierwszego dnia**: jest tani (żadnego
+  wejścia-wyjścia), niczego nie wymusza (nie prosi o przerysowanie) i nie rzuca
+  (wyjątek modułu nie przerywa pętli). Jego koszt rozlicza oś `--loop` „przed
+  i po” — to jedyne narzędzie mierzące coś wołanego trzydzieści razy na sekundę,
+  a przy okazji **odpowiedź na pytanie odłożone w kroku 36**, czy dźwięk
+  naprawdę nie wchodzi do ścieżki klatki.
+- **Słownik zdarzeń jest zamknięty**, wzorem słownika prymitywów (reguła 11k):
+  rozszerzenie wymaga zgody użytkownika. Kryterium doboru: wchodzi zdarzenie,
+  które **rdzeń już zna z nazwy** (komunikat z tonem, otwarcie okna, start
+  i koniec pracy, uruchomienie komendy), a nie takie, które trzeba by najpierw
+  wymyślić. Każde `publish()` w rdzeniu musi dać się obronić **bez słowa
+  „muzyka”**.
+- **Okno audio rośnie w dwóch krokach**: w 45 ma jeden panel (playlista), w 46
+  dostaje podział i lewy panel z efektami. Panel bez treści byłby obietnicą bez
+  pokrycia, a `Split` doklejony później kosztuje tyle, co w kroku 24.
+- **Autostart wraca jako możliwość.** Wykluczono go w kroku 36 dlatego, że nie
+  było kogo obudzić; po kroku 45 będzie — więc decyzja „czy muzyka rusza sama”
+  wraca na stół przy tamtym kroku i kosztuje jedną pozycję ustawień.
+- **Klucz `track` znika, ale jego wartość nie ginie**: zasila playlistę przy
+  pierwszym uruchomieniu po zmianie. Ustawienie, które użytkownik świadomie
+  ustawił, nie ma prawa zniknąć przy przenosinach mechanizmu.
+
+## Decyzje wykonawcze kroku 39 (2026-08-14)
+
+### D72 — Rozstrzygnięcia startowe kroku 39: sprawdzenie powłoką, jedno źródło jakości w Composerze, budowa jako PHAR i twarda reguła procesu
+
+**Dotyczy:** kroku 39 (pełna treść: [39-makefile.md](archiwum/39-makefile.md)),
+`Makefile`, `bin/build-phar`, [docs/architecture.md](../architecture.md),
+[SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md), `CLAUDE.md`
+i `README.md`.
+
+**Data:** 2026-08-14, przed pierwszą linią kodu — jedenaście pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku” plus trzy, które wynikły dopiero z wyboru
+PHAR-a i których plan przewidzieć nie mógł.
+
+**Pytanie nr 5 odpadło przed zadaniem.** Krok 38 wykonał się pierwszy i granica
+między przebiegami a testami jednostkowymi już istnieje: `phpunit.xml.dist` ma
+testsuites `unit` i `functional`, a przebiegi leżą w `tests/Functional/`. Krok 39
+**dowiązuje do nich cele**, zamiast rozstrzygać podział — dokładnie tak, jak
+zakładała zalecana kolejność faz w [00-index.md](00-index.md).
+
+**Decyzje użytkownika:**
+
+1. **`check-env` blokuje na wymogach twardych, o SIXEL-u tylko ostrzega.**
+   Kodem ≠ 0 kończy się brak PHP `^8.3`, `ext-imagick`, `ext-pcntl` albo `stty`
+   (i brak Composera 2.x przy `install`/`build`). Brak kodera `SIXEL` jest
+   **ostrzeżeniem przy kodzie 0**, bo aplikacja po nim działa — schodzi do trybu
+   tekstowego (krok 07); `glfw`, `intl` i `xterm` są informacją. Odpowiedź DA1
+   zostaje niesprawdzalna i cel mówi to wprost, odsyłając do `bin/terminal-probe`,
+   zamiast udawać, że sprawdził.
+2. **Sprawdzenie mieszka w samym Makefile, powłoką, po angielsku.** Bez
+   `bin/check-env`: `command -v` i `php -r` w recepturze celu. Angielski jak
+   jedyny napis poza katalogiem w [bin/light-manager:16](../../bin/light-manager#L16)
+   — cel działa **przed** `composer install`, więc ani tłumacza, ani czym go
+   wczytać, jeszcze nie ma.
+3. **Jedno źródło prawdy dla jakości zostaje w `composer.json`.** Cele `cs`,
+   `cs-check`, `stan`, `test` wołają skrypty Composera, a nie `vendor/bin/*`
+   wprost. Makefile jest cienką warstwą i **nie powtarza konfiguracji własnymi
+   słowami** — to jest reguła z sekcji „Cel” zastosowana do samego siebie.
+4. **Bramek jest dwie i różnią się jedną rzeczą.** `make qa` (cs-check → stan →
+   test) **przerywa na pierwszym błędzie**, bo literówka w stylu nie ma czekać na
+   pełny przebieg testów; `make qa-full` przechodzi całość i kończy zbiorczym
+   podsumowaniem z kodem wyjścia. Obie są recepturami sekwencyjnymi — kolejność
+   bramki nie może zależeć od tego, czy ktoś dopisał `-j`.
+5. **Cele pomiarowe odpalają pomiar od razu, wypisując ostrzeżenie.** Bariery
+   `CONFIRM=1` nie ma; regułę o zwolnieniu mocy hosta niesie tekst celu i
+   dokumenty. Tory dostają własne cele (`bench`, `bench-window`, `bench-text`,
+   `bench-loop`, `bench-xterm`), bo spis `make help` ma pokazywać, że tory są
+   cztery, a nie jeden z argumentem. Zakaz z kroku 16 zostaje: **żaden cel
+   jakości nie zależy od pomiaru**.
+6. **Budowa to PHAR, budowany własnym `bin/build-phar` na klasie `Phar`.**
+   Builder z Composera (`humbug/box`) odpadł: to byłaby jedyna nowa zależność
+   deweloperska w projekcie, a archiwum składa się z czterech katalogów i stuba.
+   Wersję niesie **`composer.json`** — pole `version` dopisane przy tym
+   rozstrzygnięciu, `0.1.0` — więc wynik nazywa się `light-manager-0.1.0.phar`
+   i budowa nie wymyśla numeru, którego projekt nie prowadzi. `phar.readonly`
+   jest w środowisku `On`, więc cel woła `php -d phar.readonly=0`.
+7. **`assets/` leżą obok archiwum, a `src/` zostaje nietknięte.** Silnik
+   `GL\Audio` to rozszerzenie C i pliku spod `phar://` nie przeczyta, a
+   `GlAudioService::resolved()` dokleja ścieżkę względną do korzenia projektu —
+   czyli w PHAR-ze **do wnętrza archiwum**. Rozważana poprawka w tym jednym
+   miejscu została odrzucona: granica kroku „`src/` bez zmian” jest ważniejsza
+   niż wygoda jednej pozycji ustawień. W wersji zbudowanej utwór wskazuje się
+   **ścieżką bezwzględną** w ustawieniach modułu — ta droga działa dziś i bez
+   żadnej zmiany (`resolved()` zostawia bezwzględne nietknięte). Budowa kładzie
+   `assets/` obok PHAR-a i wypisuje tę ścieżkę na końcu; README to opisuje.
+8. **Cele uruchomieniowe opakowują istniejące skrypty, nie powtarzają ich.**
+   `run`, `run-window`, `run-xterm`, `probe`, `probe-xterm` wołają
+   `bin/light-manager`, `bin/run.sh`, `bin/terminal-probe`
+   i `bin/run-terminal-probe.sh`. Zasoby XTerma zostają w jednym miejscu — w
+   skryptach — bo trzecia kopia listy `disallowedWindowOps` rozjechałaby się
+   z dwiema poprzednimi.
+9. **Obejście SIGSEGV Composera dostaje własny cel `install-safe`.** Ścieżka do
+   `conf.d` bez `imagick` przychodzi zmienną (`COMPOSER_INI_SCAN_DIR`), bo jest
+   specyficzna dla maszyny; `make install` zostaje czystym `composer install`.
+   Obejście jest odtąd widoczne w `make help`, a nie tylko w prozie README.
+10. **`make coverage` wchodzi, z czytelną odmową.** Cel sprawdza obecność Xdebuga
+    albo PCOV-u i przy braku mówi, czego zainstalować, zamiast wywalić się
+    komunikatem PHPUnita; raport HTML idzie do `build/coverage/`. To jedyne
+    rozszerzenie zestawu narzędzi w tym kroku — Psalm, Rector i Infection
+    zostają poza zakresem, bo dla nich nie ma nawet pytania.
+11. **Reguła procesu wchodzi twardo obiema połowami, z zapisaną granicą.**
+    W rejestrze `CLAUDE.md` („nie odstępuj bez jawnej zgody”) stoi i wejście
+    przez `make`, i pierwszeństwo narzędzi repozytorium. Granica jest częścią
+    reguły, nie przypisem: **zawężenie przebiegu wolno wołać wprost** (pojedynczy
+    test filtrem PHPUnita, jedna oś `bin/render-bench`, `composer` przy pracy nad
+    zależnościami); zakazane jest **dorabianie równoległej drogi** do procesu,
+    który wejście już ma.
+12. **Spis „proces → wejście” dostaje własny rozdział** w `docs/architecture.md`,
+    przed „Co dalej”. Wiersz „Skróty uruchomieniowe: `composer test`…” w rozdz. 4
+    **zostaje, ale zmienia rolę**: po rozstrzygnięciu nr 3 opisuje prawdę — to są
+    polecenia, które woła cel `make`, a definicja mieszka w `composer.json`.
+
+**Co wyszło dopiero z rozpisania:**
+
+- **Wersja w `composer.json` powstała w trakcie odpowiedzi, nie przed nią.**
+  Pytanie o źródło wersji zostało zadane przy założeniu, że go nie ma; użytkownik
+  dopisał pole `version` i odpowiedział wskazaniem na nie. To jedyna zmiana
+  w `composer.json` poza tą, której krok nie zrobił wcale (skrypty zostają, pkt 3).
+- **PHAR nie może po prostu wciągnąć `bin/light-manager`.** Plik zaczyna się
+  wierszem `#!/usr/bin/env php`, który przy `require` z wnętrza archiwum
+  wypisałby się na STDOUT **przed pierwszą sekwencją sterującą** — czyli zepsuł
+  klatkę. Budowa usuwa więc shebang przy wkładaniu pliku do archiwum i jest to
+  jedyna transformacja treści w całej budowie; stub robi `Phar::mapPhar()`
+  i `require`, a logiki startowej nie powtarza.
+- **Katalogi napisów czytają się spod `phar://` bez żadnej zmiany.** `Catalog`
+  robi `is_file()` i `require`, a `TranslatorService::directory()` liczy ścieżkę
+  z `dirname(__DIR__, 3)` — jedno i drugie działa na strumieniu `phar://`.
+  Sprawdzone uruchomieniem zbudowanego archiwum, nie założone.
+- **Narzędzia repozytorium do archiwum nie wchodzą i wejść nie mogą.** PHAR niesie
+  z `bin/` **wyłącznie `light-manager`**. `bin/render-bench` liczy ścieżki do
+  `docs/pomiary/` i `tests/Golden/` (`BaselineStore`, `GoldenFrames`) — katalogów,
+  których dystrybucja nie ma; `bin/install-desktop-entry` potrzebuje `realpath()`
+  pliku wykonywalnego, a spod `phar://` go nie dostanie. Pomiar i wpis pulpitu są
+  częścią repozytorium, nie aplikacji.
+
+### D73 — Dwie usterki znalezione przez cele `make`: zasób OpenGL ginie przed kontekstem, a sprzątanie w testach przestaje być do zapamiętania
+
+**Dotyczy:** `src/Infrastructure/Glfw/GlfwWindowService.php`,
+`VgContextService.php`, `GlfwException.php` oraz `tests/Support/PinsLanguage.php`.
+Rozliczenie kroku 39 ([39-makefile.md](archiwum/39-makefile.md), dziennik, pkt 6
+i 7).
+
+**Data:** 2026-08-14, po ukończeniu kroku 39, na polecenie użytkownika.
+
+**Skąd się wzięły.** Obie usterki są **starsze od kroku 39** i obie ujawniły się
+dopiero przez niego — nie dlatego, że coś zepsuł, tylko dlatego, że wejście przez
+`make` zaczęło czytać kod wyjścia i pokazało katalog tymczasowy z boku.
+
+**1. `bin/render-bench --window` kończył się SIGSEGV (kod 139)** już po
+wypisaniu tabeli. Rozpoznanie przez rozbicie na najmniejsze przypadki: samo okno
+zamyka się czysto (kod 0), okno **z kontekstem `VGContext`** kończy się
+naruszeniem ochrony pamięci, a to samo z kontekstem zwolnionym **przed**
+zamknięciem — znowu czysto. Przyczyna: obiekty rozszerzenia zwalniają zasoby GL
+w destruktorach, a te wołają się przy sprzątaniu procesu, czyli **po**
+`glfwTerminate()`. Kontekstu wtedy nie ma i zwolnienie trafia w pustkę.
+
+**Rozwiązanie: kolejność zamiast nadziei.** `GlfwWindowService` dostał
+`releaseBeforeClose(Closure $release)`, a `close()` wykonuje zamówienia
+w odwrotnej kolejności, zanim zniszczy okno i zakończy GLFW. Zamawiającym jest
+**twórca zasobu** — `VgContextService` robi to w tej samej linii konstruktora,
+w której już wcześniej wymuszał kolejność powstawania (`GlfwWindowService::getInstance()`).
+Pole `$vg` przestało być `readonly`, a `context()` po zwolnieniu **rzuca**
+(`GlfwException::forReleasedContext()`), zamiast oddać `null`: poprawny przebieg
+do tego stanu nie dochodzi, więc lepiej, żeby powiedział to głośno.
+
+Rodzaju awarii nie przybyło — `forReleasedContext()` używa istniejącego
+`GlfwProblem::WindowFailure`, bo z punktu widzenia użytkownika to jedno zdarzenie
+(okna nie ma), a stan nieosiągalny nie zasługuje na własne zdanie w katalogu
+napisów.
+
+**Odrzucone alternatywy.** *Zamaskowanie kodu wyjścia w celu `make`* — cel
+ukrywający naruszenie ochrony pamięci jest gorszy od celu, który się przewraca.
+*Zwolnienie w obu miejscach wołających `close()`* (`Bootstrap::shutdown()`
+i `BenchmarkCli::closeWindow()`) — to jest dokładnie wzorzec „dwa miejsca muszą
+pamiętać”, przed którym broni D47; przy wyjściu awaryjnym, gdzie sprząta funkcja
+zamknięcia procesu, nie zadziałałoby w ogóle. *`hasInstance()` w `AbstractSingleton`*
+— rozszerzanie rdzeniowego wzorca Singletona po to, żeby jedna usługa mogła
+zapytać o drugą, przy istniejącej i jawnej zależności między nimi.
+
+**Zasięg jest szerszy niż narzędzie pomiarowe:** tę samą sekwencję wykonuje
+aplikacja w trybie okienkowym, więc `./bin/light-manager --window` również kończył
+się SIGSEGV po `F10` — niewidocznie, bo kodu wyjścia programu interaktywnego nikt
+nie czyta. Po poprawce oba kończą się zerem, wraz ze scenariuszem `thumbnail`,
+który jako jedyny tworzy tekstury.
+
+**2. `tests/Support/PinsLanguage` zostawiał katalog w `/tmp`** po każdym
+przebiegu testów. Cofnięcie (`unpinLanguage()`) istniało od początku i sześć klas
+wołało je w `tearDown()`, ale siódma (`AudioServicesTest`, krok 36) o tym
+zapomniała — i tak zostawało po jednym pustym katalogu na przebieg.
+
+**Rozwiązanie: sprzątanie przestaje być do zapamiętania.** `unpinLanguage()`
+niesie odtąd atrybut `#[After]`, więc PHPUnit woła je sam po każdym teście.
+Kolejność sprawdzono uruchomieniem, a nie z pamięci: `tearDown()` biegnie
+**przed** metodami `#[After]`, więc sprzątanie klasy zdąży skorzystać
+z podmienionego katalogu domowego. Jawne wywołania z sześciu klas **zniknęły** —
+jedna czynność ma mieć jedno wejście. Przy okazji `pinLanguage()` stało się
+odporne na powtórzenie w jednym teście: kasuje poprzedni katalog i zapamiętuje
+wyłącznie **zastane** zmienne środowiskowe (wcześniej drugie przypięcie
+zapamiętałoby wartości ustawione przez pierwsze i cofnięcie przywróciłoby
+katalog tymczasowy zamiast prawdziwego `HOME`).
+
+**Czego nie zrobiono:** testu pilnującego reguły. Sprzątanie jest teraz w jednym
+miejscu i woła je PHPUnit, więc nie ma czego zapominać; test sprawdzający, że
+klasy „pamiętają”, pilnowałby mechanizmu, którego już nie ma.

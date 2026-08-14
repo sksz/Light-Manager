@@ -1,0 +1,4 @@
+# Obrazy różnicy powstają przy `--png-compare` i są wynikiem **jednego
+# przebiegu**, a nie punktem odniesienia. Wzorce (`<tor>-<scenariusz>.png`)
+# wchodzą do repozytorium; różnice nigdy.
+*-roznica.png

@@ -20,16 +20,35 @@ final class ScenarioResult
         public readonly Measurement $encode,
         public readonly Measurement $total,
         public readonly Measurement $blobBytes,
+        /**
+         * Pierwsza klatka rozgrzewki — koszt **zimny**, płacony przy starcie
+         * aplikacji i po każdej zmianie rozmiaru okna (krok 38, D64).
+         *
+         * `null`, gdy przebieg szedł bez rozgrzewki (`--warmup=0`): zera
+         * w tym miejscu byłyby kłamstwem, a nie brakiem pomiaru.
+         */
+        public readonly ?PhaseSample $cold = null,
+        /**
+         * Szczyt pamięci procesu **w obrębie tego scenariusza** — licznik jest
+         * zerowany przed próbkami, więc liczba nie niesie ze sobą szczytu
+         * poprzednich scenariuszy.
+         */
+        public readonly int $peakMemoryBytes = 0,
     ) {
     }
 
     /**
      * @param list<PhaseSample> $samples
+     * @param ?PhaseSample      $cold    pierwsza próbka rozgrzewki, jeśli była
      *
      * @throws DiagnosticsException gdy scenariusz nie dostarczył ani jednej próbki
      */
-    public static function fromSamples(Scenario $scenario, array $samples): self
-    {
+    public static function fromSamples(
+        Scenario $scenario,
+        array $samples,
+        ?PhaseSample $cold = null,
+        int $peakMemoryBytes = 0,
+    ): self {
         return new self(
             $scenario,
             Measurement::fromSamples(array_map(
@@ -52,6 +71,8 @@ final class ScenarioResult
                 static fn (PhaseSample $sample): int => $sample->blobBytes,
                 $samples,
             )),
+            $cold,
+            $peakMemoryBytes,
         );
     }
 
@@ -69,6 +90,8 @@ final class ScenarioResult
             $this->total->median,
             (int) round($this->blobBytes->median),
             $this->isUnstable(),
+            $this->cold?->totalMilliseconds(),
+            $this->peakMemoryBytes,
         );
     }
 }

@@ -9,7 +9,10 @@ use LightManager\Domain\ValueObject\RendererMode;
 use LightManager\Infrastructure\Glfw\GlfwWindowService;
 use LightManager\Infrastructure\I18n\TranslatorService;
 use LightManager\Infrastructure\Imagick\SixelFrameEncoder;
+use LightManager\Infrastructure\Rendering\AnsiPalette;
 use LightManager\Infrastructure\Rendering\OpenGlFrameRenderer;
+use LightManager\Infrastructure\Rendering\TextFrameRenderer;
+use LightManager\Infrastructure\Rendering\Theme;
 use LightManager\Infrastructure\Rendering\ThemeService;
 use LightManager\Infrastructure\Terminal\SixelCapabilityService;
 use LightManager\Infrastructure\Terminal\TerminalService;
@@ -36,6 +39,8 @@ final class BenchmarkCli
     public function __construct(
         ?TranslatorPort $translator = null,
         private readonly ?BaselineStore $store = null,
+        private readonly ?SnapshotStore $snapshots = null,
+        private readonly ?GoldenFrames $golden = null,
     ) {
         $this->translator = $translator ?? TranslatorService::getInstance();
         $this->table = new ReportTable($this->translator);
@@ -54,6 +59,9 @@ final class BenchmarkCli
             return match ($arguments->mode) {
                 BenchmarkMode::Help => $this->showHelp(),
                 BenchmarkMode::Snapshot => $this->writeSnapshot($arguments),
+                BenchmarkMode::ImageSave => $this->saveImages($arguments),
+                BenchmarkMode::ImageCompare => $this->compareImages($arguments),
+                BenchmarkMode::GoldenSave => $this->saveGoldenFrames($arguments),
                 BenchmarkMode::Run => $this->measure($arguments),
             };
         } catch (DiagnosticsException $exception) {
@@ -66,7 +74,7 @@ final class BenchmarkCli
     private function measure(BenchmarkArguments $arguments): int
     {
         $fixture = $this->fixtureFor($arguments);
-        $windowed = $arguments->options->windowed;
+        $track = $arguments->options->track;
 
         try {
             $this->progress('bench.progress.running', [
@@ -74,13 +82,32 @@ final class BenchmarkCli
                 'iterations' => $arguments->options->iterations,
             ]);
 
-            [$results, $transfer] = $windowed
-                ? [$this->windowRunnerFor($arguments, $fixture?->path)->run($arguments->scenarios), null]
-                : $this->measureTerminal($arguments, $fixture?->path);
+            [$results, $transfer] = match ($track) {
+                BenchmarkTrack::Window => [
+                    $this->windowRunnerFor($arguments, $fixture?->path)->run($arguments->scenarios),
+                    null,
+                ],
+                BenchmarkTrack::Text => $this->measureTerminal(
+                    $arguments,
+                    $this->textRunnerFor($arguments, $fixture?->path),
+                ),
+                BenchmarkTrack::Sixel => $this->measureTerminal(
+                    $arguments,
+                    $this->runnerFor($arguments, $fixture?->path),
+                ),
+                BenchmarkTrack::Loop => [
+                    (new LoopBenchmarkRunner(
+                        new ScenarioFactory($arguments->options),
+                        $arguments->options,
+                        $this->translator,
+                    ))->run($arguments->scenarios),
+                    null,
+                ],
+            };
 
             $report = (new BenchmarkReport(
                 $arguments->options,
-                EnvironmentMetadata::current($arguments->options->font, $windowed),
+                EnvironmentMetadata::current($arguments->options->font, $track),
                 $results,
             ))->withTransfer($transfer);
 
@@ -93,23 +120,40 @@ final class BenchmarkCli
         } finally {
             $fixture?->remove();
 
-            if ($windowed) {
-                GlfwWindowService::getInstance()->close();
-            }
+            $this->closeWindow($track);
         }
     }
 
     /**
-     * Tor terminalowy: przebieg wraz z fazą przesyłu — ta ostatnia jest jedyną,
-     * która potrzebuje terminala, i nie ma odpowiednika w oknie.
+     * Tor terminalowy — sixelowy albo tekstowy: przebieg wraz z fazą przesyłu.
+     *
+     * Przesył jest jedyną fazą, która potrzebuje prawdziwego terminala, i nie
+     * ma odpowiednika w oknie. Od kroku 38 mierzy się go w **obu** torach
+     * terminalowych: bajty ANSI też trzeba wypchnąć, a ich koszt jest tak samo
+     * prawdziwy jak koszt bloba Sixela.
      *
      * @return array{list<ScenarioResult>, TransferResult|null}
      */
-    private function measureTerminal(BenchmarkArguments $arguments, ?string $imagePath): array
+    private function measureTerminal(BenchmarkArguments $arguments, BenchmarkRunner|TextBenchmarkRunner $runner): array
     {
-        $runner = $this->runnerFor($arguments, $imagePath);
-
         return [$runner->run($arguments->scenarios), $this->transferFor($arguments, $runner)];
+    }
+
+    /**
+     * Tor tekstowy (krok 38): renderer ANSI zamiast potoku Sixela.
+     *
+     * Osi jakości ten tor nie ma — wygładzanie i paleta nie dotyczą siatki
+     * znakowej — więc z `RenderingOptions` bierze wyłącznie motyw. Zero
+     * w kolumnie kwantyzacji mówi to samo wprost.
+     */
+    private function textRunnerFor(BenchmarkArguments $arguments, ?string $imagePath): TextBenchmarkRunner
+    {
+        return new TextBenchmarkRunner(
+            new TextFrameRenderer(AnsiPalette::fromEnvironment()),
+            new ScenarioFactory($arguments->options, $imagePath),
+            $arguments->options,
+            $arguments->options->toRenderingOptions($this->themeFor($arguments)),
+        );
     }
 
     /**
@@ -126,18 +170,28 @@ final class BenchmarkCli
             throw DiagnosticsException::forUnavailableGlfw();
         }
 
+        return new WindowBenchmarkRunner(
+            new OpenGlFrameRenderer(),
+            new ScenarioFactory($arguments->options, $imagePath),
+            $arguments->options,
+            $arguments->options->toRenderingOptions($this->themeFor($arguments)),
+        );
+    }
+
+    /**
+     * Motyw wskazany osią `--theme`. Nazwa spoza katalogu kończy się odmową,
+     * a nie cichym powrotem do motywu domyślnego: pomiar szedłby wtedy na innym
+     * motywie, niż zapisano w podpisie konfiguracji.
+     */
+    private function themeFor(BenchmarkArguments $arguments): Theme
+    {
         $themes = ThemeService::getInstance();
 
         if (!$themes->has($arguments->options->themeName)) {
             throw DiagnosticsException::forUnknownTheme($arguments->options->themeName);
         }
 
-        return new WindowBenchmarkRunner(
-            new OpenGlFrameRenderer(),
-            new ScenarioFactory($arguments->options, $imagePath),
-            $arguments->options,
-            $arguments->options->toRenderingOptions($themes->named($arguments->options->themeName)),
-        );
+        return $themes->named($arguments->options->themeName);
     }
 
     private function writeSnapshot(BenchmarkArguments $arguments): int
@@ -159,19 +213,136 @@ final class BenchmarkCli
         }
     }
 
-    private function runnerFor(BenchmarkArguments $arguments, ?string $imagePath): BenchmarkRunner
+    /**
+     * Zapis złotych klatek (krok 38): serializacja prymitywów każdego wybranego
+     * scenariusza do `tests/Golden/`.
+     *
+     * Jedyna droga do regeneracji i **jawna z założenia**: złoty plik odnowiony
+     * automatem przestaje być testem, bo zapisuje także zmianę, której nikt nie
+     * chciał. Kto to woła, ma najpierw przeczytać różnicę.
+     */
+    private function saveGoldenFrames(BenchmarkArguments $arguments): int
     {
-        $themes = ThemeService::getInstance();
+        $golden = $this->golden ?? GoldenFrames::default();
 
-        if (!$themes->has($arguments->options->themeName)) {
-            throw DiagnosticsException::forUnknownTheme($arguments->options->themeName);
+        foreach ($arguments->scenarios as $scenario) {
+            echo $this->translator->translate('bench.golden.saved', [
+                'file' => basename($golden->save($scenario)),
+            ]) . PHP_EOL;
         }
 
+        return 0;
+    }
+
+    /**
+     * Zapis wzorcowych zrzutów wybranych scenariuszy (krok 38).
+     *
+     * Zapisuje **bez pytania**, bo to jawna prośba użytkownika, ale wypisuje
+     * każdy plik z osobna: wzorzec nadpisany po cichu jest gorszy od braku
+     * wzorca — nikt nie zauważy, że punkt odniesienia właśnie przestał
+     * odpowiadać temu, co było przed zmianą.
+     */
+    private function saveImages(BenchmarkArguments $arguments): int
+    {
+        $fixture = $this->fixtureFor($arguments);
+        $store = $this->snapshots ?? SnapshotStore::default();
+        $track = $arguments->options->track;
+
+        try {
+            $source = $this->imageSourceFor($arguments, $fixture?->path);
+
+            foreach ($arguments->scenarios as $scenario) {
+                $image = $source->imageOf($scenario);
+
+                try {
+                    echo $this->translator->translate('bench.image.saved', [
+                        'file' => basename(
+                            $store->save($image, $track, $scenario, $arguments->options->signature()),
+                        ),
+                    ]) . PHP_EOL;
+                } finally {
+                    $image->clear();
+                }
+            }
+
+            return 0;
+        } finally {
+            $fixture?->remove();
+            $this->closeWindow($track);
+        }
+    }
+
+    /**
+     * Porównanie zrzutów z wzorcami. Kod wyjścia **nie jest kosmetyką**: to on
+     * czyni z obrazu miarę, a nie ilustrację.
+     */
+    private function compareImages(BenchmarkArguments $arguments): int
+    {
+        $fixture = $this->fixtureFor($arguments);
+        $track = $arguments->options->track;
+        $threshold = $arguments->imageThreshold();
+
+        try {
+            $source = $this->imageSourceFor($arguments, $fixture?->path);
+            $comparison = new SnapshotComparison($this->snapshots ?? SnapshotStore::default());
+            $differences = [];
+
+            foreach ($arguments->scenarios as $scenario) {
+                $image = $source->imageOf($scenario);
+
+                try {
+                    $differences[] = $comparison->compare(
+                        $image,
+                        $track,
+                        $scenario,
+                        $threshold,
+                        $arguments->options->signature(),
+                    );
+                } finally {
+                    $image->clear();
+                }
+            }
+
+            echo $this->table->renderImageComparison($differences, $threshold);
+
+            foreach ($differences as $difference) {
+                if ($difference->verdict->isFailure()) {
+                    return 1;
+                }
+            }
+
+            return 0;
+        } finally {
+            $fixture?->remove();
+            $this->closeWindow($track);
+        }
+    }
+
+    /**
+     * Tor, który potrafi oddać obraz klatki. Tekstowy takim torem nie jest
+     * i parser odrzuca go wcześniej — tutaj zostają dwa.
+     */
+    private function imageSourceFor(BenchmarkArguments $arguments, ?string $imagePath): ScenarioImageSource
+    {
+        return $arguments->options->track === BenchmarkTrack::Window
+            ? $this->windowRunnerFor($arguments, $imagePath)
+            : $this->runnerFor($arguments, $imagePath);
+    }
+
+    private function closeWindow(BenchmarkTrack $track): void
+    {
+        if ($track === BenchmarkTrack::Window) {
+            GlfwWindowService::getInstance()->close();
+        }
+    }
+
+    private function runnerFor(BenchmarkArguments $arguments, ?string $imagePath): BenchmarkRunner
+    {
         return new BenchmarkRunner(
             new SixelFrameEncoder(),
             new ScenarioFactory($arguments->options, $imagePath),
             $arguments->options,
-            $arguments->options->toRenderingOptions($themes->named($arguments->options->themeName)),
+            $arguments->options->toRenderingOptions($this->themeFor($arguments)),
         );
     }
 
@@ -189,8 +360,10 @@ final class BenchmarkCli
      * Faza przesyłu — albo pomiar pod prawdziwym terminalem, albo jawne „nie
      * zmierzono” z podaniem powodu.
      */
-    private function transferFor(BenchmarkArguments $arguments, BenchmarkRunner $runner): ?TransferResult
-    {
+    private function transferFor(
+        BenchmarkArguments $arguments,
+        BenchmarkRunner|TextBenchmarkRunner $runner,
+    ): ?TransferResult {
         if (!$arguments->measureTransfer) {
             return null;
         }
@@ -203,7 +376,10 @@ final class BenchmarkCli
 
         $terminal = TerminalService::getInstance();
 
-        if (SixelCapabilityService::getInstance()->detect() !== RendererMode::Sixel) {
+        // Sixela wymaga wyłącznie tor sixelowy — bajty ANSI wyświetli każdy
+        // terminal, więc odmowa z powodu braku DA1 byłaby tam bez sensu.
+        if ($arguments->options->track === BenchmarkTrack::Sixel
+            && SixelCapabilityService::getInstance()->detect() !== RendererMode::Sixel) {
             $this->progress('bench.transfer.skippedNoSixel');
 
             return null;
@@ -260,6 +436,8 @@ final class BenchmarkCli
             BaselineComparison::between($baseline, $current),
             $path,
             $arguments->thresholdPercent,
+            $baseline->environment,
+            $current->environment,
         );
     }
 
@@ -275,6 +453,17 @@ final class BenchmarkCli
             echo $this->translator->translate('bench.save.refusedUnstable') . PHP_EOL;
 
             return;
+        }
+
+        // Obciążenie **ostrzega, ale nie odmawia** (D64): to przesłanka, a nie
+        // skutek — rozrzut wewnątrz przebiegu bywa wąski mimo zajętej maszyny,
+        // więc odmowa na tej podstawie blokowałaby także dobre wzorce. Decyzję
+        // podejmuje człowiek, mając liczbę przed oczami.
+        if ($report->environment->isNoisy()) {
+            echo $this->translator->translate('bench.save.noisyLoad', [
+                'load' => $this->translator->number($report->environment->loadPerCore ?? 0.0, 2),
+                'limit' => $this->translator->number(EnvironmentMetadata::NOISY_LOAD_PER_CORE, 2),
+            ]) . PHP_EOL;
         }
 
         $path = ($this->store ?? BaselineStore::default())->save($report->toSnapshot(), $arguments->saveName);

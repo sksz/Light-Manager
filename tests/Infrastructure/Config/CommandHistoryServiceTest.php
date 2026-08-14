@@ -34,7 +34,6 @@ final class CommandHistoryServiceTest extends TestCase
     protected function tearDown(): void
     {
         $this->resetSingleton(CommandHistoryService::class);
-        $this->unpinLanguage();
     }
 
     public function testStartWithoutFileGivesEmptyHistoryInSilence(): void

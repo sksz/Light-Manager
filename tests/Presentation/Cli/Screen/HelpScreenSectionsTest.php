@@ -45,9 +45,16 @@ final class HelpScreenSectionsTest extends TestCase
     public function testEveryGroupOfKeysIsASectionWithItsOwnHeader(): void
     {
         self::assertSame(
-            ['help.section.global', 'layout.zone.settings', 'layout.zone.help', 'layout.zone.command'],
+            [
+                'help.section.global',
+                'layout.zone.settings',
+                'layout.zone.help',
+                'layout.zone.command',
+                'menu.title',
+            ],
             $this->labels($this->app->help),
-            'wiązania rdzenia dostały nagłówek, którego przed krokiem 22 nie miały',
+            'wiązania rdzenia dostały nagłówek, którego przed krokiem 22 nie miały; '
+            . 'menu kontekstowe dołożyło piątą sekcję w kroku 32',
         );
     }
 
@@ -108,7 +115,7 @@ final class HelpScreenSectionsTest extends TestCase
         $help->handle(KeyPress::special(Key::Enter, "\r"));
 
         self::assertSame(
-            [Section::OPEN, Section::OPEN, Section::OPEN, Section::CLOSED],
+            [Section::OPEN, Section::OPEN, Section::OPEN, Section::OPEN, Section::CLOSED],
             $this->markers($help),
             'kursor nie wyjeżdża poza ostatnią sekcję, więc zwija właśnie ją',
         );
@@ -142,7 +149,7 @@ final class HelpScreenSectionsTest extends TestCase
         $help->handle(KeyPress::special(Key::Enter, "\r"));
 
         self::assertSame(
-            [Section::CLOSED, Section::CLOSED, Section::OPEN, Section::OPEN],
+            [Section::CLOSED, Section::CLOSED, Section::OPEN, Section::OPEN, Section::OPEN],
             $this->markers($help),
             'kursor wrócił na pierwszą sekcję, więc Enter zwinął ją, a nie drugą',
         );

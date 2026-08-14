@@ -157,6 +157,20 @@ final class BrowserState
     }
 
     /**
+     * Kontekst wskazany przez **drzewo** panelu (krok 31).
+     *
+     * Katalog przychodzi z zewnątrz, bo węzeł pod kursorem drzewa leży zwykle
+     * głębiej niż katalog panelu — a moduł opisujący plik ma pokazać ten wpis,
+     * na który użytkownik patrzy, nie ten, od którego zaczął. `BrowserTree`
+     * podaje gotowy agregat z zaznaczeniem, więc publikacja zostaje **jedna**
+     * i liczy się dokładnie tak samo, jak dla listy.
+     */
+    public function publishNode(Directory $node): void
+    {
+        $this->publishFrom($node);
+    }
+
+    /**
      * Widoczność wpisów ukrytych czytana z ustawień, nie z własnego pola: jedno
      * miejsce prawdy zamiast dwóch, które musiałyby się pilnować nawzajem.
      */
@@ -167,10 +181,15 @@ final class BrowserState
 
     private function publish(): void
     {
-        $entry = $this->directory->selectedEntry();
+        $this->publishFrom($this->directory);
+    }
+
+    private function publishFrom(Directory $directory): void
+    {
+        $entry = $directory->selectedEntry();
 
         $this->state->publishContext(new ModuleContext(
-            $this->directory->path()->value,
+            $directory->path()->value,
             $entry?->name,
             self::kindOf($entry),
         ));

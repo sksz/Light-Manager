@@ -105,9 +105,7 @@ return [
     'module.file-info.failedWith' => 'The "file" command failed: {detail}',
     'module.file-info.timedOut' => 'The "file" command did not answer within {seconds} s — aborted.',
 
-    'module.file-info.command.jump' => 'go to the given directory',
-    'module.file-info.argument.path' => 'path',
-    'module.file-info.jump.failed' => 'Could not open the directory "{path}".',
+    'module.file-info.command.show' => 'show the description of the selected entry',
 
     'module.file-info.help.checksum' => 'compute the checksum',
     'module.file-info.help.diskUsage' => 'measure the directory disk usage',

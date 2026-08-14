@@ -313,10 +313,13 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
             SettingKey::PaletteColors => is_int($value) && in_array($value, Settings::PALETTE_CHOICES, true)
                 ? $settings->withPaletteColors($value)
                 : null,
-            SettingKey::WindowColumns => is_int($value) && in_array($value, Settings::WINDOW_COLUMNS_CHOICES, true)
+            // Rozmiar okna sprawdzamy **zakresem, nie listą** (krok 37): okno
+            // zapamiętuje rozmiar nadany przeciągnięciem rogu, więc wartość
+            // wypadająca między przystankami strzałek jest tu stanem zwykłym.
+            SettingKey::WindowColumns => is_int($value) && Settings::allowsWindowColumns($value)
                 ? $settings->withWindowColumns($value)
                 : null,
-            SettingKey::WindowRows => is_int($value) && in_array($value, Settings::WINDOW_ROWS_CHOICES, true)
+            SettingKey::WindowRows => is_int($value) && Settings::allowsWindowRows($value)
                 ? $settings->withWindowRows($value)
                 : null,
         };

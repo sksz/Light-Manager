@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace LightManager\Presentation\Cli;
 
+use Closure;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Domain\Exception\DomainException;
 use LightManager\Presentation\Ui\KeyBinding;
+use LightManager\Presentation\Ui\Overlay\MenuOverlay;
 use LightManager\Presentation\Ui\OverlayInterface;
 use LightManager\Presentation\Ui\OverlayOutcome;
 use LightManager\Presentation\Ui\ScreenInterface;
@@ -37,9 +39,19 @@ use LightManager\Presentation\Ui\Transition;
 final class InputHandler
 {
     /**
-     * @param array<string, ScreenInterface> $modules litera skrótu → ekran modułu;
-     *                                                mapę składa `Bootstrap`
-     *                                                z rejestru modułów
+     * @param array<string, ScreenInterface> $modules    litera skrótu → ekran modułu;
+     *                                                   mapę składa `Bootstrap`
+     *                                                   z rejestru modułów
+     * @param ?Closure(): bool               $fullscreen przełącznik pełnego ekranu
+     *                                                   albo `null` w trybach
+     *                                                   terminalowych, gdzie `F11`
+     *                                                   nie ma czego przełączać
+     * @param ?MenuOverlay                   $menu       menu kontekstowe (krok 32);
+     *                                                   typ jest konkretny, bo rdzeń
+     *                                                   podaje mu zaznaczenie przed
+     *                                                   otwarciem — `OverlayInterface`
+     *                                                   o zaznaczeniu nie wie i wiedzieć
+     *                                                   nie ma
      */
     public function __construct(
         private readonly ScreenStack $screens,
@@ -48,6 +60,8 @@ final class InputHandler
         private readonly ProblemPresenter $problems,
         private readonly ?OverlayInterface $commands = null,
         private readonly array $modules = [],
+        private readonly ?Closure $fullscreen = null,
+        private readonly ?MenuOverlay $menu = null,
     ) {
     }
 
@@ -60,16 +74,29 @@ final class InputHandler
      * właśnie wpisuje. Skutek uboczny jest dla kroku 20 cenniejszy niż sama
      * zmiana — rdzeń nie rezerwuje odtąd **ani jednej litery**.
      *
+     * Od kroku 37 lista **zależy od trybu** i jest to pierwszy taki przypadek:
+     * `F11` wchodzi wyłącznie w torze okienkowym, bo pełny ekran nie znaczy nic
+     * w terminalu, a spis klawiszy w oknie pomocy i w pasku stanu ma pokazywać
+     * to, co działa tu i teraz (precedens kroku 30). Wołający zna tryb —
+     * `Bootstrap` wybrał go flagą, zanim cokolwiek powstało.
+     *
      * @return list<KeyBinding>
      */
-    public static function globalBindings(): array
+    public static function globalBindings(bool $windowed = false): array
     {
-        return [
+        $bindings = [
             KeyBinding::of([Key::F1], 'help.key.help'),
             KeyBinding::of([Key::F2], 'help.key.settings'),
+            KeyBinding::of([Key::F9], 'help.key.menu'),
             KeyBinding::of([Key::F12], 'help.key.commands'),
             KeyBinding::of([Key::F10], 'help.key.quit'),
         ];
+
+        if ($windowed) {
+            $bindings[] = KeyBinding::of([Key::F11], 'help.key.fullscreen');
+        }
+
+        return $bindings;
     }
 
     /**
@@ -88,7 +115,7 @@ final class InputHandler
             return $this->toOverlay($overlay->handle($key), $key, $state, $now);
         }
 
-        if ($this->global($key, $state)) {
+        if ($this->global($key, $state, $now)) {
             return $key->key === Key::F10;
         }
 
@@ -103,7 +130,7 @@ final class InputHandler
     private function toOverlay(OverlayOutcome $outcome, KeyPress $key, LoopState $state, float $now): bool
     {
         if (!$outcome->handled) {
-            if (!$this->global($key, $state)) {
+            if (!$this->global($key, $state, $now)) {
                 return false;
             }
 
@@ -130,7 +157,7 @@ final class InputHandler
     /**
      * @return bool czy klawisz należał do rdzenia albo do skrótu modułu
      */
-    private function global(KeyPress $key, LoopState $state): bool
+    private function global(KeyPress $key, LoopState $state, float $now): bool
     {
         switch ($key->key) {
             case Key::F10:
@@ -151,11 +178,53 @@ final class InputHandler
                 $state->overlays()->toggle($this->commands);
 
                 return true;
+            case Key::F9:
+                return $this->toMenu($state, $now);
+            case Key::F11:
+                // Pełny ekran nie melduje się komunikatem, choć komenda
+                // `core.fullscreen` to robi: skutek naciśnięcia klawisza widać
+                // w tej samej klatce, a pasek stanu ma jedno miejsce i szkoda go
+                // na opisanie tego, co użytkownik właśnie zobaczył. Komenda mówi,
+                // bo okno komend zamyka się razem z wykonaniem.
+                if ($this->fullscreen === null) {
+                    return false;
+                }
+
+                ($this->fullscreen)();
+
+                return true;
             case Key::Character:
                 return $this->toModule($key);
             default:
                 return false;
         }
+    }
+
+    /**
+     * Menu kontekstowe: zaznaczenie najpierw, otwarcie potem (krok 32).
+     *
+     * Kontekst sesji podaje **rdzeń**, bo to on go trzyma — okno dostaje migawkę
+     * i już się o nią nie dopytuje. Menu bez ani jednej pozycji **nie otwiera
+     * się wcale**: mówi zdaniem w pasku stanu, zamiast prosić o zamknięcie
+     * pustego prostokąta.
+     */
+    private function toMenu(LoopState $state, float $now): bool
+    {
+        if ($this->menu === null) {
+            return false;
+        }
+
+        $this->menu->useContext($state->context());
+
+        if ($this->menu->isEmpty()) {
+            $state->report($this->menu->emptyMessage(), $now);
+
+            return true;
+        }
+
+        $state->overlays()->toggle($this->menu);
+
+        return true;
     }
 
     /**

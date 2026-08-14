@@ -52,9 +52,6 @@ final class EntryList implements ComponentInterface
     /** Pusto **po zawężeniu** to co innego niż pusty katalog — i tak ma się czytać. */
     private const NO_MATCH_KEY = 'module.browser.filter.none';
 
-    /** Skróty jednostek są międzynarodowe — nie przechodzą przez katalog napisów. */
-    private const SIZE_UNITS = ['B', 'kB', 'MB', 'GB', 'TB'];
-
     /** `2026-08-11 18:45` — szesnaście znaków plus odstęp od sąsiada. */
     private const DATE_FORMAT = 'Y-m-d H:i';
 
@@ -243,7 +240,7 @@ final class EntryList implements ComponentInterface
         return new TableRow(
             [
                 $entry->name . ($entry->isDirectory() ? '/' : ''),
-                $entry->isDirectory() ? '' : $this->formatSize($entry->sizeInBytes),
+                $entry->isDirectory() ? '' : EntrySize::of($this->translator, $entry->sizeInBytes),
                 $this->formatDate($entry->modifiedAt),
                 $entry->permissionsAsText(),
             ],
@@ -286,22 +283,5 @@ final class EntryList implements ComponentInterface
     private function formatDate(?int $timestamp): string
     {
         return $timestamp === null ? '' : date(self::DATE_FORMAT, $timestamp);
-    }
-
-    private function formatSize(int $bytes): string
-    {
-        $value = (float) $bytes;
-        $unit = 0;
-
-        while ($value >= 1024.0 && $unit < count(self::SIZE_UNITS) - 1) {
-            $value /= 1024.0;
-            ++$unit;
-        }
-
-        if ($unit === 0) {
-            return $bytes . ' B';
-        }
-
-        return $this->translator->number($value, 1) . ' ' . self::SIZE_UNITS[$unit];
     }
 }

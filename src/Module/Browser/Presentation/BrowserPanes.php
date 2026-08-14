@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Browser\Presentation;
 
+use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Presentation\Ui\ScrollWindow;
 use LightManager\Presentation\Ui\SplitState;
 
@@ -35,12 +36,33 @@ final class BrowserPanes
     /** @var array{ScrollWindow, ScrollWindow} */
     private readonly array $windows;
 
+    /** @var array{BrowserTree, BrowserTree} */
+    private readonly array $trees;
+
+    /**
+     * Który panel pokazuje drzewo zamiast listy (krok 31).
+     *
+     * Odpowiedź należy do **panelu**, a nie do ustawień modułu, i to jest
+     * rozstrzygnięcie użytkownika ze startu kroku: widok przełącza się klawiszem
+     * w trakcie pracy, więc jest stanem sesji, jak ognisko — a nie wyborem
+     * zapisywanym do pliku, jak podział czy kolumny szczegółów.
+     *
+     * @var array{bool, bool}
+     */
+    private array $asTree = [false, false];
+
     private readonly SplitState $split;
 
-    public function __construct(BrowserState $first, BrowserState $second, int $scrollMargin)
-    {
+    public function __construct(
+        BrowserState $first,
+        BrowserState $second,
+        int $scrollMargin,
+        BrowserTree $firstTree,
+        BrowserTree $secondTree,
+    ) {
         $this->states = [$first, $second];
         $this->windows = [new ScrollWindow($scrollMargin), new ScrollWindow($scrollMargin)];
+        $this->trees = [$firstTree, $secondTree];
         $this->split = new SplitState();
     }
 
@@ -52,6 +74,24 @@ final class BrowserPanes
     public function focusesSecond(): bool
     {
         return $this->split->focusesSecond();
+    }
+
+    /**
+     * Katalog z zaznaczeniem na tym, co panel czynny **wskazuje** — z drzewa
+     * albo z listy, zależnie od widoku.
+     *
+     * Bliźniak `publishFocused()` i powstał z tego samego powodu: odpowiedź na
+     * pytanie „co jest zaznaczone” jest w drzewie inna niż w liście, a miejsc,
+     * które je zadają, przybyło (krok 32: komenda `browser.open` działa na
+     * zaznaczeniu, więc musi widzieć dokładnie to, co widzi kontekst sesji).
+     * Dwa rachunki tej samej rzeczy rozjechałyby się przy pierwszym widoku,
+     * który dojdzie po drzewie.
+     */
+    public function focusedDirectory(): Directory
+    {
+        return $this->focusShowsTree()
+            ? $this->focusedTree()->cursorDirectory()
+            : $this->focused()->directory();
     }
 
     /** @return array{BrowserState, ScrollWindow, bool} katalog, okno i czy panel jest czynny */
@@ -68,6 +108,60 @@ final class BrowserPanes
         return $this->states;
     }
 
+    /** Drzewo panelu — swoje własne, bo rozwinięcia jednego panelu nie są rozwinięciami drugiego. */
+    public function tree(int $index): BrowserTree
+    {
+        return $this->trees[$index === 1 ? 1 : 0];
+    }
+
+    public function focusedTree(): BrowserTree
+    {
+        return $this->tree($this->split->focusesSecond() ? 1 : 0);
+    }
+
+    public function showsTree(int $index): bool
+    {
+        return $this->asTree[$index === 1 ? 1 : 0];
+    }
+
+    public function focusShowsTree(): bool
+    {
+        return $this->showsTree($this->split->focusesSecond() ? 1 : 0);
+    }
+
+    /**
+     * Zamiana widoku panelu z ogniskiem — lista na drzewo i z powrotem.
+     *
+     * Kontekst sesji ogłaszamy od razu, tą samą regułą, co przy przenoszeniu
+     * ogniska: wskazany wpis jest **od tej chwili inny**, bo drzewo ma własny
+     * kursor, a lista własne zaznaczenie.
+     */
+    public function toggleTree(): void
+    {
+        $index = $this->split->focusesSecond() ? 1 : 0;
+        $this->asTree[$index] = !$this->asTree[$index];
+        $this->publishFocused();
+    }
+
+    /**
+     * Ogłoszenie kontekstu panelu z ogniskiem — z drzewa albo z listy, zależnie
+     * od tego, co panel pokazuje.
+     *
+     * Jedno miejsce, bo powodów do ogłoszenia jest odtąd kilka (ruch kursora,
+     * przeniesienie ogniska, zamiana widoku), a dwa miejsca publikacji rozjechałyby
+     * się o klatkę — dokładnie tak, jak zapowiada `BrowserState`.
+     */
+    public function publishFocused(): void
+    {
+        if ($this->focusShowsTree()) {
+            $this->focused()->publishNode($this->focusedTree()->cursorDirectory());
+
+            return;
+        }
+
+        $this->focused()->selectionChanged();
+    }
+
     /**
      * Przeniesienie ogniska. Kontekst sesji ogłaszamy od razu, bo zaznaczenie,
      * o którym mówi, jest **od tej chwili inne** — moduł opisujący plik ma
@@ -77,7 +171,7 @@ final class BrowserPanes
     public function moveFocus(): void
     {
         $this->split->moveFocus();
-        $this->focused()->selectionChanged();
+        $this->publishFocused();
     }
 
     /**
@@ -91,7 +185,7 @@ final class BrowserPanes
         $this->split->useSplit($enabled);
 
         if ($wasSecond && !$this->split->focusesSecond()) {
-            $this->focused()->selectionChanged();
+            $this->publishFocused();
         }
     }
 }

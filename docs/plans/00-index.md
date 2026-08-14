@@ -81,57 +81,57 @@ Pełne uzasadnienia i odrzucone alternatywy: zobacz [00-decyzje.md](00-decyzje.m
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 1 | Warstwy DDD i struktura katalogów `src/` | [01-warstwy-ddd-i-struktura-katalogow.md](01-warstwy-ddd-i-struktura-katalogow.md) | — | Opus | high | Ukończony |
-| 2 | Wzorzec Singleton i bootstrap usług | [02-wzorzec-singleton-i-bootstrap.md](02-wzorzec-singleton-i-bootstrap.md) | 1 | Opus | high | Ukończony |
-| 3 | Standardy stylu kodowania PHP | [03-standardy-stylu-kodowania.md](03-standardy-stylu-kodowania.md) | 1 | Sonnet | medium | Ukończony |
-| 4 | Dokumentacja ustaleń: docs + Claude Code Skill | [04-dokumentacja-i-ai-skill.md](04-dokumentacja-i-ai-skill.md) | 1, 2, 3 | Sonnet | medium | Ukończony |
+| 1 | Warstwy DDD i struktura katalogów `src/` | [01-warstwy-ddd-i-struktura-katalogow.md](archiwum/01-warstwy-ddd-i-struktura-katalogow.md) | — | Opus | high | Ukończony |
+| 2 | Wzorzec Singleton i bootstrap usług | [02-wzorzec-singleton-i-bootstrap.md](archiwum/02-wzorzec-singleton-i-bootstrap.md) | 1 | Opus | high | Ukończony |
+| 3 | Standardy stylu kodowania PHP | [03-standardy-stylu-kodowania.md](archiwum/03-standardy-stylu-kodowania.md) | 1 | Sonnet | medium | Ukończony |
+| 4 | Dokumentacja ustaleń: docs + Claude Code Skill | [04-dokumentacja-i-ai-skill.md](archiwum/04-dokumentacja-i-ai-skill.md) | 1, 2, 3 | Sonnet | medium | Ukończony |
 
 ### Faza II — Wdrożenie aplikacji
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 5 | Szkielet projektu i wymagania | [05-szkielet-projektu.md](05-szkielet-projektu.md) | 1, 2, 3, 4 | Sonnet | medium | Ukończony |
-| 6 | Terminal I/O: tryb surowy, klawisze, sygnały | [06-terminal-io.md](06-terminal-io.md) | 5 | Opus | high | Ukończony |
-| 7 | Wykrywanie Sixela (DA1) + tryb fallback | [07-wykrywanie-sixel.md](07-wykrywanie-sixel.md) | 6 | Opus | high | Ukończony |
-| 8 | Potok renderowania: Imagick canvas → Sixel → STDOUT | [08-render-imagick-sixel.md](08-render-imagick-sixel.md) | 5, 7 | Opus | high | Ukończony |
-| 9 | Pętla główna (game loop) | [09-petla-glowna.md](09-petla-glowna.md) | 6, 8 | Sonnet | medium | Ukończony |
-| 10 | Stan i nawigacja po systemie plików | [10-nawigacja-fs.md](10-nawigacja-fs.md) | 9 | Sonnet | medium | Ukończony |
-| 11 | Renderowanie listy plików w klatce | [11-render-listy-plikow.md](11-render-listy-plikow.md) | 8, 10 | Sonnet | medium | Ukończony |
-| 12 | Podgląd miniatur obrazów | [12-podglad-miniatur.md](12-podglad-miniatur.md) | 11 | Sonnet | medium | Ukończony |
+| 5 | Szkielet projektu i wymagania | [05-szkielet-projektu.md](archiwum/05-szkielet-projektu.md) | 1, 2, 3, 4 | Sonnet | medium | Ukończony |
+| 6 | Terminal I/O: tryb surowy, klawisze, sygnały | [06-terminal-io.md](archiwum/06-terminal-io.md) | 5 | Opus | high | Ukończony |
+| 7 | Wykrywanie Sixela (DA1) + tryb fallback | [07-wykrywanie-sixel.md](archiwum/07-wykrywanie-sixel.md) | 6 | Opus | high | Ukończony |
+| 8 | Potok renderowania: Imagick canvas → Sixel → STDOUT | [08-render-imagick-sixel.md](archiwum/08-render-imagick-sixel.md) | 5, 7 | Opus | high | Ukończony |
+| 9 | Pętla główna (game loop) | [09-petla-glowna.md](archiwum/09-petla-glowna.md) | 6, 8 | Sonnet | medium | Ukończony |
+| 10 | Stan i nawigacja po systemie plików | [10-nawigacja-fs.md](archiwum/10-nawigacja-fs.md) | 9 | Sonnet | medium | Ukończony |
+| 11 | Renderowanie listy plików w klatce | [11-render-listy-plikow.md](archiwum/11-render-listy-plikow.md) | 8, 10 | Sonnet | medium | Ukończony |
+| 12 | Podgląd miniatur obrazów | [12-podglad-miniatur.md](archiwum/12-podglad-miniatur.md) | 11 | Sonnet | medium | Ukończony |
 
 ### Faza III — Wygląd, konfiguracja i narzędzia
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 13 | Motyw graficzny: paleta Grafit i układ panelowy | [13-motyw-graficzny.md](13-motyw-graficzny.md) | 11, 12 | Opus | high | Ukończony |
-| 14 | Konfiguracja aplikacji i ekran ustawień | [14-konfiguracja-i-ekran-ustawien.md](14-konfiguracja-i-ekran-ustawien.md) | 13 | Opus | high | Ukończony |
-| 15 | Wielojęzyczność interfejsu | [15-wielojezycznosc.md](15-wielojezycznosc.md) | 13, 14 | Sonnet | medium | Ukończony |
-| 16 | Narzędzia diagnostyczne wydajności | [16-narzedzia-diagnostyczne-wydajnosci.md](16-narzedzia-diagnostyczne-wydajnosci.md) | 13, 14 | Opus | high | Ukończony |
-| 17 | Optymalizacja wydajności renderowania | [17-optymalizacja-wydajnosci.md](17-optymalizacja-wydajnosci.md) | 13, 16 | Opus | high | Ukończony |
+| 13 | Motyw graficzny: paleta Grafit i układ panelowy | [13-motyw-graficzny.md](archiwum/13-motyw-graficzny.md) | 11, 12 | Opus | high | Ukończony |
+| 14 | Konfiguracja aplikacji i ekran ustawień | [14-konfiguracja-i-ekran-ustawien.md](archiwum/14-konfiguracja-i-ekran-ustawien.md) | 13 | Opus | high | Ukończony |
+| 15 | Wielojęzyczność interfejsu | [15-wielojezycznosc.md](archiwum/15-wielojezycznosc.md) | 13, 14 | Sonnet | medium | Ukończony |
+| 16 | Narzędzia diagnostyczne wydajności | [16-narzedzia-diagnostyczne-wydajnosci.md](archiwum/16-narzedzia-diagnostyczne-wydajnosci.md) | 13, 14 | Opus | high | Ukończony |
+| 17 | Optymalizacja wydajności renderowania | [17-optymalizacja-wydajnosci.md](archiwum/17-optymalizacja-wydajnosci.md) | 13, 16 | Opus | high | Ukończony |
 
 ### Faza IV — Komponenty interfejsu i rozszerzalność
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 18 | Komponenty interfejsu i płaszczyzny | [18-komponenty-i-plaszczyzny.md](18-komponenty-i-plaszczyzny.md) | 13, 14, 15, 16, 17 | Opus | high | Ukończony z zastrzeżeniem |
-| 19 | Okno komend | [19-okno-komend.md](19-okno-komend.md) | 18 | Opus | xhigh | Ukończony z zastrzeżeniem |
-| 20 | Moduły (plugins) | [20-moduly-plugins.md](20-moduly-plugins.md) | 14, 15, 18, 19 | Opus | high | Ukończony |
-| 21 | Przeglądarka plików jako moduł domyślny | [21-przegladarka-jako-modul.md](21-przegladarka-jako-modul.md) | 20 | Opus | xhigh | Ukończony |
+| 18 | Komponenty interfejsu i płaszczyzny | [18-komponenty-i-plaszczyzny.md](archiwum/18-komponenty-i-plaszczyzny.md) | 13, 14, 15, 16, 17 | Opus | high | Ukończony z zastrzeżeniem |
+| 19 | Okno komend | [19-okno-komend.md](archiwum/19-okno-komend.md) | 18 | Opus | xhigh | Ukończony z zastrzeżeniem |
+| 20 | Moduły (plugins) | [20-moduly-plugins.md](archiwum/20-moduly-plugins.md) | 14, 15, 18, 19 | Opus | high | Ukończony |
+| 21 | Przeglądarka plików jako moduł domyślny | [21-przegladarka-jako-modul.md](archiwum/21-przegladarka-jako-modul.md) | 20 | Opus | xhigh | Ukończony |
 
 ### Faza V — Komponenty rdzenia i rozwój modułów
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 22 | Zwijana sekcja jako komponent rdzenia | [22-zwijana-sekcja.md](22-zwijana-sekcja.md) | 18 | Opus | high | Ukończony |
-| 23 | Pasek postępu z tekstem jako komponent rdzenia | [23-pasek-postepu.md](23-pasek-postepu.md) | 18 | Opus | high | Ukończony |
-| 24 | Podział ekranu: dwa panele w jednym ekranie | [24-podzial-ekranu.md](24-podzial-ekranu.md) | 21 | Opus | xhigh | Ukończony |
-| 25 | Pełny obraz stanu pliku w module `FileInfo` | [25-pelny-obraz-pliku.md](25-pelny-obraz-pliku.md) | 21, 22, 23, 24 | Opus | high | Ukończony z zastrzeżeniem |
+| 22 | Zwijana sekcja jako komponent rdzenia | [22-zwijana-sekcja.md](archiwum/22-zwijana-sekcja.md) | 18 | Opus | high | Ukończony |
+| 23 | Pasek postępu z tekstem jako komponent rdzenia | [23-pasek-postepu.md](archiwum/23-pasek-postepu.md) | 18 | Opus | high | Ukończony |
+| 24 | Podział ekranu: dwa panele w jednym ekranie | [24-podzial-ekranu.md](archiwum/24-podzial-ekranu.md) | 21 | Opus | xhigh | Ukończony |
+| 25 | Pełny obraz stanu pliku w module `FileInfo` | [25-pelny-obraz-pliku.md](archiwum/25-pelny-obraz-pliku.md) | 21, 22, 23, 24 | Opus | high | Ukończony z zastrzeżeniem |
 
 ### Faza VI — Praca poza klatką
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 26 | Proces tłowy jako mechanizm rdzenia | [26-proces-tlowy.md](26-proces-tlowy.md) | 25 | Opus | high | Ukończony |
+| 26 | Proces tłowy jako mechanizm rdzenia | [26-proces-tlowy.md](archiwum/26-proces-tlowy.md) | 25 | Opus | high | Ukończony |
 
 ### Faza VII — Rozbudowa rdzenia o nowe komponenty
 
@@ -143,12 +143,12 @@ kolejne dowożą go razem z komponentem.
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 27 | Wiersz wielokolumnowy (`Table`) | [27-tabela-kolumn.md](27-tabela-kolumn.md) | 17, 18, 21, 24 | Opus | high | Ukończony |
-| 28 | Okno potwierdzenia (`ConfirmOverlay`) | [28-okno-potwierdzenia.md](28-okno-potwierdzenia.md) | 14, 18, 19 | Opus | high | Ukończony |
-| 29 | Widok tekstu (`TextView`) | [29-podglad-tekstu.md](29-podglad-tekstu.md) | 12, 18, 25 | Opus | high | Ukończony |
-| 30 | Filtrowanie i podświetlenie dopasowania | [30-filtrowanie-i-podswietlenie.md](30-filtrowanie-i-podswietlenie.md) | 7, 8, 18, 19, 21, 27, 35 | Opus | xhigh | Ukończony |
-| 31 | Drzewo (`TreeView`) | [31-drzewo-katalogow.md](31-drzewo-katalogow.md) | 18, 21, 22, 24, 27 | Opus | xhigh | Nie rozpoczęty |
-| 32 | Menu kontekstowe (`MenuOverlay`) | [32-menu-kontekstowe.md](32-menu-kontekstowe.md) | 19, 20, 21, 28 | Opus | high | Nie rozpoczęty |
+| 27 | Wiersz wielokolumnowy (`Table`) | [27-tabela-kolumn.md](archiwum/27-tabela-kolumn.md) | 17, 18, 21, 24 | Opus | high | Ukończony |
+| 28 | Okno potwierdzenia (`ConfirmOverlay`) | [28-okno-potwierdzenia.md](archiwum/28-okno-potwierdzenia.md) | 14, 18, 19 | Opus | high | Ukończony |
+| 29 | Widok tekstu (`TextView`) | [29-podglad-tekstu.md](archiwum/29-podglad-tekstu.md) | 12, 18, 25 | Opus | high | Ukończony |
+| 30 | Filtrowanie i podświetlenie dopasowania | [30-filtrowanie-i-podswietlenie.md](archiwum/30-filtrowanie-i-podswietlenie.md) | 7, 8, 18, 19, 21, 27, 35 | Opus | xhigh | Ukończony |
+| 31 | Drzewo (`TreeView`) | [31-drzewo-katalogow.md](archiwum/31-drzewo-katalogow.md) | 18, 21, 22, 24, 27 | Opus | xhigh | Ukończony |
+| 32 | Menu kontekstowe (`MenuOverlay`) | [32-menu-kontekstowe.md](archiwum/32-menu-kontekstowe.md) | 19, 20, 21, 28 | Opus | high | Ukończony |
 
 ### Faza VIII — Okno terminala
 
@@ -158,7 +158,7 @@ w obie strony — wolno go zrobić przed nią, po niej albo pomiędzy
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 33 | Reakcja na zmianę rozmiaru okna | [33-reakcja-na-zmiane-rozmiaru.md](33-reakcja-na-zmiane-rozmiaru.md) | 6, 9, 17, 18 | Fable | xhigh | Ukończony |
+| 33 | Reakcja na zmianę rozmiaru okna | [33-reakcja-na-zmiane-rozmiaru.md](archiwum/33-reakcja-na-zmiane-rozmiaru.md) | 6, 9, 17, 18 | Fable | xhigh | Ukończony |
 
 ### Faza IX — Prezentacja poza terminalem: okno OpenGL (PHP-GLFW)
 
@@ -177,9 +177,9 @@ z nich wykluczone — zapamiętany rozmiar, pełny ekran, ikonę i skalę treśc
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 34 | Okno GLFW: kontekst, wejście, pętla | [34-okno-glfw.md](34-okno-glfw.md) | 6, 7, 9, 13, 33 | Fable | xhigh | Ukończony |
-| 35 | Natywny renderer prymitywów w OpenGL | [35-renderer-opengl.md](35-renderer-opengl.md) | 12, 13, 17, 18, 34 | Fable | xhigh | Ukończony |
-| 37 | Dopracowanie okna: rozmiar, pełny ekran, ikona, skala | [37-dopracowanie-okna.md](37-dopracowanie-okna.md) | 14, 19, 34, 35 | Opus | medium | Nie rozpoczęty |
+| 34 | Okno GLFW: kontekst, wejście, pętla | [34-okno-glfw.md](archiwum/34-okno-glfw.md) | 6, 7, 9, 13, 33 | Fable | xhigh | Ukończony |
+| 35 | Natywny renderer prymitywów w OpenGL | [35-renderer-opengl.md](archiwum/35-renderer-opengl.md) | 12, 13, 17, 18, 34 | Fable | xhigh | Ukończony |
+| 37 | Dopracowanie okna: rozmiar, pełny ekran, ikona, skala | [37-dopracowanie-okna.md](archiwum/37-dopracowanie-okna.md) | 14, 19, 34, 35 | Opus | medium | Ukończony z zastrzeżeniem |
 
 ### Faza X — Dźwięk: odtwarzanie muzyki (`GL\Audio`)
 
@@ -190,9 +190,18 @@ załadowane (sprawdzone przy planowaniu); brak rozszerzenia to degradacja
 z komunikatem, nie błąd. Od Fazy IX krok niezależny w obie strony — dzieli
 z nią tylko rozszerzenie i stuby do analizy statycznej.
 
+**Wykonany — i wyszedł inny, niż go zaplanowano** (D70). Dwie rzeczy odwróciły
+plan: użytkownik dowiózł utwór jako **plik MP3** (więc syntezator riffu okazał
+się niepotrzebny w całości), a ścieżka utworu okazała się pierwszym kluczem
+rdzenia z wartością tekstową — czego ekran ustawień nie umie. Dźwięk poszedł
+przez to tam, gdzie wedle reguły 15 należał od początku: **jest modułem**
+(`src/Module/Audio/`), a rdzeń kosztuje jedną linię w `Bootstrapie`. Cena
+zapisana w statusie kroku: **autostartu nie ma**, bo kontrakt modułu nie zna
+cyklu życia — muzykę uruchamia komenda `audio.music`.
+
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 36 | Odtwarzanie muzyki przez `GL\Audio` | [36-odtwarzanie-muzyki.md](36-odtwarzanie-muzyki.md) | 6, 9, 14, 15, 19 | Opus | high | Nie rozpoczęty |
+| 36 | Odtwarzanie muzyki przez `GL\Audio` | [36-odtwarzanie-muzyki.md](archiwum/36-odtwarzanie-muzyki.md) | 6, 9, 14, 15, 19 | Opus | high | Ukończony z zastrzeżeniem |
 
 ### Faza XI — Diagnostyka i testy
 
@@ -205,7 +214,7 @@ zostaje nietknięty.
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 38 | Rozbudowa diagnostyki, benchmarku i testów funkcjonalnych | [38-rozbudowa-diagnostyki-i-testow.md](38-rozbudowa-diagnostyki-i-testow.md) | 16, 17, 18, 21, 26, 30, 33, 35 | Opus | high | Nie rozpoczęty |
+| 38 | Rozbudowa diagnostyki, benchmarku i testów funkcjonalnych | [38-rozbudowa-diagnostyki-i-testow.md](archiwum/38-rozbudowa-diagnostyki-i-testow.md) | 16, 17, 18, 21, 26, 30, 33, 35 | Opus | high | Ukończony |
 
 ### Faza XII — Wejście do projektu: Makefile
 
@@ -223,7 +232,68 @@ dokumenty milczą, przegrywa z nawykiem. Kodu aplikacji nie dotyka.
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 39 | Makefile: środowisko, instalacja, jakość, testy, budowa | [39-makefile.md](39-makefile.md) | 4, 5, 7, 16, 34 | Opus | medium | Nie rozpoczęty |
+| 39 | Makefile: środowisko, instalacja, jakość, testy, budowa | [39-makefile.md](archiwum/39-makefile.md) | 4, 5, 7, 16, 34 | Opus | medium | Ukończony |
+
+### Faza XIII — Podpowiedzi kontekstowe
+
+Krok odwracający ([00-decyzje.md](00-decyzje.md), D65): pasek stanu przestaje
+powtarzać cztery niezmienne klawisze rdzenia i zaczyna mówić o **elemencie,
+ekranie albo module, na którym stoi ognisko**. Kroki 14 i 18 postanowiły
+odwrotnie — „stopka nie jest ściągawką, tylko wskazaniem, gdzie ściągawka leży”
+— i to zdanie zostaje odwołane, ale wyłącznie co do zasięgu: źródłem podpowiedzi
+pozostaje `KeyBinding`, a okno pomocy pozostaje **pełnym** spisem. Krok obejmuje
+przy tym formalizację ogniska, którego dziś żaden kontrakt nie nazywa, i zgadza
+się na pasek stanu rosnący do dwóch wierszy — czyli na przeliczenie wszystkich
+wzorców w trzech torach.
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 40 | Stopka mówi, co da się zrobić tu i teraz | [40-stopka-kontekstowa.md](40-stopka-kontekstowa.md) | 18, 19, 24, 25, 29, 30, 33, 35, 38 | Fable | xhigh | Nie rozpoczęty |
+
+### Faza XIV — Operacje na plikach
+
+Faza domykająca pierwszą pozycję „Zakresu poza MVP”
+([00-decyzje.md](00-decyzje.md), D66): przeglądarka po raz pierwszy **zmienia**
+to, co pokazuje — do tej pory aplikacja umiała zapisać wyłącznie własny plik
+konfiguracyjny. Wstęp dowiozły kroki **24** (dwa panele, czyli źródło
+i cel) i **28** (okno potwierdzenia, bez którego usuwanie nie miało prawa
+powstać). Rytm jest ten sam, co w Fazie VII: **jedna rzecz — jeden krok**, każdy
+z własnymi rozstrzygnięciami na starcie i własnym rozliczeniem.
+
+Faza bierze przy tym **jawny wyjątek od reguły 15**: operacje zapisu mieszkają
+w rdzeniu jako usługa wspólna, a nie w module (D66, rozstrzygnięcie 2). Granica
+tego wyjątku jest częścią zakresu kroku 41 i ma trafić do `SKILL.md` wraz
+z powodem — nienazwana, otworzyłaby rdzeń na wszystko.
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 41 | Fundament operacji: nazwa, nowy katalog, usunięcie | [41-operacje-fundament.md](41-operacje-fundament.md) | 14, 15, 18, 19, 21, 24, 28, 38 | Opus | high | Nie rozpoczęty |
+| 42 | Kopiowanie i przenoszenie po kawałku, z postępem | [42-kopiowanie-i-przenoszenie.md](42-kopiowanie-i-przenoszenie.md) | 23, 24, 25, 38, 41 | Fable | xhigh | Nie rozpoczęty |
+| 43 | Zaznaczenie wielokrotne jako mnożnik operacji | [43-zaznaczenie-wielokrotne.md](43-zaznaczenie-wielokrotne.md) | 21, 27, 28, 30, 38, 41 | Opus | high | Nie rozpoczęty |
+| 44 | Kosz i cofnięcie ostatniej operacji | [44-kosz-i-cofanie.md](44-kosz-i-cofanie.md) | 6, 14, 15, 19, 29, 38, 41, 42 | Opus | high¹ | Nie rozpoczęty |
+
+¹ **Fable / xhigh**, jeśli rozstrzygnięcie startowe nr 1 tamtego kroku wprowadzi
+`Shift` do słownika wejścia — wtedy krok zmienia trzy tory wejścia naraz. Model
+wybiera się **po** tej odpowiedzi, nie przed nią.
+
+### Faza XV — Rozbudowa modułu dźwięku
+
+Moduł z kroku 36 dostaje **okno, playlistę i efekty specjalne**
+([00-decyzje.md](00-decyzje.md), D71). Faza rusza przy tym **dwa mechanizmy
+rdzenia, których projekt nie ma**: takt dla modułu (bo playlista musi zauważyć,
+że utwór się skończył — także wtedy, gdy okna audio nie widać) i nazwane
+zdarzenia (bo efekt musi się dowiedzieć, że coś się stało). Jeden mechanizm na
+krok — stąd dwa kroki, a nie jeden.
+
+Faza **odwraca rozstrzygnięcie D70**, i to jawnie: kontrakt modułu zyskuje
+zdolności, których krok 36 świadomie mu odmówił. Różnica, na której to stoi,
+jest zapisana w obu plikach kroków — tam zdolność miała jednego użytkownika
+i wyłącznie dla wygody, tu bez niej funkcja nie istnieje.
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 45 | Ekran modułu dźwięku i playlista | [45-ekran-audio-i-playlista.md](45-ekran-audio-i-playlista.md) | 9, 14, 15, 16, 18, 20, 21, 36 | Opus | xhigh | Nie rozpoczęty |
+| 46 | Efekty specjalne: zdarzenia aplikacji dostają dźwięk | [46-efekty-specjalne.md](46-efekty-specjalne.md) | 18, 19, 20, 24, 27, 36, 45 | Opus | high | Nie rozpoczęty |
 
 ### Dokumenty towarzyszące (praca projektowa)
 
@@ -233,9 +303,10 @@ dokumenty milczą, przegrywa z nawykiem. Kodu aplikacji nie dotyka.
 
 ## Graf zależności
 
-Kolejność realizacji pokrywa się z numeracją (01…39) **do kroku 26 włącznie**;
-Faza VII łańcuchem już nie jest, a kroki 33–39 (Fazy VIII–XII) stoją poza nią
-zupełnie (patrz opisy na końcu tej listy). Poza prostym
+Kolejność realizacji pokrywa się z numeracją (01…44) **do kroku 26 włącznie**;
+Faza VII łańcuchem już nie jest, a kroki 33–40 (Fazy VIII–XIII) stoją poza nią
+zupełnie (patrz opisy na końcu tej listy). Faza XIV (41–44) jest **znowu
+łańcuchem**, i to jedyna po Fazie VI. Poza prostym
 łańcuchem `01→02→…→26` istnieją węzły zbiegające się z dwóch gałęzi:
 
 - **04** (dokumentacja + Skill) zależy od **01, 02 i 03** — potrzebuje
@@ -343,17 +414,31 @@ zupełnie (patrz opisy na końcu tej listy). Poza prostym
   - **31** (drzewo) zależy od **22** wzorcowo — `SectionState` już raz rozwiązał
     „co zwinięte, przeżywa klatkę i pamięta się pod kluczem, nie pod numerem”,
     a drzewo jest tym samym problemem o wymiar głębiej. Zależy od **27**, bo
-    wiersz drzewa to wiersz listy z wcięciem.
+    wiersz drzewa to wiersz listy z wcięciem. **Wykonany — i obie te zależności
+    okazały się różnej mocy.** Wzorzec z kroku 22 sprawdził się co do joty, ale
+    `TreeState` musiał odejść od `SectionState` w trzech miejscach naraz (D68,
+    rozstrzygnięcie 5), więc powtórzeniem jest reguła, a nie klasa. Zależność od
+    **27** okazała się natomiast **słabsza, niż zakładano**: wiersz drzewa jest
+    `ListRow`em rysowanym przez `ListView`, a nie `TableRow`em — kolumny są
+    w liście plików, nie w drzewie. Widoczny skutek: drzewo **nie podświetla
+    dopasowania filtra**, bo zakresy niesie `TableRow`.
   - **32** (menu) zależy od **28** twardo: tam rozstrzyga się, **jak okno oddaje
     decyzję**, a menu jest drugim oknem, które czegoś chce od wołającego.
     Zależy od **19** podwójnie — `OverlayInterface` i `CommandRegistry`, czyli
-    jedyne uczciwe źródło jego pozycji.
+    jedyne uczciwe źródło jego pozycji. **Wykonany — a zależność od 28 okazała
+    się słabsza, niż zakładano**: menu wykonuje komendę samo, jak okno komend,
+    więc domknięcie z D56 nie było mu potrzebne. Zależność od **19** za to
+    podwoiła się w praktyce: rejestr jest wspólny, a nie tylko „ten sam rodzaj”.
 
-  Krok **32** ma ponadto **zastrzeżenie rozstrzygane przed pierwszą linią kodu**:
-  menu nakłada się z oknem komend i ma sens wyłącznie jako **widok na rejestr
-  komend**, a nie drugi rejestr działań. Jeśli po rozpisaniu okaże się, że
-  potrzebuje własnej listy pozycji — należy go odłożyć do czasu, aż powstaną
-  operacje na plikach.
+  Krok **32** miał ponadto **zastrzeżenie rozstrzygane przed pierwszą linią
+  kodu**: menu nakłada się z oknem komend i ma sens wyłącznie jako **widok na
+  rejestr komend**, a nie drugi rejestr działań; gdyby potrzebowało własnej listy
+  pozycji, należało go odłożyć do operacji na plikach. **Sprawdzenie potwierdziło
+  obawę, a rozstrzygnięcie użytkownika poszło trzecią drogą** (D69): rejestr miał
+  dla zaznaczenia jedną komendę, więc krok **dowiózł treść razem z mechanizmem** —
+  cztery nazwy dla czynności, które aplikacja miała wyłącznie pod klawiszem
+  (`file-info.show`, `browser.open`, `browser.hidden`, `browser.tree`). Menu
+  zostało widokiem na rejestr, a nie drugą listą.
 
 - **33** (reakcja na zmianę rozmiaru) zależy od **06** twardo i podwójnie —
   `SIGWINCH` wchodzi wzorcem znacznika obok czterech obsługiwanych sygnałów,
@@ -401,6 +486,17 @@ zupełnie (patrz opisy na końcu tej listy). Poza prostym
   zależą od niego; jedyny punkt styku z krokiem 34: stuby `GL\*` do analizy
   statycznej dowozi ten z dwóch kroków, który wykona się pierwszy.
 
+  **Wykonany — a trzy z tych zależności okazały się inne, niż zakładano.** Od
+  **09** krok nie zależy wcale: autostartu nie ma, więc w bootstrapie nie staje
+  nic. Od **14** zależy słabiej: ustawienia są **modułowe**, a nie rdzeniowe, więc
+  klucze rdzenia zostały nietknięte — i to właśnie ta zależność odwróciła cały
+  krok, bo pozycję tekstową ma wyłącznie zakładka modułu. Od **20 i 21** zależy
+  za to **twardo**, choć plan ich nie wymieniał: krok bierze kontrakt modułu taki,
+  jaki tam powstał, i jest jego sprawdzianem z drugiej strony niż krok 21 — moduł,
+  **który nic nie rysuje**. Stuby `GL\*` dowiózł krok 34 i wystarczyły; jedno
+  punktowe wyciszenie analizy bierze się z tego, że są **starsze od
+  rozszerzenia**.
+
 - **38** (rozbudowa diagnostyki i testów) zależy od **16 i 17** twardo —
   rozbudowuje narzędzie i metodykę, które tam powstały — od **18 i 21**
   (przebiegi funkcjonalne idą przez `ScreenFixture` i prawdziwe moduły), od
@@ -411,7 +507,13 @@ zupełnie (patrz opisy na końcu tej listy). Poza prostym
   nowy scenariusz przechodzi przez wszystkie tory naraz). Od kroków **31,
   32, 36 i 37** nie zależy i one nie zależą od niego; z krokami 31 i 32
   dzieli tylko granicę — scenariusze `tree` i `menu` przynoszą tamte kroki
-  (D48), nie ten.
+  (D48), nie ten. Krok **31 wykonał się później i granicy dotrzymał**:
+  scenariusz `tree` przyszedł razem z komponentem, a spis „element →
+  scenariusz” w `docs/pomiary/README.md` stracił przez to jedną pozycję
+  pominięcia. Krok **32 rozliczył się odwrotnie i też zgodnie z regułą**:
+  scenariusza `menu` nie przyniósł, bo nie dowiózł ani jednego komponentu —
+  okno jest `Dialog`iem z `ListView` w środku — więc pozycja w spisie została,
+  ale z **powodem pominięcia** zamiast obietnicy.
 
 - **39** (Makefile) zależy od **05** twardo — `composer.json`, skrypty jakości
   i lista wymagań w README powstały tam, a krok daje im wspólne wejście, nie
@@ -430,13 +532,123 @@ zupełnie (patrz opisy na końcu tej listy). Poza prostym
   Z krokiem **38** łączy go zależność miękka, jedyna tego rodzaju w całym
   planie: rozbicie `test-unit` / `test-functional` potrzebuje granicy między
   przebiegami a testami jednostkowymi, a ta powstaje w pytaniu nr 6 kroku 38.
-  Zalecana kolejność to **38 przed 39**; odwrotna jest dopuszczalna, o ile
-  rozstrzygnięcie nr 5 kroku 39 przesądzi podział testsuite tam, a krok 38
-  tylko dołoży do niego treść. Od kroków **31, 32, 36 i 37** nie zależy i one
+  Zalecana kolejność to **38 przed 39** — i tak się stało: krok 38 wykonał się
+  pierwszy, a granica jest już w `phpunit.xml.dist` jako testsuite `unit`
+  i `functional`. Krok 39 **dowiązuje do niej cele**, zamiast ją rozstrzygać. Od kroków **31, 32, 36 i 37** nie zależy i one
   nie zależą od niego.
+
+  **Wykonany — a zależność od 05 okazała się mocniejsza, niż zakładano, i to
+  w drugą stronę.** Plan mówił „Makefile ich nie zastępuje, tylko daje im wspólne
+  wejście” i tak zostało (cele jakości wołają skrypty Composera), ale krok wrócił
+  do `composer.json` po **wersję**, której plik nie niósł — pole `version`
+  dopisał użytkownik przy rozstrzygnięciach startowych i to ono nazywa wynik
+  budowy. Zależność od **34** okazała się natomiast **słabsza**: `glfw` jest
+  w `check-env` wymogiem opcjonalnym i nie psuje żadnego celu, dokładnie jak
+  zapisano — ale tor okienkowy odezwał się z innej strony, bo `make bench-window`
+  ujawnił SIGSEGV, który `bin/render-bench --window` miał **sam z siebie**, przy
+  sprzątaniu kontekstu (dziennik kroku, pkt 6). Cel niczego nie zepsuł — przestał
+  przemilczać kod wyjścia, a usterka została naprawiona osobno (D73), razem
+  z drugą, którą krok wypatrzył w testach. Wniosek na przyszłość: **wejście
+  czytające kod wyjścia jest tanim wykrywaczem awarii, które narzędzie
+  przemilcza** — obie usterki były starsze od tego kroku o kilka faz.
+
+- **40** (stopka kontekstowa) zależy od **18** twardo i wielokrotnie — `KeyBinding`
+  jako jedno źródło trzech rzeczy naraz, `FocusableInterface`, `StatusBar`
+  i `HudLayout` to komplet tego, co krok rusza — od **19** (`OverlayInterface`
+  z regułą „okno klawiszy niżej nie oddaje”, z której wynika, że okno **wypiera**
+  ekran ze stopki), od **24** (`SplitState`, czyli pierwsze miejsce, w którym ekran
+  wie, który jego kawałek ma ognisko) oraz od **25 i 29** wraz z **D60**:
+  `FileInfoScreen` z ogniskiem wędrującym między sekcjami a podglądem tekstu jest
+  **najbogatszym odbiorcą** kroku i jego właściwym sprawdzianem. Od **30** bierze
+  precedens „spis pokazuje wyłącznie to, co działa tu i teraz” i rozciąga go
+  z okna pomocy na pasek stanu. Od **33** zależy przez pasek rosnący do dwóch
+  wierszy — reguła musi przeżyć przeliczenie układu przy zmianie rozmiaru okna —
+  a od **35**, bo zmiana wysokości strefy dotyczy **wszystkich trzech torów**, nie
+  samego terminala. Od **38** zależy podwójnie: przelicza wzorce tekstowe
+  i obrazowe, które tam powstały, a pomiar prowadzi przez `ScenarioFactory::HINTS`
+  — dziś **stałą tekstową oderwaną od aplikacji**, więc nietkniętą mierzyłby
+  stopkę, której aplikacja nie ma.
+
+  Od kroków **31, 36, 37 i 39** nie zależy i one nie zależą od niego. Z krokiem
+  **32** dzieli pytanie zadane z dwóch stron — menu pyta, jakie **komendy** mają
+  sens dla zaznaczenia, stopka: jakie **klawisze** działają w miejscu ogniska —
+  ale zależności nie ma w żadną stronę. Krok **32 wykonał się pierwszy**, więc
+  zdolność `AppliesToSelection` już istnieje i stopka może z niej skorzystać.
+  Doszedł za to `F9` w klawiszach globalnych — czyli **piąta** pozycja, która ma
+  się zmieścić w pasku stanu, i to jest dla kroku 40 argument, a nie drobiazg.
+
+- **41–44** (Faza XIV) tworzą **łańcuch**, w odróżnieniu od Faz VII–XIII: każdy
+  krok dokłada do tego, co postawił poprzedni, i osobno sensu nie ma.
+  - **41** (fundament operacji) zależy od **28** twardo — `ConfirmOverlay`
+    w wariancie `dangerous` jest jedyną drogą, którą usuwanie ma prawo powstać,
+    a wariant ten **nie ma dziś użytkownika** — oraz od **18** (`TextInput`,
+    `Dialog`, reguła 10: nowe okno to `OverlayInterface`), **19**
+    (`ScreenOutcome::opens()`, kontrakt komendy), **21** (`DescribesProblem`, bez
+    którego niepowodzenie operacji uczyłoby rdzeń, czym jest katalog), **24**
+    (dwa panele, bo odświeżyć trzeba **oba**), **14 i 15** (ustawienie i napisy)
+    oraz **38** (wzorce i przebiegi). Ze **32** styka się treścią, nie
+    zależnością — i styk zmienił kierunek, bo krok 32 **nie czekał**: wykonany
+    2026-08-14, dowiózł menu wraz z własną treścią (D69). Zostaje z tego
+    zobowiązanie w drugą stronę: czynność kroku 41 działająca na zaznaczeniu ma
+    zadeklarować `AppliesToSelection`, a wtedy pojawi się w menu **bez zmiany
+    w rdzeniu**.
+  - **42** (kopiowanie i przenoszenie) zależy od **41** całkowicie i od **25**
+    wzorcowo (praca kawałkowa, D46 — kopiowanie jest jej **trzecim**
+    zastosowaniem i pierwszym, które nie tylko czyta), od **23** (`ProgressBar`
+    wraz z trybem „postęp nieznany”) i od **24** (skąd i dokąd). Od **26**
+    zależy **odwrotnie niż zwykle**: bierze go jako wzorzec do **odrzucenia** —
+    proces potomny prowadzi jedną pracę naraz i wypierałby `du`, a postępu nie
+    zna.
+  - **43** (zaznaczenie wielokrotne) zależy od **41** (jest mnożnikiem jego
+    czynności), od **30** (reguła „zaznaczenie przenosi się po nazwie” i drugi
+    widok na tę samą listę), od **27** (wiersz, w którym znacznik ma się
+    zmieścić) i od **21** (`ModuleContext`, który zna **jeden** wpis — i to jest
+    główne rozstrzygnięcie tamtego kroku). Z **42** dzieli zależność miękką
+    w obie strony; zalecana kolejność to **42 przed 43**.
+  - **44** (kosz i cofanie) zależy od **41** (druga droga usunięcia), od **42**
+    (kosz na innym systemie plików to kopiowanie i usunięcie) oraz od **6, 19
+    i 29** — słownika wejścia, który **nie zna `Shift`** w żadnym z trzech torów,
+    a rozstrzygnięcie „droga zależna od skrótu” tego dotyka wprost.
+
+- **45–46** (Faza XV) tworzą **łańcuch**, druga po Fazie XIV: krok 46 dokłada
+  panel do okna, które powstaje w 45, i mapę do pliku, który 45 zakłada. Obydwa
+  zależą od **36** całkowicie (port audio i obie jego implementacje) oraz od
+  **20 i 21** twardo — biorą kontrakt modułu taki, jaki tam powstał, i są jego
+  **trzecim sprawdzianem**: po module rysującym główną funkcję aplikacji (21)
+  i module, który nie rysuje nic (36), przychodzi moduł, który **pracuje, gdy go
+  nie widać**.
+  - **45** (ekran i playlista) zależy ponadto od **09** twardo (takt modułu
+    wchodzi w takt pętli i musi się zmieścić w budżecie klatki), od **16** twardo
+    (oś `--loop` jest jedynym narzędziem, którym da się rozliczyć coś wołanego
+    trzydzieści razy na sekundę), od **18** (`ListView`, `ScrollWindow` —
+    komponentu nie dokłada) oraz od **14 i 15**. Wraca przy tym do kodu kroku
+    **36**: klucz `track` znika z zakładki, a jego wartość przenosi się na
+    playlistę.
+  - **46** (efekty specjalne) zależy od **45** całkowicie, od **24** (okno rośnie
+    do dwóch paneli — `Split` i `SplitState`, wraz z regułą „podział należy do
+    modułu”), od **27** (wiersz o dwóch kolumnach: zdarzenie i plik) oraz od
+    **18 i 19** (pole tekstowe i okno nakładane, jeśli przypisanie idzie
+    wpisaniem ścieżki). Z **Fazą XIV** styka się treścią, nie zależnością:
+    „plik skasowany” jest najciekawszym kandydatem na zdarzenie, ale krok obejdzie
+    się bez niego, jeśli tamta faza wykona się później.
 
 Żaden krok nie da się sensownie zacząć przed ukończeniem swoich zależności
 z tabel powyżej.
+
+## Gdzie leżą pliki kroków
+
+Katalog `docs/plans/` trzyma **wyłącznie kroki, przed którymi jeszcze praca**:
+nierozpoczęte, w toku i zablokowane. Kroki ukończone przenoszą się do
+[archiwum/](archiwum/) — dziś jest ich 39 z 46, więc bez tego podziału lista
+tego, co zostało do zrobienia, ginęła w historii projektu.
+
+Trzy rzeczy, które przy tym **nie** zmieniają miejsca, bo są dokumentami
+żywymi, a nie zamkniętymi: ten indeks, [00-decyzje.md](00-decyzje.md) i tabele
+poniżej. Indeks pokazuje więc dalej **wszystkie** kroki w jednym miejscu wraz
+z pełnym grafem zależności — zmieniły się w nim wyłącznie ścieżki odnośników.
+Wskaźniki z `CLAUDE.md`, `SKILL.md`, `README.md` i z komentarzy w `src/`
+prowadzą do tych dwóch plików, więc archiwizacja kroku nie dotyka ani jednego
+z nich.
 
 ## Śledzenie postępu
 
@@ -450,12 +662,19 @@ zakończeniu pracy nad krokiem:
 3. Zaktualizuj kolumnę Status w tabelach powyżej.
 4. Jeśli podjęto nietrywialną decyzję architektoniczną — dopisz ją do
    [00-decyzje.md](00-decyzje.md).
+5. **Przenieś plik kroku do [archiwum/](archiwum/)** i popraw odnośnik w tabeli
+   powyżej na `archiwum/NN-nazwa.md`. Odnośniki **wewnątrz** przenoszonego pliku
+   trzeba przy tym przeliczyć: do `00-index.md`, `00-decyzje.md` i do kroków
+   nieukończonych sięga się odtąd przez `../`, poza katalog planów — przez
+   `../../`, a odnośniki do kroków już zarchiwizowanych zostają bez zmian.
+   Dotyczy to również kroków **ukończonych z zastrzeżeniem**: zastrzeżenie
+   opisuje granicę dowiezionego zakresu, a nie dług do spłacenia w tym pliku.
 
 ## Zakres poza MVP (do rozważenia w kolejnych iteracjach)
 
-- Operacje na plikach (kopiuj / przenieś / usuń / zmień nazwę / nowy katalog) —
-  krok 24 dowiózł do nich wstęp: dwupanelową przeglądarkę, a krok **28** dowozi
-  okno potwierdzenia, bez którego usuwanie nie ma prawa powstać
+- ~~Operacje na plikach (kopiuj / przenieś / usuń / zmień nazwę / nowy katalog)~~
+  — weszły do planu jako **Faza XIV**, kroki **41–44** (D66); wstęp dowiozły
+  kroki 24 (dwa panele) i 28 (okno potwierdzenia)
 - ~~Podgląd plików tekstowych~~ — wszedł do planu jako krok **29** (D48)
   i **został wykonany**; pozycja jest zamknięta od 2026-08-12
 - Przewijanie ekranu ustawień — zakładka dłuższa od okna gubi dziś pozycje
@@ -469,10 +688,38 @@ zakończeniu pracy nad krokiem:
 - Podświetlanie dopasowania w podglądzie tekstu — prymityw `TextMark` powstał
   tak, żeby było możliwe, ale odbiorcą kroku 30 była lista; `TextView` filtra nie
   ma
+- Podświetlanie dopasowania w drzewie — z tego samego powodu i wykluczone
+  z kroku 31: zakresy dopasowania niesie `TableRow`, a wiersz drzewa jest
+  `ListRow`em. Filtr **działa** w drzewie na jego pierwszym poziomie, tylko bez
+  podświetlenia
 - Zakładki / historia odwiedzonych katalogów
 - Kolorowanie składni w podglądzie tekstu — wyłączone z kroku 29
 - Sortowanie listy po kolumnie — wyłączone z kroku 27
-- Zaznaczenie wielokrotne — wyłączone z kroku 32
+- ~~Zaznaczenie wielokrotne~~ — wyłączone z kroku 32, weszło do planu jako krok
+  **43** (D66)
+- Zaznaczanie zakresem (`Shift`+strzałki) — wyłączone z kroku 43, bo `Shift` nie
+  istnieje w słowniku wejścia; wchodzi wraz z krokiem **44**, jeśli jego
+  rozstrzygnięcie startowe nr 1 wybierze wariant z modyfikatorem
+- Widok kosza i jego opróżnianie — wyłączone z kroku 44 (kosz jest katalogiem,
+  więc `browser.jump` dowozi go za darmo)
+- Prawa dostępu i właściciel (`chmod`, `chown`) — wyłączone z kroku 41
 - Zdarzenia myszy w oknie GLFW — wyłączone z kroków 34–35 (aplikacja nie ma
   słownika zdarzeń myszy w żadnej warstwie; osobna decyzja, jeśli w ogóle)
+- Przeliczenie komórki przez skalę treści (HiDPI) — wyłączone z kroku 37
+  (rozstrzygnięcie nr 4, D67): maszyna projektu ma skalę 1.0, więc kodu nie ma
+  na czym sprawdzić. Odczytana wartość jest już widoczna w zakładce „Aplikacja”
+  okna pomocy — pozycja czeka na sprzęt, nie na pomysł
+- Ikona podawana oknu wprost — niemożliwa, dopóki PHP-GLFW nie wystawi
+  `glfwSetWindowIcon` (w 2.2.0 funkcji nie ma). Krok 37 obszedł brak wpisem
+  `.desktop` dopasowywanym po `WM_CLASS`
+- ~~Moduł odtwarzacza muzyki (playlisty, przeglądanie plików audio)~~ — wyłączony
+  z kroku 36, wszedł do planu jako **Faza XV**, kroki **45–46** (D71); pasek
+  postępu utworu i przewijanie zostają wykluczone także tam
+- ~~Dźwięki interfejsu (klik, błąd, powiadomienie)~~ — wyłączone z kroku 36,
+  weszły do planu jako krok **46** pod nazwą „efekty specjalne”
+- Autostart muzyki — wykluczony z kroku 36 (D70, rozstrzygnięcie 5), bo kontrakt
+  modułu nie znał cyklu życia. **Faza XV ten warunek znosi**: gdy moduł dostanie
+  takt (krok 45), autostart będzie kosztował jedną pozycję ustawień — decyzja do
+  podjęcia przy tamtym kroku
+- Ściszanie muzyki na czas efektu (ducking) — wykluczone z kroku 46
 - Inicjalizacja repozytorium git

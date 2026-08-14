@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Browser\Presentation;
 
+use LightManager\Application\Command\CommandInterface;
 use LightManager\Application\Module\ModuleInterface;
 use LightManager\Application\Module\ModuleSettingsTab;
 use LightManager\Application\Module\ModuleShortcut;
@@ -15,6 +16,7 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\Browser\Application\BrowserSettings;
+use LightManager\Module\Browser\Application\UseCase\ExpandBranchUseCase;
 use LightManager\Module\Browser\Application\UseCase\MoveSelectionUseCase;
 use LightManager\Module\Browser\Application\UseCase\NavigateIntoDirectoryUseCase;
 use LightManager\Module\Browser\Application\UseCase\NavigateUpUseCase;
@@ -26,7 +28,10 @@ use LightManager\Module\Browser\Domain\Repository\DirectoryRepositoryInterface;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
 use LightManager\Module\Browser\Infrastructure\EntryComparator;
 use LightManager\Module\Browser\Infrastructure\FilesystemDirectoryRepository;
+use LightManager\Module\Browser\Presentation\Command\HiddenCommand;
 use LightManager\Module\Browser\Presentation\Command\JumpCommand;
+use LightManager\Module\Browser\Presentation\Command\OpenCommand;
+use LightManager\Module\Browser\Presentation\Command\TreeCommand;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
@@ -62,7 +67,7 @@ final class BrowserModule implements
     /** „Browser” — litera `b` jest wolna: `0x02` nie znaczy w trybie surowym nic. */
     private const SHORTCUT = 'b';
 
-    /** @var array{BrowserScreen, JumpCommand}|null */
+    /** @var array{BrowserScreen, list<CommandInterface>}|null */
     private ?array $parts = null;
 
     /**
@@ -95,14 +100,14 @@ final class BrowserModule implements
      * składany zachłannie, w konstruktorze, wypisałby użytkownikowi surowy klucz.
      * Leniwość ustawia to w jedyną kolejność, w której obie rzeczy są prawdziwe.
      *
-     * @return array{BrowserScreen, JumpCommand}
+     * @return array{BrowserScreen, list<CommandInterface>}
      */
     private function assembled(): array
     {
         return $this->parts ??= $this->assemble();
     }
 
-    /** @return array{BrowserScreen, JumpCommand} */
+    /** @return array{BrowserScreen, list<CommandInterface>} */
     private function assemble(): array
     {
         $directories = $this->directories ?? new FilesystemDirectoryRepository(EntryComparator::create());
@@ -114,28 +119,55 @@ final class BrowserModule implements
         // kursorem. Odczyt idzie przez repozytorium jeszcze raz, bo to jedyna
         // droga do niezależnej kopii; komunikat o katalogu zastępczym padł już
         // przy pierwszym otwarciu i drugi raz go nie powtarzamy.
-        $panes = new BrowserPanes(
-            new BrowserState($this->state, $opened),
-            new BrowserState(
-                $this->state,
-                $directories->get($opened->path(), BrowserSettings::showHidden($this->state->settings())),
-            ),
-            BrowserScreen::SCROLL_MARGIN,
+        $first = new BrowserState($this->state, $opened);
+        $second = new BrowserState(
+            $this->state,
+            $directories->get($opened->path(), BrowserSettings::showHidden($this->state->settings())),
         );
+
+        // Drzewo powstaje **razem z panelem**, a nie przy pierwszym naciśnięciu
+        // `Ctrl`+`T`: gałęzie czyta na żądanie, więc nietknięte nie kosztuje ani
+        // jednego sięgnięcia na dysk, a tworzone w środku klatki musiałoby dostać
+        // repozytorium przez ekran — czyli przewlec je przez klasę, która dziś
+        // o repozytorium nie wie.
+        $branches = new ExpandBranchUseCase($directories);
+        $panes = new BrowserPanes(
+            $first,
+            $second,
+            BrowserScreen::SCROLL_MARGIN,
+            new BrowserTree($first, $branches, $this->state, $this->translator, BrowserScreen::SCROLL_MARGIN),
+            new BrowserTree($second, $branches, $this->state, $this->translator, BrowserScreen::SCROLL_MARGIN),
+        );
+
+        // Wpisy ukryte przełącza od kroku 32 jedna klasa dla dwóch wejść: kropki
+        // na liście i komendy `browser.hidden`. Ekran i komenda dostają ten sam
+        // obiekt, bo czynność jest jedna — dwa obiekty znaczyłyby dwa rachunki
+        // tego samego ustawienia.
+        $hidden = new HiddenEntries(
+            $panes,
+            new ToggleHiddenEntriesUseCase($directories),
+            new ChangeModuleSettingUseCase($this->settings, $this->translator),
+            $this->state,
+        );
+        $navigateInto = new NavigateIntoDirectoryUseCase($directories);
 
         return [
             new BrowserScreen(
                 $panes,
                 $this->state,
                 new MoveSelectionUseCase(),
-                new NavigateIntoDirectoryUseCase($directories),
+                $navigateInto,
                 new NavigateUpUseCase($directories),
-                new ToggleHiddenEntriesUseCase($directories),
+                $hidden,
                 new PreviewSelectedEntryUseCase($this->images, $this->translator),
-                new ChangeModuleSettingUseCase($this->settings, $this->translator),
                 $this->translator,
             ),
-            new JumpCommand($panes, $directories, $this->translator),
+            [
+                new JumpCommand($panes, $directories, $this->translator),
+                new OpenCommand($panes, $navigateInto, $this->translator),
+                new HiddenCommand($hidden, $this->translator),
+                new TreeCommand($panes),
+            ],
         ];
     }
 
@@ -211,7 +243,7 @@ final class BrowserModule implements
 
     public function commands(): array
     {
-        return [$this->assembled()[1]];
+        return $this->assembled()[1];
     }
 
     public function screen(): ScreenInterface

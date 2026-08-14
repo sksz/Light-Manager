@@ -23,6 +23,20 @@ final class JsonValue
         return is_int($value) || is_float($value) ? (float) $value : $default;
     }
 
+    /**
+     * Liczba, której **brak jest wartością**: wzorce sprzed kroku 38 nie mają
+     * kolumny zimnej klatki, a zero znaczyłoby tam „klatka nie kosztowała nic”
+     * zamiast „nie zmierzono”.
+     *
+     * @param array<string, mixed> $data
+     */
+    public static function nullableFloat(array $data, string $key): ?float
+    {
+        $value = $data[$key] ?? null;
+
+        return is_int($value) || is_float($value) ? (float) $value : null;
+    }
+
     /** @param array<string, mixed> $data */
     public static function int(array $data, string $key, int $default = 0): int
     {

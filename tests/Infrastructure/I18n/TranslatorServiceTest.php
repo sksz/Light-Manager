@@ -24,11 +24,6 @@ final class TranslatorServiceTest extends TestCase
 {
     use PinsLanguage;
 
-    protected function tearDown(): void
-    {
-        $this->unpinLanguage();
-    }
-
     private static function catalogDirectory(): string
     {
         return dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'lang';

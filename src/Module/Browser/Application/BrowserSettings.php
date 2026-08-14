@@ -63,6 +63,31 @@ final class BrowserSettings
 
     public const DEFAULT_COLUMN_HEADER = false;
 
+    /**
+     * Ile poziomów pokazuje drzewo (krok 31) — wraz z wartością „bez limitu”.
+     *
+     * Pozycja wyboru, a nie liczbowa, i to z jednego powodu: **„bez limitu” nie
+     * jest liczbą**. Wariant liczbowy musiałby udawać ją zerem albo wielkim
+     * przybliżeniem, a ekran ustawień pokazuje wartości wyboru **surowo**, bez
+     * katalogu napisów — użytkownik zobaczyłby więc „0” i musiał się domyślić.
+     * Znak nieskończoności czyta się tak samo w każdym języku, więc surowość
+     * ekranu przestaje tu być wadą.
+     *
+     * Domyślne osiem, a nie „bez limitu”, bo limit ma być widoczny: drzewo
+     * rozwijane bez granicy spycha nazwę wcięciem poza panel, a użytkownik, który
+     * tego chce, ma pozycję pod ręką. Poziomem pierwszym są wpisy katalogu
+     * w korzeniu, więc dwójka znaczy „katalog i jego dzieci”.
+     */
+    public const TREE_DEPTH = 'treeDepth';
+
+    /** Wartość oznaczająca brak limitu — jedyna spoza zakresu liczb. */
+    public const TREE_DEPTH_UNLIMITED = '∞';
+
+    /** @var list<string> */
+    public const TREE_DEPTH_CHOICES = ['2', '3', '4', '5', '6', '8', '12', self::TREE_DEPTH_UNLIMITED];
+
+    public const DEFAULT_TREE_DEPTH = '8';
+
     /** @return list<ModuleSetting> */
     public static function declarations(): array
     {
@@ -92,6 +117,12 @@ final class BrowserSettings
                 'module.' . self::ID . '.setting.' . self::COLUMN_HEADER,
                 self::DEFAULT_COLUMN_HEADER,
             ),
+            ModuleSetting::choice(
+                self::TREE_DEPTH,
+                'module.' . self::ID . '.setting.' . self::TREE_DEPTH,
+                self::TREE_DEPTH_CHOICES,
+                self::DEFAULT_TREE_DEPTH,
+            ),
         ];
     }
 
@@ -120,6 +151,25 @@ final class BrowserSettings
     public static function columnHeader(Settings $settings): bool
     {
         return self::flag($settings, self::declarations()[4], self::DEFAULT_COLUMN_HEADER);
+    }
+
+    /**
+     * Ile poziomów wolno pokazać drzewu; `null` — bez limitu.
+     *
+     * Odpowiedź jest `null`-owalna, a nie „bardzo duża”, bo wołający i tak musi
+     * odróżnić te dwa przypadki: przy limicie osiągniętym mówi użytkownikowi,
+     * dlaczego gałąź się nie rozwija, a bez limitu nie ma o czym mówić.
+     */
+    public static function treeDepth(Settings $settings): ?int
+    {
+        $setting = self::declarations()[5];
+        $value = $setting->valueFrom($settings->moduleValue(self::ID, $setting->key));
+
+        if (!is_string($value) || $value === self::TREE_DEPTH_UNLIMITED) {
+            return null;
+        }
+
+        return (int) $value;
     }
 
     private static function flag(Settings $settings, ModuleSetting $setting, bool $default): bool

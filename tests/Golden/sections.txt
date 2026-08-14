@@ -1,0 +1,46 @@
+plane chrome rect=0,0 30x100 opaque=0 primitives=8
+  R0,1,3,98,-,Border,Round
+  C0,1,3,98,Accent,Round
+  T0,8,Muted,Background,PATH
+  R3,1,24,98,-,Border,Round
+  C3,1,24,98,Accent,Round
+  T3,8,Muted,Background,FILES
+  R27,1,3,98,-,Border,Round
+  C27,1,3,98,Accent,Round
+plane content rect=0,0 30x100 opaque=0 primitives=36
+  T4,2,Accent,-,▼ SEKCJA 00
+  T5,2,Text,-,wlasciwosc-00-00
+  T5,92,Text,-,1,0 kB
+  T6,2,Text,-,wlasciwosc-00-01
+  T6,92,Text,-,2,1 kB
+  T7,2,Text,-,wlasciwosc-00-02
+  T7,92,Text,-,3,2 kB
+  T8,2,Text,-,wlasciwosc-00-03
+  T8,92,Text,-,4,3 kB
+  R10,2,1,96,Selection,-,Soft
+  B10,2,1,96,Accent,Edge
+  T10,2,SelectionText,-,▼ SEKCJA 01
+  T11,2,Text,-,wlasciwosc-01-00
+  T11,92,Text,-,1,0 kB
+  T12,2,Text,-,wlasciwosc-01-01
+  T12,92,Text,-,2,1 kB
+  T13,2,Text,-,wlasciwosc-01-02
+  T13,92,Text,-,3,2 kB
+  T14,2,Text,-,wlasciwosc-01-03
+  T14,92,Text,-,4,3 kB
+  T16,2,Accent,-,▶ SEKCJA 02
+  T17,2,Accent,-,▼ SEKCJA 03
+  T18,2,Text,-,wlasciwosc-03-00
+  T18,92,Text,-,1,0 kB
+  T19,2,Text,-,wlasciwosc-03-01
+  T19,92,Text,-,2,1 kB
+  T20,2,Text,-,wlasciwosc-03-02
+  T20,92,Text,-,3,2 kB
+  T21,2,Text,-,wlasciwosc-03-03
+  T21,92,Text,-,4,3 kB
+  T23,2,Accent,-,▼ SEKCJA 04
+  T24,2,Text,-,wlasciwosc-04-00
+  T24,92,Text,-,1,0 kB
+  T25,2,Text,-,wlasciwosc-04-01
+  T25,92,Text,-,2,1 kB
+  S4,97,22,1,44,22,110,Border,Accent

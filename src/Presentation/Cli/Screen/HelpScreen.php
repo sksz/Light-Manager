@@ -101,11 +101,18 @@ final class HelpScreen implements ScreenInterface, Resettable
     /** @var list<ModuleInterface> moduły przyjęte — po jednej zakładce na każdy */
     private array $modules = [];
 
+    /**
+     * @param ?string $contentScale gęstość wyświetlacza gotowa do pokazania albo
+     *                              `null`, gdy nie ma jej kto zmierzyć — pomoc
+     *                              dostaje **napis**, bo o `glfwGetWindowContentScale`
+     *                              wie wyłącznie `Bootstrap` (krok 37)
+     */
     public function __construct(
         private readonly SettingsPort $settings,
         private readonly TranslatorPort $translator,
         private readonly string $version,
         private readonly string $rendererMode,
+        private readonly ?string $contentScale = null,
     ) {
         $this->window = new ScrollWindow();
         $this->sectionState = new SectionState();
@@ -509,13 +516,26 @@ final class HelpScreen implements ScreenInterface, Resettable
      * mówi, gdzie ten plik leży — a użytkownik, który chce go ruszyć ręcznie,
      * nie ma skąd tego wiedzieć.
      *
+     * Od kroku 37 dochodzi czwarty wiersz i tylko w torze okienkowym: gęstość
+     * wyświetlacza. Stoi tu, bo jest jedyną rzeczą w tym kroku, której **nie
+     * dało się sprawdzić na maszynie projektu** — pokazana, przestaje wymagać
+     * wiary na słowo.
+     *
      * @return list<ListRow>
      */
     private function aboutRows(): array
     {
-        return [
+        $rows = [
             new ListRow($this->translator->translate('help.about.version'), $this->version),
             new ListRow($this->translator->translate('help.about.renderer'), $this->rendererMode),
+        ];
+
+        if ($this->contentScale !== null) {
+            $rows[] = new ListRow($this->translator->translate('help.about.scale'), $this->contentScale);
+        }
+
+        return [
+            ...$rows,
             new ListRow('', '', Role::Muted),
             new ListRow($this->translator->translate('help.settings.location'), '', Role::Muted),
             new ListRow($this->settings->location()),

@@ -84,6 +84,8 @@ return [
     'help.key.commit' => 'zatwierdź wartość',
     'help.key.cancel' => 'porzuć zmianę',
     'help.key.collapse' => 'zwiń lub rozwiń sekcję',
+    'help.key.fullscreen' => 'pełny ekran',
+    'help.key.menu' => 'menu kontekstowe',
 
     // Zakładka modułu w oknie pomocy — nagłówki części składanej z deklaracji.
     'help.module.shortcut' => 'Skrót',
@@ -100,6 +102,13 @@ return [
     'command.key.erase' => 'kasowanie znaku',
     'command.key.dismiss' => 'zamknij okno',
 
+    // Menu kontekstowe (krok 32) — drugie wejście do rejestru komend.
+    'menu.title' => 'DZIAŁANIA',
+    'menu.empty' => 'Dla zaznaczenia nie ma żadnego działania.',
+    'menu.key.run' => 'wykonaj działanie',
+    'menu.key.pick' => 'wybór z listy',
+    'menu.key.close' => 'zamknij menu',
+
     // Okno potwierdzenia (krok 28).
     'confirm.title' => 'PYTANIE',
     'confirm.title.dangerous' => 'UWAGA',
@@ -109,6 +118,7 @@ return [
     'confirm.key.answer' => 'potwierdź',
     'confirm.key.refuse' => 'odmów',
     'command.history' => 'historia',
+    'command.dump.requested' => 'Zrzut następnej klatki: {file}-prymitywy.txt oraz {file}.png',
     'command.problem.empty' => 'nie wpisano nazwy komendy',
     'command.problem.unknown' => 'nieznana komenda: {name}',
     'command.problem.missing' => 'brakuje argumentu: {argument}',
@@ -120,8 +130,13 @@ return [
     'command.core.settings' => 'otwórz ustawienia',
     'command.core.help' => 'otwórz pomoc',
     'command.core.quit' => 'zakończ pracę',
+    'command.core.dump' => 'zapisz następną klatkę do pliku (prymitywy i obraz)',
+    'command.core.fullscreen' => 'włącz lub wyłącz pełny ekran',
+    'command.fullscreen.on' => 'Pełny ekran włączony.',
+    'command.fullscreen.off' => 'Pełny ekran wyłączony.',
     'command.core.theme' => 'ustaw motyw graficzny',
     'command.core.language' => 'ustaw język interfejsu',
+    'command.argument.path' => 'ścieżka pliku (bez rozszerzenia)',
     'command.argument.theme' => 'motyw',
     'command.argument.language' => 'język',
     'help.section.global' => 'Wszędzie',
@@ -129,7 +144,37 @@ return [
     'help.tab.about' => 'Aplikacja',
     'help.about.version' => 'Wersja',
     'help.about.renderer' => 'Tryb renderowania',
+    'help.about.scale' => 'Gęstość wyświetlacza',
     'help.settings.location' => 'Ustawienia zapisywane są w pliku:',
+
+    // Wpis pulpitu (bin/install-desktop-entry). Ikona okna idzie tą drogą, bo
+    // rozszerzenie PHP-GLFW nie wystawia `glfwSetWindowIcon` (krok 37).
+    'desktop.comment' => 'Menadżer plików w terminalu i w oknie',
+    'desktop.written' => 'Zapisano: {path}',
+    'desktop.hint' => 'Gotowe. Ikona pojawi się na pasku zadań przy najbliższym uruchomieniu '
+        . 'z flagą --window; niektóre pulpity odświeżają spis programów dopiero po ponownym '
+        . 'zalogowaniu.',
+    'desktop.problem.home' => 'BŁĄD: nie znam katalogu domowego (zmienna HOME jest pusta).',
+    'desktop.problem.executable' => 'BŁĄD: nie znalazłem pliku bin/light-manager obok tego skryptu.',
+    'desktop.problem.directory' => 'BŁĄD: nie udało się utworzyć katalogu {path}.',
+    'desktop.problem.file' => 'BŁĄD: nie udało się zapisać pliku {path}.',
+
+    // Budowa dystrybucji (bin/build-phar, `make build`). Zasoby zostają **obok**
+    // archiwum, bo silnik audio jest rozszerzeniem C i spod `phar://` nie czyta.
+    'build.step.stage' => 'Kompletuję zawartość dystrybucji…',
+    'build.step.deps' => 'Instaluję zależności bez deweloperskich…',
+    'build.step.phar' => 'Składam archiwum…',
+    'build.step.assets' => 'Kopiuję zasoby obok archiwum…',
+    'build.step.smoke' => 'Sprawdzam, czy wynik się ładuje…',
+    'build.done' => 'Gotowe: {path} ({size} MB)',
+    'build.assets' => 'Zasoby: {path}',
+    'build.hint.track' => 'Utwór w zbudowanej aplikacji wskazuje się ścieżką bezwzględną '
+        . '(ustawienia → zakładka „Dźwięk” → Utwór), np. {path}/… — ścieżka względna '
+        . 'liczy się od korzenia projektu, którego w dystrybucji nie ma.',
+    'build.problem.readonly' => 'BŁĄD: budowa archiwum wymaga zapisu do PHAR-ów. '
+        . 'Uruchom „make build” albo „php -d phar.readonly=0 bin/build-phar”.',
+    'build.problem.install' => 'BŁĄD: instalacja zależności dystrybucji nie powiodła się.',
+    'build.problem.smoke' => 'BŁĄD: zbudowane archiwum się nie ładuje. {details}',
 
     // Konfiguracja. Liczba odrzuconych kluczy odmienia zdanie, stąd trzy formy.
     'config.rejected' => [
@@ -195,12 +240,25 @@ return [
     // przez katalog jak reszta interfejsu — ale treść mierzonych klatek już nie,
     // bo jej długość w znakach jest częścią pomiaru (patrz `ScenarioFactory`).
     'bench.report.title' => 'Pomiar potoku renderowania',
+    'bench.report.title.loop' => 'Pomiar taktu pętli (bez renderera i bez przesyłu)',
     'bench.report.config' => 'Konfiguracja: {config}',
     'bench.report.environment' => 'Środowisko: PHP {php} · {imagick} · font {font}',
+    'bench.report.load' => 'Obciążenie maszyny: {load} na rdzeń.',
+    'bench.report.loadNoisy' => 'Obciążenie maszyny: {load} na rdzeń — MASZYNA BYŁA ZAJĘTA. '
+        . 'Liczby mogą opisywać sąsiada, a nie kod.',
+    'bench.report.loadUnknown' => 'Obciążenie maszyny: nieznane (system go nie podaje).',
     'bench.report.iterations' => 'Przebiegi: {iterations} mierzonych, {warmup} na rozgrzewkę '
         . '(podana mediana, obok rozrzut min–max).',
     'bench.report.unstableNote' => 'Wiersze oznaczone „!” miały rozrzut większy niż {ratio}× — '
         . 'te liczby są niewiarygodne i nie trafią do wzorca.',
+    'bench.report.coldNote' => 'Kolumna „Zimna” to PIERWSZA klatka rozgrzewki — pojedyncza próbka, '
+        . 'nie mediana.' . "\n"
+        . '  Puste są w niej pamięci podręczne klatki (wiersze, płaszczyzna spodnia, miniatura); '
+        . 'proces, font' . "\n"
+        . '  i singletony są już ciepłe. Tyle płaci start aplikacji i każda zmiana rozmiaru okna. '
+        . 'Kolumna' . "\n"
+        . '  wchodzi do wzorca, ale NIE podnosi alarmu regresji — rozrzut jednej próbki jest większy '
+        . 'niż próg.',
 
     'bench.column.scenario' => 'Scenariusz',
     'bench.column.draw' => 'Rysowanie',
@@ -208,8 +266,14 @@ return [
     'bench.column.encode' => 'Kodowanie',
     'bench.column.swap' => 'Bufory',
     'bench.column.total' => 'Razem',
+    'bench.column.cold' => 'Zimna',
+    'bench.column.input' => 'Wejście',
+    'bench.column.state' => 'Stan',
+    'bench.column.primitives' => 'Prymitywy',
+    'bench.column.compose' => 'Złożenie',
     'bench.column.spread' => 'Rozrzut',
     'bench.column.blob' => 'Blob',
+    'bench.column.memory' => 'Pamięć',
 
     'bench.scenario.empty' => 'puste płótno',
     'bench.scenario.text' => 'sam tekst',
@@ -227,6 +291,8 @@ return [
     'bench.scenario.columns' => 'lista w kolumnach',
     'bench.scenario.text-view' => 'podgląd tekstu',
     'bench.scenario.highlight' => 'lista z podświetleniem',
+    'bench.scenario.settings' => 'ekran ustawień',
+    'bench.scenario.tree' => 'drzewo katalogów',
 
     'bench.transfer.title' => 'Przesył klatki do terminala',
     'bench.transfer.blob' => '  rozmiar klatki:     {kilobytes} kB',
@@ -251,12 +317,30 @@ return [
         'Regresje w {count} scenariuszach (oznaczone ▲).',
         'Regresje w {count} scenariuszach (oznaczone ▲).',
     ],
+    'bench.compare.load' => 'Obciążenie maszyny: wzorzec {baseline} / teraz {current} (na rdzeń). '
+        . 'Różne obciążenie = różne środowisko, nie różnica kodu.',
     'bench.compare.incomparable' => 'Wzorzec powstał przy innej konfiguracji, więc porównanie nic by nie '
         . 'znaczyło.' . "\n" . '  wzorzec: {baseline}' . "\n" . '  teraz:   {current}',
+
+    'bench.image.title' => 'Porównanie zrzutów z wzorcami (próg {threshold} ‰ pikseli)',
+    'bench.image.column.pixels' => 'Różne piksele',
+    'bench.image.column.share' => 'Udział',
+    'bench.image.column.verdict' => 'Werdykt',
+    'bench.image.verdict.match' => 'zgodny',
+    'bench.image.verdict.differs' => 'NIEZGODNY — obraz różnicy niżej',
+    'bench.image.verdict.missing' => 'brak wzorca — zapisz: --png-save',
+    'bench.image.verdict.resized' => 'inny rozmiar płótna niż wzorzec',
+    'bench.image.verdict.incomparable' => 'wzorzec z innej konfiguracji — nieporównywalny',
+    'bench.image.saved' => 'Wzorcowy zrzut zapisany: {file}',
+    'bench.golden.saved' => 'Złota klatka zapisana: {file}',
 
     'bench.save.done' => 'Wzorzec zapisany: {file}',
     'bench.save.refusedUnstable' => 'Wzorca NIE ZAPISANO: część pomiarów była niestabilna. '
         . 'Zamknij inne programy i powtórz przebieg.',
+    'bench.save.noisyLoad' => 'UWAGA: obciążenie maszyny wynosiło {load} na rdzeń (próg {limit}). '
+        . 'Wzorzec zostanie zapisany,' . "\n"
+        . '  ale zapamiętaj, że powstał na zajętym hoście — w kroku 22 taka para wzorców '
+        . '„potaniała” o 8–18%' . "\n" . '  bez jednej zmiany w kodzie.',
     'bench.snapshot.saved' => 'Zrzut płótna ({scenario}, przed kwantyzacją) zapisany: {file}',
     'bench.progress.running' => 'Mierzę {scenarios} scenariuszy po {iterations} przebiegów…',
 
@@ -276,13 +360,19 @@ return [
         . '  --warmup=3           liczba przebiegów rozgrzewkowych',
     'bench.help.modes' => 'Tryby i wyniki:' . "\n"
         . '  --window             zmierz tor okienkowy (OpenGL, okno ukryte) zamiast Sixela' . "\n"
+        . '  --text               zmierz tor tekstowy (ANSI, tryb zapasowy) zamiast Sixela' . "\n"
+        . '  --loop               zmierz takt pętli (wejście, stan, złożenie klatki) bez renderera' . "\n"
         . '  --scenarios=a,b      zmierz tylko wybrane scenariusze' . "\n"
         . '  --transfer           zmierz też przesył klatki (wymaga prawdziwego terminala)' . "\n"
         . '  --save[=nazwa]       zapisz wzorzec do docs/pomiary/' . "\n"
         . '  --compare[=plik]     porównaj z wzorcem (bez wartości: z najnowszym)' . "\n"
         . '  --threshold=10       próg regresji w procentach' . "\n"
         . '  --png=PLIK           zapisz płótno do PNG zamiast mierzyć' . "\n"
-        . '  --scenario=NAZWA     scenariusz do zrzutu PNG',
+        . '  --scenario=NAZWA     scenariusz do zrzutu PNG' . "\n"
+        . '  --png-save           zapisz wzorcowe zrzuty do docs/pomiary/wzorce-png/' . "\n"
+        . '  --png-compare        porównaj zrzuty z wzorcami (kod wyjścia 1 przy niezgodności)' . "\n"
+        . '  --png-threshold=0.5  próg różnicy w promilach pikseli (domyślnie 0 ‰, w oknie 5 ‰)' . "\n"
+        . '  --golden-save        zapisz złote klatki (prymitywy) do tests/Golden/ — PRZECZYTAJ różnicę',
     'bench.help.scenarios' => 'Scenariusze:',
 
     'bench.problem.emptySampleSet' => 'Pomiar nie dostarczył ani jednej próbki.',

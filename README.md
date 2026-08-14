@@ -28,10 +28,32 @@ rozszerzenie [PHP-GLFW](https://phpgl.net), bez dotykania terminala.
 ## Instalacja
 
 ```bash
-composer install
+make check-env   # czy ta maszyna udźwignie projekt — działa przed instalacją
+make install     # composer install; powtórzony nie robi nic
 ```
 
+`make check-env` rozróżnia trzy rodzaje wymogów: **twarde** (PHP, `imagick`,
+`pcntl`, `stty`, Composer) kończą się kodem błędu, brak kodera `SIXEL` jest
+**ostrzeżeniem** (aplikacja zejdzie do trybu tekstowego), a `glfw`, `intl`
+i `xterm` — informacją. Jednego sprawdzić nie potrafi i mówi to wprost:
+obsługi Sixela przez sam terminal, bo odpowiedź DA1 wymaga interaktywnej sesji
+w trybie surowym — od tego jest `make probe`.
+
+Jeżeli Composer wywraca się naruszeniem ochrony pamięci, zobacz
+[Znane ograniczenie środowiska](#znane-ograniczenie-środowiska) i `make install-safe`.
+
+`make` bez argumentów wypisuje spis wszystkich wejść do procesów projektu;
+pełny opis: [docs/architecture.md](docs/architecture.md), rozdz. 8.
+
 ## Uruchomienie
+
+```bash
+make run          # to samo co ./bin/light-manager
+make run-window   # tryb okienkowy (--window)
+make run-xterm    # XTerm z zasobami trybu graficznego (./bin/run.sh)
+```
+
+lub wprost:
 
 ```bash
 ./bin/light-manager
@@ -75,9 +97,43 @@ Klawiatura działa tym samym słownikiem co w terminalu (strzałki, `F1`–`F12`
 `Ctrl`+litera, `F10` kończy; przycisk zamknięcia okna działa jak Ctrl+C),
 a przeciągnięcie rogu okna zmienia siatkę od następnej klatki.
 
-Rozmiar startowy okna ustawia się na ekranie ustawień (pozycje „Kolumny/
-Wiersze okna”, domyślnie 100×30 komórek); komórkę wyznaczają metryki
-systemowego fontu o stałej szerokości.
+Rozmiar okna ustawia się na ekranie ustawień (pozycje „Kolumny/Wiersze okna”,
+domyślnie 100×30 komórek); komórkę wyznaczają metryki systemowego fontu
+o stałej szerokości.
+
+**Okno pamięta, jak je ustawiono** (od kroku 37): rozmiar nadany
+przeciągnięciem rogu albo maksymalizacją zapisuje się do tych samych dwóch
+ustawień, więc następny start zastaje okno takim, jakim je zostawiono. Zapis
+następuje pół sekundy po ostatniej zmianie — przeciąganie rogu nie zapisuje
+pliku po drodze ani razu — a zmianę porzuconą tuż przed wyjściem dopisuje samo
+zamknięcie aplikacji. Rozmiar mierzy się **w komórkach**, więc zmiana fontu
+zmieni okno w pikselach, ale zostawi siatkę — i z tego samego powodu okno wraca
+czasem o kilkanaście pikseli niższe, niż je zostawiono: resztka, która nie
+tworzyła pełnego wiersza, nie ma czego pamiętać.
+
+**Pełny ekran**: `F11` albo komenda `core.fullscreen` w oknie komend. Wyjście
+wraca dokładnie do poprzedniego rozmiaru i położenia, a rozmiar narzucony
+pełnym ekranem **nie** trafia do ustawień. Obie drogi istnieją wyłącznie
+w trybie okienkowym — w terminalu `F11` nie robi nic i nie pojawia się
+w spisie klawiszy.
+
+**Ikona na pasku zadań** wymaga jednorazowego założenia wpisu pulpitu:
+
+```bash
+./bin/install-desktop-entry
+```
+
+Skrypt rysuje ikonę z ról **włączonego motywu** (cztery rozmiary
+w `~/.local/share/icons/hicolor/`) i zakłada wpis
+`~/.local/share/applications/light-manager.desktop`. Droga jest okrężna, bo
+prostej nie ma: rozszerzenie PHP-GLFW nie wystawia `glfwSetWindowIcon`, więc
+okno przedstawia się pulpitowi klasą `WM_CLASS`, a ikonę bierze pulpit z wpisu.
+Niektóre środowiska graficzne odświeżają spis programów dopiero po ponownym
+zalogowaniu.
+
+Zakładka „Aplikacja” w oknie pomocy pokazuje w tym trybie **gęstość
+wyświetlacza** (`glfwGetWindowContentScale`). Wartość jest tam po to, żeby ją
+zobaczyć: aplikacja niczym jej nie przelicza — patrz „Znane ograniczenia”.
 
 Od kroku 35 okno pokazuje **całą aplikację**: prymitywy rysowane są wprost
 wywołaniami OpenGL przez API wektorowe PHP-GLFW, bez Imagicka w ścieżce
@@ -96,8 +152,11 @@ kosztuje w terminalu.
 | `.` | pokaż lub ukryj wpisy ukryte (ustawienie trwałe, dotyczy obu paneli) |
 | `/` | zawężenie listy fragmentem nazwy — pole filtra przy dolnej krawędzi |
 | `Tab` | przejście do drugiego panelu — tylko przy włączonym podziale |
+| `Ctrl`+`T` | panel jako **drzewo** albo z powrotem jako lista |
 | `F1` | ekran pomocy — pełna lista klawiszy |
 | `F2` | ekran ustawień |
+| `F9` | menu kontekstowe — co da się zrobić z zaznaczonym wpisem |
+| `F11` | pełny ekran — **tylko w trybie okienkowym** (`--window`) |
 | `F12` | okno komend |
 | `Ctrl`+litera | okno modułu — `Ctrl+B` przeglądarka plików, `Ctrl+D` opis zaznaczonego pliku |
 | `Esc` | powrót do modułu domyślnego z każdego ekranu; zamknięcie okna komend |
@@ -134,6 +193,30 @@ arytmetycznie, ale nazw plików nie da się w nich przeczytać.
 Podział jest sprawą modułu, a nie okna: `F1`, `F2` i skrót modułu zastępują cały
 ekran razem z podziałem, bo widoczny ekran jest zawsze jeden.
 
+### Drzewo katalogów
+
+`Ctrl`+`T` zamienia panel z ogniskiem w **drzewo** — i z powrotem w listę.
+Widok należy do panelu, więc przy podziale wolno mieć drzewo po jednej stronie
+i listę po drugiej; przy jednym panelu drzewo zastępuje listę w całości.
+
+| Klawisz | W drzewie |
+|---|---|
+| `→` | rozwinięcie gałęzi; na gałęzi już rozwiniętej — zejście do pierwszego dziecka |
+| `←` | zwinięcie gałęzi; na zwiniętej — skok do rodzica; na pierwszym poziomie — katalog wyżej |
+| `Enter` | katalog spod kursora staje się katalogiem panelu |
+| `Backspace` | katalog wyżej — znaczy to samo, co w liście |
+
+Gałąź czyta się z dysku **dopiero przy rozwinięciu**, więc drzewo nietknięte nie
+kosztuje ani jednego dodatkowego odczytu, a rozwinięcie jednej gałęzi kosztuje
+tyle, co wejście do katalogu. Raz przeczytana gałąź zostaje w pamięci: wejście
+katalog niżej i powrót przywraca drzewo w tym samym kształcie, bez sięgania na
+dysk. Cena tej zamiany jest jedna i warto ją znać — **drzewo pokazuje to, co
+przeczytało**, a nie to, co w tej sekundzie leży na dysku.
+
+Ile poziomów wolno rozwinąć, rozstrzyga pozycja „Poziomy drzewa (Ctrl+T)”
+w ustawieniach modułu; wartość `∞` znaczy „bez limitu”. Przy limicie osiągniętym
+`→` melduje się zdaniem w pasku stanu, zamiast nie robić nic.
+
 Zaznaczenie pliku graficznego pokazuje jego miniaturę w pasie u dołu klatki,
 wraz z wymiarami i formatem. Pas pojawia się w oknie wysokim na co najmniej
 16 wierszy. Pliki uszkodzone, większe niż 32 MB albo o rozdzielczości powyżej
@@ -169,8 +252,25 @@ między modułami jest niemożliwa z konstrukcji. Dziś dostępne są:
 | `core.settings` | — | otwiera ekran ustawień |
 | `core.theme` | nazwa motywu | ustawia motyw graficzny |
 | `core.language` | kod języka | ustawia język interfejsu |
+| `core.dump` | ścieżka (opcjonalna) | zapisuje następną klatkę: prymitywy i obraz |
+| `core.fullscreen` | — | pełny ekran — **wyłącznie w trybie okienkowym** |
 | `core.quit` | — | kończy pracę |
 | `browser.jump` | ścieżka | przechodzi do wskazanego katalogu |
+| `browser.open` | — | wchodzi do **zaznaczonego** katalogu |
+| `browser.hidden` | — | pokazuje albo ukrywa wpisy ukryte |
+| `browser.tree` | — | przełącza panel między drzewem a listą |
+| `file-info.show` | — | otwiera opis zaznaczonego wpisu |
+| `audio.music` | — | włącza muzykę albo ją zatrzymuje |
+| `audio.volume` | 0–100 co 10 | ustawia głośność muzyki |
+
+`core.fullscreen` jest pierwszą komendą rdzenia, której **obecność zależy od
+trybu**: w torze terminalowym nie ma jej w spisie wcale, bo pełny ekran nic tam
+nie znaczy, a okno komend pokazuje to, co działa tu i teraz.
+
+Cztery ostatnie nazywają czynności, które przeglądarka i moduł opisu miały
+dotąd wyłącznie pod klawiszem (`Enter`, `.`, `Ctrl`+`T`, `Ctrl`+`D`). Nazwa nie
+jest drugą implementacją: obie drogi kończą się w tym samym miejscu, a `browser.open`
+działa też w widoku drzewa — wchodzi wtedy do węzła pod kursorem.
 
 `browser.jump` podpowiada katalogi **z dysku**, w miarę wpisywania: to
 pierwsza w projekcie komenda z podpowiedziami liczonymi na żądanie, a nie
@@ -184,6 +284,31 @@ staje w pasku stanu, więc literówki nie trzeba przepisywać od nowa.
 Historia trzyma dwadzieścia ostatnich wierszy wraz z argumentami i przeżywa
 ponowne uruchomienie: leży w `~/.light-manager/history`, osobno od konfiguracji,
 bo jest śladem pracy, a nie ustawieniem.
+
+### Menu kontekstowe
+
+`F9` otwiera pośrodku klatki listę czynności **dla tego, co jest zaznaczone** —
+bez pamiętania klawisza i bez pisania nazwy. Na katalogu widać wejście do niego
+i opis wpisu, na pliku — sam opis.
+
+| Klawisz | Działanie |
+|---|---|
+| `↑` / `↓` | wybór pozycji |
+| `Enter` | wykonuje wybraną czynność |
+| `Esc` albo `F9` | zamknięcie menu |
+
+Menu jest **drugim wejściem do rejestru komend, a nie drugim zbiorem czynności**:
+pozycje pochodzą z tego samego rejestru, co lista w oknie komend, a wybór
+pozycji robi dokładnie to, co komenda o tej nazwie. Widać to w wierszu — nazwa
+komendy stoi po lewej, jej opis po prawej — i wynika z tego jedna praktyczna
+rzecz: komenda dopisana przez moduł pojawia się w menu sama, o ile zadeklaruje,
+jakiego zaznaczenia dotyczy.
+
+Do menu trafiają wyłącznie czynności **na zaznaczeniu**. `browser.hidden`
+i `browser.tree` są w rejestrze, ale w menu ich nie ma: dotyczą panelu, a nie
+wpisu, na którym stoi kursor. Gdy dla zaznaczenia nie pasuje ani jedna czynność
+— na przykład w pustym katalogu — menu **nie otwiera się wcale** i mówi to
+zdaniem w pasku stanu, zamiast prosić o zamknięcie pustego okna.
 
 ### Ustawienia
 
@@ -236,6 +361,9 @@ dane — i jedyne, które pyta.
 | Opis pliku | Podgląd treści plików tekstowych | tak / nie | **tak** |
 | Opis pliku | Numery wierszy w podglądzie | tak / nie | nie |
 | Opis pliku | Zawijanie wierszy w podglądzie | tak / nie | **tak** |
+| Dźwięk | Utwór | tekst (ścieżka) | plik z `assets/audio/` |
+| Dźwięk | Głośność (%) | 0–100 co 10 | 50 |
+| Dźwięk | Odtwarzanie w kółko | tak / nie | **tak** |
 
 Każda zmiana działa natychmiast — motyw i jakość rysowania widać w następnej
 klatce, bez restartu — i od razu ląduje w pliku, więc przeżywa nawet zabicie
@@ -270,7 +398,7 @@ pięć punktów zaczepienia i deklaruje tylko te, których naprawdę potrzebuje:
 Dopisanie modułu ze wszystkimi pięcioma punktami kosztuje **jedną zmianę
 w rdzeniu**: dopisanie klasy do listy w `Presentation\Cli\Bootstrap`.
 
-Wbudowane są dziś dwa:
+Wbudowane są dziś trzy:
 
 - **Przeglądarka plików** (`browser`, `Ctrl+B`) — sam menadżer plików. Nie jest
   rdzeniem z doklejonymi modułami, tylko modułem jak każdy inny: cała domena
@@ -291,6 +419,9 @@ Wbudowane są dziś dwa:
   liście, `Enter` zostawia ją zawężoną, a `Esc` zdejmuje filtr i wraca do wpisu
   sprzed jego otwarcia. Filtr dotyczy **panelu z ogniskiem**, widać go
   znacznikiem w pasie ścieżki i znika przy zmianie katalogu.
+
+  Panel pokazuje listę albo **drzewo** (`Ctrl`+`T`, opisane wyżej) — w drzewie
+  widać katalogi i pliki naraz, z wcięciem i prowadnicami gałęzi.
 - **Opis pliku** (`file-info`, `Ctrl+D`) — **pełny obraz stanu zaznaczonego
   wpisu**, także katalogu: cztery zwijane sekcje po lewej, a po prawej miniatura
   albo **treść pliku tekstowego**.
@@ -351,6 +482,35 @@ Wbudowane są dziś dwa:
   Numery wierszy są **domyślnie
   wyłączone** i włącza się je w ustawieniach modułu, a w wąskim panelu ustępują
   miejsca treści. Podgląd binariów nie powstaje i mówi o tym wprost.
+- **Dźwięk** (`audio`, bez skrótu) — muzyka grająca **obok** pracy z plikami.
+  Moduł nie wnosi ani ekranu, ani skrótu, ani jednego komponentu: wnosi dwie
+  komendy, zakładkę ustawień i zakładkę pomocy. Jest przez to sprawdzianem
+  kontraktu modułu z drugiej strony niż przeglądarka — pytaniem, czy kontrakt
+  udźwignie moduł, który **nic nie rysuje**.
+
+  Muzykę włącza i zatrzymuje komenda `audio.music`; drugie jej wywołanie
+  **pauzuje**, więc trzecie wznawia w tym samym miejscu, a nie zaczyna od nowa.
+  `audio.volume <0–100>` zmienia głośność natychmiast, także w trakcie grania,
+  i zapisuje ją do konfiguracji; przyjmuje wartości co dziesięć — te same,
+  po których chodzi strzałka na zakładce ustawień.
+
+  Utwór wskazuje pozycja „Utwór”: ścieżka względna liczy się od katalogu
+  aplikacji, bezwzględna zostaje nietknięta. Domyślnie jest to plik
+  z `assets/audio/`. Formaty to **WAV, MP3 i FLAC** — plik MIDI się nie nada
+  i mówi o tym wprost, bo silnik audio odtwarza próbki, a nie zapis nutowy.
+
+  **Muzyka nie rusza sama.** Autostartu nie ma i jest to skutek kontraktu
+  modułu, a nie przeoczenie: rdzeń nie budzi modułów przy starcie, a dokładanie
+  mu takiej zdolności dla jednej funkcji byłoby rozszerzaniem rdzenia dla wygody
+  modułu. **Dźwięk gra poza ścieżką klatki** — silnik miksuje we własnym wątku,
+  więc pętla główna, renderery i komponenty nie wiedzą, że cokolwiek gra, a koszt
+  klatki nie drga w żadnym z trzech torów.
+
+  Bez rozszerzenia `glfw` moduł zachowuje się jak wszystko inne, co od niego
+  zależy: aplikacja startuje normalnie, a komendy muzyczne odpowiadają zdaniem
+  o niedostępności. Rozszerzenie jest tu **możliwością, nie wymogiem** — i nie
+  potrzebuje przy tym okna: silnik audio startuje bez kontekstu OpenGL, więc
+  muzyka gra także w obu torach terminalowych.
 
 #### Moduł domyślny
 
@@ -485,13 +645,16 @@ zmianie u terminala, który odpowiedział na niego przy starcie.
 ## Struktura
 
 ```
-bin/         skrypty wejściowe CLI (aplikacja i narzędzia diagnostyczne)
+Makefile     wejścia do wszystkich procesów projektu (`make` wypisuje spis)
+bin/         skrypty wejściowe CLI (aplikacja, narzędzia diagnostyczne, budowa)
 src/         kod aplikacji (PSR-4, namespace LightManager\)
 src/Module/  moduły — każdy z własnymi warstwami i własnymi napisami
              (Browser — menadżer plików, FileInfo — opis zaznaczonego pliku)
 tests/       testy PHPUnit (namespace LightManager\Tests\)
 lang/        katalogi napisów interfejsu (rdzeń)
+assets/      zasoby aplikacji (domyślny utwór modułu dźwięku)
 docs/        architektura, plany wdrożenia i wzorce pomiarów
+build/       wynik `make build` — poza repozytorium (.gitignore)
 ```
 
 Podział `src/` na warstwy (`Domain`, `Application`, `Infrastructure`,
@@ -500,11 +663,19 @@ Podział `src/` na warstwy (`Domain`, `Application`, `Infrastructure`,
 
 ## Narzędzia deweloperskie
 
+Wszystkie procesy projektu mają wejście w `Makefile` — `make` bez argumentów
+wypisuje spis. Reguła, na której to stoi (krok 39): **wejściem do procesu jest
+cel `make`, a tam, gdzie projekt ma własne narzędzie, używa się jego zamiast
+dorabiać zastępnik doraźnie**. Zawężenie przebiegu wolno wołać wprost —
+pojedynczy test filtrem, jedna oś pomiaru, `composer` przy pracy nad
+zależnościami.
+
 Podgląd wejścia terminala — sprawdza tryb surowy i rozpoznawanie klawiszy bez
 czekania na pętlę główną:
 
 ```bash
-./bin/terminal-probe
+make probe         # ./bin/terminal-probe
+make probe-xterm   # to samo w XTermie z zasobami trybu graficznego
 ```
 
 Na starcie pokazuje wykryty tryb renderowania (Sixel albo fallback tekstowy),
@@ -512,12 +683,36 @@ a potem wypisuje nazwę klawisza i jego bajty, po jednym wierszu na zdarzenie
 (sekwencja escape liczy się jako jedno zdarzenie). Wyjście: `F10` albo Ctrl+C —
 w obu przypadkach terminal wraca do stanu sprzed uruchomienia.
 
+Bramka jakości i jej części składowe:
+
 ```bash
-composer test        # PHPUnit
-composer stan        # PHPStan (poziom max)
-composer cs:check    # PHP-CS-Fixer — podgląd zmian, bez zapisu
-composer cs          # PHP-CS-Fixer — zapis poprawek
+make qa            # cs-check → stan → test, stop na pierwszym błędzie
+make qa-full       # to samo do końca, ze zbiorczym podsumowaniem
+make cs-check      # PHP-CS-Fixer — podgląd zmian, bez zapisu
+make cs            # PHP-CS-Fixer — zapis poprawek
+make stan          # PHPStan (poziom max)
+make test          # PHPUnit — obie grupy naraz
+make coverage      # pokrycie do build/coverage/ (wymaga Xdebuga albo PCOV-u)
 ```
+
+Definicje tych poleceń mieszkają w `composer.json` (`cs`, `cs:check`, `stan`,
+`test`) — cele `make` je wołają, a nie powtarzają.
+
+Testy dzielą się od kroku 38 na dwie grupy i da się je wywołać osobno:
+
+```bash
+make test-unit        # klasy
+make test-functional  # przebiegi użytkownika (tests/Functional/)
+make test ARGS='--filter TreeStateTest'   # zawężenie idzie tą samą drogą
+```
+
+**Przebieg funkcjonalny** to nazwana sekwencja klawiszy przez `ScreenFixture` —
+komplet ekranów i prawdziwych modułów bez systemu plików, terminala i Imagicka —
+z asercjami w punktach kontrolnych. Start aplikacji i zmiana rozmiaru okna idą
+dodatkowo przez `GameLoop` ze `ScriptedTerminal`, bo taktu bez pętli sprawdzić
+się nie da. Katalog przebiegów jest **spisem zachowań**: podróż po katalogach,
+filtr, dwa panele, okno komend, opis pliku z pracą tłową, podgląd tekstu,
+ustawienia z potwierdzeniem, start i zmiana rozmiaru.
 
 ### Pomiar wydajności renderowania
 
@@ -525,11 +720,32 @@ composer cs          # PHP-CS-Fixer — zapis poprawek
 i bez edytowania kodu:
 
 ```bash
-./bin/render-bench                       # wszystkie scenariusze, konfiguracja domyślna
-./bin/render-bench --help                # pełna lista opcji i scenariuszy
-./bin/render-bench --palette=16 --text-aa # inna konfiguracja, bez ruszania kodu
-./bin/render-bench --window              # tor okienkowy (OpenGL, okno ukryte)
+make bench                               # tor sixelowy, konfiguracja domyślna
+make bench-window                        # tor okienkowy (OpenGL, okno ukryte)
+make bench-text                          # tor tekstowy (ANSI, tryb zapasowy)
+make bench-loop                          # takt pętli bez renderera
+make bench-xterm                         # pod prawdziwym XTermem — jedyna droga do --transfer
+make bench ARGS='--palette=16 --text-aa' # inna konfiguracja, bez ruszania kodu
 ```
+
+Zawężenie jednej osi wolno wołać wprost — cele opakowują to samo narzędzie:
+
+```bash
+./bin/render-bench --help                # pełna lista opcji i scenariuszy
+```
+
+**Pomiar wymaga spokojnej maszyny.** Cele `bench*` nie mają bariery
+technicznej — mają regułę: przed pomiarem zatrzymaj kompilacje, kontenery
+i przeglądarkę. Obciążony host daje rozrzut, przy którym `--save` odmawia
+zapisu wzorca.
+
+**Cztery tory, cztery różne pytania.** Sixelowy i okienkowy mierzą potok
+rysowania; **tekstowy** (krok 38) domyka parytet, bo tryb zapasowy był jedynym
+z trzech tłumaczy słownika prymitywów, o którego koszcie nikt nic nie wiedział;
+**takt pętli** (`--loop`) mierzy drogę od klawisza do prymitywów — odczyt
+wejścia, aktualizację stanu i złożenie klatki przez `FrameComposer` — czyli to,
+co dzieje się **zanim** renderer w ogóle zacznie rysować. Wyniki torów są
+nieporównywalne i pilnuje tego podpis konfiguracji.
 
 Oś `--window` mierzy te same scenariusze **rendererem OpenGL** zamiast potoku
 Sixela, w oknie ukrytym na czas pomiaru. Fazy są tam inne (rysowanie i zamiana
@@ -617,6 +833,76 @@ obwódki paneli, co jest niewidoczne w czasie ani w rozmiarze bloba:
 Zrzut powstaje **przed** kwantyzacją, więc pokazuje, co narysował enkoder.
 Skutki samej palety ogląda się na terminalu, gdzie naprawdę występują.
 
+#### Regresja wizualna: porównanie zrzutów
+
+Od kroku 38 obraz jest **miarą**, a nie ilustracją: wzorcowe PNG leżą
+w `docs/pomiary/wzorce-png/`, a porównanie liczy różniące się piksele (metryka
+AE) i przy przekroczeniu progu zapisuje obraz różnicy obok wzorca.
+
+```bash
+./bin/render-bench --png-save            # zapisz wzorcowe zrzuty wybranych scenariuszy
+./bin/render-bench --png-compare         # porównaj z wzorcami (kod wyjścia 1 przy niezgodności)
+./bin/render-bench --png-compare --png-threshold=0.5   # próg w promilach pikseli
+./bin/render-bench --window --png-compare              # to samo dla toru okienkowego
+```
+
+Tor tekstowy zrzutu w narzędziu nie ma — jego klatka to znaki i atrybuty.
+Obraz z niego robi dopiero żywa aplikacja, rasteryzując bufor ANSI.
+
+#### Zrzut klatki z żywej aplikacji
+
+Dwie pomyłki podglądu tekstu z kroku 29 wyszły dopiero na zrzucie prawdziwej
+klatki spod XTerma. Komenda `core.dump` daje ten sam dowód bez sprzętu:
+
+```
+:core.dump                 # zapisze następną klatkę do katalogu tymczasowego
+:core.dump /tmp/klatka     # …albo pod wskazaną nazwą
+```
+
+Powstają dwa pliki: `<nazwa>-prymitywy.txt` (co aplikacja kazała narysować)
+i `<nazwa>.png` (jak to wyszło). Obraz jest **wierny torowi**: płótno Imagicka
+w trybie Sixel, bufor karty w oknie GLFW, rasteryzacja bufora ANSI w trybie
+tekstowym. Zapisywana jest **następna** klatka, więc okna komend nie widać na
+zrzucie.
+
+#### Złote klatki
+
+Ten sam katalog scenariuszy służy testom: `tests/Golden/<scenariusz>.txt` to
+serializacja prymitywów klatki, porównywana niezależnie od renderera.
+
+```bash
+./bin/render-bench --golden-save         # odnów złote klatki — PO przeczytaniu różnicy
+```
+
+## Budowa
+
+```bash
+make build
+```
+
+Wynikiem są **dwie rzeczy w katalogu `build/`**: archiwum
+`light-manager-<wersja>.phar` (wersja z pola `version` w `composer.json`) oraz
+katalog `assets/` **obok** niego. Archiwum niesie `src/`, `lang/`,
+`bin/light-manager` i zależności zainstalowane bez deweloperskich, z autoloaderem
+z mapy klas; `tests/`, `docs/` i narzędzia repozytorium do niego nie wchodzą.
+Budowa kończy się sprawdzeniem, że wynik się ładuje.
+
+```bash
+./build/light-manager-0.1.0.phar            # uruchomienie dystrybucji
+./build/light-manager-0.1.0.phar --window   # to samo w oknie
+```
+
+**Zasoby leżą obok archiwum z powodu, który warto znać**: silnik `GL\Audio` jest
+rozszerzeniem C i pliku spod `phar://` nie przeczyta. W zbudowanej aplikacji
+utwór wskazuje się więc **ścieżką bezwzględną** (ustawienia → zakładka „Dźwięk”
+→ Utwór), np. `/…/build/assets/audio/Deep Purple - Smoke On The Water.mp3`;
+ścieżka względna liczy się od korzenia projektu, którego dystrybucja nie ma.
+Konfiguracja i historia komend idą do katalogu domowego, więc niezapisywalny
+katalog wyniku niczego nie blokuje.
+
+Sprzątanie: `make clean` usuwa `build/` i wytwory narzędzi, `make dist-clean`
+dokłada `vendor/`. Żaden nie tyka `docs/pomiary/` ani konfiguracji w `HOME`.
+
 ## Dokumentacja
 
 - [docs/architecture.md](docs/architecture.md) — warstwy DDD, wzorzec
@@ -640,6 +926,30 @@ state”); w 0.76 zostały same zaślepki ABI — `vte_terminal_get_enable_sixel
 zwraca zaszyte `false`, a setter nic nie zapisuje. Klucz `enable-sixel`
 w profilu gnome-terminala jest wobec tego bezczynny.
 
+**Tor okienkowy kończy się naruszeniem ochrony pamięci przy wyjściu** — zarówno
+pomiar, jak i sama aplikacja (sprawdzone w kroku 37; wcześniej znane wyłącznie
+z pomiaru). Dzieje się to **po** wykonaniu całego sprzątania: wynik pomiaru jest
+wypisany, a historia komend i zapamiętany rozmiar okna zapisane — sprawdzone
+wyjściem `F10` tuż po zmianie rozmiaru. Usterka siedzi w sprzątaniu GLFW i jest
+starsza od kroku 37 (sprawdzone na kodzie sprzed niego, w osobnym drzewie
+roboczym). Kod wyjścia procesu jest przez to bezwartościowy — `./bin/render-bench
+--window` nie nadaje się do bramki automatycznej, a same wyniki i pliki
+pozostają kompletne.
+
+**Gęstość wyświetlacza (HiDPI) jest odczytywana, ale nie stosowana.** Na
+wyświetlaczu o skali innej niż 1.0 tekst w oknie będzie odpowiednio mniejszy,
+niż być powinien — klatka wypełni okno w całości, bo rozmiar liczy się
+z framebuffera, ale komórka nie rośnie razem ze skalą. Maszyna, na której
+powstał krok 37, ma skalę 1.0, więc przeliczenia nie dało się na niej rzetelnie
+sprawdzić, a kod pisany na ślepo byłby zakładem. Odczytaną wartość pokazuje
+zakładka „Aplikacja” w oknie pomocy (`F1`) — jeśli widzisz tam coś innego niż
+`1,00 × 1,00`, jest to sytuacja, której ta wersja nie obsługuje.
+
+**Ikona okna nie ustawia się z aplikacji.** Rozszerzenie PHP-GLFW 2.2 nie
+wystawia `glfwSetWindowIcon`, więc jedyną drogą jest wpis pulpitu zakładany
+przez `./bin/install-desktop-entry` (patrz „Tryb okienkowy”). W środowiskach,
+które nie dopasowują okien po `WM_CLASS`, okno zostanie z ikoną zastępczą.
+
 Ostatni wiersz okna zostaje w trybie graficznym pusty. To rezerwa: obraz
 sięgający ostatniego wiersza wypycha ekran o wiersz w górę, bo terminal stawia
 kursor pod obrazem.
@@ -656,6 +966,12 @@ naprawić poleceniem `stty sane`.
 Composer potrafi zakończyć się naruszeniem ochrony pamięci (SIGSEGV) przy
 równoległym pobieraniu wielu paczek, gdy załadowane są rozszerzenia `imagick`
 i `openswoole`. Obejście — uruchomienie Composera z ich pominięciem:
+
+```bash
+make install-safe COMPOSER_INI_SCAN_DIR=/ścieżka/do/conf.d-bez-imagick
+```
+
+Cel robi to samo, co wywołanie ręczne:
 
 ```bash
 PHP_INI_SCAN_DIR=/ścieżka/do/conf.d-bez-imagick \
