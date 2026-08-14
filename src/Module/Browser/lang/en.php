@@ -38,6 +38,7 @@ return [
     // The settings screen shows choice values raw, so "no limit" travels as the
     // infinity sign — readable without a translation.
     'module.browser.setting.treeDepth' => 'Tree levels (Ctrl+T)',
+    'module.browser.setting.askBeforeDelete' => 'Ask before deleting',
 
     // Column headings (step 27), shown only when the toggle above is on.
     'module.browser.column.name' => 'Name',
@@ -60,9 +61,32 @@ return [
 
     // Directory tree (step 31). The arrow descriptions show up only in a pane
     // displaying the tree — in the list the same keys mean something else.
+    'module.browser.help.rename' => 'rename the entry',
+    'module.browser.help.mkdir' => 'new directory',
+    'module.browser.help.delete' => 'delete the entry',
     'module.browser.help.tree' => 'pane as a tree or a list',
     'module.browser.help.tree.expand' => 'expand the branch',
     'module.browser.help.tree.collapse' => 'collapse the branch or go one level up',
+
+    // Short descriptions for the status bar and names of the focused places (step 40).
+    'module.browser.help.open.short' => 'enter',
+    'module.browser.help.up.short' => 'up',
+    'module.browser.help.hidden.short' => 'hidden',
+    'module.browser.help.focus.short' => 'pane',
+    'module.browser.help.filter.short' => 'filter',
+    'module.browser.help.filter.clear.short' => 'no filter',
+    'module.browser.help.rename.short' => 'rename',
+    'module.browser.help.mkdir.short' => 'mkdir',
+    'module.browser.help.delete.short' => 'delete',
+    'module.browser.help.tree.short' => 'tree',
+    'module.browser.help.tree.expand.short' => 'expand',
+    'module.browser.help.tree.collapse.short' => 'collapse',
+    'module.browser.focus.list' => 'List',
+    'module.browser.focus.tree' => 'Tree',
+    'module.browser.focus.left' => 'Left pane',
+    'module.browser.focus.right' => 'Right pane',
+    'module.browser.focus.top' => 'Top pane',
+    'module.browser.focus.bottom' => 'Bottom pane',
     'module.browser.tree.depth' => [
         'The tree shows at most {count} level — change it in the module settings.',
         'The tree shows at most {count} levels — change it in the module settings.',
@@ -74,16 +98,48 @@ return [
     'module.browser.command.open' => 'enter the selected directory',
     'module.browser.command.hidden' => 'show or hide hidden entries',
     'module.browser.command.tree' => 'pane as a tree or as a list',
+    // The first two commands with an argument in the project (step 41): the name
+    // comes on the line, because a command cannot open an overlay (D75, no. 5).
+    'module.browser.command.rename' => 'rename the selected entry',
+    'module.browser.command.mkdir' => 'create a directory in the pane directory',
     'module.browser.argument.path' => 'path',
+    'module.browser.argument.name' => 'name',
     'module.browser.jump.failed' => 'Cannot open the directory "{path}".',
     'module.browser.open.failed' => 'Cannot open the selected directory.',
     'module.browser.open.notDirectory' => 'The selected entry is not a directory.',
     'module.browser.hidden.failed' => 'Cannot read the directory again — the setting stays unchanged.',
 
+    // Disk-changing actions (step 41): window titles and sentences about the result.
+    'module.browser.rename.title' => 'New name for "{name}"',
+    'module.browser.rename.done' => 'Renamed to "{name}".',
+    'module.browser.mkdir.title' => 'Name of the new directory',
+    'module.browser.mkdir.done' => 'Directory "{name}" created.',
+    'module.browser.delete.confirm.file' => 'Delete "{name}" for good?',
+    'module.browser.delete.confirm.tree' => 'Delete "{name}" with everything inside? To be deleted: {count}.',
+    'module.browser.delete.counting' => 'Counting the contents of "{name}"',
+    'module.browser.delete.deleting' => 'Deleting "{name}"',
+    'module.browser.delete.doneOne' => 'Deleted "{name}".',
+    'module.browser.delete.done' => [
+        'Deleted {count} entry.',
+        'Deleted {count} entries.',
+    ],
+    'module.browser.delete.stopped' => [
+        'Stopped — deleted {count} entry out of {total}.',
+        'Stopped — deleted {count} entries out of {total}.',
+    ],
+    'module.browser.delete.abandoned' => 'Counting stopped — the disk was left untouched.',
+
+    // A name typed by the user — every reason for refusing it has its own sentence.
+    'module.browser.name.empty' => 'The name cannot be empty.',
+    'module.browser.name.reserved' => 'The name "{name}" belongs to the file system.',
+    'module.browser.name.separator' => 'The name cannot contain a slash — it is a name, not a path.',
+    'module.browser.name.tooLong' => 'The name is longer than {limit} bytes.',
+
     // Sentences built from the module's own exceptions (`DescribesProblem`).
     'module.browser.problem.unreadable' => 'Cannot read the directory "{path}".',
     'module.browser.problem.invalidPath' => '"{path}" is not an absolute directory path.',
     'module.browser.problem.fallback' => 'Cannot read the directory "{requested}" — opened "{opened}" instead.',
+    'module.browser.problem.noSelection' => 'There is no selected entry.',
 
     // The module's own part of the help tab.
     'module.browser.help.default' => 'The browser is the default module: Esc returns to it from any other '

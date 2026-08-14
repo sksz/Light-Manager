@@ -119,6 +119,20 @@ final class BrowserPanes
         return $this->tree($this->split->focusesSecond() ? 1 : 0);
     }
 
+    /**
+     * Oba drzewa zapominają odczytane gałęzie (krok 41).
+     *
+     * Zmiana na dysku dotyczy obu paneli, bo dysk jest jeden — a który z nich ma
+     * właśnie rozwinięty węzeł nad zmienionym katalogiem, nie wie nikt i nie warto
+     * tego liczyć.
+     */
+    public function forgetBranches(): void
+    {
+        foreach ($this->trees as $tree) {
+            $tree->forgetBranches();
+        }
+    }
+
     public function showsTree(int $index): bool
     {
         return $this->asTree[$index === 1 ? 1 : 0];

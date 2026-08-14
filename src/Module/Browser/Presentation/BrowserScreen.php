@@ -14,19 +14,19 @@ use LightManager\Module\Browser\Application\BrowserSettings;
 use LightManager\Module\Browser\Application\UseCase\MoveSelectionUseCase;
 use LightManager\Module\Browser\Application\UseCase\NavigateIntoDirectoryUseCase;
 use LightManager\Module\Browser\Application\UseCase\NavigateUpUseCase;
-use LightManager\Module\Browser\Application\UseCase\PreviewSelectedEntryUseCase;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Presentation\Component\EntryList;
 use LightManager\Module\Browser\Presentation\Component\EntryTree;
 use LightManager\Module\Browser\Presentation\Component\PathLine;
-use LightManager\Module\Browser\Presentation\Component\PreviewBox;
 use LightManager\Module\Browser\Presentation\Overlay\FilterOverlay;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\Split;
 use LightManager\Presentation\Ui\ComponentInterface;
+use LightManager\Presentation\Ui\DeclaresFocus;
 use LightManager\Presentation\Ui\DrawsOwnFrame;
+use LightManager\Presentation\Ui\FocusHint;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
@@ -46,7 +46,7 @@ use LightManager\Presentation\Ui\SplitAxis;
  * `BrowserState`, bo katalog zmienia nie tylko klawisz, ale i komenda
  * `browser.jump`, a dwa miejsca publikacji rozjechałyby się o klatkę.
  */
-final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
+final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFocus
 {
     /** Ile wierszy zapasu zostawić między zaznaczeniem a krawędzią listy. */
     public const SCROLL_MARGIN = 2;
@@ -88,8 +88,8 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
         private readonly NavigateIntoDirectoryUseCase $navigateInto,
         private readonly NavigateUpUseCase $navigateUp,
         private readonly HiddenEntries $hidden,
-        private readonly PreviewSelectedEntryUseCase $preview,
         private readonly TranslatorPort $translator,
+        private readonly EntryOperations $entries,
     ) {
     }
 
@@ -124,27 +124,22 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
     }
 
     /**
-     * Pas podglądu jest zamawiany **zawsze**, także wtedy, gdy zaznaczony wpis nie
-     * jest obrazem. Tak było przed zmianą: pas stał pusty, ale nie znikał, bo jego
-     * wiersze odjęto liście już przy podziale okna. Znikanie pasa przy każdym
-     * przejściu z obrazu na katalog przesuwałoby listę pod ręką użytkownika.
-     */
-    public function preview(): ScreenZone
-    {
-        return new ScreenZone('layout.zone.preview', new PreviewBox($this->preview, $this->pointed()));
-    }
-
-    /**
-     * Katalog wraz z zaznaczeniem, na które panel z ogniskiem **wskazuje** — z
-     * listy albo z drzewa.
+     * **Przeglądarka nie ma pasa podglądu** — i to jest zmiana wobec kroków 12, 13
+     * i 21, w których stał on tu bezwarunkowo (D76).
      *
-     * Dzięki tej jednej metodzie pas podglądu nie wie, że drzewo istnieje:
-     * `BrowserTree` oddaje zwykły agregat z zaznaczeniem na węźle pod kursorem,
-     * czyli dokładnie to, czym od kroku 21 jest „zaznaczony wpis”.
+     * Powód jest jeden: miniaturę zaznaczonego pliku pokazuje od kroku 25 moduł
+     * `FileInfo` (`Ctrl`+`D`), i pokazuje ją **lepiej** — w całym panelu, obok
+     * rozmiaru, praw dostępu i podglądu tekstu, a nie w czterech wierszach nad
+     * paskiem stanu. Dwa miejsca robiące to samo znaczyły dwa razy ten sam odczyt
+     * obrazu w klatce i dwie ścieżki do poprawiania przy każdej zmianie podglądu.
+     *
+     * `null` znaczy „strefa nie powstaje, **jej wiersze idą do środka**” (reguła 12),
+     * więc lista plików zyskuje cztery wiersze — i to jest widoczny zysk tej zmiany,
+     * a nie jej skutek uboczny.
      */
-    private function pointed(): Directory
+    public function preview(): ?ScreenZone
     {
-        return $this->panes->focusedDirectory();
+        return null;
     }
 
     private function suffix(): string
@@ -264,57 +259,122 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
         return $this->splits() && $zone->rows >= 3 && Split::fits($zone, $this->axis());
     }
 
+    /**
+     * Ognisko przeglądarki to **panel czynny** (krok 40).
+     *
+     * Nazwa miejsca zmienia się wraz z tym, co je odróżnia: przy podziale liczy
+     * się, **który** panel ma kursor, więc etykietą jest jego położenie; przy
+     * jednym panelu położenie nie mówi nic, więc etykietą jest **widok** — bo to
+     * on rozstrzyga, co znaczą strzałki poziome.
+     */
+    public function focus(): FocusHint
+    {
+        return new FocusHint($this->focusLabelKey(), $this->paneBindings());
+    }
+
+    private function focusLabelKey(): string
+    {
+        if (!$this->splits()) {
+            return $this->panes->focusShowsTree()
+                ? 'module.browser.focus.tree'
+                : 'module.browser.focus.list';
+        }
+
+        $second = $this->panes->focusesSecond();
+
+        return $this->axis() === SplitAxis::Vertical
+            ? ($second ? 'module.browser.focus.right' : 'module.browser.focus.left')
+            : ($second ? 'module.browser.focus.bottom' : 'module.browser.focus.top');
+    }
+
+    /**
+     * Klawisze **panelu z ogniskiem**: ruch kursora i wędrówka po katalogach.
+     *
+     * Strzałki poziome znaczą w drzewie **co innego** niż w liście i to jest cały
+     * powód, dla którego spis rozdziela się na dwa: w liście `→` wchodzi do
+     * katalogu, w drzewie rozwija gałąź. Jedna wspólna lista musiałaby opisać oba
+     * znaczenia naraz, czyli skłamać w połowie przypadków — a precedens z kroku 30
+     * mówi, że spis pokazuje wyłącznie to, co działa tu i teraz.
+     *
+     * @return list<KeyBinding>
+     */
+    private function paneBindings(): array
+    {
+        if ($this->panes->focusShowsTree()) {
+            return [
+                KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move', 'help.key.move.short'),
+                KeyBinding::of(
+                    [Key::ArrowRight],
+                    'module.browser.help.tree.expand',
+                    'module.browser.help.tree.expand.short',
+                ),
+                KeyBinding::of(
+                    [Key::ArrowLeft],
+                    'module.browser.help.tree.collapse',
+                    'module.browser.help.tree.collapse.short',
+                ),
+                KeyBinding::of([Key::Enter], 'module.browser.help.open', 'module.browser.help.open.short'),
+                KeyBinding::of([Key::Backspace], 'module.browser.help.up', 'module.browser.help.up.short'),
+            ];
+        }
+
+        return [
+            KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move', 'help.key.move.short'),
+            KeyBinding::of(
+                [Key::Enter, Key::ArrowRight],
+                'module.browser.help.open',
+                'module.browser.help.open.short',
+            ),
+            KeyBinding::of(
+                [Key::Backspace, Key::ArrowLeft],
+                'module.browser.help.up',
+                'module.browser.help.up.short',
+            ),
+        ];
+    }
+
+    /**
+     * Pełny spis: klawisze panelu z ogniskiem **plus** te, które należą do ekranu.
+     *
+     * Kolejność jest kolejnością czytania stopki — od tego, co dotyczy kursora, po
+     * to, co dotyczy całej przeglądarki — a okno pomocy dostaje jedno i drugie,
+     * bo zostaje **pełnym** spisem. Powtórzenia odsiewa `StatusHints`, i to jest
+     * jedyne miejsce, w którym ten odsiew ma cokolwiek do roboty.
+     */
     public function bindings(): array
     {
-        $bindings = $this->panes->focusShowsTree() ? $this->treeBindings() : [
-            KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move'),
-            KeyBinding::of([Key::Enter, Key::ArrowRight], 'module.browser.help.open'),
-            KeyBinding::of([Key::Backspace, Key::ArrowLeft], 'module.browser.help.up'),
-            KeyBinding::character('.', 'module.browser.help.hidden'),
-            KeyBinding::character('/', 'module.browser.help.filter'),
+        $bindings = [
+            ...$this->paneBindings(),
+            KeyBinding::character('.', 'module.browser.help.hidden', 'module.browser.help.hidden.short'),
+            KeyBinding::character('/', 'module.browser.help.filter', 'module.browser.help.filter.short'),
+            KeyBinding::ctrl(self::TREE_KEY, 'module.browser.help.tree', 'module.browser.help.tree.short'),
+            // Trzy czynności zmieniające dysk (krok 41). Klawisze z układu
+            // klasycznych menadżerów: `F6` nazwa, `F7` katalog, `F8` usunięcie —
+            // a `F5` zostaje wolne dla kopiowania z kroku 42.
+            KeyBinding::of([Key::F6], 'module.browser.help.rename', 'module.browser.help.rename.short'),
+            KeyBinding::of([Key::F7], 'module.browser.help.mkdir', 'module.browser.help.mkdir.short'),
+            KeyBinding::of([Key::F8, Key::Delete], 'module.browser.help.delete', 'module.browser.help.delete.short'),
         ];
-
-        $bindings[] = KeyBinding::ctrl(self::TREE_KEY, 'module.browser.help.tree');
 
         // Klawisz ogniska pokazujemy dopiero wtedy, gdy podział jest włączony:
         // podpowiedź o przenoszeniu ogniska między panelami, których nie ma,
         // byłaby kłamstwem — a pasek stanu i spis klawiszy mają jedno źródło.
         if ($this->splits()) {
-            $bindings[] = KeyBinding::of([Key::Tab], 'module.browser.help.focus');
+            $bindings[] = KeyBinding::of([Key::Tab], 'module.browser.help.focus', 'module.browser.help.focus.short');
         }
 
         // Tą samą regułą: zdjęcie filtra pokazujemy dopiero wtedy, gdy jest co
         // zdejmować. `Esc` na liście bez filtra nie robi nic i nie ma prawa
         // twierdzić, że robi.
         if (!$this->panes->focused()->filter()->isEmpty()) {
-            $bindings[] = KeyBinding::of([Key::Escape], 'module.browser.help.filter.clear');
+            $bindings[] = KeyBinding::of(
+                [Key::Escape],
+                'module.browser.help.filter.clear',
+                'module.browser.help.filter.clear.short',
+            );
         }
 
         return $bindings;
-    }
-
-    /**
-     * Spis klawiszy panelu pokazującego drzewo.
-     *
-     * Strzałki poziome znaczą tu **co innego** niż w liście i to jest cały powód,
-     * dla którego spis rozdziela się na dwa: w liście `→` wchodzi do katalogu,
-     * w drzewie rozwija gałąź. Jedna wspólna lista musiałaby opisać oba znaczenia
-     * naraz, czyli skłamać w połowie przypadków — a precedens z kroku 30 mówi, że
-     * spis pokazuje wyłącznie to, co działa tu i teraz.
-     *
-     * @return list<KeyBinding>
-     */
-    private function treeBindings(): array
-    {
-        return [
-            KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move'),
-            KeyBinding::of([Key::ArrowRight], 'module.browser.help.tree.expand'),
-            KeyBinding::of([Key::ArrowLeft], 'module.browser.help.tree.collapse'),
-            KeyBinding::of([Key::Enter], 'module.browser.help.open'),
-            KeyBinding::of([Key::Backspace], 'module.browser.help.up'),
-            KeyBinding::character('.', 'module.browser.help.hidden'),
-            KeyBinding::character('/', 'module.browser.help.filter'),
-        ];
     }
 
     public function handle(KeyPress $key): ScreenOutcome
@@ -327,6 +387,22 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame
 
         if ($key->key === Key::Tab) {
             return $this->moveFocus();
+        }
+
+        // Czynności zmieniające dysk rozstrzygają się **przed** podziałem na widoki
+        // (krok 41): zmiana nazwy i usunięcie dotyczą wpisu pod kursorem, a kursor
+        // ma i lista, i drzewo. Klawisz znaczący w obu widokach to samo nie ma po
+        // co trafiać do dwóch gałęzi.
+        if ($key->key === Key::F6) {
+            return $this->entries->renamePrompt();
+        }
+
+        if ($key->key === Key::F7) {
+            return $this->entries->directoryPrompt();
+        }
+
+        if ($key->key === Key::F8 || $key->key === Key::Delete) {
+            return $this->entries->deleteRequest();
         }
 
         if ($this->panes->focusShowsTree()) {

@@ -7,7 +7,7 @@ namespace LightManager\Module\Browser\Presentation;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\Browser\Application\BrowserSettings;
-use LightManager\Module\Browser\Application\UseCase\ToggleHiddenEntriesUseCase;
+use LightManager\Module\Browser\Application\UseCase\ReloadDirectoryUseCase;
 use LightManager\Presentation\Cli\LoopState;
 
 /**
@@ -33,7 +33,7 @@ final class HiddenEntries
 {
     public function __construct(
         private readonly BrowserPanes $panes,
-        private readonly ToggleHiddenEntriesUseCase $toggle,
+        private readonly ReloadDirectoryUseCase $reload,
         private readonly ChangeModuleSettingUseCase $changeSetting,
         private readonly LoopState $state,
     ) {
@@ -54,7 +54,7 @@ final class HiddenEntries
         $show = !$this->panes->focused()->showsHiddenEntries();
 
         foreach ($this->panes->all() as $pane) {
-            $pane->enter($this->toggle->execute($pane->directory(), $show));
+            $pane->enter($this->reload->execute($pane->directory(), $show));
         }
 
         [$settings, $message] = $this->changeSetting->shift(

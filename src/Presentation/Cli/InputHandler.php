@@ -7,11 +7,14 @@ namespace LightManager\Presentation\Cli;
 use Closure;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Module\ModuleInterface;
 use LightManager\Domain\Exception\DomainException;
 use LightManager\Presentation\Ui\KeyBinding;
+use LightManager\Presentation\Ui\Module\ProvidesScreen;
 use LightManager\Presentation\Ui\Overlay\MenuOverlay;
 use LightManager\Presentation\Ui\OverlayInterface;
 use LightManager\Presentation\Ui\OverlayOutcome;
+use LightManager\Presentation\Ui\RunsWork;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\Transition;
 
@@ -100,6 +103,40 @@ final class InputHandler
     }
 
     /**
+     * Skróty modułów jako wiązania **do pokazania**, nie tylko do obsługi.
+     *
+     * `Ctrl`+litera otwiera moduł niezależnie od tego, co jest na wierzchu — czyli
+     * jest dokładnie tym samym rodzajem klawisza, co `F1` i `F2` — a mimo to do
+     * kroku 40 nigdy nie stał w pasku stanu. Powód był techniczny: skróty powstają
+     * z rejestru modułów w `Bootstrapie`, a `globalBindings()` jest stałą listą
+     * rdzenia, która o modułach nie wie i wiedzieć nie ma.
+     *
+     * Opisem jest **nazwa modułu** (`Ctrl+D  Opis pliku`), a nie zdanie „otwórz
+     * okno modułu”: w oknie pomocy skrót stoi w zakładce swojego modułu, więc
+     * wiadomo, czyj jest; w stopce stoją obok siebie i nazwa jest jedyną rzeczą,
+     * która je rozróżnia.
+     *
+     * Do spisu w oknie pomocy te wiązania **nie idą** — tam mają już swoje
+     * miejsce, a drugie byłoby powtórzeniem.
+     *
+     * @param array<string, ModuleInterface> $shortcuts litera skrótu → moduł
+     *
+     * @return list<KeyBinding>
+     */
+    public static function moduleBindings(array $shortcuts): array
+    {
+        $bindings = [];
+
+        foreach ($shortcuts as $character => $module) {
+            if ($module instanceof ProvidesScreen) {
+                $bindings[] = KeyBinding::ctrl($character, $module->nameKey());
+            }
+        }
+
+        return $bindings;
+    }
+
+    /**
      * @param float $now bieżący czas w sekundach — decyduje, czy komunikat
      *                   wisi już wystarczająco długo, by go zgasić
      *
@@ -112,7 +149,21 @@ final class InputHandler
         $overlay = $state->overlays()->current();
 
         if ($overlay !== null) {
-            return $this->toOverlay($overlay->handle($key), $key, $state, $now);
+            try {
+                $outcome = $overlay->handle($key);
+            } catch (DomainException $exception) {
+                // Okno **zostaje otwarte** i to jest różnica wobec drogi przez
+                // ekran: klawisz, który się nie udał, nie zmienił niczego, a pole
+                // z wpisaną nazwą jest dokładnie tym, co użytkownik chce poprawić
+                // po zdaniu „nazwa jest już zajęta” (krok 41). Domknięcie, które
+                // woli zamknąć okno, ma wyjątek złapać samo i oddać komunikat —
+                // tak robi pytanie przed usunięciem.
+                $state->reportProblem($this->problems->text($exception), $now);
+
+                return false;
+            }
+
+            return $this->toOverlay($outcome, $key, $state, $now);
         }
 
         if ($this->global($key, $state, $now)) {
@@ -139,12 +190,59 @@ final class InputHandler
             return $key->key === Key::F10;
         }
 
+        return $this->applyOverlayOutcome($outcome, $state, $now);
+    }
+
+    /**
+     * Kawałek pracy prowadzonej przez okno nakładane — **raz na takt** (krok 41).
+     *
+     * Metoda leży tutaj, choć klawisza w niej nie ma, i powód jest jeden: to
+     * jedyne miejsce, które stosuje `OverlayOutcome`. Drugie takie miejsce
+     * rozjechałoby się z tym przy pierwszej zmianie kontraktu okna — a kontrakt
+     * zmienił się właśnie w tym kroku, o wskazanie następnego okna.
+     *
+     * `DomainException` łapiemy tą samą regułą, co w drodze przez ekran: domknięcie
+     * kończące pracę odświeża listę plików, a ponowny odczyt katalogu ma prawo się
+     * nie udać — i wtedy użytkownik ma zobaczyć zdanie, a nie ślad stosu.
+     */
+    public function advanceWork(LoopState $state, float $now): void
+    {
+        $overlay = $state->overlays()->current();
+
+        if (!$overlay instanceof RunsWork) {
+            return;
+        }
+
+        try {
+            $outcome = $overlay->advance();
+        } catch (DomainException $exception) {
+            $state->overlays()->close();
+            $state->reportProblem($this->problems->text($exception), $now);
+
+            return;
+        }
+
+        $this->applyOverlayOutcome($outcome, $state, $now);
+    }
+
+    /**
+     * @return bool czy skutek kończy aplikację
+     */
+    private function applyOverlayOutcome(OverlayOutcome $outcome, LoopState $state, float $now): bool
+    {
         if ($outcome->message !== null) {
             $state->report($outcome->message, $now);
         }
 
         if ($outcome->closes) {
             $state->overlays()->close();
+        }
+
+        // Następne okno otwiera się **po** zamknięciu poprzedniego, bo stos ma
+        // jedno piętro: usuwanie katalogu prowadzi przez liczenie, pytanie
+        // i usuwanie, a każde z nich jest osobnym oknem (krok 41).
+        if ($outcome->next !== null) {
+            $state->overlays()->open($outcome->next);
         }
 
         if ($outcome->screenId !== null) {

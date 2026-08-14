@@ -31,11 +31,31 @@ use LightManager\Presentation\Ui\Container\VStack;
  * nietknięte — zmienia się wyłącznie źródło odpowiedzi „czy strefa ma powstać”.
  * Strefa niezamówiona nie dostaje ani jednego wiersza, a jej miejsce zabiera
  * szczelina elastyczna, czyli lista.
+ *
+ * Krok 40 dokłada pytanie, którego ten podział wcześniej nie znał: `$wideStatus`
+ * mówi, czy podpowiedzi mieszczą się w jednym wierszu. Jest to **pierwsza
+ * odpowiedź zależna od treści, a nie od rozmiaru okna**, i dlatego przychodzi
+ * z zewnątrz gotowa — układ nie ma prawa czytać wiązań klawiszy, a `FrameComposer`
+ * i tak musi je złożyć wcześniej, bo pasek stanu jest jego robotą.
  */
 final class HudLayout
 {
     /** Poniżej tylu wierszy pas podglądu zabierałby liście więcej, niż daje. */
     private const ROWS_FOR_PREVIEW = 26;
+
+    /**
+     * Poniżej tylu wierszy pasek stanu nie rośnie do dwóch wierszy, choćby
+     * podpowiedzi się nie mieściły.
+     *
+     * Próg liczy się **z pasem podglądu**, i to jest cała jego treść: wiersz
+     * dokładany stopce zabiera się liście (jedyna szczelina elastyczna), a przy
+     * `ROWS_FOR_PREVIEW` lista właśnie oddała podglądowi osiem wierszy. Zabranie
+     * jej dziewiątego dokładnie w tym miejscu odwracałoby powód, dla którego
+     * tamten próg w ogóle istnieje. Dwa wiersze zapasu ponad nim znaczą, że pasek
+     * rośnie dopiero wtedy, gdy jest z czego — a w niskim oknie podpowiedzi
+     * ustępują pozycjami, nie wierszem listy.
+     */
+    private const ROWS_FOR_STATUS_LINES = self::ROWS_FOR_PREVIEW + 2;
 
     private const PREVIEW_INNER_ROWS = 6;
 
@@ -60,9 +80,22 @@ final class HudLayout
 
     private readonly int $rows;
 
-    public function __construct(int $rows, int $columns, bool $withHeader = true, bool $withPreview = false)
-    {
+    private readonly bool $wideStatus;
+
+    /**
+     * @param bool $wideStatus czy podpowiedzi nie zmieściły się w jednym wierszu
+     *                         — pytanie zadaje `FrameComposer`, bo tylko on zna
+     *                         ich treść
+     */
+    public function __construct(
+        int $rows,
+        int $columns,
+        bool $withHeader = true,
+        bool $withPreview = false,
+        bool $wideStatus = false,
+    ) {
         $this->rows = max(1, $rows);
+        $this->wideStatus = $wideStatus;
         $columns = max(1, $columns);
 
         $spacer = new Spacer();
@@ -120,8 +153,22 @@ final class HudLayout
             $zone->row,
             $zone->column + Panel::CONTENT_COLUMN,
             $zone->rows,
-            max(0, $zone->columns - 2 * Panel::CONTENT_COLUMN),
+            self::contentColumns($zone->columns),
         );
+    }
+
+    /**
+     * Szerokość treści strefy — **ta sama w obu wariantach oprawy**: panel zjada
+     * po dwie kolumny obwódką, goły wiersz tyle samo oddechem.
+     *
+     * Fakt wygląda na drobiazg, a przesądza o tym, że rachunek stopki nie kręci
+     * się w kółko (krok 40): `FrameComposer` musi znać szerokość podpowiedzi,
+     * zanim `HudLayout` powstanie, bo od tego zależy wysokość strefy — a wysokość
+     * na szerokość nie wpływa.
+     */
+    public static function contentColumns(int $columns): int
+    {
+        return max(0, $columns - 2 * Panel::CONTENT_COLUMN);
     }
 
     private function headerRows(): int
@@ -133,9 +180,15 @@ final class HudLayout
         };
     }
 
+    /**
+     * Wysokość paska stanu. Wariant czterowierszowy to **panel o dwóch wierszach
+     * treści**, bo obwódka bierze dwa — trzy wiersze zostają przy jednym wierszu
+     * podpowiedzi, dokładnie jak przed krokiem 40.
+     */
     private function statusRows(): int
     {
         return match (true) {
+            $this->wideStatus && $this->rows >= self::ROWS_FOR_STATUS_LINES => 4,
             $this->rows >= self::ROWS_FOR_STATUS_PANEL => 3,
             $this->rows >= self::ROWS_FOR_STATUS_LINE => 1,
             default => 0,

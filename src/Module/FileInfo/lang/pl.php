@@ -134,6 +134,20 @@ return [
     'module.file-info.help.sectionEdges' => 'pierwsza i ostatnia sekcja',
     'module.file-info.help.focus' => 'przejście między opisem a podglądem',
     'module.file-info.help.wrap' => 'zawijanie wierszy w podglądzie',
+
+    // Krótkie opisy dla paska stanu i nazwy obu miejsc ogniska (krok 40). Ten ekran
+    // jest jedynym, w którym `↑↓` znaczy po lewej co innego niż po prawej — stąd
+    // nazwa miejsca jest tu potrzebniejsza niż gdziekolwiek indziej.
+    'module.file-info.help.checksum.short' => 'suma',
+    'module.file-info.help.diskUsage.short' => 'zajętość',
+    'module.file-info.help.scrollPreview.short' => 'o panel',
+    'module.file-info.help.scrollLine.short' => 'linijka',
+    'module.file-info.help.edges.short' => 'krańce pliku',
+    'module.file-info.help.sectionEdges.short' => 'krańce',
+    'module.file-info.help.focus.short' => 'panel',
+    'module.file-info.help.wrap.short' => 'zawijanie',
+    'module.file-info.focus.sections' => 'Opis',
+    'module.file-info.focus.preview' => 'Podgląd',
     'module.file-info.help.enter' => 'Opis dotyczy wpisu zaznaczonego na liście plików — także katalogu.',
     'module.file-info.help.sections' => 'Sekcje zwija się Enterem; suma kontrolna liczy się dopiero po '
         . 'naciśnięciu s, bo czyta cały plik, a zajętość katalogu po naciśnięciu d, bo przechodzi całe '

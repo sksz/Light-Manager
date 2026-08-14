@@ -2,12 +2,12 @@ plane chrome rect=0,0 30x100 opaque=0 primitives=8
   R0,1,3,98,-,Border,Round
   C0,1,3,98,Accent,Round
   T0,8,Muted,Background,PATH
-  R3,1,24,98,-,Border,Round
-  C3,1,24,98,Accent,Round
+  R3,1,23,98,-,Border,Round
+  C3,1,23,98,Accent,Round
   T3,8,Muted,Background,FILES
-  R27,1,3,98,-,Border,Round
-  C27,1,3,98,Accent,Round
-plane content rect=0,0 30x100 opaque=0 primitives=47
+  R26,1,4,98,-,Border,Round
+  C26,1,4,98,Accent,Round
+plane content rect=0,0 30x100 opaque=0 primitives=46
   T1,2,Text,-,/home/uzytkownik/projekty/light-manager/src/Infrastructure  —  12/240
   T4,2,Accent,-,katalog-0000/
   T5,2,Text,-,plik-0001.txt
@@ -49,29 +49,28 @@ plane content rect=0,0 30x100 opaque=0 primitives=47
   T23,91,Text,-,20,9 kB
   T24,2,Text,-,plik-0020.txt
   T24,91,Text,-,21,0 kB
-  T25,2,Text,-,plik-0021.txt
-  T25,91,Text,-,22,1 kB
-  S4,97,22,1,44,22,110,Border,Accent
-  T28,2,Info,-,· Pomiar wydajności potoku renderowania.
-  T28,60,Muted,-,F1 pomoc · F2 ustawienia · F10 wyjście
-  B28,59,1,1,Border,Hairline
-plane command rect=19,0 8x100 opaque=1 primitives=19
-  R19,1,8,98,-,Border,Round
-  C19,1,8,98,Accent,Round
-  T19,8,Muted,Background,COMMANDS
-  R20,2,1,96,Selection,-,Soft
-  B20,2,1,96,Accent,Edge
-  T20,2,SelectionText,-,core.komenda-1
-  T20,78,SelectionText,-,opis komendy numer 1
-  T21,2,Text,-,core.komenda-2
-  T21,78,Text,-,opis komendy numer 2
-  T22,2,Text,-,core.komenda-3
-  T22,78,Text,-,opis komendy numer 3
-  T23,2,Text,-,core.komenda-4
-  T23,78,Text,-,opis komendy numer 4
-  T24,2,Text,-,core.komenda-5
-  T24,78,Text,-,opis komendy numer 5
-  T25,2,Muted,-,> 
-  T25,4,Text,-,core.kom
-  R25,12,1,1,Selection,-,Soft
-  B25,12,1,1,Accent,Edge
+  S4,97,21,1,42,21,105,Border,Accent
+  T27,2,Info,-,· Pomiar wydajności potoku renderowania.
+  T27,54,Muted,-,Lista: ↑ / ↓ zaznaczenie · Enter / → katalog
+  B27,53,1,1,Border,Hairline
+  T28,5,Muted,-,Backspace / ← wyżej · . ukryte · / filtr · Ctrl+T drzewo · F1 pomoc · F2 ustawienia · F9 menu
+plane command rect=18,0 8x100 opaque=1 primitives=19
+  R18,1,8,98,-,Border,Round
+  C18,1,8,98,Accent,Round
+  T18,8,Muted,Background,COMMANDS
+  R19,2,1,96,Selection,-,Soft
+  B19,2,1,96,Accent,Edge
+  T19,2,SelectionText,-,core.komenda-1
+  T19,78,SelectionText,-,opis komendy numer 1
+  T20,2,Text,-,core.komenda-2
+  T20,78,Text,-,opis komendy numer 2
+  T21,2,Text,-,core.komenda-3
+  T21,78,Text,-,opis komendy numer 3
+  T22,2,Text,-,core.komenda-4
+  T22,78,Text,-,opis komendy numer 4
+  T23,2,Text,-,core.komenda-5
+  T23,78,Text,-,opis komendy numer 5
+  T24,2,Muted,-,> 
+  T24,4,Text,-,core.kom
+  R24,12,1,1,Selection,-,Soft
+  B24,12,1,1,Accent,Edge

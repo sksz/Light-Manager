@@ -39,6 +39,13 @@ final class InputHandlerTest extends TestCase
 
     private ScreenFixture $app;
 
+    /**
+     * Repozytorium trzymane osobno, w typie konkretnym: zestaw ekranów widzi je
+     * od kroku 41 przez interfejs, bo przebieg operacji na plikach podstawia tam
+     * prawdziwy system plików — a `makeUnreadable()` jest własnością atrapy.
+     */
+    private InMemoryDirectoryRepository $directories;
+
     protected function setUp(): void
     {
         $directories = (new InMemoryDirectoryRepository())
@@ -47,6 +54,7 @@ final class InputHandlerTest extends TestCase
             ->add('/home/dokumenty', [Entry::file('umowa.pdf', 2048), Entry::file('.szkic', 10)])
             ->add('/home/obrazy', []);
 
+        $this->directories = $directories;
         $this->app = new ScreenFixture(
             $directories->get(new DirectoryPath('/home'), false),
             $directories,
@@ -222,7 +230,7 @@ final class InputHandlerTest extends TestCase
 
     public function testFailedReloadLeavesHiddenEntriesSettingUntouched(): void
     {
-        $this->app->directories->makeUnreadable('/home');
+        $this->directories->makeUnreadable('/home');
 
         $this->character('.');
 
@@ -523,7 +531,12 @@ final class InputHandlerTest extends TestCase
         $texts = implode("\n", self::textsOf($this->app->screens->current()->draw(new Rect(0, 2, 40, 60))));
 
         self::assertStringContainsString('F10', $texts, 'wiązania rdzenia');
-        self::assertStringContainsString('help.key.change', $texts, 'wiązania ekranu ustawień');
+
+        // Ekran ustawień otwiera się kursorem na **pasku zakładek**, więc jego
+        // spis mówi od kroku 40 o zmianie zakładki, a nie o zmianie wartości:
+        // `←→` na pasku przewija zakładki i nigdy nie zmieniało ustawienia.
+        // Do tamtego kroku spis był jeden na cały ekran i kłamał w tym miejscu.
+        self::assertStringContainsString('help.key.tab', $texts, 'wiązania ekranu ustawień');
 
         // Klawisze przeglądarki od kroku 21 stoją na **jej** zakładce, a nie
         // w ogólnym spisie: jest modułem, a moduł dostaje własną zakładkę (P8

@@ -11,7 +11,6 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
-use LightManager\Domain\ValueObject\Message;
 use LightManager\Presentation\Ui\Component\Button;
 use LightManager\Presentation\Ui\Component\Dialog;
 use LightManager\Presentation\Ui\KeyBinding;
@@ -23,10 +22,22 @@ use LightManager\Presentation\Ui\OverlayOutcome;
  *
  * Drugie okno nakładane w projekcie i pierwsze, które **czegoś chce od
  * wołającego**. Decyzja wraca stąd domknięciem podanym przy tworzeniu okna
- * (D56): po „tak” wykonuje się ono i **oddaje komunikat**, który okno pakuje
- * w `OverlayOutcome::close()`. Kontrakt okna nakładanego nie urósł przez to
- * ani o pole — to ten sam wzorzec, którym `Button` działa od kroku 18:
- * czynność przychodzi z zewnątrz, a komponent nie wie, co uruchamia.
+ * (D56): po „tak” wykonuje się ono i oddaje **skutek okna**. Kontrakt okna
+ * nakładanego nie urósł przez to ani o pole — to ten sam wzorzec, którym
+ * `Button` działa od kroku 18: czynność przychodzi z zewnątrz, a komponent nie
+ * wie, co uruchamia.
+ *
+ * **Krok 41 zmienił typ tego domknięcia z `?Message` na `OverlayOutcome`** i to
+ * jedna zmiana z jednego powodu: pytanie stoi odtąd **w środku łańcucha okien**.
+ * Zgoda na usunięcie katalogu zaczyna pracę, która trwa dłużej niż klatka, więc
+ * po pytaniu ma stanąć okno postępu — a okno, którego domknięcie umie oddać
+ * wyłącznie zdanie, nie ma jak o tym powiedzieć. Czynność decyduje teraz
+ * o wszystkim naraz: co powiedzieć i co pokazać dalej (`OverlayOutcome::close()`
+ * albo `replace()`), dokładnie jak `RunsWork::advance()`.
+ *
+ * Drugie domknięcie — **po odmowie** — jest opcjonalne i służy sprzątaniu: pytanie
+ * może stać po pracy, która już coś policzyła, a policzona lista wpisów do
+ * usunięcia nie ma prawa przeżyć „nie” (krok 41).
  *
  * **Domyślną odpowiedzią jest „nie”** i to nie jest kosmetyka: okno staje
  * przed rzeczą nieodwracalną, więc użytkownik przyzwyczajony do
@@ -56,15 +67,13 @@ final class ConfirmOverlay implements OverlayInterface
     /** Ognisko: `false` znaczy „nie”, czyli stan początkowy. */
     private bool $confirmed = false;
 
-    /** Komunikat oddany przez domknięcie — żyje tylko do końca obsługi klawisza. */
-    private ?Message $pending = null;
-
     /**
-     * @param string                $questionKey klucz katalogu, nie napis
-     * @param array<string, string> $parameters  dane do podstawienia w pytaniu
-     * @param Closure(): ?Message   $onConfirm   czynność po „tak”; oddaje komunikat do paska stanu
-     * @param bool                  $dangerous   czy czynność jest nieodwracalna — wtedy okno
-     *                                           maluje się rolą `Danger` zamiast akcentu
+     * @param string                   $questionKey klucz katalogu, nie napis
+     * @param array<string, string>    $parameters  dane do podstawienia w pytaniu
+     * @param Closure(): OverlayOutcome $onConfirm  czynność po „tak”; oddaje skutek okna
+     * @param bool                     $dangerous   czy czynność jest nieodwracalna — wtedy okno
+     *                                              maluje się rolą `Danger` zamiast akcentu
+     * @param ?Closure(): void         $onRefuse    sprzątanie po „nie” i po `Esc`
      */
     public function __construct(
         private readonly string $questionKey,
@@ -72,6 +81,7 @@ final class ConfirmOverlay implements OverlayInterface
         private readonly Closure $onConfirm,
         private readonly TranslatorPort $translator,
         private readonly bool $dangerous = false,
+        private readonly ?Closure $onRefuse = null,
     ) {
     }
 
@@ -150,7 +160,7 @@ final class ConfirmOverlay implements OverlayInterface
         }
 
         if ($key->key === Key::Escape) {
-            return OverlayOutcome::close();
+            return $this->refused();
         }
 
         if ($key->key !== Key::Enter) {
@@ -158,18 +168,27 @@ final class ConfirmOverlay implements OverlayInterface
             return OverlayOutcome::ignored();
         }
 
-        $this->pending = null;
+        $outcome = null;
 
-        foreach ($this->buttons() as $button) {
+        foreach ($this->buttons($outcome) as $button) {
             if ($button->handle($key)) {
                 break;
             }
         }
 
-        $message = $this->pending;
-        $this->pending = null;
+        // Brak skutku znaczy „ognisko stało na «nie»” — przycisk odmowy niczego
+        // nie wykonuje, a sprzątanie po odmowie należy do wołającego.
+        return $outcome ?? $this->refused();
+    }
 
-        return OverlayOutcome::close($message);
+    /** Odmowa: sprzątnięcie po tym, co pytanie zastało, i zamknięcie okna. */
+    private function refused(): OverlayOutcome
+    {
+        if ($this->onRefuse !== null) {
+            ($this->onRefuse)();
+        }
+
+        return OverlayOutcome::close();
     }
 
     /**
@@ -223,15 +242,18 @@ final class ConfirmOverlay implements OverlayInterface
      * Para przycisków w kolejności „tak”, „nie” — powstająca na nowo przy
      * każdym pytaniu, bo komponent jest bezstanowy, a ognisko żyje w oknie.
      *
+     * @param ?OverlayOutcome $outcome miejsce na skutek czynności — przez referencję,
+     *                                 bo przycisk oddaje `void` i innej drogi nie ma
+     *
      * @return array{Button, Button}
      */
-    private function buttons(): array
+    private function buttons(?OverlayOutcome &$outcome = null): array
     {
         return [
             new Button(
                 $this->label(true),
-                function (): void {
-                    $this->pending = ($this->onConfirm)();
+                function () use (&$outcome): void {
+                    $outcome = ($this->onConfirm)();
                 },
                 'confirm.key.answer',
                 $this->confirmed,

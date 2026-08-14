@@ -97,6 +97,25 @@ final class BrowserTree
         $this->window = new ScrollWindow($scrollMargin);
     }
 
+    /**
+     * Zapomnienie odczytanych gałęzi — po zmianie na dysku, o której drzewo nie
+     * ma jak wiedzieć (krok 41).
+     *
+     * Pamięć gałęzi jest z założenia trwalsza od korzenia i mówi o tym, co
+     * przeczytano, a nie o tym, co leży na dysku. Dopóki dysk zmieniał się wyłącznie
+     * cudzą ręką, było to uczciwe („zmiana spoza aplikacji wymaga wejścia na nowo”);
+     * odkąd zmienia go **ta sama aplikacja**, drzewo pokazujące usunięty katalog
+     * byłoby po prostu nieprawdą.
+     *
+     * Gałęzie wracają po jednej na takt (D46), więc zapomnienie kosztuje tyle
+     * odczytów, ile węzłów jest rozwiniętych — i ani jednego więcej.
+     */
+    public function forgetBranches(): void
+    {
+        $this->contents = [];
+        $this->flattened = false;
+    }
+
     public function state(): TreeState
     {
         return $this->state;

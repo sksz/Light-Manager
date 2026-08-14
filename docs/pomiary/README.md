@@ -25,8 +25,8 @@ z istniejącym — jak `highlight` z `columns`.
 | `ListView`, `ListRow` | `text`, `chrome-text` | |
 | pasek zaznaczenia (`Highlight`) | `selection` | każdy wiersz zaznaczony — sufit ceny |
 | `Scrollbar` | `scrollbar` | |
-| `StatusBar` | `chrome-text` | |
-| `ImageBox` | `thumbnail` | jedyny scenariusz z bitmapą i paletą 256 |
+| `StatusBar` — **wraz z wariantem dwuwierszowym** | `chrome-text` | krok 40; stopka kontekstowa jest tam pełnej długości, więc pasek rośnie do dwóch wierszy w **każdym** scenariuszu z chromem |
+| `ImageBox` | `thumbnail` | jedyny scenariusz z bitmapą i paletą 256. Od D76 **żaden ekran aplikacji nie zamawia pasa podglądu**, a scenariusz nadal go buduje — i tak ma zostać: mierzy koszt bitmapy w klatce, który płaci dziś prawy panel modułu opisu pliku. Prostokąt jest inny, prymitywy te same |
 | `Dialog` | `popup` | |
 | `TextInput` (z karetką) | `command` | |
 | `Section`, `SectionList` | `sections` | także znaki spoza ASCII |
@@ -52,6 +52,10 @@ z istniejącym — jak `highlight` z `columns`.
 | pamięć rozmiaru, pełny ekran, ikona, skala treści (krok 37) | żadna z tych czterech rzeczy **nie wchodzi do ścieżki klatki**: rozmiar zapisuje się poza rysowaniem i najwyżej raz na pół sekundy, pełny ekran zmienia wyłącznie rozmiar okna (a ten mierzy zimna klatka, wzorem kroku 33), ikonę rysuje `bin/install-desktop-entry` poza aplikacją, a skala treści jest odczytem pokazywanym w pomocy. Jedyny nowy element klatki to wiersz `ListRow` w zakładce „Aplikacja” — czyli treść mierzona już przez `chrome-text` |
 | `MenuOverlay` (menu kontekstowe) | krok 32 **nie dowiózł ani jednego komponentu**, więc nie ma czego mierzyć osobno: okno to `Dialog` (mierzy `popup`) z listą `ListView` w środku (mierzy `text`). Wiersze są dwa albo trzy, czyli mniej, niż niesie którykolwiek z tych dwóch scenariuszy — pomiar pokazałby ich sumę pomniejszoną, a rozliczyć w parze nie dałby się z niczym |
 | `EntryTree` (drzewo w panelu modułu) | `TreeView` wewnątrz wcięcia pod obwódkę, czyli to samo, co mierzy `tree`; z prymitywów dochodzi wyłącznie suwak, mierzony osobno przez `scrollbar` |
+| stopka kontekstowa (krok 40) | **nie jest osobnym kosztem, tylko tą samą treścią w większym prostokącie**: rośnie liczba znaków w `TextRun`, a nie rodzaj prymitywu, i płaci ją **każdy** scenariusz z chromem naraz. Osobny scenariusz nie izolowałby niczego, czego nie izoluje różnica `chrome` (sam prostokąt, bez tekstu) wobec `chrome-text` (prostokąt z tekstem). Samo **składanie** podpowiedzi — pytanie o ognisko, odsiew powtórzeń i podział na wiersze — leży poza rendererem i mierzy je tor `--loop` |
+| `PromptOverlay` (okno nazwy, krok 41) | `Dialog` plus `TextInput` z karetką, czyli **prymitywy będące podzbiorem `command`** — okno komend to to samo pole w tej samej oprawie, tylko z listą podpowiedzi pod spodem. Osobny scenariusz zmierzyłby mniej, niż mierzy `command`, i nie dałby się rozliczyć w parze z niczym |
+| `ProgressOverlay` (okno pracy, krok 41) | `Dialog` (mierzy `popup`) z jednym `ProgressBar`em w środku (mierzy `progress`, wraz z trybem o nieznanym postępie). Suma dwóch scenariuszy w mniejszym prostokącie; nowego prymitywu krok nie dowiózł ani jednego |
+| operacje na plikach — zapis, liczenie, usuwanie (krok 41) | **nie wchodzą do ścieżki klatki w ogóle**: dzieją się w fazie „aktualizuj stan” pętli (`GameLoop`), a nie w rysowaniu, i są kosztem **systemu plików**, nie renderera. Mierzy je pojemność kawałka (512 wpisów na takt liczenia, 256 na takt usuwania) dobrana z budżetu taktu, a nie wzorzec klatki; gdyby kiedyś trzeba było ją zweryfikować, właściwym torem jest `--loop`, bo tam widać takt bez renderera |
 | moduł `Audio` (krok 36) | **nie rysuje niczego**: nie wnosi ekranu ani komponentu, a jedyny jego ślad w klatce to trzy wiersze zakładki ustawień — czyli treść mierzona już przez `settings`. Muzyka gra we własnym wątku silnika, **poza ścieżką klatki**, więc mierzyć trzeba by nie klatkę, tylko jej brak zmiany; robi to porównanie taktu pętli (`--loop`) przy graniu i bez |
 
 ## Nazwa pliku

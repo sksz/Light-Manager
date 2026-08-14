@@ -3611,7 +3611,8 @@ każe `CLAUDE.md` i reguła 17 Skilla.
 
 ### D65 — Stopka pokazuje podpowiedzi dla elementu z ogniskiem: osobna Faza XIII z krokiem 40
 
-**Dotyczy:** kroku 40 (pełna treść: [40-stopka-kontekstowa.md](40-stopka-kontekstowa.md))
+**Dotyczy:** kroku 40 (pełna treść:
+[40-stopka-kontekstowa.md](archiwum/40-stopka-kontekstowa.md))
 i struktury planu ([00-index.md](00-index.md)).
 
 **Data:** 2026-08-13.
@@ -4461,3 +4462,254 @@ katalog tymczasowy zamiast prawdziwego `HOME`).
 **Czego nie zrobiono:** testu pilnującego reguły. Sprzątanie jest teraz w jednym
 miejscu i woła je PHPUnit, więc nie ma czego zapominać; test sprawdzający, że
 klasy „pamiętają”, pilnowałby mechanizmu, którego już nie ma.
+
+### D74 — Rozstrzygnięcia startowe kroku 40: ognisko jako zadeklarowana dana, etykieta miejsca, drugi krótki klucz opisu i pasek rosnący z potrzeby
+
+**Dotyczy:** kroku 40 (pełna treść:
+[40-stopka-kontekstowa.md](archiwum/40-stopka-kontekstowa.md)),
+`Presentation/Ui` (`DeclaresFocus`, `FocusHint`, `StatusHints`, `Hint`,
+`KeyBinding`, `StatusBar`, `HudLayout`), `Presentation/Cli` (`FrameComposer`,
+`InputHandler`, `Bootstrap`, `SettingsScreen`), obu modułów z ekranem, czterech
+katalogów napisów, [docs/architecture.md](../architecture.md),
+[SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md) i `README.md`.
+
+**Data:** 2026-08-14, przed pierwszą linią kodu — osiem pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku”.
+
+**Sprawdzenie stanu zastanego poprawiło jedną liczbę w planie i to ona zaważyła
+na dwóch odpowiedziach.** Plan mówił o „czterech wiązaniach rdzenia”; w kodzie
+jest ich **pięć** (`F9` dołożył krok 32), a w torze okienkowym sześć. Przy
+dzisiejszych opisach to 78 kolumn samych podpowiedzi rdzenia — w oknie stu kolumn
+z jakimkolwiek komunikatem stopka znikała **już przed tym krokiem**, w całości.
+
+**Decyzje użytkownika:**
+
+1. **Kontrakt ogniska: osobny interfejs zdolności wraz z daną.**
+   `DeclaresFocus::focus(): ?FocusHint`, a `FocusHint` niesie klucz etykiety
+   miejsca i listę wiązań. Nie `FocusableInterface`, bo prawdziwi właściciele
+   ogniska (`BrowserPanes`, `SettingsCursor`, `SplitState`) komponentami **nie
+   są** i musieliby dorobić `draw()` wyłącznie po to, żeby pasek stanu miał się
+   kogo spytać. `ScreenInterface` zostaje nietknięty — to ta sama reguła, którą
+   krok 24 zapisał dla `DrawsOwnFrame`.
+2. **Stopka nazywa miejsce.** Przed wiązaniami stoi etykieta („Podgląd”, „Panel
+   lewy”), bezwarunkowo; ustępuje razem z ostatnim wiązaniem miejsca, bo jest
+   doklejona do **pierwszej** pozycji, a ustępowanie idzie od końca.
+3. **Ogranicza sam budżet kolumn** — bez twardego limitu liczby pozycji.
+4. **Powtórzenie to zgodność zestawu klawiszy _i_ klucza opisu.** Ostrożniejszy
+   z dwóch wariantów; przy dzisiejszym kodzie trafia dokładnie tam, gdzie trzeba,
+   bo ekran składa `bindings()` z wiązań miejsca **plus** własnych — powtórzeniem
+   jest ten sam obiekt, a nie dwa podobne. Dzięki temu `↑↓ zmiana zaznaczenia`
+   i `↑↓ przewijanie linijki` zostają w stopce **obiema** pozycjami.
+5. **Drugi, krótki klucz opisu** (`<klucz>.short`, brak znaczy „użyj długiego”).
+   Okno pomocy i wszystkie jego wzorce zostają **nietknięte**; cena to ~40 pozycji
+   w czterech katalogach.
+6. **Pasek rośnie z potrzeby, a wiersz bierze lista.** Warunki łącznie: pełny spis
+   nie mieści się w wierszu dzielonym z komunikatem **i** okno jest wyższe od
+   progu `ROWS_FOR_PREVIEW + 2`. Pas podglądu nie oddaje ani jednego wiersza.
+7. **Wszystkie zarejestrowane skróty modułów** wchodzą do stopki, w grupie
+   globalnej (więc ustępują pierwsze), a opisem jest **nazwa modułu**. Do okna
+   pomocy nie idą — tam mają własną zakładkę i drugi wpis byłby powtórzeniem.
+8. **`F1` ustępuje ostatni** — przypięty, znika dopiero wtedy, gdy nie mieści się
+   sam jeden.
+
+**Rozstrzygnięcie, którego pytania nie przewidziały, a które wynikło z odpowiedzi
+nr 6:** `HudLayout` dostaje **pierwszą w projekcie odpowiedź zależną od treści**,
+a nie od rozmiaru okna. Kolejność w `FrameComposer` jest przez to wymuszona:
+wiązania → czy mieszczą się w jednym wierszu → podział okna. Pętli w rachunku
+nie ma, bo szerokość treści strefy jest ta sama w obu wariantach oprawy — fakt
+wygląda na drobiazg, więc dostał własną metodę z nazwą
+(`HudLayout::contentColumns()`), zamiast zostać w dwóch odejmowaniach.
+
+**Odrzucone alternatywy.** *Metoda w `ScreenInterface`* — kontrakt ekranu rósłby
+po raz trzeci po krokach 21 i 24, a ekran bez ogniska nie ma czego deklarować.
+*Skracanie mechaniczne opisów* — „powrót do listy plików” → „powrót” wychodzi
+dobrze, ale „zwiń lub rozwiń sekcję” → „zwiń” kłamie w połowie. *Skrócenie samych
+opisów w katalogu* — jedno źródło, ale zmienia **także okno pomocy**, gdzie pełne
+zdanie czyta się lepiej, i wszystkie jego wzorce. *Twardy limit liczby pozycji* —
+druga reguła robiąca to, co budżet kolumn, z liczbą wziętą nie z pomiaru.
+*Ustępowanie przez ucięcie* — podpowiedź ucięta do `moduł.file-in…` nie jest
+podpowiedzią.
+
+**Skutek uboczny, wykryty przy okazji:** klucz `settings.hints`
+(`↑↓ ruch · ←→ zmiana · Esc powrót`) leżał w obu katalogach rdzenia od czasów
+sprzed kroku 18 i **nie miał ani jednego użytkownika w kodzie**. Był ostatnim
+napisem-ściągawką w katalogu — czyli dokładnie tym, czego zakazuje kryterium
+„żadne wiązanie nie pochodzi z napisu”. Usunięty.
+
+## Decyzje ze startu kroku 41 (2026-08-14)
+
+### D75 — Rozstrzygnięcia startowe kroku 41: port rzucający, usuwanie rekurencyjne jako praca kawałkowa, okno posuwające pracę i dwa okna rdzenia
+
+**Dotyczy:** kroku 41 (pełna treść:
+[41-operacje-fundament.md](41-operacje-fundament.md)), `Application/Port`
+(`FileOperationsPort`), `Application/Dto` (`RemovalState`, `RemovalStage`,
+`WorkProgress`), `Domain/Exception` (`FileOperationException`),
+`Infrastructure/FileSystem` (`FileOperationsService`), `Presentation/Ui`
+(`RunsWork`, `OverlayOutcome`, `PromptOverlay`, `ProgressOverlay`),
+`Presentation/Cli` (`GameLoop`, `InputHandler`), modułu przeglądarki, czterech
+katalogów napisów, [docs/architecture.md](../architecture.md),
+[SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md) i `README.md`.
+
+**Data:** 2026-08-14, przed pierwszą linią kodu — dziewięć pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku”, cztery pytania wynikłe z odpowiedzi i jedno
+z granicy warstw, której plan nie zauważył.
+
+**Sprawdzenie stanu zastanego potwierdziło tabelę planu w każdym wierszu i dodało
+do niej jedną rzecz, która przesądziła o kształcie połowy kroku:**
+`InputHandler` łapie `DomainException` **wyłącznie w drodze przez ekran**
+(`toScreen()`); droga przez okno nakładane (`toOverlay()`) nie łapie nic. Skoro
+zmiana nazwy i usunięcie wykonują się w domknięciu okna (D56), niepowodzenie
+musi być złapane po stronie modułu, a nie zostawione rdzeniowi.
+
+**Decyzje użytkownika (1–9 — pytania z planu):**
+
+1. **Jeden port z trzema czynnościami, niepowodzenie rzucane.**
+   `FileOperationsPort` w `Application/Port`, a niepowodzenie to
+   `Domain\Exception\FileOperationException` — hierarchia `DomainException`
+   z deklaracją `DescribesProblem`. To **nie jest** złamanie reguły 8 („wyjątek
+   infrastruktury nie przekracza granicy portu”), bo wyjątek jest domenowy:
+   dokładnie wzorzec `FilesystemDirectoryRepository`, który z warstwy
+   `Infrastructure` rzuca `DirectoryNotReadableException` z warstwy `Domain`.
+   `ProblemPresenter` zostaje nietknięty.
+2. **Poprawną nazwę zna moduł**, nie rdzeń. Sprawdzenie pada przed wywołaniem
+   portu; port bierze ścieżkę bezwzględną i nazwę jako napisy i ufa wołającemu.
+   Rdzeń nie dostaje przez to ani jednego nowego pojęcia z dziedziny plików.
+3. **Klawisze `F6` (nazwa), `F7` (nowy katalog), `F8` (usunięcie) oraz `Delete`**
+   jako druga droga do usunięcia — wzorem klasycznych menadżerów co do klawisza.
+   `F5` zostaje wolne dla kopiowania z kroku 42, `F3`/`F4` na przyszłość.
+4. **Katalog niepusty usuwa się rekurencyjnie, a pytanie podaje liczbę wpisów.**
+   Odrzucono odmowę (menadżer plików, który odmawia usunięcia katalogu, jest
+   niepełny) i wariant bez liczby.
+5. **Dwie komendy z argumentem, menu bez nowych pozycji** — i to jest jedyne
+   rozstrzygnięcie, które **odwraca zapis planu**, bo plan zakładał rzecz
+   niewykonalną w dzisiejszym rdzeniu. Powód jest granicą warstw z D39:
+   `CommandOutcome` leży w `Application` i wskazuje ekran **identyfikatorem**, bo
+   `ScreenInterface` leży w `Presentation`; okna nakładane rejestru
+   identyfikatorów nie mają w ogóle. Żadna komenda nie umie więc otworzyć okna,
+   a bez okna nie ma ani pytania przed usunięciem, ani pola na nazwę. Powstają
+   dlatego `browser.rename <nazwa>` i `browser.mkdir <nazwa>` — **pierwsze komendy
+   z argumentem w projekcie**, czyli dokładnie to, czego `AppliesToSelection`
+   spodziewał się od kroku 32 — a `browser.delete` nie powstaje wcale, bo usuwać
+   bez pytania nie wolno. Zobowiązanie z indeksu planu („czynność ma zadeklarować
+   `AppliesToSelection`, a wtedy pojawi się w menu bez zmiany w rdzeniu”)
+   **zostaje długiem** i jest zapisane w dzienniku kroku. Odrzucono trzeci
+   wariant: okna nakładane pod identyfikatorem wraz z rejestrem wytwórni —
+   trzeci nowy mechanizm rdzenia w jednym kroku, i to drugi sposób budowania
+   tych samych okien.
+6. **Odświeżenie przez ponowny odczyt katalogu**, wzorem `HiddenEntries::flip()`.
+   Jedno źródło prawdy o zawartości; koszt jednego `scandir` **na operację**, nie
+   na klatkę. Odrzucono zmianę wpisu w agregacie.
+7. **Kursor idzie za nazwą**: po zmianie nazwy staje na nazwie nowej, na nowym
+   katalogu staje od razu (po to się go tworzy), a po usunięciu zostaje **na tym
+   samym numerze**, czyli na wpisie następnym; po usunięciu ostatniego cofa się
+   o jeden, a w katalogu, który został pusty, znika.
+8. **Okno nazwy stoi w rdzeniu** — `Presentation/Ui/Overlay/PromptOverlay`,
+   `Dialog` plus `TextInput`, wynik domknięciem (D56). Kroki 42 i 44 poproszą
+   o to samo okno.
+9. **Nazwa zajęta to odmowa z własnym zdaniem.** Pytanie o nadpisanie należy do
+   kroku 42, razem z nazwą zastępczą.
+
+**Decyzje użytkownika (10–13 — wynikłe z odpowiedzi nr 4, bo plan ich nie
+przewidział):** rozstrzygnięcie „rekurencyjnie, z liczbą” postawiło w kroku 41
+pracę **dłuższą od klatki**, którą plan rezerwował dla kroku 42. Użytkownik
+rozstrzygnął jej kształt wprost:
+
+10. **Droga usuwania ma trzy okna: liczenie → pytanie z liczbą → usuwanie.**
+    Okno liczenia pokazuje **samą nazwę** wpisu dokładanego do listy; okno
+    usuwania — nazwę, licznik „N z M” i pasek postępu. Plik, dowiązanie i pusty
+    katalog idą krótszą drogą: samo pytanie, bez okien pracy.
+11. **Okno nakładane zyskuje takt i prawo ustąpienia miejsca.**
+    `Presentation\Ui\RunsWork` deklarowana osobno (jak `NeedsTime`,
+    `DrawsOwnFrame`, `DeclaresFocus`), pytana **raz na takt w `GameLoop`** — czyli
+    w fazie „aktualizuj stan”, nie w rysowaniu, bo praca zmieniająca dysk nie ma
+    prawa dziać się w środku składania klatki. `OverlayOutcome` zyskuje wskazanie
+    **następnego okna** (`replace()`), wzorem `ScreenOutcome::opens()`: praca
+    skończona musi otworzyć pytanie, a stos ma jedno piętro.
+12. **Okno postępu stoi w rdzeniu**, obok `ConfirmOverlay`
+    (`Presentation/Ui/Overlay/ProgressOverlay`). O plikach nie wie nic — dostaje
+    klucz tytułu, domknięcia i **ogólną** daną `Application/Dto/WorkProgress`
+    (wiersz treści, wykonane, całość). Kroki 42 i 44 biorą to samo okno.
+13. **`Esc` przerywa usuwanie i mówi, ile usunięto.** Praca zatrzymuje się na
+    najbliższym kawałku, pasek stanu podaje „usunięto N z M”, lista się odświeża.
+    Cel kroku („operacja dzieje się w całości albo wcale”) dostaje przez to
+    **zapisany wyjątek dla usuwania rekurencyjnego** — zgodny z D66, gdzie praca
+    przerwana jest pracą zakończoną. Odrzucono okno bez wyjścia i drugie pytanie
+    nad oknem postępu (stos okien ma jedno piętro).
+
+**Rozstrzygnięcie wykonawcze, którego pytania nie przewidziały, a które wynika
+z odpowiedzi nr 10:** okno pracy otwiera się **dopiero wtedy, gdy praca nie
+zmieściła się w pierwszym kawałku**. Reguła bierze się wprost z tamtej
+odpowiedzi — „plik i pusty katalog bez okien pracy, bo okno mignąwszy na klatkę
+czyta się jak usterka” — i rozciąga ją na jedyny przypadek, którego z góry
+rozpoznać nie da się: katalog o trzech wpisach. Dzięki niej ścieżka kodu zostaje
+**jedna** (zawsze praca kawałkowa), a okien nie ma tam, gdzie nie mają czego
+pokazać.
+
+**Cena zapisana od razu:** reguła 15 przestaje być bezwyjątkowa (D66,
+rozstrzygnięcie 2), a granica wyjątku wchodzi do `SKILL.md` wraz z powodem —
+rdzeń zna **ścieżkę bezwzględną jako napis, czynność i stan pracy**, i nic
+ponad to; `Entry`, `Directory`, `DirectoryPath` i `EntryType` nie mają prawa
+pojawić się w sygnaturze niczego w `src/Application` ani `src/Domain`, czego
+pilnuje `CoreKnowsNothingAboutFilesTest`.
+
+## Decyzje po kroku 41 (2026-08-14)
+
+### D76 — Pas podglądu znika z przeglądarki: miniaturę pokazuje moduł opisu pliku i tylko on
+
+**Dotyczy:** `Module/Browser/Presentation/BrowserScreen` (strefa podglądu),
+`BrowserModule` (port podglądu obrazów), `Presentation/Cli/Bootstrap`, usuniętych
+`Module/Browser/Presentation/Component/PreviewBox` i
+`Module/Browser/Application/UseCase/PreviewSelectedEntryUseCase`, `README.md`,
+[docs/architecture.md](../architecture.md) i [docs/pomiary/README.md](../pomiary/README.md).
+
+**Data:** 2026-08-14, na żądanie użytkownika, po kroku 41.
+
+**Decyzja:** przeglądarka plików **nie ma pasa podglądu**. `preview()` oddaje
+`null`, więc cztery wiersze pasa dostaje lista plików (reguła „strefa, której nie
+ma, oddaje wiersze środkowi” — krok 21). Kod, który istniał wyłącznie dla tego
+pasa, został **usunięty**, a nie wyłączony: `PreviewBox`, `PreviewSelectedEntryUseCase`
+i jego test, a wraz z nimi zależność modułu przeglądarki od `ImagePreviewPort`.
+Przeglądarka bierze odtąd z rdzenia trzy rzeczy zamiast czterech.
+
+**Powód:** to samo pokazuje od kroku 25 moduł `FileInfo` (`Ctrl`+`D`) — i pokazuje
+**lepiej**: miniaturę w całym prawym panelu, obok rozmiaru, praw dostępu, sumy
+kontrolnej i podglądu treści tekstowej, a nie w czterech wierszach nad paskiem
+stanu. Dwa miejsca robiące to samo znaczyły dwa razy ten sam odczyt obrazu
+w klatce i dwie ścieżki do poprawiania przy każdej zmianie podglądu.
+
+**Co to odwraca.** Pas podglądu wprowadził krok **12** i był wtedy jedną z dwóch
+rzeczy, po których poznawało się tę aplikację; krok **13** wpisał go w drabinkę
+stref, a krok **21** przeniósł jego zamawianie z rdzenia do ekranu przeglądarki
+wraz ze zdaniem „pas jest zamawiany **zawsze**, także wtedy, gdy zaznaczony wpis
+nie jest obrazem, bo znikanie pasa przesuwałoby listę pod ręką użytkownika”. To
+zdanie zostaje **odwołane w całości** — nie dlatego, że było nieprawdziwe, ale
+dlatego, że pas nie ma już czego pokazywać: podgląd wyprowadził się do modułu,
+który powstał dwa lata planu później.
+
+**Skutek uboczny, wart zapisania, bo jest długiem:** pasa podglądu **nie zamawia
+odtąd ani jeden ekran** — przeglądarka oddała go modułowi, a `FileInfoScreen`
+rysuje miniaturę w swoim własnym panelu i strefy skrajnej nigdy nie zamawiał.
+Mechanizm rdzenia (trzecia strefa w `ScreenInterface`, próg `ROWS_FOR_PREVIEW`
+w `HudLayout`, `previewIsPanel()`, scenariusz pomiarowy `thumbnail`) **zostaje bez
+użytkownika w aplikacji**, co jest sprzeczne z regułą 13 („nic bez prawdziwego
+odbiorcy”). Zostawiony świadomie i z dwóch powodów: `null` jest poprawną
+odpowiedzią kontraktu od kroku 21, więc nic nie jest zepsute, a usunięcie trzeciej
+strefy z rdzenia dotknęłoby `ScreenInterface`, `HudLayout`, `FrameComposer`,
+`ScenarioFactory`, wszystkich wzorców pomiarowych i złotych klatek — czyli jest
+osobną decyzją, nie skutkiem tej. **Do rozstrzygnięcia przy następnym module,
+który zechce strefę skrajną**: albo znajdzie się dla niej odbiorca, albo trzecia
+strefa wychodzi z kontraktu.
+
+**Testy:** 1505 zielonych (przed zmianą 1525; ubyło 20 — cały test usuniętego
+przypadku użycia i dwie asercje o strefie). Trzy testy zmieniły zdanie na
+przeciwne i to jest właściwa forma zapisu tej decyzji w kodzie:
+`BrowserModuleTest::testScreenOrdersTheHeaderButNoPreviewStrip`,
+`ScreenZonesTest::testNoScreenOrdersThePreviewStripAnyMore`
+i `GameLoopTest::testTheListTakesTheRowsOfTheAbsentPreviewStrip` — ten ostatni
+sprawdza teraz, że panel listy jest **wyższy niż zostawiłby układ z pasem**, czyli
+że lista dostała te wiersze naprawdę.
+
+**Sprawdzone w prawdziwym terminalu** (`make run-xterm`, okno 100×30): panele
+sięgają paska stanu, lista pokazuje **20 wierszy zamiast 13**, pustego prostokąta
+po pasie nie ma. Miniatura działa tam, gdzie ma działać — `Ctrl`+`D` na pliku PNG
+pokazuje ją w prawym panelu opisu wraz z wymiarami i formatem.

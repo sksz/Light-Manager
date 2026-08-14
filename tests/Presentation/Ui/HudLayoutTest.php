@@ -164,4 +164,33 @@ final class HudLayoutTest extends TestCase
         self::assertFalse($short->listIsPanel());
         self::assertFalse($short->statusIsPanel());
     }
+
+    /**
+     * Pasek stanu rośnie do dwóch wierszy **z potrzeby i tylko wysoko** (krok 40,
+     * rozstrzygnięcie nr 6). Wiersz zabiera się liście — jedynej szczelinie
+     * elastycznej — więc pas podglądu zostaje nietknięty.
+     */
+    public function testTheStatusBarGrowsByARowTakenFromTheList(): void
+    {
+        $narrow = new HudLayout(40, 100, withPreview: true);
+        $wide = new HudLayout(40, 100, withPreview: true, wideStatus: true);
+
+        self::assertSame(3, $narrow->status->rows);
+        self::assertSame(4, $wide->status->rows);
+        self::assertSame($narrow->preview->rows, $wide->preview->rows, 'pas podglądu nie oddaje wiersza');
+        self::assertSame($narrow->header->rows, $wide->header->rows);
+        self::assertSame($narrow->list->rows - 1, $wide->list->rows, 'wiersz bierze się liście');
+        self::assertTrue($wide->statusIsPanel());
+    }
+
+    public function testInALowWindowTheStatusBarDoesNotGrowAtAll(): void
+    {
+        foreach ([27, 20, 12, 6, 2] as $rows) {
+            self::assertSame(
+                (new HudLayout($rows, 100))->status->rows,
+                (new HudLayout($rows, 100, wideStatus: true))->status->rows,
+                'poniżej progu podpowiedzi ustępują pozycjami, a nie wierszem listy: ' . $rows,
+            );
+        }
+    }
 }

@@ -30,6 +30,7 @@ use LightManager\Infrastructure\Diagnostics\BenchmarkTrack;
 use LightManager\Infrastructure\Diagnostics\DumpingFrameRenderer;
 use LightManager\Infrastructure\Diagnostics\FrameDumpService;
 use LightManager\Infrastructure\Diagnostics\TrackImageGrabbers;
+use LightManager\Infrastructure\FileSystem\FileOperationsService;
 use LightManager\Infrastructure\Glfw\GlfwInputService;
 use LightManager\Infrastructure\Glfw\GlfwViewportService;
 use LightManager\Infrastructure\Glfw\GlfwWindowService;
@@ -235,7 +236,14 @@ final class Bootstrap
                 ),
                 self::$windowed ? GlfwViewportService::getInstance() : TerminalSizeService::getInstance(),
                 $translator,
-                InputHandler::globalBindings(self::$windowed),
+                // Stopka dostaje **więcej** niż okno pomocy: do klawiszy rdzenia
+                // dochodzą skróty modułów, których `globalBindings()` nie zna, bo
+                // powstają dopiero tutaj — z rejestru. W pomocy stoją w zakładce
+                // swojego modułu, więc drugi raz ich tam nie ma (krok 40).
+                [
+                    ...InputHandler::globalBindings(self::$windowed),
+                    ...InputHandler::moduleBindings($modules->shortcuts()),
+                ],
             ),
             $screens,
             new InputHandler(
@@ -347,7 +355,16 @@ final class Bootstrap
         SettingsService $settings,
     ): array {
         return [
-            new BrowserModule($state, $translator, $settings, ImagePreviewService::getInstance()),
+            // Port operacji na plikach jest **piątą rzeczą rdzenia**, którą dostaje
+            // przeglądarka (krok 41): usługa zapisu mieszka w rdzeniu jako wspólna,
+            // bo drugim jej odbiorcą jest moduł opisu pliku, a moduł nigdy nie
+            // sięga do innego modułu (D66, jawny wyjątek od reguły 15).
+            new BrowserModule(
+                $state,
+                $translator,
+                $settings,
+                FileOperationsService::getInstance(),
+            ),
             new FileInfoModule(
                 $state,
                 $translator,

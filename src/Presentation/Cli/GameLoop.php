@@ -63,6 +63,13 @@ final class GameLoop
             // tekstowym, wcześniej gaszenie komunikatów.
             $state->tick($startedAt);
 
+            // Kawałek pracy prowadzonej przez okno nakładane (krok 41): usuwanie
+            // katalogu wraz z zawartością posuwa się po jednym kawałku na takt.
+            // Stoi **tutaj**, a nie w składaniu klatki, i to jest cała różnica
+            // wobec pracy kawałkowej z kroku 25: tamta czyta plik, ta zmienia
+            // dysk, a rysowanie nie ma prawa mieć skutków ubocznych.
+            $this->input->advanceWork($state, $startedAt);
+
             // Pętla nie wie, który ekran jest aktywny, i nie ma powodu
             // wiedzieć: składanie klatki dostaje go w argumencie, a różnice
             // między ekranami kończą się na tym, co narysują w środku panelu.

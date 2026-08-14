@@ -13,6 +13,7 @@ use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Presentation\Ui\Overlay\ConfirmOverlay;
+use LightManager\Presentation\Ui\OverlayOutcome;
 use LightManager\Tests\Support\StubTranslator;
 use PHPUnit\Framework\TestCase;
 
@@ -93,6 +94,55 @@ final class ConfirmOverlayTest extends TestCase
     }
 
     /**
+     * Zgoda ma prawo wskazać **następne okno** (krok 41): pytanie stoi w środku
+     * łańcucha, bo po zgodzie na usunięcie katalogu zaczyna się praca dłuższa od
+     * klatki, a ta pokazuje się własnym oknem.
+     */
+    public function testConfirmationMayHandOverToTheNextWindow(): void
+    {
+        $next = new ConfirmOverlay('drugie.pytanie', [], static fn (): OverlayOutcome => OverlayOutcome::close(), new StubTranslator());
+        $overlay = new ConfirmOverlay(
+            'pytanie.klucz',
+            [],
+            static fn (): OverlayOutcome => OverlayOutcome::replace($next),
+            new StubTranslator(),
+        );
+
+        $overlay->handle(KeyPress::special(Key::ArrowRight, ''));
+        $outcome = $overlay->handle(KeyPress::special(Key::Enter, "\r"));
+
+        self::assertTrue($outcome->closes);
+        self::assertSame($next, $outcome->next);
+    }
+
+    /**
+     * Odmowa **sprząta** po tym, co pytanie zastało — policzona lista wpisów do
+     * usunięcia nie ma prawa przeżyć „nie” (krok 41). Trzy drogi odmowy, jedno
+     * sprzątanie.
+     */
+    public function testRefusalCleansUpAfterWhateverThePreviousStepLeft(): void
+    {
+        foreach ([Key::Escape, Key::Enter] as $key) {
+            $cleaned = 0;
+            $overlay = new ConfirmOverlay(
+                'pytanie.klucz',
+                [],
+                static fn (): OverlayOutcome => OverlayOutcome::close(),
+                new StubTranslator(),
+                true,
+                static function () use (&$cleaned): void {
+                    ++$cleaned;
+                },
+            );
+
+            $outcome = $overlay->handle(KeyPress::special($key, ''));
+
+            self::assertTrue($outcome->closes);
+            self::assertSame(1, $cleaned, $key->name . ' jest odmową, więc sprząta');
+        }
+    }
+
+    /**
      * Klawisze globalne okno przepuszcza — `F10` w trakcie pytania kończy
      * aplikację **bez** wykonania czynności.
      */
@@ -160,10 +210,10 @@ final class ConfirmOverlayTest extends TestCase
         return new ConfirmOverlay(
             'pytanie.klucz',
             [],
-            function (): Message {
+            function (): OverlayOutcome {
                 $this->performed[] = 'wykonano';
 
-                return Message::info('gotowe');
+                return OverlayOutcome::close(Message::info('gotowe'));
             },
             new StubTranslator(),
             $dangerous,

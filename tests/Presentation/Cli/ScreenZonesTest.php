@@ -54,10 +54,18 @@ final class ScreenZonesTest extends TestCase
         self::assertNotSame('', self::textOf($header));
     }
 
-    /** Pas podglądu zamawia wyłącznie ten ekran, który ma co w nim pokazać. */
-    public function testOnlyTheBrowserOrdersThePreviewStrip(): void
+    /**
+     * **Pasa podglądu nie zamawia dziś żaden ekran** (D76).
+     *
+     * Do tej zmiany zamawiała go przeglądarka i była jedyna; podgląd przeszedł
+     * w całości do modułu `FileInfo`, który rysuje go **w prawym panelu**, a nie
+     * w strefie skrajnej. Strefa zostaje w kontrakcie ekranu, bo `null` jest jej
+     * poprawną odpowiedzią od kroku 21 — ale nie ma odtąd ani jednego użytkownika,
+     * i ten test jest miejscem, w którym to widać.
+     */
+    public function testNoScreenOrdersThePreviewStripAnyMore(): void
     {
-        self::assertNotNull($this->app->browser->preview());
+        self::assertNull($this->app->browser->preview());
         self::assertNull($this->app->help->preview());
         self::assertNull($this->app->settings->preview());
         self::assertNull($this->app->fileInfo->preview());

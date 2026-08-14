@@ -8,7 +8,17 @@
 
 ## Status
 
-**Nie rozpoczęty** (2026-08-13).
+**Ukończony z zastrzeżeniem** (2026-08-14). Rozstrzygnięcia startowe —
+trzynaście, z czego cztery wynikły z odpowiedzi na pytanie nr 4, a jedno odwraca
+zapis planu — leżą w [00-decyzje.md](00-decyzje.md), D75.
+
+**Zastrzeżenie:** rozstrzygnięcie nr 5 planu („dwie czynności w menu kontekstowym
+przez `AppliesToSelection`”) okazało się **niewykonalne w dzisiejszym rdzeniu** —
+`CommandOutcome` leży w `Application` i wskazuje ekran identyfikatorem, a okna
+nakładane rejestru identyfikatorów nie mają, więc żadna komenda nie umie otworzyć
+okna. Powstały dwie komendy z argumentem (`browser.rename`, `browser.mkdir`),
+`browser.delete` nie powstał wcale, a **menu `F9` nie zyskało ani jednej pozycji**.
+Zobowiązanie wobec kroku 32 zostaje długiem.
 
 ## Cel
 
@@ -301,4 +311,166 @@ argumentem. `README.md` — nowe klawisze.
 
 ## Dziennik realizacji
 
-*(pusty — krok nierozpoczęty)*
+### 2026-08-14 — rozstrzygnięcia startowe i cały kod kroku
+
+**Rozstrzygnięć wyszło trzynaście, a nie dziewięć** ([00-decyzje.md](00-decyzje.md),
+D75). Cztery dołożyła odpowiedź na pytanie nr 4: „rekurencyjnie, z liczbą wpisów”
+postawiło w tym kroku **pracę dłuższą od klatki**, którą plan rezerwował dla kroku
+42 — a wraz z nią okno liczenia, okno postępu, takt pracy w pętli i pytanie, co
+znaczy `Esc` w połowie usuwania.
+
+**Jedno rozstrzygnięcie odwróciło zapis planu, bo plan zakładał rzecz
+niewykonalną.** Punkt 5 („drugie wejście przez komendy”) miał dać dwie pozycje
+w menu kontekstowym przez `AppliesToSelection`. Sprawdzenie pokazało granicę
+warstw z D39: `CommandOutcome` leży w `Application` i wskazuje ekran
+**identyfikatorem**, bo `ScreenInterface` leży w `Presentation` — a okna nakładane
+rejestru identyfikatorów nie mają w ogóle. **Żadna komenda nie umie otworzyć
+okna**, więc `browser.delete` (pytanie plus pasek postępu) i `browser.rename`
+(pole na nazwę) nie mogły powstać w kształcie, jaki plan opisał. Powstały dwie
+komendy z argumentem — **pierwsze w projekcie** — a `browser.delete` nie powstał
+wcale, bo usuwać bez pytania nie wolno.
+
+**Dług zapisany wprost:** zobowiązanie z indeksu planu („czynność kroku 41 ma
+zadeklarować `AppliesToSelection`, a wtedy pojawi się w menu bez zmiany
+w rdzeniu”) **nie jest spłacone**. Spłaci je krok, który da rdzeniowi okna pod
+identyfikatorem — jeśli kiedyś taki będzie potrzebny. Menu `F9` nie zyskało ani
+jednej pozycji.
+
+**Co powstało w rdzeniu** (wyjątek od reguły 15, D66):
+
+| Plik | Rola |
+|---|---|
+| `Application/Port/FileOperationsPort` | cztery czynności: nazwa, nowy katalog, usunięcie wpisu, usunięcie drzewa jako praca kawałkowa |
+| `Application/Dto/RemovalState`, `RemovalStage` | stan pracy usuwania; **sześć etapów, w tym `Ready`** — przystanek na pytanie, którego nie ma żadna inna praca w projekcie |
+| `Application/Dto/WorkProgress` | stan pracy **w języku okna**: wiersz treści, wykonane, całość |
+| `Domain/Exception/FileOperationException` | niepowodzenie, które samo podaje zdanie (`DescribesProblem`) |
+| `Infrastructure/FileSystem/FileOperationsService` | drugie i ostatnie miejsce rdzenia piszące po dysku |
+| `Presentation/Ui/RunsWork` | zdolność okna: „prowadzę pracę”, pytana raz na takt |
+| `Presentation/Ui/Overlay/PromptOverlay` | okno o jedno słowo |
+| `Presentation/Ui/Overlay/ProgressOverlay` | okno pracy — pierwsze, które **działa samo** |
+
+**Trzy zmiany w rdzeniu, których plan nie przewidywał, i każda z powodu:**
+
+1. **`OverlayOutcome` zyskał `replace()`** — usuwanie prowadzi przez trzy okna po
+   kolei, a stos ma jedno piętro, więc „zamknij i otwórz” musi stać się naraz.
+2. **`ConfirmOverlay` oddaje `OverlayOutcome`, nie `?Message`** — pytanie stoi
+   odtąd **w środku** łańcucha okien i musi umieć powiedzieć, co pokazać dalej.
+   Dostał ponadto drugie, opcjonalne domknięcie: sprzątanie **po odmowie**, bo
+   „nie” po policzonym drzewie musi porzucić listę wpisów.
+3. **`InputHandler` łapie `DomainException` także w drodze przez okno nakładane** —
+   i to jest **naprawa usterki starszej od tego kroku**: do dziś wyjątek rzucony
+   z domknięcia okna nie miał nad sobą żadnego łapacza i kończyłby aplikację.
+   Okno **zostaje przy tym otwarte**, co jest tu zaletą, nie kompromisem: po zdaniu
+   „nazwa jest już zajęta” użytkownik ma dokładnie jedną rzecz do zrobienia.
+
+**Rzecz wypatrzona przy pisaniu testów, warta zapamiętania:** liczenie **nie dzieli
+się na kawałki wewnątrz jednego katalogu** — `scandir()` oddaje całą zawartość
+naraz, więc tysiąc plików w jednym katalogu policzy się w jednym kawałku, choćby
+budżet wynosił dziesięć. Kawałków przybywa dopiero wtedy, gdy przybywa
+**katalogów do przejścia**. Nie jest to usterka (przerwanie w środku tablicy nie
+oszczędziłoby ani jednej operacji systemowej), ale test okna liczenia musiał
+z tego powodu budować drzewo **rozgałęzione**, a nie zatłoczone.
+
+**Reguła wykonawcza, która wynikła z rozstrzygnięcia nr 10:** okno pracy otwiera
+się **dopiero wtedy, gdy praca nie zmieściła się w pierwszym kawałku**. Dzięki
+temu ścieżka kodu została jedna (zawsze praca kawałkowa), a okna nie migają tam,
+gdzie nie mają czego pokazać — przy pliku, pustym katalogu i katalogu o trzech
+wpisach.
+
+**Kolejność usuwania stoi na jednym zdaniu:** pliki naprzód, katalogi w kolejności
+**odwrotnej do odkrycia**. Rodzic stoi w liście przed dzieckiem, więc odwrócenie
+stawia dziecko przed rodzicem — a katalog daje się usunąć wyłącznie pusty.
+Sortowania po głębokości nie ma i nie było potrzebne.
+
+**Co się zmieniło w module** (`Module/Browser/`): `EntryName` (nazwa wpisana przez
+użytkownika — sprawdzenie zeszło tu z rdzenia, D75 nr 2) wraz
+z `InvalidEntryNameException`; `EntryOperations` (trzy czynności, jedno miejsce dla
+klawisza i komendy — wzorzec `HiddenEntries` z kroku 32); `RenameCommand`
+i `MakeDirectoryCommand`; `BrowserState::refresh()` (odświeżenie **z zachowanym
+filtrem** — w odróżnieniu od `enter()`); `BrowserTree::forgetBranches()`
+i `BrowserPanes::forgetBranches()`; pozycja ustawień „Pytaj przed usunięciem”.
+
+**`ToggleHiddenEntriesUseCase` zniknął, a na jego miejsce wszedł
+`ReloadDirectoryUseCase`.** Nazwa mówiła prawdę, dopóki jedynym powodem ponownego
+odczytu było przełączenie wpisów ukrytych; drugi powód (własna zmiana na dysku)
+zrobiłby z tego dwie klasy robiące to samo.
+
+**Kursor po operacji** (rozstrzygnięcie 7) liczy się **przed** czynnością, a nie po
+niej: wpisu, który zniknął, nie ma już jak znaleźć. `EntryOperations` zapamiętuje
+więc „następcę” — wpis stojący niżej, a przy usuwaniu ostatniego wyżej — i po
+odświeżeniu zaznacza go **po nazwie**, tą samą regułą, którą filtr z kroku 30
+przenosi zaznaczenie.
+
+**Odświeżenie dotyczy panelu na zmienionym katalogu i panelu leżącego w jego
+środku.** Drugi przypadek jest tym, o którym łatwo zapomnieć: usunięcie katalogu
+wyciąga panelowi ziemię pod nogami, a wtedy ponowny odczyt się nie udaje i panel
+wchodzi do najbliższego czytelnego wyżej — drogą, którą aplikacja otwiera katalog
+startowy.
+
+**Stan zastany zgadzał się z tabelą planu w każdym wierszu**, a sprawdzenie
+dołożyło do niej jedną rzecz, która przesądziła o kształcie połowy kroku:
+`InputHandler` łapał wyjątki wyłącznie w drodze przez ekran (zobacz zmianę nr 3
+wyżej).
+
+**Testy:** 1524 zielone (przed krokiem 1460, więc +64), PHPStan `max` bez błędów,
+PHP-CS-Fixer bez uwag — `make qa` przechodzi. Nowe pliki testowe:
+`tests/Infrastructure/FileSystem/FileOperationsServiceTest` (14 przypadków **na
+prawdziwym katalogu tymczasowym** — atrapa systemu plików sprawdzałaby tu samą
+siebie), `tests/Functional/FileOperationsFlowTest` (17 przypadków, cała droga przez
+`InputHandler`, prawdziwe repozytorium i prawdziwy dysk),
+`tests/Module/Browser/Domain/ValueObject/EntryNameTest`,
+`tests/Application/Dto/RemovalStateTest`,
+`tests/Presentation/Ui/Overlay/PromptOverlayTest` i `ProgressOverlayTest`.
+`ScreenFixture` dostał **atrapę operacji** (`StubFileOperations`) jako domyślną
+i to nie jest ostrożność teoretyczna: ścieżki katalogów trzymanych w pamięci
+(`/home`, `/home/projekty`) bywają na maszynie testowej **prawdziwe**, a prawdziwa
+usługa zapisu podstawiona w teście stopki mogłaby zajrzeć do cudzego katalogu
+domowego.
+
+**Pomiar:** krok **nie dokłada ani jednego prymitywu** i nie dotyka ścieżki
+rysowania — operacje dzieją się w fazie „aktualizuj stan” pętli. Powody pominięcia
+scenariuszy dla obu nowych okien oraz dla samych operacji zapisane
+w [docs/pomiary/README.md](../pomiary/README.md).
+
+### 2026-08-14 — pomiar i sprawdzenie w prawdziwym terminalu
+
+**Pomiar (`make bench --compare`, host zwolniony na prośbę):** bez regresji.
+Wszystkie osiemnaście scenariuszy wyszło 2–12% **szybciej** niż wzorzec kroku 40
+przy identycznym obciążeniu maszyny (0,14 na rdzeń w obu przebiegach) — to rozrzut
+środowiska, nie zasługa kroku, bo krok ścieżki rysowania nie dotyka. Wzorzec
+zamykający: `docs/pomiary/2026-08-14-po-kroku-41.json`.
+
+**Sprawdzenie klatki (`make run-xterm`, katalog pokazowy w scratchpadzie, wejście
+komendą `browser.jump` — repozytorium nietknięte).** Obejrzane wszystkie trzy nowe
+widoki i cały cykl:
+
+- okno nazwy z polem i karetką, stopka z klawiszami okna;
+- pytanie w wariancie groźnym z liczbą: „Usunąć „zdjęcia” wraz z zawartością? Do
+  usunięcia: 6.” (pięć plików plus sam katalog — dokładnie ta konwencja, którą
+  krok przyjął), ognisko na „Nie”;
+- okno postępu na katalogu o **30 000 plikach**: nazwa usuwanego wpisu zmieniająca
+  się co klatkę, licznik „3840 z 30001 13%” w środku paska, wypełnienie rosnące
+  (13% → 39% → koniec), napis zmieniający rolę tam, gdzie przechodzi przez
+  wypełnienie. Praca poszła ~8000 wpisów na sekundę, czyli tyle, ile zakłada
+  budżet kawałka (256 × 30 kl./s), a aplikacja **ani razu nie stanęła**;
+- po skończeniu: „Usunięto 30001 wpisów.” w pasku stanu, lista odświeżona, kursor
+  na następcy usuniętego wpisu;
+- utworzenie katalogu o nazwie **ze spacją**: „Katalog „nowy katalog” utworzony.”,
+  kursor stanął na nowym wpisie.
+
+**Jedna usterka, którą pokazał wyłącznie prawdziwy terminal, i jej naprawa:**
+tytuł okna nazwy dyktował jego szerokość, więc „Nowy katalog w /tmp/claude-1000/…”
+z pełną ścieżką **rozdmuchiwał okno na całą szerokość klatki** — okno pytające
+o jedno słowo wyglądało jak drugi panel. Naprawione dwiema zmianami: `PromptOverlay`
+dostał górną granicę szerokości (`MAX_COLUMNS = 64`; tytuł dłuższy ucina `Dialog`,
+jak każdy inny), a tytuł „nowego katalogu” **stracił ścieżkę**, bo katalog panelu
+czynnego stoi w górnym pasie klatki i powtarzać go nie ma po co. Regresję pilnuje
+`PromptOverlayTest::testALongTitleDoesNotStretchTheWindow`.
+
+Wniosek na przyszłość, ten sam co po kroku 28: **rozmiar okna liczony z długości
+napisu trzeba zobaczyć, a nie wyliczyć** — `ConfirmOverlay` ma tę samą regułę i
+przy bardzo długiej nazwie pliku zachowa się tak samo. Zostaje to zapisane tutaj,
+a nie naprawione po drodze: krok 42 dołoży do pytań nazwy plików (kolizje przy
+kopiowaniu) i to on będzie miał prawdziwego użytkownika dla tej poprawki.
+
+**Bramka po naprawie:** `make qa` zielone — 1525 testów, 4133 asercje.

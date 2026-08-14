@@ -248,7 +248,7 @@ wzorców w trzech torach.
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 40 | Stopka mówi, co da się zrobić tu i teraz | [40-stopka-kontekstowa.md](40-stopka-kontekstowa.md) | 18, 19, 24, 25, 29, 30, 33, 35, 38 | Fable | xhigh | Nie rozpoczęty |
+| 40 | Stopka mówi, co da się zrobić tu i teraz | [40-stopka-kontekstowa.md](archiwum/40-stopka-kontekstowa.md) | 18, 19, 24, 25, 29, 30, 33, 35, 38 | Fable | xhigh | Ukończony |
 
 ### Faza XIV — Operacje na plikach
 
@@ -267,7 +267,7 @@ z powodem — nienazwana, otworzyłaby rdzeń na wszystko.
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 41 | Fundament operacji: nazwa, nowy katalog, usunięcie | [41-operacje-fundament.md](41-operacje-fundament.md) | 14, 15, 18, 19, 21, 24, 28, 38 | Opus | high | Nie rozpoczęty |
+| 41 | Fundament operacji: nazwa, nowy katalog, usunięcie | [41-operacje-fundament.md](41-operacje-fundament.md) | 14, 15, 18, 19, 21, 24, 28, 38 | Opus | high | Ukończony z zastrzeżeniem |
 | 42 | Kopiowanie i przenoszenie po kawałku, z postępem | [42-kopiowanie-i-przenoszenie.md](42-kopiowanie-i-przenoszenie.md) | 23, 24, 25, 38, 41 | Fable | xhigh | Nie rozpoczęty |
 | 43 | Zaznaczenie wielokrotne jako mnożnik operacji | [43-zaznaczenie-wielokrotne.md](43-zaznaczenie-wielokrotne.md) | 21, 27, 28, 30, 38, 41 | Opus | high | Nie rozpoczęty |
 | 44 | Kosz i cofnięcie ostatniej operacji | [44-kosz-i-cofanie.md](44-kosz-i-cofanie.md) | 6, 14, 15, 19, 29, 38, 41, 42 | Opus | high¹ | Nie rozpoczęty |
@@ -577,6 +577,21 @@ zupełnie (patrz opisy na końcu tej listy). Faza XIV (41–44) jest **znowu
   Doszedł za to `F9` w klawiszach globalnych — czyli **piąta** pozycja, która ma
   się zmieścić w pasku stanu, i to jest dla kroku 40 argument, a nie drobiazg.
 
+  **Wykonany — a dwie z tych zależności okazały się mocniejsze, niż zakładano.**
+  Uwaga o `F9` sprawdziła się co do słowa i to ona przesądziła o rozstrzygnięciu
+  nr 5 (drugi, krótki klucz opisu): pięć wiązań rdzenia w dzisiejszych opisach to
+  78 kolumn, więc stopka znikała w oknie stu kolumn **jeszcze przed tym krokiem**,
+  a nie dopiero po dołożeniu klawiszy ekranu. Od **25 i 29** krok zależy podwójnie,
+  bo `FileInfoScreen` był nie tylko najbogatszym odbiorcą, ale i jedynym miejscem,
+  w którym ten sam klawisz znaczy w dwóch panelach dwie różne rzeczy — czyli
+  jedynym dowodem, że nazwa miejsca w stopce jest potrzebna. Od **38** zależność
+  wyszła za to **z trzeciej strony**: `ScenarioFactory::HINTS` przeliczono zgodnie
+  z planem, ale prawdziwym narzędziem kroku okazał się `FrameSerializer` — bez
+  niego test „stopka nie kłamie” nie widziałby połowy czynności, bo kursor sekcji
+  zmienia **rolę** wiersza, a nie jego treść. Od **33** i **35** krok zależał
+  najsłabiej: przeliczenie wysokości strefy przeszło przez oba tory bez ani jednej
+  zmiany w nich samych.
+
 - **41–44** (Faza XIV) tworzą **łańcuch**, w odróżnieniu od Faz VII–XIII: każdy
   krok dokłada do tego, co postawił poprzedni, i osobno sensu nie ma.
   - **41** (fundament operacji) zależy od **28** twardo — `ConfirmOverlay`
@@ -588,10 +603,16 @@ zupełnie (patrz opisy na końcu tej listy). Faza XIV (41–44) jest **znowu
     (dwa panele, bo odświeżyć trzeba **oba**), **14 i 15** (ustawienie i napisy)
     oraz **38** (wzorce i przebiegi). Ze **32** styka się treścią, nie
     zależnością — i styk zmienił kierunek, bo krok 32 **nie czekał**: wykonany
-    2026-08-14, dowiózł menu wraz z własną treścią (D69). Zostaje z tego
-    zobowiązanie w drugą stronę: czynność kroku 41 działająca na zaznaczeniu ma
-    zadeklarować `AppliesToSelection`, a wtedy pojawi się w menu **bez zmiany
-    w rdzeniu**.
+    2026-08-14, dowiózł menu wraz z własną treścią (D69). Zostawało z tego
+    zobowiązanie w drugą stronę: czynność kroku 41 działająca na zaznaczeniu miała
+    zadeklarować `AppliesToSelection`, a wtedy pojawić się w menu **bez zmiany
+    w rdzeniu**. **Zobowiązanie zostało długiem** i powód jest mechaniczny (D75,
+    rozstrzygnięcie 5): `CommandOutcome` wskazuje ekran **identyfikatorem**, bo leży
+    w `Application`, a okna nakładane rejestru identyfikatorów nie mają — więc żadna
+    komenda nie umie otworzyć okna, a bez okna nie ma ani pytania przed usunięciem,
+    ani pola na nazwę. Krok 41 dowiózł zamiast tego **pierwsze komendy z argumentem**
+    (`browser.rename <nazwa>`, `browser.mkdir <nazwa>`), a menu `F9` nie zyskało ani
+    jednej pozycji.
   - **42** (kopiowanie i przenoszenie) zależy od **41** całkowicie i od **25**
     wzorcowo (praca kawałkowa, D46 — kopiowanie jest jej **trzecim**
     zastosowaniem i pierwszym, które nie tylko czyta), od **23** (`ProgressBar`
@@ -639,7 +660,7 @@ z tabel powyżej.
 
 Katalog `docs/plans/` trzyma **wyłącznie kroki, przed którymi jeszcze praca**:
 nierozpoczęte, w toku i zablokowane. Kroki ukończone przenoszą się do
-[archiwum/](archiwum/) — dziś jest ich 39 z 46, więc bez tego podziału lista
+[archiwum/](archiwum/) — dziś jest ich 40 z 46, więc bez tego podziału lista
 tego, co zostało do zrobienia, ginęła w historii projektu.
 
 Trzy rzeczy, które przy tym **nie** zmieniają miejsca, bo są dokumentami

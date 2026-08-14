@@ -34,8 +34,11 @@ use LightManager\Presentation\Ui\Component\Toggle;
 use LightManager\Presentation\Ui\ComponentInterface;
 use LightManager\Presentation\Ui\Container\Slot;
 use LightManager\Presentation\Ui\Container\VStack;
+use LightManager\Presentation\Ui\DeclaresFocus;
+use LightManager\Presentation\Ui\FocusHint;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\Overlay\ConfirmOverlay;
+use LightManager\Presentation\Ui\OverlayOutcome;
 use LightManager\Presentation\Ui\Resettable;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
@@ -61,7 +64,7 @@ use LightManager\Presentation\Ui\ScreenZone;
  * a nie w `TextInput` — pole wyszło z kroku 19 jako komponent bez trybów i
  * dokładanie mu ich teraz kazałoby oknu komend trzymać je stale włączone.
  */
-final class SettingsScreen implements ScreenInterface, Resettable
+final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
 {
     private SettingsCursor $cursor;
 
@@ -287,20 +290,24 @@ final class SettingsScreen implements ScreenInterface, Resettable
      * zadane w wariancie groźnym (D56).
      *
      * Domknięcie jest **całą** czynnością: przywraca ustawienia, wpuszcza je do
-     * stanu pętli i oddaje komunikat, który okno postawi w pasku stanu. Ekran
-     * nie dowiaduje się nawet, czy padła odpowiedź „tak”.
+     * stanu pętli i oddaje skutek, z którym okno się zamyka. Ekran nie dowiaduje
+     * się nawet, czy padła odpowiedź „tak”.
+     *
+     * Skutkiem jest `OverlayOutcome`, a nie sam komunikat, od kroku 41 — bo
+     * pytanie umie odtąd ustąpić miejsca oknu pracy. Tutaj następnego okna nie
+     * ma i nie będzie: przywrócenie ustawień kończy się w tej samej klatce.
      */
     private function restoreConfirmation(): ConfirmOverlay
     {
         return new ConfirmOverlay(
             'settings.restore.confirm',
             [],
-            function (): Message {
+            function (): OverlayOutcome {
                 [$settings, $message] = $this->restoreDefaults->execute($this->state->settings());
 
                 $this->state->applySettings($settings);
 
-                return $message;
+                return OverlayOutcome::close($message);
             },
             $this->translator,
             true,
@@ -309,20 +316,73 @@ final class SettingsScreen implements ScreenInterface, Resettable
 
     public function bindings(): array
     {
-        if ($this->editing !== null) {
-            return [
-                KeyBinding::of([Key::Enter], 'help.key.commit'),
-                KeyBinding::of([Key::Escape], 'help.key.cancel'),
-                ...($this->input?->bindings() ?? []),
-            ];
+        $bindings = $this->focus()->bindings;
+
+        // W edycji `Esc` **porzuca zmianę**, a nie zamyka ekranu — i mówi o tym
+        // już wiązanie ogniska. Drugie, o powrocie, byłoby wtedy kłamstwem.
+        if ($this->editing === null) {
+            $bindings[] = KeyBinding::of([Key::Escape], 'help.key.back', 'help.key.back.short');
         }
 
-        return [
-            KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move'),
-            KeyBinding::of([Key::ArrowLeft, Key::ArrowRight], 'help.key.change'),
-            KeyBinding::of([Key::Enter], 'help.key.edit'),
-            KeyBinding::of([Key::Escape], 'help.key.back'),
-        ];
+        return $bindings;
+    }
+
+    /**
+     * Ognisko ustawień ma **cztery** położenia i każde odpowiada na inne klawisze.
+     *
+     * Do kroku 40 spis był jeden na cały ekran i przez to nieprawdziwy w trzech
+     * miejscach naraz: `←→` na wierszu czynności nie robi nic, `Enter` na pasku
+     * zakładek przewija zakładki (bo jest w całej aplikacji klawiszem
+     * zatwierdzania, P3), a „edycja wartości” dotyczy wyłącznie pozycji
+     * tekstowych — pozostałe `Enter` po prostu przełącza na następną wartość.
+     * Kursor wie o tym wszystkim od kroku 20; brakowało wyłącznie drogi na
+     * zewnątrz.
+     */
+    public function focus(): FocusHint
+    {
+        if ($this->editing !== null) {
+            return new FocusHint('settings.focus.edit', [
+                KeyBinding::of([Key::Enter], 'help.key.commit', 'help.key.commit.short'),
+                KeyBinding::of([Key::Escape], 'help.key.cancel', 'help.key.cancel.short'),
+                ...($this->input?->bindings() ?? []),
+            ]);
+        }
+
+        $move = KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move', 'help.key.move.short');
+
+        if ($this->cursor->isOnTabBar()) {
+            return new FocusHint('settings.focus.tabs', [
+                $move,
+                KeyBinding::of(
+                    [Key::ArrowLeft, Key::ArrowRight, Key::Enter],
+                    'help.key.tab',
+                    'help.key.tab.short',
+                ),
+            ]);
+        }
+
+        if ($this->cursor->isOnAction()) {
+            return new FocusHint('settings.focus.action', [
+                $move,
+                KeyBinding::of([Key::Enter], 'help.key.restore', 'help.key.restore.short'),
+            ]);
+        }
+
+        if ($this->cursor->setting()?->kind === ModuleSettingKind::Text) {
+            return new FocusHint('settings.focus.item', [
+                $move,
+                KeyBinding::of([Key::Enter], 'help.key.edit', 'help.key.edit.short'),
+            ]);
+        }
+
+        return new FocusHint('settings.focus.item', [
+            $move,
+            KeyBinding::of(
+                [Key::ArrowLeft, Key::ArrowRight, Key::Enter],
+                'help.key.change',
+                'help.key.change.short',
+            ),
+        ]);
     }
 
     /**

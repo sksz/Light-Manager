@@ -15,6 +15,7 @@ use LightManager\Application\Ui\Role;
 use LightManager\Domain\ValueObject\MessageTone;
 use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\StatusBar;
+use LightManager\Presentation\Ui\DeclaresFocus;
 use LightManager\Presentation\Ui\DrawsOwnFrame;
 use LightManager\Presentation\Ui\HudLayout;
 use LightManager\Presentation\Ui\KeyBinding;
@@ -23,6 +24,7 @@ use LightManager\Presentation\Ui\NeedsTime;
 use LightManager\Presentation\Ui\OverlayInterface;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenZone;
+use LightManager\Presentation\Ui\StatusHints;
 
 /**
  * Składa klatkę z aktywnego ekranu i oddaje ją rendererowi.
@@ -51,7 +53,13 @@ final class FrameComposer
     /** Poniżej tylu kolumn formatowanie wiersza przestaje mieć sens. */
     private const MINIMUM_COLUMNS = 20;
 
-    /** @param list<KeyBinding> $global wiązania rdzenia — źródło podpowiedzi w stopce */
+    /**
+     * @param list<KeyBinding> $global wiązania działające wszędzie: klawisze
+     *                                 rdzenia wraz ze skrótami modułów. Skróty
+     *                                 dokłada `Bootstrap`, bo powstają dopiero
+     *                                 z rejestru modułów — do kroku 40 stopka
+     *                                 nigdy o nich nie mówiła
+     */
     public function __construct(
         private readonly FrameRendererPort $renderer,
         private readonly ViewportPort $viewport,
@@ -92,7 +100,26 @@ final class FrameComposer
 
         $rows = $this->viewport->rows();
         $columns = max(self::MINIMUM_COLUMNS, $this->viewport->columns());
-        $layout = new HudLayout($rows, $columns, $header !== null, $preview !== null);
+
+        // Okno nakładane pytamy **przed** podziałem okna, bo od kroku 40 wypiera
+        // ekran ze stopki, a stopka rozstrzyga o wysokości swojej strefy.
+        $overlay = $state->overlays()->current();
+        $message = $state->message();
+        $hints = $this->hints($overlay ?? $screen);
+
+        $layout = new HudLayout(
+            $rows,
+            $columns,
+            $header !== null,
+            $preview !== null,
+            // Pasek rośnie **z potrzeby**, nie z samej wysokości okna
+            // (rozstrzygnięcie nr 6 kroku 40): pytamy o miejsce w wierszu, który
+            // dzieli się z komunikatem, bo to on jest wąskim gardłem.
+            !$hints->fitInOneRow(StatusBar::hintColumns(
+                HudLayout::contentColumns($columns),
+                $message === null ? '' : $message->marked(),
+            )),
+        );
 
         // Ekran podzielony na dwa panele oprawia się sam: rdzeń wie o **jednej**
         // strefie środkowej i nie wie, który panel jest czynny, więc nie ma czym
@@ -103,10 +130,8 @@ final class FrameComposer
 
         $planes = [
             $this->chrome($layout, $screen, $header, $preview, $ownFrame),
-            $this->content($layout, $screen, $state, $header, $preview, $ownFrame !== []),
+            $this->content($layout, $screen, $state, $header, $preview, $ownFrame !== [], $hints),
         ];
-
-        $overlay = $state->overlays()->current();
 
         if ($overlay !== null) {
             $planes[] = $this->overlay($overlay, $rows, $columns, $state->now());
@@ -159,6 +184,7 @@ final class FrameComposer
         ?ScreenZone $header,
         ?ScreenZone $preview,
         bool $ownFrame,
+        StatusHints $hints,
     ): Plane {
         $primitives = [];
 
@@ -185,7 +211,7 @@ final class FrameComposer
         foreach ((new StatusBar(
             $message === null ? '' : $message->marked(),
             $message === null ? Role::Info : self::roleOf($message->tone),
-            $this->hints(),
+            $hints,
         ))->draw($status) as $primitive) {
             $primitives[] = $primitive;
         }
@@ -229,21 +255,31 @@ final class FrameComposer
     }
 
     /**
-     * Podpowiedzi w pasku stanu powstają z **wiązań rdzenia**, a nie z napisu
-     * w katalogu: napis potrafił skłamać po zmianie wiązania, wiązania nie mają
-     * jak. Klawisze aktywnego ekranu do stopki nie wchodzą i to jest ta sama
-     * decyzja, którą podjął krok 14 — stopka nie jest ściągawką, tylko
-     * wskazaniem, gdzie ściągawka leży. Pełny spis stoi pod `F1`.
+     * Podpowiedzi w pasku stanu: **co da się zrobić tu i teraz**, od miejsca pod
+     * kursorem po klawisze działające wszędzie.
+     *
+     * Do kroku 40 stała tu jedna pętla po wiązaniach rdzenia wraz ze zdaniem
+     * „stopka nie jest ściągawką, tylko wskazaniem, gdzie ściągawka leży”. Zdanie
+     * zostało odwołane co do **zasięgu** i tylko co do niego: klawisze ekranu
+     * i miejsca z ogniskiem wchodzą odtąd do stopki, ale nadal pochodzą
+     * z `KeyBinding`, a nie z napisu w katalogu — napis potrafił skłamać po
+     * zmianie wiązania, wiązanie nie ma jak. Okno pomocy zostaje **pełnym**
+     * spisem i dlatego `F1` nie znika ze stopki nawet wtedy, gdy ustępują jej
+     * wszystkie pozostałe pozycje.
+     *
+     * Ognisko jest **zadeklarowane, nie odkryte**, i to jest jedyna droga, jaką
+     * może być: komponent powstaje w `draw()` i ginie razem z klatką, więc drzewa,
+     * po którym dałoby się chodzić w poszukiwaniu kursora, nie ma w żadnym
+     * momencie poza tą jedną chwilą, gdy klatka się składa.
      */
-    private function hints(): string
+    private function hints(ScreenInterface|OverlayInterface $top): StatusHints
     {
-        $parts = [];
-
-        foreach ($this->global as $binding) {
-            $parts[] = $binding->display() . ' ' . $this->translator->translate($binding->descriptionKey);
-        }
-
-        return implode(' · ', $parts);
+        return StatusHints::compose(
+            $top instanceof DeclaresFocus ? $top->focus() : null,
+            $top->bindings(),
+            $this->global,
+            $this->translator,
+        );
     }
 
     private static function roleOf(MessageTone $tone): Role

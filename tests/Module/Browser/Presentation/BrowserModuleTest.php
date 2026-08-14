@@ -75,6 +75,10 @@ final class BrowserModuleTest extends TestCase
      * rozstrzyga, jak wygląda jego własny interfejs. Krok 31 dokłada szóstą,
      * i jest ona zarazem **jedyną pozycją wyboru** w tej zakładce: „bez limitu”
      * nie jest liczbą, więc głębokość drzewa nie mogła zostać przełącznikiem.
+     *
+     * Krok 41 dokłada siódmą — pytanie przed usunięciem — i stawia ją **na końcu**
+     * listy, bo odczyty wskazują deklaracje numerem: pozycja wstawiona w środku
+     * przestawiłaby znaczenie wszystkich następnych.
      */
     public function testSettingsTabCarriesTheHiddenEntriesToggle(): void
     {
@@ -95,6 +99,7 @@ final class BrowserModuleTest extends TestCase
                 BrowserSettings::DETAILS,
                 BrowserSettings::COLUMN_HEADER,
                 BrowserSettings::TREE_DEPTH,
+                BrowserSettings::ASK_BEFORE_DELETE,
             ],
             $keys,
         );
@@ -233,22 +238,24 @@ final class BrowserModuleTest extends TestCase
     }
 
     /**
-     * Trzy strefy zamiast jednej: pasek ścieżki i pas podglądu zamawia ekran,
-     * a nie rdzeń.
+     * **Dwie strefy, nie trzy** (D76): pasek ścieżki zamawia ekran, a pasa podglądu
+     * nie zamawia nikt.
+     *
+     * Do tej zmiany przeglądarka zamawiała wszystkie trzy strefy i był to jej znak
+     * firmowy po kroku 21. Podglądu nie ma tu odtąd wcale — miniaturę pokazuje moduł
+     * `FileInfo` w całym panelu — więc wiersze pasa idą do listy plików.
      */
-    public function testScreenOrdersThreeZones(): void
+    public function testScreenOrdersTheHeaderButNoPreviewStrip(): void
     {
         $screen = $this->app->browser;
 
         self::assertSame('module.browser.zone.files', $screen->labelKey());
 
         $header = $screen->header();
-        $preview = $screen->preview();
 
         self::assertNotNull($header);
-        self::assertNotNull($preview);
+        self::assertNull($screen->preview(), 'pas podglądu przeszedł do modułu opisu pliku');
         self::assertSame('layout.zone.path', $header->labelKey);
-        self::assertSame('layout.zone.preview', $preview->labelKey);
 
         $texts = self::textsOf($header->content->draw(new Rect(0, 2, 1, 60)));
 
@@ -271,15 +278,6 @@ final class BrowserModuleTest extends TestCase
         );
     }
 
-    /** Pas podglądu nie znika, gdy zaznaczony wpis nie jest obrazem. */
-    public function testPreviewZoneStaysEvenWithNothingToShow(): void
-    {
-        $preview = $this->app->browser->preview();
-
-        self::assertNotNull($preview);
-        self::assertSame([], $preview->content->draw(new Rect(10, 2, 6, 60)), 'katalog nie ma miniatury');
-    }
-
     /**
      * Klawisze przeglądarki — spis zamknięty, więc każdy nowy widać w teście.
      *
@@ -293,6 +291,11 @@ final class BrowserModuleTest extends TestCase
      * dotyczy panelu, a nie tego, co w nim jest. Reszta spisu zostaje nietknięta,
      * bo panel pokazujący listę zachowuje się tak, jak przed tym krokiem;
      * spisu drzewa pilnuje osobny test.
+     *
+     * Krok 41 dokłada trzy klawisze czynności zmieniających dysk (`F6`, `F7`,
+     * `F8`/`Delete`) — i one też stoją na końcu, bo dotyczą wpisu, a nie widoku.
+     * Że są w spisie **jednym** wpisem na czynność, ma znaczenie dla stopki:
+     * `F8` i `Delete` robią to samo, więc jedno wiązanie o dwóch klawiszach.
      */
     public function testKeyBindingsGrewByTheFilterOnly(): void
     {
@@ -309,6 +312,9 @@ final class BrowserModuleTest extends TestCase
                 'module.browser.help.hidden',
                 'module.browser.help.filter',
                 'module.browser.help.tree',
+                'module.browser.help.rename',
+                'module.browser.help.mkdir',
+                'module.browser.help.delete',
             ],
             $keys,
         );

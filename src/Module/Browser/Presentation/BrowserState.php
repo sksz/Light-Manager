@@ -82,6 +82,25 @@ final class BrowserState
         $this->publish();
     }
 
+    /**
+     * Ten sam katalog odczytany na nowo — po **własnej** zmianie na dysku (krok 41).
+     *
+     * Różni się od `enter()` jedną rzeczą, za to zasadniczą: **filtr zostaje**.
+     * Wejście do innego katalogu zdejmuje zawężenie, bo fragment nazwy wpisany
+     * tutaj w katalogu obok znaczy co innego (krok 30) — ale katalog odświeżony
+     * jest tym samym katalogiem, a użytkownik, który zawęził listę, żeby coś w niej
+     * znaleźć, nie prosił o powrót do pełnej za to, że zmienił nazwę.
+     *
+     * @param ?string $select nazwa, na której ma stanąć zaznaczenie; `null` znaczy
+     *                        „ta, którą niesie odczytany katalog”
+     */
+    public function refresh(Directory $directory, ?string $select = null): void
+    {
+        $keep = $select ?? $directory->selectedEntry()?->name;
+        $this->all = $directory;
+        $this->rebuild($keep);
+    }
+
     public function filter(): NameFilter
     {
         return $this->filter;

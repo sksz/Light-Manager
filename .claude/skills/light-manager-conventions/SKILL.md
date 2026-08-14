@@ -97,6 +97,21 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     `ScreenOutcome::opens()`. Pytanie przed czynnością nieodwracalną: ognisko
     startuje na odmowie, `Esc` znaczy to samo co „nie”, klawisze globalne
     przechodzą, a wariant `dangerous` maluje oprawę rolą `Danger`.
+    **Od kroku 41 okno umie dwie rzeczy więcej** (D75). Domknięcie oddaje
+    `OverlayOutcome`, a nie sam `?Message` — więc pytanie może **ustąpić miejsca**
+    kolejnemu oknu (`OverlayOutcome::replace()`; stos ma jedno piętro, więc
+    „zamknij i otwórz” musi stać się naraz). Okno prowadzące pracę deklaruje
+    `Presentation\Ui\RunsWork` i wtedy pętla pyta je **raz na takt**
+    (`advance()`), więc posuwa pracę i **zamyka się samo**, kiedy ta się skończy.
+    Pytanie pada w `GameLoop`, w fazie „aktualizuj stan”, a **nie** w rysowaniu:
+    praca zmieniająca dysk nie ma prawa dziać się w środku składania klatki — i to
+    jest cała różnica wobec pracy kawałkowej z reguły 11d, która **czyta**.
+    `ConfirmOverlay` przyjmuje ponadto drugie, opcjonalne domknięcie: sprzątanie
+    **po odmowie**, bo pytanie może stać po pracy, która już coś policzyła.
+    Dwa okna rdzenia dowiezione tą drogą: `PromptOverlay` (jedno pole na nazwę;
+    wpisanego napisu **nie ocenia**) i `ProgressOverlay` (nazwa, licznik, pasek;
+    karmiony ogólną daną `Application\Dto\WorkProgress`, a pasek pokazuje
+    dopiero wtedy, gdy praca zna swoją całość).
 11a. **Komponent jest bezstanowy** — powstaje na nowo w każdej klatce, więc co ma
     przeżyć klatkę, mieszka **obok** niego, a właścicielem jest ekran. Dwie takie
     klasy: `Presentation\Ui\ScrollWindow` (wycinek listy, krok 18) i
@@ -364,6 +379,28 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     wszystko przed pierwszą prośbą o granie, a resztę atrapą portu
     (`tests/Support/StubAudio`). Głośność jest **liczbą z listy przystanków**, bo
     `ModuleSetting::valueFrom()` sprowadza wartość spoza listy do domyślnej.
+11p. **Ognisko deklaruje się, a nie odkrywa** (krok 40, D74). Aplikacja **nie ma
+    zachowanego drzewa komponentów** (11a), więc „znajdź element z kursorem” nie
+    jest wykonalne — pyta rdzeń, a odpowiada ten, kto ognisko trzyma:
+    `Presentation\Ui\DeclaresFocus::focus()` oddaje `FocusHint`, czyli **klucz
+    etykiety miejsca plus jego wiązania**. Zdolność deklaruje się osobno, jak
+    `NeedsTime` i `DrawsOwnFrame`; ekran o jednym miejscu (pomoc) nie deklaruje
+    nic. **Nowy ekran z więcej niż jednym miejscem ognisko deklaruje** — inaczej
+    stopka będzie o nim milczeć. Pasek stanu składa `StatusHints`: trzy poziomy
+    w kolejności **miejsce → ekran albo okno nakładane → globalne wraz ze skrótami
+    modułów** (okno **wypiera** ekran, bo klawisze do niego nie schodzą),
+    ustępowanie **od końca**, `F1` przypięty, powtórzenie = ten sam zestaw klawiszy
+    **i** ten sam klucz opisu. Trzy zobowiązania przy dopisywaniu wiązania:
+    `bindings()` zostaje **pełnym** spisem (składa się z wiązań miejsca **plus**
+    własnych — okno pomocy się nie zawęża), opis dostaje **drugi, krótki klucz**
+    (`<klucz>.short`; brak znaczy „użyj długiego”), a klawisz działający w danym
+    miejscu **musi** tam stać w spisie — i odwrotnie. Pilnuje tego jeden test
+    dla wszystkich ekranów i położeń (`tests/Functional/StatusHintsFlowTest.php`).
+    Pasek wolno urosnąć do **dwóch wierszy**: to jedyna odpowiedź `HudLayout`
+    zależna od treści, wiersz bierze się **liście** (nigdy pasowi podglądu) i tylko
+    powyżej progu liczonego z tym pasem. Dawne zdanie z kroków 14 i 18 — „stopka nie
+    jest ściągawką, tylko wskazaniem, gdzie ściągawka leży” — jest **odwołane co do
+    zasięgu**; źródłem podpowiedzi pozostaje `KeyBinding`, nigdy napis w katalogu.
 11. **Nowy element interfejsu to nowy komponent w `Presentation/Ui/Component`**,
     a nie nowa metoda w rendererze. Komponent oddaje prymitywy z ról motywu i
     prostokątów w siatce znakowej — pikseli nie zna. Słownik prymitywów jest
@@ -406,6 +443,27 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     Dopisanie modułu ma kosztować **jedną zmianę w rdzeniu**: pozycję na liście
     w `Bootstrap`. Jeśli kosztuje więcej — to jest błąd do naprawienia, a nie
     powód, żeby dotknąć rdzenia.
+15b. **Reguła 15 ma dokładnie jeden wyjątek i jest on nazwany: zapis na dysk**
+    (krok 41, D66/D75). Rdzeń ma port operacji na plikach
+    (`Application\Port\FileOperationsPort` + `Infrastructure\FileSystem\FileOperationsService`),
+    choć operacji potrzebuje dziś jeden moduł. Powodem jest **druga** reguła tej
+    samej pary: „moduł nigdy nie sięga do innego modułu” znaczy przy dwóch
+    odbiorcach (przeglądarka, opis pliku) dwie kopie kodu piszącego po dysku —
+    a powtórzone `unlink()` kosztuje utratę danych w dwóch miejscach zamiast
+    w jednym. Powtórzony rachunek `permissionsAsText()` wolno było zostawić, bo
+    kosztował dziesięć linii bez skutków ubocznych.
+    **Granica wyjątku, poza którą nie wolno wyjść:** rdzeń zna *ścieżkę
+    bezwzględną jako napis*, *nazwę jako napis* (bez oceny, czy jest poprawna),
+    *cztery czynności* (zmiana nazwy, nowy katalog, usunięcie wpisu, usunięcie
+    drzewa pracą kawałkową) i *stan tej pracy*. Nie zna wpisu, katalogu,
+    sortowania, ukrywania, zaznaczenia ani podglądu — `Entry`, `Directory`,
+    `DirectoryPath` i `EntryType` nie mają prawa trafić do sygnatury niczego
+    w `src/Application` ani `src/Domain` (pilnuje `CoreKnowsNothingAboutFilesTest`).
+    Poprawność nazwy zna **moduł** (`Module\Browser\Domain\ValueObject\EntryName`),
+    a rdzeń **nie rysuje** niczego z powodu operacji: okna, klawisze i komunikaty
+    zamawia moduł. **Próba na przyszłość:** funkcja, która chce wejść do rdzenia
+    tym samym argumentem, musi mieć **dwóch odbiorców** i powtórzenie o koszcie
+    **nieodwracalnym**. Inaczej jest modułem, jak wszystko inne.
 16. **Dno stosu ekranów wskazuje konfiguracja, nie kod** (krok 21, D42). Klucz
     rdzenia `startupModule` bierze wartości **z rejestru modułów**, a wybór robi
     `Presentation\Cli\StartupScreen`. `Bootstrap` podaje mu identyfikator

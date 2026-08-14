@@ -88,6 +88,20 @@ final class BrowserSettings
 
     public const DEFAULT_TREE_DEPTH = '8';
 
+    /**
+     * Czy przed nieodwracalnym usunięciem pada pytanie (krok 41).
+     *
+     * Domyślnie **tak** i to nie jest ostrożność na zapas: `F8` leży obok
+     * klawiszy, które niczego nie psują, a usunięcie jest w tym kroku
+     * nieodwracalne — kosz i cofnięcie przynosi krok 44. Wyłączenie zostaje pod
+     * ręką dla tych, którzy wolą jedno naciśnięcie, i jest **jedyną** pozycją,
+     * którą ten krok dokłada: reszta czeka na kroki 42 i 44, bo ustawienie bez
+     * odbiorcy to przełącznik bez skutku (reguła 13).
+     */
+    public const ASK_BEFORE_DELETE = 'askBeforeDelete';
+
+    public const DEFAULT_ASK_BEFORE_DELETE = true;
+
     /** @return list<ModuleSetting> */
     public static function declarations(): array
     {
@@ -122,6 +136,14 @@ final class BrowserSettings
                 'module.' . self::ID . '.setting.' . self::TREE_DEPTH,
                 self::TREE_DEPTH_CHOICES,
                 self::DEFAULT_TREE_DEPTH,
+            ),
+            // Pozycja wchodzi **na koniec** listy i to nie jest kwestia gustu:
+            // odczyty niżej wskazują deklaracje numerem, więc wstawienie
+            // w środku przestawiłoby znaczenie wszystkich następnych.
+            ModuleSetting::toggle(
+                self::ASK_BEFORE_DELETE,
+                'module.' . self::ID . '.setting.' . self::ASK_BEFORE_DELETE,
+                self::DEFAULT_ASK_BEFORE_DELETE,
             ),
         ];
     }
@@ -170,6 +192,12 @@ final class BrowserSettings
         }
 
         return (int) $value;
+    }
+
+    /** Czy `F8` pyta, zanim usunie (krok 41). */
+    public static function asksBeforeDelete(Settings $settings): bool
+    {
+        return self::flag($settings, self::declarations()[6], self::DEFAULT_ASK_BEFORE_DELETE);
     }
 
     private static function flag(Settings $settings, ModuleSetting $setting, bool $default): bool

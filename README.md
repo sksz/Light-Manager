@@ -153,6 +153,9 @@ kosztuje w terminalu.
 | `/` | zawężenie listy fragmentem nazwy — pole filtra przy dolnej krawędzi |
 | `Tab` | przejście do drugiego panelu — tylko przy włączonym podziale |
 | `Ctrl`+`T` | panel jako **drzewo** albo z powrotem jako lista |
+| `F6` | zmiana nazwy wpisu pod kursorem |
+| `F7` | nowy katalog w katalogu panelu czynnego |
+| `F8` albo `Delete` | usunięcie wpisu pod kursorem — **nieodwracalnie** |
 | `F1` | ekran pomocy — pełna lista klawiszy |
 | `F2` | ekran ustawień |
 | `F9` | menu kontekstowe — co da się zrobić z zaznaczonym wpisem |
@@ -173,9 +176,45 @@ kończący pracę nie może być znakiem, który użytkownik właśnie wpisuje. 
 sama zmiana — **żadna litera nie jest zarezerwowana**, więc cały alfabet zostaje
 wolny dla komend i skrótów modułów.
 
-Pasek stanu u dołu wypisuje tylko klawisze rdzenia (`F1 pomoc · F2 ustawienia ·
-F12 okno komend · F10 wyjście`) — pełna ściągawka mieszka na ekranie pomocy. Nie jest tam
-przepisana ręcznie: powstaje z tych samych wiązań, które klawisze obsługują.
+Pasek stanu u dołu mówi o **miejscu, na którym stoi kursor**: najpierw jego
+nazwa i klawisze (`Panel lewy: ↑↓ zaznaczenie · Enter katalog · Backspace
+wyżej`), potem klawisze całego ekranu, a na końcu te, które działają wszędzie —
+wraz ze skrótami modułów. Przeniesienie ogniska zmienia stopkę **w tej samej
+klatce**, a przy zbyt wąskim oknie pozycje ustępują od końca: pierwsze znikają
+klawisze globalne, ostatni `F1`, bo bez niego znika droga do pełnego spisu.
+Kiedy podpowiedzi nie mieszczą się w jednym wierszu, pasek rośnie do dwóch —
+ale nigdy nie zasłania komunikatu i nigdy nie urywa pozycji w połowie słowa.
+
+Pełny spis mieszka dalej na ekranie pomocy (`F1`) i nie jest tam przepisany
+ręcznie: jedno i drugie powstaje z tych samych wiązań, które klawisze obsługują.
+
+### Operacje na plikach
+
+Trzy czynności zmieniają zawartość dysku i wszystkie trzy działają na wpisie pod
+kursorem — w liście i w drzewie. `F6` otwiera okno z **nazwą bieżącą** w polu,
+`F7` z pustym, a `Enter` zatwierdza; `Esc` odmawia i nie dotyka dysku. Nazwa jest
+nazwą, nie ścieżką: ukośnik w niej jest błędem, a nie zaproszeniem do utworzenia
+katalogu piętro niżej. Nazwa zajęta **nie zamyka okna** — jest co poprawić.
+
+`F8` (albo `Delete`) pyta, zanim usunie, i pyta w wariancie groźnym — czerwoną
+oprawą, z ogniskiem na odmowie, więc przytrzymany `Enter` trafia w „nie”. Pytanie
+można wyłączyć pozycją „Pytaj przed usunięciem” w ustawieniach modułu.
+
+Katalog usuwa się **wraz z zawartością**, ale nie po cichu: aplikacja najpierw
+liczy, ile wpisów zniknie, i podaje tę liczbę w pytaniu. Przy dużym drzewie
+liczenie i usuwanie **nie zatrzymują aplikacji** — idą po kawałku na klatkę,
+a okno pokazuje nazwę, licznik „N z M” i pasek postępu. `Esc` przerywa i mówi
+uczciwie, ile już zniknęło: usunięcia połowy drzewa nie da się cofnąć. Kosz
+i cofanie przyniesie osobny krok planu.
+
+Skutek widać **w tej samej klatce w obu panelach**, jeśli oba patrzą na ten sam
+katalog — a panel, któremu usunięto katalog pod nogami, wchodzi do najbliższego
+czytelnego wyżej. Zmiana zrobiona spoza aplikacji nadal wymaga wejścia do
+katalogu na nowo: aplikacja odświeża listę po **własnej** operacji.
+
+Zmiana nazwy i nowy katalog mają drugie wejście — komendy `browser.rename <nazwa>`
+i `browser.mkdir <nazwa>` w oknie komend (`F12`). Nazwa ze spacją idzie
+w cudzysłowach.
 
 Przeglądarkę można podzielić na **dwa panele** — dwa katalogi, dwa kursory,
 niezależne od siebie. Włącza się to w ustawieniach modułu („Podział na dwa
@@ -187,7 +226,8 @@ obok siebie — pozycja „Panele obok siebie” przestawia je jeden nad drugi.
 Podział **nie powstaje w oknie węższym niż 72 kolumny** (a przy układzie
 poziomym — niższym niż 14 wierszy w strefie listy). Poniżej progu widać jeden
 panel i klatka wygląda dokładnie tak, jak przed włączeniem. To ta sama zasada,
-którą kieruje się pas podglądu: dwa panele w wąskim oknie **mieszczą się**
+którą kierował się pas podglądu, dopóki przeglądarka go miała: dwa panele w wąskim
+oknie **mieszczą się**
 arytmetycznie, ale nazw plików nie da się w nich przeczytać.
 
 Podział jest sprawą modułu, a nie okna: `F1`, `F2` i skrót modułu zastępują cały
@@ -217,11 +257,11 @@ Ile poziomów wolno rozwinąć, rozstrzyga pozycja „Poziomy drzewa (Ctrl+T)”
 w ustawieniach modułu; wartość `∞` znaczy „bez limitu”. Przy limicie osiągniętym
 `→` melduje się zdaniem w pasku stanu, zamiast nie robić nic.
 
-Zaznaczenie pliku graficznego pokazuje jego miniaturę w pasie u dołu klatki,
-wraz z wymiarami i formatem. Pas pojawia się w oknie wysokim na co najmniej
-16 wierszy. Pliki uszkodzone, większe niż 32 MB albo o rozdzielczości powyżej
-50 Mpx dostają zamiast miniatury ramkę z powodem. W trybie tekstowym zostaje
-sam wiersz podpisu — fallback z definicji nie pokazuje bitmap.
+Miniatury **przeglądarka nie pokazuje**: pasa podglądu pod panelami nie ma, a jego
+wiersze dostaje lista plików. Miniaturę zaznaczonego pliku — wraz z wymiarami,
+formatem i podglądem treści tekstowej — pokazuje moduł opisu pliku (`Ctrl`+`D`),
+i pokazuje ją w całym panelu, a nie w czterech wierszach nad paskiem stanu. Dwa
+miejsca robiące to samo znaczyły dwa razy ten sam odczyt obrazu w klatce.
 
 ### Okno komend
 
@@ -387,7 +427,8 @@ pięć punktów zaczepienia i deklaruje tylko te, których naprawdę potrzebuje:
 
 1. własne okno wraz ze skrótem `Ctrl`+litera. Okno to **trzy strefy klatki**:
    górny pas, środkowy panel i pas podglądu — moduł zamawia te, które ma czym
-   wypełnić, a rdzeń rysuje ich oprawę i pasek stanu,
+   wypełnić, a rdzeń rysuje ich oprawę i pasek stanu (pasa podglądu nie zamawia
+   dziś żaden moduł: opis pliku rysuje miniaturę w swoim własnym panelu),
 2. własną zakładkę w oknie konfiguracji, opisaną danymi — rdzeń ją rysuje,
    prowadzi po niej kursor i zapisuje wartości,
 3. własną zakładkę w oknie pomocy: część automatyczną rdzeń składa z deklaracji

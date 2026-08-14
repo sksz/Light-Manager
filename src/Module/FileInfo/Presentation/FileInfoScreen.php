@@ -25,7 +25,9 @@ use LightManager\Presentation\Ui\Component\ProgressBar;
 use LightManager\Presentation\Ui\Component\Section;
 use LightManager\Presentation\Ui\Component\SectionList;
 use LightManager\Presentation\Ui\Component\Split;
+use LightManager\Presentation\Ui\DeclaresFocus;
 use LightManager\Presentation\Ui\DrawsOwnFrame;
+use LightManager\Presentation\Ui\FocusHint;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\Module\ReadsContext;
 use LightManager\Presentation\Ui\NeedsTime;
@@ -62,7 +64,13 @@ use LightManager\Presentation\Ui\SplitState;
  * wędrowania potrzebny jest zegar. Ekran bierze go z pętli, nie z `microtime()` —
  * tą samą drogą, którą od kroku 19 chodzi do karetki w polu tekstowym (reguła 11b).
  */
-final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable, DrawsOwnFrame, NeedsTime
+final class FileInfoScreen implements
+    ScreenInterface,
+    ReadsContext,
+    Resettable,
+    DrawsOwnFrame,
+    NeedsTime,
+    DeclaresFocus
 {
     /**
      * Poniżej tylu kolumn wartość nie zawija się, tylko przycina.
@@ -91,8 +99,12 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
      * Klasa jest ta sama, którą podział przeglądarki ma od kroku 24 — wraz
      * z regułą „brak podziału sprowadza ognisko na pierwszy panel”, bez której
      * wąskie okno zostawiałoby klawisze u panelu, którego nie widać.
+     *
+     * Nazwa pola zmieniła się w kroku 40 z `$focus` na `$focusState`, żeby nie
+     * czytało się jak metoda `focus()` z `DeclaresFocus`: jedno jest **stanem
+     * między klatkami**, drugie **odpowiedzią dla paska stanu**.
      */
-    private readonly SplitState $focus;
+    private readonly SplitState $focusState;
 
     /**
      * Czy **ostatnia** klatka miała dwa panele.
@@ -117,7 +129,7 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
     ) {
         $this->window = new ScrollWindow();
         $this->sections = new SectionState();
-        $this->focus = new SplitState();
+        $this->focusState = new SplitState();
         $this->sizes = new SizeText($translator);
     }
 
@@ -189,7 +201,7 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
             // Panel z ogniskiem poznaje się po akcencie w nawiasach i w etykiecie
             // — dokładnie tak, jak panel czynny w przeglądarce od kroku 24.
             // Bez tego przeniesienie ogniska byłoby ruchem bez śladu na ekranie.
-            $focused = $this->focus->focusesSecond() === ($index === 1);
+            $focused = $this->focusState->focusesSecond() === ($index === 1);
             $panel = new Panel(
                 $this->translator->translate($labels[$index]),
                 Role::Border,
@@ -572,30 +584,71 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
      */
     public function bindings(): array
     {
-        $bindings = [];
-
-        if ($this->focus->focusesSecond()) {
-            $bindings[] = KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'module.file-info.help.scrollLine');
-            $bindings[] = KeyBinding::of([Key::PageUp, Key::PageDown], 'module.file-info.help.scrollPreview');
-            $bindings[] = KeyBinding::of([Key::Home, Key::End], 'module.file-info.help.edges');
-        } else {
-            $bindings[] = KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move');
-            $bindings[] = KeyBinding::of([Key::Enter], 'help.key.collapse');
-            $bindings[] = KeyBinding::of([Key::Home, Key::End], 'module.file-info.help.sectionEdges');
-        }
+        $bindings = $this->focus()->bindings;
 
         // Klawisz ogniska pokazujemy dopiero wtedy, gdy jest dokąd je przenieść —
         // w wąskim oknie prawego panelu nie ma.
         if ($this->splits) {
-            $bindings[] = KeyBinding::of([Key::Tab], 'module.file-info.help.focus');
+            $bindings[] = KeyBinding::of([Key::Tab], 'module.file-info.help.focus', 'module.file-info.help.focus.short');
         }
 
-        $bindings[] = KeyBinding::alt('z', 'module.file-info.help.wrap');
-        $bindings[] = KeyBinding::character('s', 'module.file-info.help.checksum');
-        $bindings[] = KeyBinding::character('d', 'module.file-info.help.diskUsage');
-        $bindings[] = KeyBinding::of([Key::Escape], 'help.key.back');
+        $bindings[] = KeyBinding::alt('z', 'module.file-info.help.wrap', 'module.file-info.help.wrap.short');
+        $bindings[] = KeyBinding::character(
+            's',
+            'module.file-info.help.checksum',
+            'module.file-info.help.checksum.short',
+        );
+        $bindings[] = KeyBinding::character(
+            'd',
+            'module.file-info.help.diskUsage',
+            'module.file-info.help.diskUsage.short',
+        );
+        $bindings[] = KeyBinding::of([Key::Escape], 'help.key.back', 'help.key.back.short');
 
         return $bindings;
+    }
+
+    /**
+     * Ognisko: sekcje albo podgląd tekstu — **najbogatszy odbiorca kroku 40**
+     * i jego właściwy sprawdzian.
+     *
+     * Ten ekran jest jedynym, w którym ten sam klawisz znaczy w dwóch miejscach
+     * dwie różne rzeczy: `↑↓` przewija sekcje po lewej, a linijki podglądu po
+     * prawej (D60). Do kroku 40 stopka milczała o obu naraz, więc jedyną drogą do
+     * tej wiedzy było okno pomocy — a ono pokazuje **oba** panele i nie mówi,
+     * który z nich odpowiada teraz.
+     */
+    public function focus(): FocusHint
+    {
+        if ($this->focusState->focusesSecond()) {
+            return new FocusHint('module.file-info.focus.preview', [
+                KeyBinding::of(
+                    [Key::ArrowUp, Key::ArrowDown],
+                    'module.file-info.help.scrollLine',
+                    'module.file-info.help.scrollLine.short',
+                ),
+                KeyBinding::of(
+                    [Key::PageUp, Key::PageDown],
+                    'module.file-info.help.scrollPreview',
+                    'module.file-info.help.scrollPreview.short',
+                ),
+                KeyBinding::of(
+                    [Key::Home, Key::End],
+                    'module.file-info.help.edges',
+                    'module.file-info.help.edges.short',
+                ),
+            ]);
+        }
+
+        return new FocusHint('module.file-info.focus.sections', [
+            KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move', 'help.key.move.short'),
+            KeyBinding::of([Key::Enter], 'help.key.collapse', 'help.key.collapse.short'),
+            KeyBinding::of(
+                [Key::Home, Key::End],
+                'module.file-info.help.sectionEdges',
+                'module.file-info.help.sectionEdges.short',
+            ),
+        ]);
     }
 
     public function handle(KeyPress $key): ScreenOutcome
@@ -614,7 +667,7 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
             $this->isLetter($key, 'z', alt: true) => ScreenOutcome::stay($this->state->toggleTextWrap()),
             $this->isLetter($key, 's') => $this->startChecksum(),
             $this->isLetter($key, 'd') => $this->startDiskUsage(),
-            $this->focus->focusesSecond() => $this->toPreview($key),
+            $this->focusState->focusesSecond() => $this->toPreview($key),
             default => $this->toSections($key),
         };
     }
@@ -627,7 +680,7 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
     private function moveFocus(): ScreenOutcome
     {
         if ($this->splits) {
-            $this->focus->moveFocus();
+            $this->focusState->moveFocus();
         }
 
         return ScreenOutcome::stay();
@@ -730,7 +783,7 @@ final class FileInfoScreen implements ScreenInterface, ReadsContext, Resettable,
     private function splitsIn(Rect $zone): bool
     {
         $this->splits = $zone->rows >= 3 && Split::fits($zone, SplitAxis::Vertical);
-        $this->focus->useSplit($this->splits);
+        $this->focusState->useSplit($this->splits);
 
         return $this->splits;
     }

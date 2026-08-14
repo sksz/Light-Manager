@@ -28,7 +28,6 @@ return [
     'layout.zone.preview' => 'PREVIEW',
     'layout.zone.command' => 'COMMANDS',
 
-    'settings.hints' => '↑↓ move · ←→ change · Esc back',
     'settings.tab.appearance' => 'APPEARANCE',
     'settings.tab.graphics' => 'GRAPHICS',
     'settings.tab.modules' => 'MODULES',
@@ -73,6 +72,25 @@ return [
     'help.key.fullscreen' => 'fullscreen',
     'help.key.menu' => 'context menu',
 
+    // Short descriptions — for the status bar only (step 40).
+    'help.key.move.short' => 'select',
+    'help.key.back.short' => 'back',
+    'help.key.change.short' => 'value',
+    'help.key.tab.short' => 'tab',
+    'help.key.restore.short' => 'restore',
+    'help.key.commands.short' => 'commands',
+    'help.key.edit.short' => 'edit',
+    'help.key.commit.short' => 'commit',
+    'help.key.cancel.short' => 'discard',
+    'help.key.collapse.short' => 'collapse',
+    'help.key.menu.short' => 'menu',
+
+    // Names of the places the focus visits on the core screens (step 40).
+    'settings.focus.tabs' => 'Tabs',
+    'settings.focus.item' => 'Item',
+    'settings.focus.action' => 'Action',
+    'settings.focus.edit' => 'Editing',
+
     // Module tab in the help window — headings of the declared part.
     'help.module.shortcut' => 'Shortcut',
     'help.module.open' => 'open the module window',
@@ -103,6 +121,17 @@ return [
     'confirm.key.move' => 'change the answer',
     'confirm.key.answer' => 'confirm',
     'confirm.key.refuse' => 'refuse',
+
+    // Name prompt and progress overlays (step 41). Both live in the core because
+    // steps 42 and 44 will ask for them too — they know nothing about files.
+    'prompt.name' => 'name: ',
+    'prompt.key.accept' => 'accept the name',
+    'prompt.key.accept.short' => 'accept',
+    'prompt.key.cancel' => 'abandon typing',
+    'prompt.key.cancel.short' => 'abandon',
+    'progress.counter' => '{done} of {total}',
+    'progress.key.cancel' => 'stop the work',
+    'progress.key.cancel.short' => 'stop',
     'command.history' => 'history',
     'command.dump.requested' => 'Next frame will be written to {file}-prymitywy.txt and {file}.png',
     'command.problem.empty' => 'no command name was typed',
@@ -204,6 +233,14 @@ return [
     'problem.missingImagick' => 'ERROR: the PHP extension "imagick" is not loaded — without it the screen '
         . 'frame cannot be built.',
     'problem.unexpected' => 'This operation could not be completed.',
+
+    // Failures of the disk-changing actions (step 41). The sentences live in the
+    // core because the write port does — and they speak of the **name** only.
+    'problem.fileops.missing' => 'Entry "{name}" is gone.',
+    'problem.fileops.taken' => 'The name "{name}" is already taken.',
+    'problem.fileops.denied' => 'No permission to change "{name}".',
+    'problem.fileops.notEmpty' => 'Directory "{name}" is not empty.',
+    'problem.fileops.failed' => 'The action on "{name}" failed: {detail}',
 
     // Background work (step 26). The reasons belong to the core because they
     // speak about the process, not about what it was started for.

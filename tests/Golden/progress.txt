@@ -2,12 +2,12 @@ plane chrome rect=0,0 30x100 opaque=0 primitives=8
   R0,1,3,98,-,Border,Round
   C0,1,3,98,Accent,Round
   T0,8,Muted,Background,PATH
-  R3,1,24,98,-,Border,Round
-  C3,1,24,98,Accent,Round
+  R3,1,23,98,-,Border,Round
+  C3,1,23,98,Accent,Round
   T3,8,Muted,Background,FILES
-  R27,1,3,98,-,Border,Round
-  C27,1,3,98,Accent,Round
-plane content rect=0,0 30x100 opaque=0 primitives=70
+  R26,1,4,98,-,Border,Round
+  C26,1,4,98,Accent,Round
+plane content rect=0,0 30x100 opaque=0 primitives=68
   B4,2,1,96,Surface,Fill
   T4,36,Text,-,sha256 pliku obraz-00.jpg 0%
   B5,2,1,96,Surface,Fill
@@ -76,5 +76,3 @@ plane content rect=0,0 30x100 opaque=0 primitives=70
   B24,2,1,96,Surface,Fill
   B24,2,1,96,Accent,Fill
   T24,35,Background,-,sha256 pliku obraz-20.jpg 100%
-  B25,2,1,96,Surface,Fill
-  T25,36,Text,-,sha256 pliku obraz-21.jpg 0%

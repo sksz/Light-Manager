@@ -10,7 +10,7 @@ use LightManager\Application\Module\ModuleSettingsTab;
 use LightManager\Application\Module\ModuleShortcut;
 use LightManager\Application\Module\ProvidesCommands;
 use LightManager\Application\Module\ProvidesSettingsTab;
-use LightManager\Application\Port\ImagePreviewPort;
+use LightManager\Application\Port\FileOperationsPort;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
@@ -21,8 +21,7 @@ use LightManager\Module\Browser\Application\UseCase\MoveSelectionUseCase;
 use LightManager\Module\Browser\Application\UseCase\NavigateIntoDirectoryUseCase;
 use LightManager\Module\Browser\Application\UseCase\NavigateUpUseCase;
 use LightManager\Module\Browser\Application\UseCase\OpenStartingDirectoryUseCase;
-use LightManager\Module\Browser\Application\UseCase\PreviewSelectedEntryUseCase;
-use LightManager\Module\Browser\Application\UseCase\ToggleHiddenEntriesUseCase;
+use LightManager\Module\Browser\Application\UseCase\ReloadDirectoryUseCase;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Domain\Repository\DirectoryRepositoryInterface;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
@@ -30,7 +29,9 @@ use LightManager\Module\Browser\Infrastructure\EntryComparator;
 use LightManager\Module\Browser\Infrastructure\FilesystemDirectoryRepository;
 use LightManager\Module\Browser\Presentation\Command\HiddenCommand;
 use LightManager\Module\Browser\Presentation\Command\JumpCommand;
+use LightManager\Module\Browser\Presentation\Command\MakeDirectoryCommand;
 use LightManager\Module\Browser\Presentation\Command\OpenCommand;
+use LightManager\Module\Browser\Presentation\Command\RenameCommand;
 use LightManager\Module\Browser\Presentation\Command\TreeCommand;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
@@ -47,7 +48,9 @@ use LightManager\Presentation\Ui\ScreenInterface;
  * niego ani jednej metody** — to jest cały sprawdzian.
  *
  * Moduł **składa się sam**. `Bootstrap` podaje mu wyłącznie rzeczy rdzenia: stan
- * pętli, tłumacza, port konfiguracji i port podglądu obrazów. Repozytorium
+ * pętli, tłumacza, port konfiguracji i port operacji na plikach. Portu podglądu
+ * obrazów **już nie bierze** (D76): pas podglądu zniknął z przeglądarki, bo
+ * miniaturę pokazuje moduł `FileInfo`. Repozytorium
  * katalogów, przypadki użycia, ekran, stan modułu i komenda powstają tutaj — gdyby
  * powstawały w `Bootstrapie`, rdzeń poznałby `FilesystemDirectoryRepository`
  * i `DirectoryPath`, czyli dokładnie to, czego ten krok mu odbiera.
@@ -84,7 +87,7 @@ final class BrowserModule implements
         private readonly LoopState $state,
         private readonly TranslatorPort $translator,
         private readonly SettingsPort $settings,
-        private readonly ImagePreviewPort $images,
+        private readonly FileOperationsPort $operations,
         private readonly ?DirectoryRepositoryInterface $directories = null,
         private readonly ?DirectoryPath $startingPath = null,
     ) {
@@ -143,13 +146,29 @@ final class BrowserModule implements
         // na liście i komendy `browser.hidden`. Ekran i komenda dostają ten sam
         // obiekt, bo czynność jest jedna — dwa obiekty znaczyłyby dwa rachunki
         // tego samego ustawienia.
+        $reload = new ReloadDirectoryUseCase($directories);
         $hidden = new HiddenEntries(
             $panes,
-            new ToggleHiddenEntriesUseCase($directories),
+            $reload,
             new ChangeModuleSettingUseCase($this->settings, $this->translator),
             $this->state,
         );
         $navigateInto = new NavigateIntoDirectoryUseCase($directories);
+
+        // Trzy czynności zmieniające dysk — jedna klasa dla klawisza i dla komendy
+        // (krok 41, wzorzec `HiddenEntries`). Odczyt katalogu po operacji idzie
+        // tym samym przypadkiem użycia, którym idzie przełączenie wpisów ukrytych,
+        // a katalog panelu, któremu usunięto przodka, wraca do najbliższego
+        // czytelnego wyżej — czyli tam, gdzie prowadzi otwieranie katalogu
+        // startowego.
+        $entries = new EntryOperations(
+            $panes,
+            $this->operations,
+            $reload,
+            new OpenStartingDirectoryUseCase($directories),
+            $this->state,
+            $this->translator,
+        );
 
         return [
             new BrowserScreen(
@@ -159,14 +178,16 @@ final class BrowserModule implements
                 $navigateInto,
                 new NavigateUpUseCase($directories),
                 $hidden,
-                new PreviewSelectedEntryUseCase($this->images, $this->translator),
                 $this->translator,
+                $entries,
             ),
             [
                 new JumpCommand($panes, $directories, $this->translator),
                 new OpenCommand($panes, $navigateInto, $this->translator),
                 new HiddenCommand($hidden, $this->translator),
                 new TreeCommand($panes),
+                new RenameCommand($entries, $this->translator),
+                new MakeDirectoryCommand($entries, $this->translator),
             ],
         ];
     }

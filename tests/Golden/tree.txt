@@ -2,12 +2,12 @@ plane chrome rect=0,0 30x100 opaque=0 primitives=8
   R0,1,3,98,-,Border,Round
   C0,1,3,98,Accent,Round
   T0,8,Muted,Background,PATH
-  R3,1,24,98,-,Border,Round
-  C3,1,24,98,Accent,Round
+  R3,1,23,98,-,Border,Round
+  C3,1,23,98,Accent,Round
   T3,8,Muted,Background,FILES
-  R27,1,3,98,-,Border,Round
-  C27,1,3,98,Accent,Round
-plane content rect=0,0 30x100 opaque=0 primitives=32
+  R26,1,4,98,-,Border,Round
+  C26,1,4,98,Accent,Round
+plane content rect=0,0 30x100 opaque=0 primitives=30
   T4,2,Accent,-,├─▼ katalog-00-00/
   R5,2,1,96,Selection,-,Soft
   B5,2,1,96,Accent,Edge
@@ -37,6 +37,4 @@ plane content rect=0,0 30x100 opaque=0 primitives=32
   T23,2,Text,-,│ │ └─  plik-01-02.txt
   T23,92,Text,-,3,1 kB
   T24,2,Accent,-,│ ├─▶ katalog-01-01/
-  T25,2,Text,-,│ └─  plik-01-02.txt
-  T25,92,Text,-,3,1 kB
-  S4,97,22,1,44,22,110,Border,Accent
+  S4,97,21,1,42,21,105,Border,Accent

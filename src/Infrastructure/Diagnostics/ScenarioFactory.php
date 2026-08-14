@@ -38,8 +38,10 @@ use LightManager\Presentation\Ui\Component\TreeView;
 use LightManager\Presentation\Ui\ComponentInterface;
 use LightManager\Presentation\Ui\Container\Slot;
 use LightManager\Presentation\Ui\Container\VStack;
+use LightManager\Presentation\Ui\Hint;
 use LightManager\Presentation\Ui\HudLayout;
 use LightManager\Presentation\Ui\SplitAxis;
+use LightManager\Presentation\Ui\StatusHints;
 
 /**
  * Buduje treść mierzonych klatek.
@@ -72,7 +74,39 @@ final class ScenarioFactory
 {
     private const SAMPLE_PATH = '/home/uzytkownik/projekty/light-manager/src/Infrastructure';
 
-    private const HINTS = 'F1 pomoc · F2 ustawienia · F10 wyjście';
+    /**
+     * Stopka mierzonej klatki — **taka, jaką aplikacja naprawdę rysuje** od kroku
+     * 40: klawisze panelu z ogniskiem wraz z nazwą miejsca, potem klawisze ekranu,
+     * na końcu globalne i skrót modułu.
+     *
+     * Do kroku 40 stała tu `'F1 pomoc · F2 ustawienia · F10 wyjście'` — trzy
+     * pozycje, których aplikacja nie miała już wtedy (rdzeń ma pięć klawiszy od
+     * kroku 32). Scenariusze mierzyły więc stopkę krótszą od prawdziwej, a zmiana
+     * jej treści nie zmieniała w pomiarze nic. Napisy są nietłumaczone — to jawny
+     * wyjątek D33: liczy się ich **długość w znakach**, bo to ona kosztuje przy
+     * rasteryzacji.
+     *
+     * @var list<string>
+     */
+    private const HINTS = [
+        'Lista: ↑ / ↓ zaznaczenie',
+        'Enter / → katalog',
+        'Backspace / ← wyżej',
+        '. ukryte',
+        '/ filtr',
+        'Ctrl+T drzewo',
+        'F1 pomoc',
+        'F2 ustawienia',
+        'F9 menu',
+        'F12 komendy',
+        'F10 wyjście',
+        'Ctrl+D Opis pliku',
+    ];
+
+    /** Która pozycja stopki jest przypięta — `F1`, jak w aplikacji. */
+    private const PINNED_HINT = 6;
+
+    private const MESSAGE = '· Pomiar wydajności potoku renderowania.';
 
     private const POPUP_LINES = 6;
 
@@ -137,7 +171,17 @@ final class ScenarioFactory
     {
         $rows = max(1, $this->options->rows);
         $columns = max(1, $this->options->columns);
-        $layout = new HudLayout($rows, $columns, withPreview: $scenario === Scenario::Thumbnail);
+        $layout = new HudLayout(
+            $rows,
+            $columns,
+            withPreview: $scenario === Scenario::Thumbnail,
+            // Pytanie zadane dokładnie tak, jak zadaje je `FrameComposer` — inaczej
+            // scenariusz mierzyłby pasek jednowierszowy, a aplikacja rysowała
+            // dwuwierszowy.
+            wideStatus: !self::hints()->fitInOneRow(
+                StatusBar::hintColumns(HudLayout::contentColumns($columns), self::MESSAGE),
+            ),
+        );
         $window = new Rect(0, 0, $rows, $columns);
 
         $planes = [new Plane('chrome', $window, $this->chrome($scenario, $layout))];
@@ -462,8 +506,26 @@ final class ScenarioFactory
     /** @return list<Primitive> */
     private function statusLine(HudLayout $layout): array
     {
-        return (new StatusBar('· Pomiar wydajności potoku renderowania.', Role::Info, self::HINTS))
+        return (new StatusBar(self::MESSAGE, Role::Info, self::hints()))
             ->draw(HudLayout::contentOf($layout->status, $layout->statusIsPanel()));
+    }
+
+    /**
+     * Podpowiedzi mierzonej klatki, złożone z gotowych napisów.
+     *
+     * Aplikacja składa je z `KeyBinding` i katalogu napisów; tu przychodzą wprost,
+     * bo pomiar nie ma ekranu, który by je zadeklarował — a rachunek ustępowania
+     * i pakowania w wiersze jest **ten sam**, bo robi go ta sama klasa.
+     */
+    private static function hints(): StatusHints
+    {
+        $items = [];
+
+        foreach (self::HINTS as $index => $text) {
+            $items[] = new Hint($text, $index === self::PINNED_HINT);
+        }
+
+        return new StatusHints($items);
     }
 
     /**

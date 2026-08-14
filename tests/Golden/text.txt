@@ -1,5 +1,5 @@
 plane chrome rect=0,0 30x100 opaque=0 primitives=0
-plane content rect=0,0 30x100 opaque=0 primitives=49
+plane content rect=0,0 30x100 opaque=0 primitives=47
   T0,2,Accent,-,katalog-0000/
   T1,2,Text,-,plik-0001.txt
   T1,92,Text,-,2,1 kB
@@ -47,5 +47,3 @@ plane content rect=0,0 30x100 opaque=0 primitives=49
   T24,2,Accent,-,katalog-0024/
   T25,2,Text,-,plik-0025.txt
   T25,91,Text,-,26,5 kB
-  T26,2,Text,-,plik-0026.txt
-  T26,91,Text,-,27,6 kB

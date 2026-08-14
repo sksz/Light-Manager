@@ -115,6 +115,18 @@ return [
     'module.file-info.help.sectionEdges' => 'first and last section',
     'module.file-info.help.focus' => 'move between the description and the preview',
     'module.file-info.help.wrap' => 'wrap lines in the preview',
+
+    // Short descriptions for the status bar and names of both focused places (step 40).
+    'module.file-info.help.checksum.short' => 'checksum',
+    'module.file-info.help.diskUsage.short' => 'disk usage',
+    'module.file-info.help.scrollPreview.short' => 'by panel',
+    'module.file-info.help.scrollLine.short' => 'by row',
+    'module.file-info.help.edges.short' => 'file edges',
+    'module.file-info.help.sectionEdges.short' => 'edges',
+    'module.file-info.help.focus.short' => 'pane',
+    'module.file-info.help.wrap.short' => 'wrap',
+    'module.file-info.focus.sections' => 'Description',
+    'module.file-info.focus.preview' => 'Preview',
     'module.file-info.help.enter' => 'The description covers the entry selected in the file list — '
         . 'directories included.',
     'module.file-info.help.sections' => 'Enter collapses a section; the checksum starts only after you '

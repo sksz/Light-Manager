@@ -87,6 +87,38 @@ test chodzący po przestrzeniach nazw (`CoreKnowsNothingAboutFilesTest`).
 wyjątków — i **to nie jest niedopatrzenie**: to słownik powłoki terminalowej,
 czyli tego, czym aplikacja jest po odjęciu wszystkich modułów.
 
+#### Jedyny wyjątek: zapis na dysk (krok 41, D66/D75)
+
+Od kroku 41 rdzeń **umie zmienić dysk** i jest to jawny, nazwany wyjątek od
+reguły „nowa funkcja to moduł” oraz częściowe odwrócenie zasady wyżej. Powodem
+jest druga reguła tej samej pary: „moduł nigdy nie sięga do innego modułu”
+znaczyłoby przy dwóch odbiorcach (przeglądarka, opis pliku) **dwie kopie kodu
+piszącego po dysku** — a powtórzone `unlink()` kosztuje utratę danych w dwóch
+miejscach zamiast w jednym. Powtórzony rachunek praw dostępu
+(`Entry::permissionsAsText()`) wolno było zostawić w dwóch miejscach, bo
+kosztował dziesięć linii bez skutków ubocznych.
+
+Granica tej wiedzy jest **wąska i szersza być nie ma prawa**:
+
+| Rdzeń **wie** | Rdzeń **nadal nie wie** |
+|---|---|
+| ścieżka bezwzględna jako **napis** | czym jest wpis katalogu (`Entry`) |
+| nazwa jako **napis** — bez oceny, czy jest poprawna | czym jest katalog (`Directory`, `DirectoryPath`) i jego ścieżka jako pojęcie |
+| cztery czynności: zmiana nazwy, nowy katalog, usunięcie wpisu, usunięcie drzewa | sortowanie, ukrywanie, zaznaczenie, podgląd, filtr |
+| stan pracy usuwania (`RemovalState`) i stan pracy do pokazania (`WorkProgress`) | po co ta czynność zachodzi i co ma się odświeżyć potem |
+
+Praktyczne skutki, których pilnuje test: `Entry`, `Directory`, `DirectoryPath`
+i `EntryType` **nie mają prawa** pojawić się w sygnaturze niczego w
+`src/Application` ani `src/Domain`; poprawność nazwy sprawdza **moduł**
+(`Module/Browser/Domain/ValueObject/EntryName`), bo tylko on wie, czym jest
+nazwa wpisu; rdzeń **nie rysuje** niczego z powodu operacji — okna, klawisze
+i komunikaty zamawia moduł.
+
+Kod: `Application/Port/FileOperationsPort` (kontrakt),
+`Infrastructure/FileSystem/FileOperationsService` (Singleton, jedyne miejsce
+piszące po dysku obok `SettingsService`), `Domain/Exception/FileOperationException`
+(niepowodzenie, które samo podaje zdanie dla użytkownika).
+
 **Reguła zależności** — strzałki tylko „do środka”:
 
 ```
@@ -173,12 +205,17 @@ komunikat, podgląd, tryb renderowania i położenie okna listy.
 | Widok tekstu | `TextView` | Presentation | `Presentation/Ui/Component` | Treść pliku w prostokącie (krok 29). Dostaje **gotowe wiersze**, a nie ścieżkę: nie czyta, nie dekoduje, nie zna pliku ani kodowania. Zawijanie łamie **po znaku, nie po słowie** (podgląd kodu ma pokazywać wcięcia) i **nie ma górnego progu**: wiersz dłuższy od całego prostokąta wypełnia panel, bo rysowanie kończy się na dolnej krawędzi tak czy owak (poprawka z 2026-08-12; wcześniej próg sprawiał, że najdłuższe wiersze jako jedyne się nie zawijały). Suwakowi oddaje kolumnę, zamiast kłaść go na treści jak `ListView` — i oddaje ją **z chwilą podania położenia**, a kolumnę numerów liczy z wysokości prostokąta, żeby szerokość treści nie zmieniała się wraz z treścią. Regułę tej szerokości wystawia `contentColumns()`, bo potrzebuje jej także ten, kto czyta plik. |
 | Drzewo | `TreeNode`, `TreeView` | Presentation | `Presentation/Ui/Component` | Drzewo **już spłaszczone** (krok 31), czyli wpisane w listę wierszy. `TreeNode` jest **daną** (jak `ListRow` i `Section`) i nie ma ani wskaźnika na rodzica, ani listy dzieci; `TreeView` liczy wcięcie, prowadnice (`│`, `├─`, `└─`) i znacznik gałęzi, wycina okno, a rysowanie oddaje `ListView`owi. Wcięcie ustępuje **od lewej**, gdy nazwie zostałoby mniej niż `MINIMUM_LABEL` kolumn. |
 | Kursor | `FocusableInterface` | Presentation | `Presentation/Ui` | Komponent przyjmujący klawisze; `handle()` oddaje `bool`, więc nieobsłużony klawisz wędruje wyżej. |
-| Wiązanie klawisza | `KeyBinding` | Presentation | `Presentation/Ui` | Klawisz wraz z kluczem opisu — jedno źródło dla obsługi, podpowiedzi w stopce i spisu w pomocy. |
-| Ekran | `ScreenInterface` | Presentation | `Presentation/Ui` | Treść **trzech stref** klatki wraz z obsługą klawiszy: górnego pasa (`header()`), środkowego panelu (`draw()`) i pasa podglądu (`preview()`). Rdzeniowi zostają oprawa stref i pasek stanu. |
+| Ognisko | `DeclaresFocus`, `FocusHint` | Presentation | `Presentation/Ui` | **Miejsce, na którym stoi kursor** — nazwane i zadeklarowane przez ekran (krok 40). `FocusHint` niesie klucz etykiety miejsca i jego wiązania; zdolność `DeclaresFocus` deklaruje się osobno, jak `NeedsTime`, bo ekran o jednym miejscu nie ma czego deklarować. Ogniska **nie da się odkryć**: drzewa komponentów aplikacja nie przechowuje. |
+| Wiązanie klawisza | `KeyBinding` | Presentation | `Presentation/Ui` | Klawisz wraz z **dwoma** kluczami opisu — długim dla okna pomocy i krótkim dla paska stanu (krok 40; brak krótkiego znaczy „użyj długiego”). Jedno źródło dla obsługi, podpowiedzi w stopce i spisu w pomocy. |
+| Podpowiedzi stopki | `StatusHints`, `Hint` | Presentation | `Presentation/Ui` | Trzy poziomy złożone w jeden ciąg: **miejsce z ogniskiem → ekran albo okno nakładane → klawisze globalne wraz ze skrótami modułów**. Ustępowanie idzie od końca, powtórzenia odsiewa zgodność klawiszy **i** klucza opisu, `F1` jest przypięty. Pozycja nie mieści się w całości — znika w całości. |
+| Ekran | `ScreenInterface` | Presentation | `Presentation/Ui` | Treść **trzech stref** klatki wraz z obsługą klawiszy: górnego pasa (`header()`), środkowego panelu (`draw()`) i pasa podglądu (`preview()`). Rdzeniowi zostają oprawa stref i pasek stanu. **Pasa podglądu nie zamawia dziś żaden ekran** (D76): przeglądarka go straciła, a opis pliku rysuje miniaturę w swoim prawym panelu — strefa zostaje w kontrakcie, bo `null` jest jej poprawną odpowiedzią od kroku 21. |
 | Strefa ekranu | `ScreenZone` | Presentation | `Presentation/Ui` | Zamówienie strefy skrajnej: klucz etykiety obwódki plus komponent z treścią. `null` znaczy „strefa nie powstaje, jej wiersze idą do środka”. |
 | Kontekst sesji | `ModuleContext` | Application | `Application/Module` | Gdzie użytkownik stoi i co ma zaznaczone — **dane pierwotne** (napis, napis, enum). Publikuje go ten, kto zna bieżące miejsce; czyta każdy ekran z `ReadsContext`. |
 | Okno nakładane | `OverlayInterface` | Presentation | `Presentation/Ui` | Płaszczyzna **nad** ekranem, która sama mówi, gdzie stanąć, i **zużywa albo przepuszcza** klawisz. Przepuszczony trafia wyłącznie do klawiszy globalnych — nigdy do ekranu pod spodem. |
-| Okno pytające | `ConfirmOverlay` | Presentation | `Presentation/Ui/Overlay` | Okno nakładane, które **czegoś chce od wołającego** (krok 28). Decyzja wraca domknięciem podanym przy tworzeniu: po „tak” wykonuje się ono i oddaje komunikat, a okno pakuje go w `OverlayOutcome::close()`. Ognisko startuje na „nie”, `Esc` znaczy to samo co „nie”. |
+| Okno pytające | `ConfirmOverlay` | Presentation | `Presentation/Ui/Overlay` | Okno nakładane, które **czegoś chce od wołającego** (krok 28). Decyzja wraca domknięciem podanym przy tworzeniu: po „tak” wykonuje się ono i oddaje **skutek okna** (`OverlayOutcome`, od kroku 41 — bo pytanie stoi w środku łańcucha okien). Ognisko startuje na „nie”, `Esc` znaczy to samo co „nie”, a drugie, opcjonalne domknięcie sprząta **po odmowie**. |
+| Okno o nazwę | `PromptOverlay` | Presentation | `Presentation/Ui/Overlay` | Jedno pole tekstowe w `Dialog`u (krok 41): `Enter` zatwierdza, `Esc` odmawia, `Enter` na pustym polu nie robi nic. Wpisanego napisu **nie ocenia** — o tym, co jest poprawną nazwą, wie ten, kto wie, czym jest nazwa (moduł). |
+| Okno pracy | `ProgressOverlay` | Presentation | `Presentation/Ui/Overlay` | Okno pracy dłuższej od klatki (krok 41) i pierwsze, które **działa samo**: deklaruje `RunsWork`, więc pętla pyta je raz na takt. Karmione ogólną daną `WorkProgress` — o plikach nie wie nic. Pasek pokazuje się dopiero wtedy, gdy praca zna swoją całość. |
+| Zdolność okna „prowadzę pracę” | `RunsWork` | Presentation | `Presentation/Ui` | Deklarowana osobno, jak `NeedsTime` i `DeclaresFocus` (krok 41). `advance()` posuwa pracę o kawałek i oddaje `OverlayOutcome` — więc okno może **zamknąć się samo** albo `replace()`em ustąpić miejsca kolejnemu. Pytanie pada w `GameLoop`, w fazie „aktualizuj stan”: praca zmieniająca dysk nie ma prawa dziać się w środku rysowania. |
 | Karetka | `TextInput` | Presentation | `Presentation/Ui/Component` | Miejsce wpisywania **wewnątrz** komponentu — w odróżnieniu od kursora, który wędruje **między** komponentami. |
 | Komenda | `CommandInterface` | Application | `Application/Command` | Czynność wywoływana po nazwie wraz z deklaracją argumentów. Nazwa nosi przestrzeń właściciela (`core.*`), a wynik wskazuje ekran **identyfikatorem**, bo `Application` nie widzi `ScreenInterface`. |
 | Zdolność komendy „czego dotyczę” | `AppliesToSelection` | Application | `Application/Command` | Doklejana **obok** kontraktu, wzorem `SuggestsArguments` (krok 32): `appliesTo()` mówi, dla jakiego zaznaczenia komenda ma sens, `inputFor()` składa z kontekstu jej argumenty. Komenda bez tej zdolności nie wchodzi do menu kontekstowego — i to jest właściwa domyślna odpowiedź. |
@@ -223,6 +260,39 @@ częściej niż lista sekcji:
 Rozwinięcia przeżywają przy tym zmianę kontekstu — kursor nie. Klucz gałęzi jest
 bezwzględny, więc po powrocie do poprzedniego korzenia znaczy dokładnie to samo,
 i na tym stoi obietnica „drzewo wraca takie, jakie się je zostawiło”.
+
+#### Ognisko deklaruje się, a nie odkrywa (od kroku 40)
+
+Powyższa tabela ma **konsekwencję, o którą potyka się każdy, kto pyta „co ma
+teraz kursor”**: skoro komponent powstaje w `draw()` i ginie razem z klatką,
+to **drzewa komponentów nie ma w żadnym momencie poza tą jedną chwilą, gdy
+klatka się składa**. Nie da się więc znaleźć elementu z ogniskiem, chodząc po
+drzewie — bo nie ma po czym chodzić. Prawdziwi właściciele ogniska nie są przy
+tym komponentami: `BrowserPanes` trzyma numer panelu, `SettingsCursor` numer
+pozycji, `SplitState` samą stronę podziału.
+
+Stąd kontrakt: **pyta rdzeń, odpowiada ten, kto ognisko trzyma** — czyli ekran
+albo okno nakładane, przez zdolność `DeclaresFocus`. `FocusHint` niesie klucz
+etykiety miejsca („Podgląd”, „Panel lewy”) i jego wiązania klawiszy; odpowiedź
+liczy się **co klatkę**, bo ognisko przenosi się klawiszem, a pasek stanu ma
+pokazać nowe miejsce w tej samej klatce, w której ono się zmieniło.
+
+Zobowiązania są dwa i obowiązują w obie strony:
+
+- każde wiązanie oddane w `focus()` musi wystąpić także w `bindings()`, bo okno
+  pomocy zostaje **pełnym** spisem — ekran składa więc `bindings()` z wiązań
+  miejsca **plus** własnych, a powtórzenia odsiewa `StatusHints`;
+- każde wiązanie pokazane w stopce musi być w tym miejscu naprawdę obsłużone
+  przez `handle()`, i odwrotnie — klawisz działający tu i teraz, a przemilczany,
+  jest błędem. Pilnuje tego jeden test dla wszystkich ekranów i wszystkich
+  położeń ogniska (`tests/Functional/StatusHintsFlowTest.php`).
+
+Pasek stanu wolno przy tym urosnąć do **dwóch wierszy** — i jest to jedyne
+miejsce, w którym `HudLayout` dostaje odpowiedź zależną od **treści**, a nie od
+rozmiaru okna (`$wideStatus`). Wiersz zabiera się liście, nigdy pasowi podglądu,
+i tylko powyżej progu liczonego z tym pasem; w niskim oknie podpowiedzi ustępują
+pozycjami. Rachunek nie kręci się w kółko, bo szerokość treści strefy jest ta
+sama w obu wariantach oprawy (`HudLayout::contentColumns()`).
 
 #### Element żyjący własnym rytmem a takt pętli (od kroku 23)
 
@@ -806,6 +876,7 @@ infrastruktury i nie różnią się niczym od usług rdzenia.
 | `FrameLayoutPort` | `HudFrameLayoutService` | Tak | Nie — leniwa inicjalizacja |
 | `SettingsPort` | `Config\SettingsService` | Tak | Tak — kolejność 3, **przed** rendererem; w torze okienkowym **pierwsza** (rozmiar okna z ustawień) |
 | `ThemePort` | `Rendering\ThemeService` | Tak | Nie — leniwa inicjalizacja |
+| `FileOperationsPort` (krok 41) | `FileSystem\FileOperationsService` | Tak | Nie — `Bootstrap` podaje go modułowi przeglądarki, jak `ImagePreviewPort` |
 
 Tor okienkowy dokłada do sekwencji bootstrapu usługę bez portu:
 `Glfw\GlfwWindowService` (`glfwInit()`, okno z kontekstem 3.3 core,

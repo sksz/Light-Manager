@@ -29,6 +29,8 @@ use LightManager\Presentation\Ui\Component\Spacer;
 use LightManager\Presentation\Ui\Component\StatusBar;
 use LightManager\Presentation\Ui\Component\Tabs;
 use LightManager\Presentation\Ui\Component\Toggle;
+use LightManager\Presentation\Ui\Hint;
+use LightManager\Presentation\Ui\StatusHints;
 use PHPUnit\Framework\TestCase;
 
 final class ComponentTest extends TestCase
@@ -95,7 +97,7 @@ final class ComponentTest extends TestCase
         self::assertSame([], (new ListView([new ListRow('a')]))->draw($bounds));
         self::assertSame([], (new Panel('PATH'))->draw($bounds));
         self::assertSame([], (new Tabs(['a', 'b'], 0))->draw($bounds));
-        self::assertSame([], (new StatusBar('x', Role::Info, 'y'))->draw($bounds));
+        self::assertSame([], (new StatusBar('x', Role::Info, self::hints('y')))->draw($bounds));
         self::assertSame([], (new ImageBox(null, 'brak'))->draw($bounds));
         self::assertSame([], (new Spacer())->draw(new Rect(0, 0, 5, 5)));
     }
@@ -215,8 +217,8 @@ final class ComponentTest extends TestCase
 
     public function testStatusBarDropsHintsWhenTheMessageLeavesNoRoom(): void
     {
-        $roomy = (new StatusBar('błąd', Role::Danger, 'F10 wyjście'))->draw(new Rect(0, 0, 1, 40));
-        $tight = (new StatusBar('bardzo długi komunikat o błędzie', Role::Danger, 'F10 wyjście'))
+        $roomy = (new StatusBar('błąd', Role::Danger, self::hints('F10 wyjście')))->draw(new Rect(0, 0, 1, 40));
+        $tight = (new StatusBar('bardzo długi komunikat o błędzie', Role::Danger, self::hints('F10 wyjście')))
             ->draw(new Rect(0, 0, 1, 34));
 
         self::assertCount(3, $roomy, 'komunikat, podpowiedzi i przegroda');
@@ -225,7 +227,7 @@ final class ComponentTest extends TestCase
 
     public function testStatusBarSeparatesHintsWithAHairline(): void
     {
-        $primitives = (new StatusBar('', Role::Info, 'F1 pomoc'))->draw(new Rect(0, 0, 1, 40));
+        $primitives = (new StatusBar('', Role::Info, self::hints('F1 pomoc')))->draw(new Rect(0, 0, 1, 40));
         $bars = array_values(array_filter($primitives, static fn ($p): bool => $p instanceof Bar));
 
         self::assertCount(1, $bars);
@@ -299,5 +301,11 @@ final class ComponentTest extends TestCase
         self::assertCount(1, $bindings);
         self::assertSame('Enter', $bindings[0]->display());
         self::assertSame('help.key.restore', $bindings[0]->descriptionKey);
+    }
+
+    /** Gotowa pozycja stopki — testy komponentu nie mają czym złożyć jej z wiązań. */
+    private static function hints(string $text): StatusHints
+    {
+        return new StatusHints([new Hint($text)]);
     }
 }

@@ -9,7 +9,7 @@
 
 ## Status
 
-**Nie rozpoczęty** (2026-08-13).
+**Ukończony** (2026-08-14).
 
 ## Cel
 
@@ -277,6 +277,48 @@ i dlaczego.
 8. **Czy `F1` naprawdę zostaje ostatni** — czy w skrajnie wąskim oknie stopka
    pokazuje sam `F1`, czy sam element z ogniskiem.
 
+## Rozstrzygnięcia startowe (2026-08-14)
+
+Odpowiedzi użytkownika na osiem pytań powyżej, w tej samej kolejności.
+
+1. **Kontrakt ogniska: osobny interfejs zdolności wraz z daną.**
+   `Presentation\Ui\DeclaresFocus::focus(): ?FocusHint`, a `FocusHint` niesie
+   **klucz etykiety miejsca i listę wiązań** — nie `FocusableInterface`, bo
+   prawdziwi właściciele ogniska (`BrowserPanes`, `SettingsCursor`, `SplitState`)
+   komponentami nie są i musieliby dorobić `draw()` wyłącznie na potrzeby stopki.
+   `ScreenInterface` zostaje nietknięty (reguła 11c: od tego są zdolności).
+2. **Stopka nazywa miejsce.** Przed wiązaniami stoi etykieta („Podgląd”, „Panel
+   lewy”), bezwarunkowo — ustępuje dopiero razem z całą grupą elementu.
+3. **Ogranicza sam budżet kolumn.** Twardego limitu liczby pozycji nie ma:
+   w szerokim oknie stopka pokazuje wszystko, co w tym miejscu działa.
+4. **Powtórzenie to zgodność zestawu klawiszy _i_ klucza opisu.** Ostrożniejszy
+   wariant, wybrany świadomie; przy dzisiejszym kodzie odsiewa dokładnie to, co
+   trzeba, bo ekran składa `bindings()` z wiązań miejsca **plus** własnych, więc
+   powtórzenia są tożsame co do obu pól.
+5. **Drugi, krótki klucz obok istniejącego.** `KeyBinding` dostaje
+   `shortDescriptionKey`; brak krótkiego klucza znaczy „użyj długiego”. Okno
+   pomocy i jego wzorce zostają **nietknięte**.
+6. **Pasek rośnie z potrzeby, a wiersz bierze lista.** Warunki łącznie: pełny
+   spis nie mieści się w wierszu obok komunikatu **i** okno jest wyższe od progu
+   liczonego z pasem podglądu. Pas podglądu nie oddaje ani jednego wiersza.
+7. **Wszystkie zarejestrowane skróty modułów.** Stoją w grupie globalnej, więc
+   ustępują pierwsze; opisem jest **nazwa modułu**, nie „otwórz okno modułu”.
+8. **`F1` ustępuje ostatni.** Jest przypięty: znika dopiero wtedy, gdy nie mieści
+   się sam jeden.
+
+Dwa skutki tych odpowiedzi, których pytania nie przewidywały, a które przesądzają
+o kodzie:
+
+- rozstrzygnięcia 2 i 4 **dokładają kolumn** (etykieta plus ostrożny odsiew),
+  a rachunek stanu zastanego pokazał, że samych wiązań rdzenia jest dziś **pięć**,
+  nie cztery (`F9` z kroku 32), czyli 78 kolumn przy dzisiejszych opisach. Bez
+  rozstrzygnięcia 5 stopka nie zmieściłaby się w oknie 100 kolumn **nigdy**;
+- rozstrzygnięcie 6 wiąże wysokość paska z **treścią**, więc `HudLayout` po raz
+  pierwszy dostaje odpowiedź zależną od czegoś spoza rozmiaru okna. Kolejność
+  w `FrameComposer` jest przez to wymuszona: wiązania → czy mieszczą się w jednym
+  wierszu → podział okna. Szerokość treści strefy jest w obu wariantach ta sama
+  (`2 × Panel::CONTENT_COLUMN`), więc pętli w rachunku nie ma.
+
 ## Kryteria ukończenia
 
 - Przeniesienie ogniska (`Tab` w przeglądarce, `Tab` w opisie pliku, kursor
@@ -295,4 +337,114 @@ i dlaczego.
 
 ## Dziennik realizacji
 
-*(pusty — krok nierozpoczęty)*
+### 2026-08-14 — krok wykonany w całości
+
+**1. Rozstrzygnięcia startowe.** Osiem odpowiedzi użytkownika zapisanych wyżej
+i w [00-decyzje.md](../00-decyzje.md), D74. Sprawdzenie stanu zastanego poprawiło
+jedną liczbę w planie i to ona zaważyła na dwóch odpowiedziach: wiązań rdzenia
+jest **pięć**, nie cztery (`F9` z kroku 32), czyli 78 kolumn samych podpowiedzi
+globalnych — stopka znikała w oknie stu kolumn **już przed tym krokiem**.
+
+**2. Ognisko dostało nazwę i kontrakt.** `Presentation\Ui\DeclaresFocus` (zdolność,
+jak `NeedsTime`) plus `FocusHint` (dana: klucz etykiety miejsca i lista wiązań).
+`ScreenInterface` nietknięty. Zadeklarowały je trzy ekrany:
+
+- `BrowserScreen` — panel czynny; etykieta nazywa **panel**, gdy jest podział
+  (lewy/prawy albo górny/dolny wedle osi), a **widok**, gdy panel jest jeden
+  (lista/drzewo), bo to widok rozstrzyga, co znaczą strzałki poziome;
+- `FileInfoScreen` — sekcje albo podgląd tekstu; **najbogatszy odbiorca** kroku,
+  jak zapowiadał plan: to jedyny ekran, w którym `↑↓` znaczy po lewej co innego
+  niż po prawej (D60). Pole `$focus` przemianowano na `$focusState`, żeby nie
+  czytało się jak nowa metoda `focus()`;
+- `SettingsScreen` — **cztery** położenia zamiast jednego spisu: pasek zakładek,
+  pozycja, wiersz czynności, pozycja tekstowa w edycji.
+
+Ostatni z nich ujawnił trzy nieprawdy dawnego spisu, które teraz zniknęły: `←→`
+na wierszu czynności nie robi nic (i nie jest już pokazywane), `Enter` na pasku
+zakładek przewija zakładki (jest w spisie razem ze strzałkami), a „edycja
+wartości” dotyczy wyłącznie pozycji tekstowych — na pozostałych `Enter` przełącza
+na następną wartość i tak jest opisany.
+
+**3. Stopka.** `StatusHints` składa trzy poziomy (miejsce → ekran albo okno →
+globalne), odsiewa powtórzenia, pakuje w wiersze i ustępuje od końca; `Hint` niesie
+gotowy napis wraz z przypięciem (`F1`). `StatusBar` rysuje tyle wierszy, ile dostał
+prostokątem, a komunikat zostaje w pierwszym. `HudLayout` dostał `$wideStatus`
+i próg `ROWS_FOR_PREVIEW + 2`. `FrameComposer::hints()` pyta **wierzch stosu** —
+okno nakładane albo ekran — więc okno wypiera ekran samo z siebie, bez warunku.
+
+**4. Skróty modułów po raz pierwszy w stopce.** `InputHandler::moduleBindings()`
+zamienia dane rejestru na wiązania z **nazwą modułu** jako opisem; składa je
+`Bootstrap`, bo `globalBindings()` o modułach nie wie. Do okna pomocy nie idą —
+tam mają własną zakładkę.
+
+**5. Napisy.** `KeyBinding` niesie odtąd dwa klucze opisu; krótki (`<klucz>.short`)
+dostały 34 wiązania w czterech katalogach, wraz z etykietami dziesięciu miejsc
+ogniska. Okno pomocy i jego wzorce **nietknięte**. Przy okazji wyszedł na jaw
+i został usunięty klucz `settings.hints` — ostatni napis-ściągawka w katalogu,
+bez ani jednego użytkownika w kodzie od czasów sprzed kroku 18.
+
+**6. Pomiar.** `ScenarioFactory::HINTS` przestała być stałą trzech pozycji
+i jest **listą taką, jaką rysuje aplikacja**; scenariusze pytają o wysokość paska
+dokładnie tak, jak `FrameComposer`. Wyniki (zwolniona maszyna, wzorce z kroku 31
+jako „przed”, nowe zapisane jako `2026-08-14-po-kroku-40*`):
+
+| Tor | Zmiana | Czytanie |
+|---|---|---|
+| sixelowy | +0,7 … +10,2 %, trzy scenariusze nad progiem | rozrzut samego pomiaru wynosi tyle samo — patrz niżej |
+| tekstowy | +1,1 … +10,5 %, jeden nad progiem | jak wyżej, przy klatce 0,8–2,0 ms |
+| okienkowy | −20 … +17 % w obie strony | klatka poniżej milisekundy, sam szum |
+| takt pętli | **0,075 → 0,086 ms** (+14,8 %) | jedyna liczba, którą warto zapamiętać |
+
+Regresji **nie ma**, i to nie jest życzenie, tylko wynik osobnego przebiegu:
+zmierzenie **tego samego kodu** wobec własnego świeżo zapisanego wzorca dało
+−8,8 … +1,5 %, a scenariusz `puste płótno` — który stopki nie rysuje w ogóle —
+zmienił się o +5,9 %. Tyle wynosi dryf środowiska między przebiegami i jest on
+tego samego rzędu, co mierzona zmiana.
+
+Prawdziwy koszt kroku widać za to w torze `--loop`, bo tam nie ma rasteryzacji,
+która by go przykryła: **złożenie stopki kosztuje ~11 µs na klatkę** — pytanie
+o ognisko, tłumaczenie opisów, odsiew powtórzeń i podział na wiersze razem wzięte.
+Przy budżecie 33 ms to 0,03 % klatki. Nowego scenariusza krok nie dokłada; powód
+zapisany w [docs/pomiary/README.md](../../pomiary/README.md): dwuwierszowy pasek
+to **ta sama treść w większym prostokącie**, płacona przez każdy scenariusz
+z chromem naraz.
+
+**7. Wzorce.** Złote klatki przeliczone po przeczytaniu różnicy (lista o wiersz
+krótsza, pasek o wiersz wyższy, stopka dwuwierszowa); wzorce PNG przeliczone
+w **obu** torach obrazowych — różnice 4,5–9,7 ‰ i wszystkie w dolnych wierszach,
+co sprawdzono oglądając obrazy różnicy, a nie samą liczbę. Po zapisie
+`--png-compare` daje 0,00 ‰ w obu torach.
+
+**8. Testy.** `StatusHintsTest` (11 przypadków: kolejność, odsiew, ustępowanie,
+przypięty `F1`, pusty wiersz pierwszy) i dwa przypadki w `HudLayoutTest` (wiersz
+bierze lista, w niskim oknie pasek nie rośnie). Przebieg
+`tests/Functional/StatusHintsFlowTest.php` — sześć zachowań plus **jeden test dla
+wszystkich**: jedenaście położeń ogniska, a w każdym każde pokazane wiązanie musi
+coś zrobić. Trzy rzeczy, które ten test wymusił, a których plan nie przewidział:
+
+- „obsłużone” znaczy **co najmniej jeden klawisz z zestawu**, a nie każdy: `↑` na
+  pierwszej pozycji listy nie robi nic i robić nie ma, a stopka migocząca na
+  krańcach listy byłaby gorsza od milczącej;
+- ślad miejsca liczy się **serializatorem klatek projektu** (`FrameSerializer`,
+  ten sam, którym porównuje się złote klatki), bo połowa czynności nie zmienia ani
+  jednej litery — kursor sekcji zmienia **rolę** wiersza, a karetka położenie
+  podświetlenia;
+- przygotowanie miejsca musi być prawdziwe: plik podglądu ma **różne** wiersze
+  (przewinięcie dwustu jednakowych daje klatkę co do znaku taką samą) i jeden
+  bardzo długi (inaczej `Alt`+`Z` nie ma czego zawinąć), a pole tekstowe dostaje
+  wpisaną wartość (w pustym karetka nie ma dokąd pójść).
+
+Jeden test istniejący zmienił asercję i jest to zmiana **na prawdziwszą**:
+`InputHandlerTest::testHelpListsKeysOfEveryScreen` sprawdzał, że spis ustawień
+mówi o „zmianie wartości” — a ekran otwiera się kursorem na pasku zakładek, gdzie
+`←→` zmienia **zakładkę**. Dziś sprawdza to.
+
+**9. Sprawdzenie w działającej aplikacji.** Uruchomienie pod pseudoterminalem
+(tor tekstowy, bo DA1 nie ma do kogo wysłać) daje stopkę
+`Panel lewy: ↑↓ zaznaczenie · Enter / → katalog · … · F1 pomoc` — wraz
+z ustępowaniem, bo okno było wąskie, i z `F1` na końcu. Żadnego błędu w wyjściu.
+
+**Odstępstw od planu nie ma.** Zakres wykonany w całości: wszystkie dziewięć
+punktów, wszystkie kryteria ukończenia. Poza zakresem zostało to, co plan tam
+wpisał — przemapowanie klawiszy, zawężenie okna pomocy, piąta strefa układu,
+klikalne podpowiedzi, ruch w pasku i kolorowanie pozycji.

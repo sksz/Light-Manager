@@ -1,5 +1,5 @@
 plane chrome rect=0,0 30x100 opaque=0 primitives=0
-plane content rect=0,0 30x100 opaque=0 primitives=103
+plane content rect=0,0 30x100 opaque=0 primitives=99
   R0,2,1,96,Selection,-,Soft
   B0,2,1,96,Accent,Edge
   T0,2,SelectionText,-,katalog-0000/
@@ -99,7 +99,3 @@ plane content rect=0,0 30x100 opaque=0 primitives=103
   B25,2,1,96,Accent,Edge
   T25,2,SelectionText,-,plik-0025.txt
   T25,91,SelectionText,-,26,5 kB
-  R26,2,1,96,Selection,-,Soft
-  B26,2,1,96,Accent,Edge
-  T26,2,SelectionText,-,plik-0026.txt
-  T26,91,SelectionText,-,27,6 kB

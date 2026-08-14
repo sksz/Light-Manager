@@ -20,6 +20,14 @@ use LightManager\Application\Dto\KeyPress;
  * **nie idzie przez katalog napisów**: „Enter” i „F10” to napisy na klawiaturze,
  * nie zdania interfejsu. Tłumaczy się wyłącznie opis czynności — i dlatego
  * `descriptionKey` jest kluczem, a nie treścią.
+ *
+ * Opisów jest od kroku 40 **dwa**, i to jest rozstrzygnięcie nr 5 tamtego kroku.
+ * Długi (`descriptionKey`) jest zdaniem i należy do okna pomocy, gdzie stoi sam
+ * w wierszu: „zmiana zaznaczenia”, „powrót do listy plików”. Krótki
+ * (`shortDescriptionKey`) należy do paska stanu, gdzie pozycji jest kilkanaście
+ * naraz i liczy się każda kolumna: „zaznaczenie”, „powrót”. Brak krótkiego
+ * znaczy „użyj długiego” — wiązanie, które w stopce nigdy nie stanie, nie musi
+ * mieć dwóch napisów.
  */
 final class KeyBinding
 {
@@ -29,6 +37,7 @@ final class KeyBinding
      * @param string    $descriptionKey klucz katalogu napisów z opisem czynności
      * @param bool      $ctrl        czy znak wymaga wciśniętego `Ctrl`
      * @param bool      $alt         czy znak wymaga wciśniętego `Alt`
+     * @param ?string   $shortDescriptionKey klucz krótkiego opisu — dla paska stanu
      */
     public function __construct(
         public readonly array $keys,
@@ -36,30 +45,63 @@ final class KeyBinding
         public readonly string $descriptionKey,
         public readonly bool $ctrl = false,
         public readonly bool $alt = false,
+        public readonly ?string $shortDescriptionKey = null,
     ) {
     }
 
     /** @param list<Key> $keys */
-    public static function of(array $keys, string $descriptionKey): self
+    public static function of(array $keys, string $descriptionKey, ?string $shortKey = null): self
     {
-        return new self($keys, null, $descriptionKey);
+        return new self($keys, null, $descriptionKey, false, false, $shortKey);
     }
 
-    public static function character(string $character, string $descriptionKey): self
+    public static function character(string $character, string $descriptionKey, ?string $shortKey = null): self
     {
-        return new self([], $character, $descriptionKey);
+        return new self([], $character, $descriptionKey, false, false, $shortKey);
     }
 
     /** Czynność na `Ctrl`+znak — postać, którą od kroku 20 biorą skróty modułów. */
-    public static function ctrl(string $character, string $descriptionKey): self
+    public static function ctrl(string $character, string $descriptionKey, ?string $shortKey = null): self
     {
-        return new self([], $character, $descriptionKey, true);
+        return new self([], $character, $descriptionKey, true, false, $shortKey);
     }
 
     /** Czynność na `Alt`+znak — od kroku 29, gdzie wisi na nim zawijanie wierszy. */
-    public static function alt(string $character, string $descriptionKey): self
+    public static function alt(string $character, string $descriptionKey, ?string $shortKey = null): self
     {
-        return new self([], $character, $descriptionKey, false, true);
+        return new self([], $character, $descriptionKey, false, true, $shortKey);
+    }
+
+    /** Klucz opisu dla paska stanu: krótki, jeśli jest; długi w przeciwnym razie. */
+    public function hintKey(): string
+    {
+        return $this->shortDescriptionKey ?? $this->descriptionKey;
+    }
+
+    /**
+     * Czy oba wiązania mówią o tym samym: ten sam zestaw klawiszy **i** ten sam
+     * klucz opisu (krok 40, rozstrzygnięcie nr 4).
+     *
+     * Ostrożniejszy z dwóch wariantów: `↑↓ zmiana zaznaczenia` i `↑↓ przewijanie
+     * wiersza` zostają w stopce **obiema** pozycjami, bo mówią o różnych
+     * czynnościach na różnych poziomach. Przy dzisiejszym kodzie odsiew trafia
+     * dokładnie tam, gdzie trzeba, bo ekran składa `bindings()` z wiązań miejsca
+     * **plus** własnych — powtórzenie jest więc tym samym obiektem, a nie dwoma
+     * podobnymi.
+     */
+    public function sameAs(self $other): bool
+    {
+        return $this->keys === $other->keys
+            && $this->character === $other->character
+            && $this->ctrl === $other->ctrl
+            && $this->alt === $other->alt
+            && $this->descriptionKey === $other->descriptionKey;
+    }
+
+    /** Czy wiązanie wisi na tym klawiszu — bez znaku i bez modyfikatorów. */
+    public function usesKey(Key $key): bool
+    {
+        return in_array($key, $this->keys, true);
     }
 
     public function matches(KeyPress $key): bool

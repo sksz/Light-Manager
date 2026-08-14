@@ -78,7 +78,13 @@ final class VgTextureCache
         }
 
         try {
-            $texture = Texture2D::fromDisk($path, Texture2D::CHANNEL_RGBA);
+            // Trzeci argument **musi** paść jawnie: `Texture2D::fromDisk()`
+            // domyślnie odwraca wiersze (`stbi_set_flip_vertically_on_load`),
+            // bo tekstura OpenGL-a ma początek w lewym dolnym rogu. Tu piksele
+            // nie idą do samplera, tylko przez `imageFromTexture()` wprost do
+            // `nvgCreateImageRGBA()`, a NanoVG czyta je od góry — miniatura
+            // wychodziła przez to odbita w pionie.
+            $texture = Texture2D::fromDisk($path, Texture2D::CHANNEL_RGBA, false);
         } catch (Throwable) {
             // Format spoza zakresu stb_image albo plik uszkodzony — dla klatki
             // to ta sama odpowiedź, co plik nieczytelny: ramka z podpisem.

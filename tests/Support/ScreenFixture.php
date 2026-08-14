@@ -13,11 +13,13 @@ use LightManager\Application\Module\ModuleInterface;
 use LightManager\Application\Module\ModuleRegistry;
 use LightManager\Application\Module\ProvidesCommands;
 use LightManager\Application\Module\ProvidesSettingsTab;
+use LightManager\Application\Port\FileOperationsPort;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Application\UseCase\ChangeSettingUseCase;
 use LightManager\Application\UseCase\RestoreDefaultSettingsUseCase;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
+use LightManager\Module\Browser\Domain\Repository\DirectoryRepositoryInterface;
 use LightManager\Module\Browser\Presentation\BrowserModule;
 use LightManager\Module\FileInfo\Presentation\FileInfoModule;
 use LightManager\Presentation\Cli\Bootstrap;
@@ -82,15 +84,27 @@ final class ScreenFixture
     /** Ekran, który stanął na dnie stosu — i powód, gdy nie ten, o który proszono. */
     public readonly StartupScreen $startup;
 
+    /**
+     * @param DirectoryRepositoryInterface $directories źródło katalogów: w pamięci
+     *                                                 albo — dla przebiegów
+     *                                                 sprawdzających operacje na
+     *                                                 plikach — prawdziwy system
+     *                                                 plików w katalogu tymczasowym
+     * @param FileOperationsPort           $operations  czynności zmieniające dysk;
+     *                                                 domyślnie atrapa, bo ścieżki
+     *                                                 katalogów w pamięci bywają
+     *                                                 prawdziwe na maszynie testowej
+     */
     public function __construct(
         Directory $directory,
-        public readonly InMemoryDirectoryRepository $directories,
+        public readonly DirectoryRepositoryInterface $directories,
         public readonly InMemorySettings $settingsStore = new InMemorySettings(),
         public readonly StubFileInspector $inspector = new StubFileInspector('PDF document, version 1.7'),
         public readonly InMemoryCommandHistory $history = new InMemoryCommandHistory(),
         public readonly StubFileStat $stats = new StubFileStat(),
         public readonly StubChecksums $checksums = new StubChecksums(),
         public readonly StubBackgroundProcess $processes = new StubBackgroundProcess(),
+        public readonly FileOperationsPort $operations = new StubFileOperations(),
     ) {
         $translator = new StubTranslator();
         $themes = new FixedThemes();
@@ -114,13 +128,17 @@ final class ScreenFixture
 
         // Katalog podany przez test jest katalogiem startowym modułu; repozytorium
         // musi go znać, bo moduł otwiera go tak samo, jak zrobiłby to na dysku.
-        $directories->add($directory->path()->value, $directory->entries());
+        // Repozytorium na prawdziwym systemie plików zna go już z dysku — dopisanie
+        // dotyczy wyłącznie drzewa trzymanego w pamięci (krok 41).
+        if ($directories instanceof InMemoryDirectoryRepository) {
+            $directories->add($directory->path()->value, $directory->entries());
+        }
 
         $browser = new BrowserModule(
             $this->state,
             $translator,
             $settingsStore,
-            new StubImagePreview(),
+            $operations,
             $directories,
             $directory->path(),
         );

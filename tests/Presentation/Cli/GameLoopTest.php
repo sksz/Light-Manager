@@ -11,6 +11,7 @@ use LightManager\Module\Browser\Domain\ValueObject\Entry;
 use LightManager\Presentation\Cli\FrameComposer;
 use LightManager\Presentation\Cli\GameLoop;
 use LightManager\Presentation\Cli\InputHandler;
+use LightManager\Presentation\Ui\HudLayout;
 use LightManager\Tests\Support\FixedViewport;
 use LightManager\Tests\Support\InMemoryDirectoryRepository;
 use LightManager\Tests\Support\RecordingRenderer;
@@ -189,7 +190,16 @@ final class GameLoopTest extends TestCase
         self::assertTrue($this->renderer->showsText($label), 'etykieta strefy nazywa aktywny ekran');
     }
 
-    public function testScreensWithoutAPreviewGetTheStripRows(): void
+    /**
+     * Reguła „strefa, której nie ma, oddaje wiersze środkowi” — sprawdzana od
+     * kroku 21 na przeglądarce, bo była wtedy jedynym ekranem z pasem podglądu.
+     *
+     * Od D76 **nie zamawia go żaden ekran**, więc test mówi to samo z drugiej
+     * strony: panel listy jest tak wysoki jak panel ekranu bez pasa i **wyższy od
+     * tego, co zostawiłby układ z pasem** — czyli lista dostała te wiersze
+     * naprawdę, a nie tylko w rachunku `HudLayout`.
+     */
+    public function testTheListTakesTheRowsOfTheAbsentPreviewStrip(): void
     {
         $this->loop(new ScriptedTerminal([null, KeyPress::special(Key::F10, '')]))->run();
         $browserRows = self::listRowsOf($this->renderer);
@@ -201,7 +211,12 @@ final class GameLoopTest extends TestCase
             KeyPress::special(Key::F10, ''),
         ]))->run();
 
-        self::assertGreaterThan($browserRows, self::listRowsOf($this->renderer));
+        self::assertSame($browserRows, self::listRowsOf($this->renderer), 'oba ekrany są bez pasa');
+        self::assertGreaterThan(
+            (new HudLayout(30, 80, true, true))->list->rows,
+            $browserRows,
+            'panel listy jest wyższy niż przy zamówionym pasie podglądu',
+        );
     }
 
     /** Wysokość panelu listy odczytana z jego obwódki w płaszczyźnie oprawy. */

@@ -40,7 +40,6 @@ return [
     'layout.zone.command' => 'KOMENDY',
 
     // Ekran ustawień.
-    'settings.hints' => '↑↓ ruch · ←→ zmiana · Esc powrót',
     'settings.tab.appearance' => 'WYGLĄD',
     'settings.tab.graphics' => 'GRAFIKA',
     'settings.tab.modules' => 'MODUŁY',
@@ -87,6 +86,28 @@ return [
     'help.key.fullscreen' => 'pełny ekran',
     'help.key.menu' => 'menu kontekstowe',
 
+    // Krótkie opisy — **wyłącznie dla paska stanu** (krok 40, rozstrzygnięcie 5).
+    // W oknie pomocy każdy klawisz ma wiersz dla siebie i pełne zdanie czyta się
+    // tam lepiej; w stopce pozycji jest kilkanaście naraz i liczy się kolumna.
+    // Klucza bez pary `.short` nie brakuje — znaczy „ten opis jest już krótki”.
+    'help.key.move.short' => 'zaznaczenie',
+    'help.key.back.short' => 'powrót',
+    'help.key.change.short' => 'wartość',
+    'help.key.tab.short' => 'zakładka',
+    'help.key.restore.short' => 'przywróć',
+    'help.key.commands.short' => 'komendy',
+    'help.key.edit.short' => 'edycja',
+    'help.key.commit.short' => 'zatwierdź',
+    'help.key.cancel.short' => 'porzuć',
+    'help.key.collapse.short' => 'zwiń',
+    'help.key.menu.short' => 'menu',
+
+    // Nazwy miejsc, w których staje ognisko na ekranach rdzenia (krok 40).
+    'settings.focus.tabs' => 'Zakładki',
+    'settings.focus.item' => 'Pozycja',
+    'settings.focus.action' => 'Czynność',
+    'settings.focus.edit' => 'Edycja',
+
     // Zakładka modułu w oknie pomocy — nagłówki części składanej z deklaracji.
     'help.module.shortcut' => 'Skrót',
     'help.module.open' => 'otwórz okno modułu',
@@ -117,6 +138,17 @@ return [
     'confirm.key.move' => 'zmień odpowiedź',
     'confirm.key.answer' => 'potwierdź',
     'confirm.key.refuse' => 'odmów',
+
+    // Okno wpisywania nazwy i okno postępu (krok 41). Oba są rdzeniowe, bo poproszą
+    // o nie także kroki 42 i 44 — o plikach nie wiedzą nic.
+    'prompt.name' => 'nazwa: ',
+    'prompt.key.accept' => 'zatwierdź wpisaną nazwę',
+    'prompt.key.accept.short' => 'zatwierdź',
+    'prompt.key.cancel' => 'porzuć wpisywanie',
+    'prompt.key.cancel.short' => 'porzuć',
+    'progress.counter' => '{done} z {total}',
+    'progress.key.cancel' => 'przerwij pracę',
+    'progress.key.cancel.short' => 'przerwij',
     'command.history' => 'historia',
     'command.dump.requested' => 'Zrzut następnej klatki: {file}-prymitywy.txt oraz {file}.png',
     'command.problem.empty' => 'nie wpisano nazwy komendy',
@@ -226,6 +258,14 @@ return [
     'problem.glfw.window' => 'Nie udało się otworzyć okna z kontekstem OpenGL 3.3 core — sprawdź sterowniki grafiki.',
     'problem.glfw.font' => 'Nie znaleziono żadnego fontu o stałej szerokości — tryb okienkowy nie ma czym rysować tekstu.',
     'problem.unexpected' => 'Nie udało się wykonać tej operacji.',
+
+    // Niepowodzenia czynności zmieniających dysk (krok 41). Zdania są rdzeniowe, bo
+    // rdzeń ma port zapisu — ale mówią wyłącznie o **nazwie**, bo tyle rdzeń wie.
+    'problem.fileops.missing' => 'Wpisu „{name}” już nie ma.',
+    'problem.fileops.taken' => 'Nazwa „{name}” jest już zajęta.',
+    'problem.fileops.denied' => 'Brak uprawnień do zmiany „{name}”.',
+    'problem.fileops.notEmpty' => 'Katalog „{name}” nie jest pusty.',
+    'problem.fileops.failed' => 'Nie udało się wykonać czynności na „{name}”: {detail}',
 
     // Okno trybu okienkowego (krok 34).
     'window.title' => 'Light Manager',
