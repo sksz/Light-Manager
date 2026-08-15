@@ -54,7 +54,7 @@ final class GameLoopTest extends TestCase
             $this->app->screens,
             $this->app->input,
             $this->app->state,
-            self::TEST_FRAMES_PER_SECOND,
+            framesPerSecond: self::TEST_FRAMES_PER_SECOND,
         );
     }
 

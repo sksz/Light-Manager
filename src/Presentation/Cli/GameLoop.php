@@ -38,6 +38,7 @@ final class GameLoop
         private readonly ScreenStack $screens,
         private readonly InputHandler $input,
         private readonly LoopState $state,
+        private readonly ?ModuleTicker $modules = null,
         int $framesPerSecond = self::DEFAULT_FRAMES_PER_SECOND,
     ) {
         $this->frameBudgetMicroseconds = (int) (self::MICROSECONDS_PER_SECOND / $framesPerSecond);
@@ -69,6 +70,15 @@ final class GameLoop
             // wobec pracy kawałkowej z kroku 25: tamta czyta plik, ta zmienia
             // dysk, a rysowanie nie ma prawa mieć skutków ubocznych.
             $this->input->advanceWork($state, $startedAt);
+
+            // Takt modułów (krok 45): raz na klatkę, dla każdego przyjętego
+            // modułu, który o niego poprosił — **niezależnie od tego, co jest na
+            // wierzchu**. To jest cała różnica wobec `NeedsTime` kilka linii
+            // niżej: o czas klatki pyta `FrameComposer` ekran i okno nakładane,
+            // czyli to, co widać, a moduł ma pracować wtedy, gdy nie widać nic.
+            // Stoi tu, a nie w rysowaniu, z tego samego powodu, co kawałek pracy
+            // powyżej: to jest faza „aktualizuj stan”.
+            $this->modules?->tick($state, $startedAt);
 
             // Pętla nie wie, który ekran jest aktywny, i nie ma powodu
             // wiedzieć: składanie klatki dostaje go w argumencie, a różnice

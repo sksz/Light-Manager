@@ -298,9 +298,22 @@ zdolności, których krok 36 świadomie mu odmówił. Różnica, na której to s
 jest zapisana w obu plikach kroków — tam zdolność miała jednego użytkownika
 i wyłącznie dla wygody, tu bez niej funkcja nie istnieje.
 
+**Krok 45 wykonany — a jedno jego rozstrzygnięcie zderzyło się ze słownikiem
+wejścia.** Przestawianie pozycji weszło do zakresu (wbrew rekomendacji planu),
+ale nie na `Alt`+strzałkach: `Alt` jest w słowniku dopuszczony **wyłącznie przy
+literach** (reguła 11j), więc tamta droga znaczyłaby otwarcie słownika w trzech
+torach — czyli drugą zmianę rdzenia w kroku, który miał ruszyć wyłącznie takt.
+Pytanie wróciło do użytkownika przed pierwszą linią kodu i klawiszem zostały
+`Shift`+strzałki (D82 nr 8). Autostart wrócił zgodnie z zapowiedzią D71 i kosztował
+dokładnie jedną pozycję ustawień. **Granica pomiaru jest przy tym zapisana
+w dzienniku kroku**: `--loop` nie woła taktu modułów, bo `LoopBenchmarkRunner`
+powtarza fazy pętli ręcznie — liczba mówi więc, że reszta taktu się nie zmieniła,
+a odpowiedź na pytanie odłożone w kroku 36 („czy dźwięk wchodzi do ścieżki
+klatki”) dał drugi przebieg, z muzyką grającą w tle.
+
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 45 | Ekran modułu dźwięku i playlista | [45-ekran-audio-i-playlista.md](45-ekran-audio-i-playlista.md) | 9, 14, 15, 16, 18, 20, 21, 36 | Opus | xhigh | Nie rozpoczęty |
+| 45 | Ekran modułu dźwięku i playlista | [45-ekran-audio-i-playlista.md](archiwum/45-ekran-audio-i-playlista.md) | 9, 14, 15, 16, 18, 20, 21, 36 | Opus | xhigh | Ukończony |
 | 46 | Efekty specjalne: zdarzenia aplikacji dostają dźwięk | [46-efekty-specjalne.md](46-efekty-specjalne.md) | 18, 19, 20, 24, 27, 36, 45 | Opus | high | Nie rozpoczęty |
 
 ### Faza XVI — Spłata długów

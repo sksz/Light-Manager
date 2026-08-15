@@ -11,22 +11,31 @@ use LightManager\Application\Command\CommandRegistry;
 use LightManager\Application\Command\CommandTransition;
 use LightManager\Application\Command\SuggestsArguments;
 use LightManager\Application\Dto\Settings;
+use LightManager\Application\Module\ModuleRegistry;
+use LightManager\Application\Module\ModuleSetting;
 use LightManager\Application\Module\ModuleSettingKind;
+use LightManager\Application\Module\NeedsTick;
 use LightManager\Application\Module\ProvidesCommands;
 use LightManager\Domain\ValueObject\MessageTone;
 use LightManager\Module\Audio\Application\AudioSettings;
+use LightManager\Module\Audio\Application\PlaybackMode;
+use LightManager\Module\Audio\Application\PlaylistEntry;
 use LightManager\Module\Audio\Presentation\AudioModule;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
 use LightManager\Tests\Support\InMemorySettings;
 use LightManager\Tests\Support\StubAudio;
+use LightManager\Tests\Support\StubPlaylistStorage;
+use LightManager\Tests\Support\StubTrackFiles;
 use LightManager\Tests\Support\StubTranslator;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Moduł dźwięku jest **sprawdzianem kontraktu modułu z drugiej strony niż krok
- * 21**: tamten pytał, czy kontrakt udźwignie główną funkcję aplikacji, ten —
- * czy udźwignie moduł, który nic nie rysuje.
+ * Moduł dźwięku po kroku 45: **rysuje i pracuje, gdy go nie widać**.
+ *
+ * Do kroku 45 był sprawdzianem kontraktu z jednej strony — moduł, który nic nie
+ * rysuje. Teraz sprawdza obie: ekran (jak przeglądarka z kroku 21) i takt, czyli
+ * zdolność, której przed tym krokiem nie miał żaden moduł.
  *
  * Prawdziwego silnika w tych testach nie ma i nie będzie: test, który go
  * uruchamia, gra muzykę na maszynie, na której akurat biegnie, i zostawia po
@@ -40,26 +49,44 @@ final class AudioModuleTest extends TestCase
 
     private StubAudio $audio;
 
+    private StubPlaylistStorage $storage;
+
     protected function setUp(): void
     {
         $this->state = new LoopState(new Settings());
         $this->settings = new InMemorySettings($this->state->settings());
         $this->audio = new StubAudio();
+        $this->storage = new StubPlaylistStorage([PlaylistEntry::of('a.mp3'), PlaylistEntry::of('b.mp3')]);
     }
 
-    /** Moduł bez ekranu i bez skrótu — kontrakt na to pozwala i nic z tego nie wynika. */
-    public function testBringsNoScreenAndTakesNoShortcut(): void
+    /**
+     * Ekran i skrót `Ctrl`+`A` — litera wolna, bo `b` i `d` są zajęte, a sześciu
+     * innych zabrania terminal.
+     */
+    public function testBringsAScreenBehindAFreeShortcutLetter(): void
     {
         $module = $this->module();
+        $shortcut = $module->shortcut();
 
         self::assertSame('audio', $module->id());
-        self::assertNull($module->shortcut(), 'skrót bez ekranu zajmowałby literę i nie robił nic');
-        self::assertNotContains(ProvidesScreen::class, class_implements($module), 'moduł nie rysuje ekranu');
+        self::assertSame('a', $shortcut->character);
+        self::assertTrue($shortcut->ctrl);
+        self::assertNotContains('a', ModuleRegistry::FORBIDDEN_CHARACTERS);
+        self::assertInstanceOf(ProvidesScreen::class, $module);
         self::assertInstanceOf(ProvidesCommands::class, $module);
+        self::assertInstanceOf(NeedsTick::class, $module);
         self::assertDirectoryExists((string) $module->translations());
     }
 
-    /** Obie komendy wchodzą pod przestrzeń modułu — tego pilnuje rejestr. */
+    /** Ekran jest **jeden**: dwa znaczyłyby dwa kursory i dwa stany playlisty. */
+    public function testTheScreenIsBuiltOnce(): void
+    {
+        $module = $this->module();
+
+        self::assertSame($module->screen(), $module->screen());
+    }
+
+    /** Trzy komendy wchodzą pod przestrzeń modułu — tego pilnuje rejestr. */
     public function testCommandsLiveInTheModuleNamespace(): void
     {
         $registry = new CommandRegistry();
@@ -68,61 +95,69 @@ final class AudioModuleTest extends TestCase
         self::assertSame([], $registry->rejections());
         self::assertNotNull($registry->find('audio.music'));
         self::assertNotNull($registry->find('audio.volume'));
-    }
-
-    /** Zakładka ustawień: ścieżka tekstem, głośność liczbą z listy, zapętlenie przełącznikiem. */
-    public function testSettingsTabDeclaresThreePositions(): void
-    {
-        $tab = $this->module()->settingsTab();
-        $kinds = array_map(
-            static fn (\LightManager\Application\Module\ModuleSetting $setting): ModuleSettingKind => $setting->kind,
-            $tab->settings,
-        );
-
-        self::assertSame(
-            [ModuleSettingKind::Text, ModuleSettingKind::Number, ModuleSettingKind::Toggle],
-            $kinds,
-        );
-        self::assertSame(
-            ['track', 'volume', 'loop'],
-            array_map(
-                static fn (\LightManager\Application\Module\ModuleSetting $setting): string => $setting->key,
-                $tab->settings,
-            ),
-        );
+        self::assertNotNull($registry->find('audio.add'));
     }
 
     /**
-     * `audio.music` gra utworem i wartościami **z ustawień**, a nie ze stałych
-     * wpisanych w komendę.
+     * Zakładka po kroku 45: tryb wyborem, głośność liczbą, autostart
+     * przełącznikiem — a utworu na niej **nie ma**, bo wybiera go playlista.
      */
-    public function testMusicCommandPlaysWhatTheSettingsSay(): void
+    public function testSettingsTabTradesTheTrackForAModeAndAnAutostart(): void
     {
-        $this->state->applySettings(
-            (new Settings())
-                ->withModuleValue('audio', 'track', '/muzyka/utwor.mp3')
-                ->withModuleValue('audio', 'volume', 30)
-                ->withModuleValue('audio', 'loop', false),
-        );
-
-        $outcome = $this->execute('audio.music');
+        $tab = $this->module()->settingsTab();
 
         self::assertSame(
-            [['path' => '/muzyka/utwor.mp3', 'volume' => 30, 'loop' => false]],
-            $this->audio->played,
+            [ModuleSettingKind::Choice, ModuleSettingKind::Number, ModuleSettingKind::Toggle],
+            array_map(static fn (ModuleSetting $setting): ModuleSettingKind => $setting->kind, $tab->settings),
         );
-        self::assertSame(CommandTransition::Close, $outcome->transition);
-        self::assertSame(MessageTone::Info, $outcome->message?->tone);
+        self::assertSame(
+            ['mode', 'volume', 'autostart'],
+            array_map(static fn (ModuleSetting $setting): string => $setting->key, $tab->settings),
+        );
     }
 
-    /** Bez ustawień gra utwór domyślny — ten z katalogu `assets/audio`. */
-    public function testWithoutSettingsItPlaysTheDefaultTrack(): void
+    /** Tryb odtwarzania przyjmuje dokładnie trzy wartości i żadnej więcej. */
+    public function testTheModePositionOffersExactlyThreeAnswers(): void
     {
-        $this->execute('audio.music');
+        self::assertSame(['list', 'once', 'repeat'], PlaybackMode::choices());
+        self::assertSame(PlaybackMode::choices(), $this->module()->settingsTab()->settings[0]->choices);
+    }
 
-        self::assertSame(AudioSettings::DEFAULT_TRACK, $this->audio->played[0]['path']);
-        self::assertSame(AudioSettings::DEFAULT_VOLUME, $this->audio->played[0]['volume']);
-        self::assertTrue($this->audio->played[0]['loop']);
+    /**
+     * Migracja zapętlenia: dawne `loop` rządzi trybem, dopóki nikt nie ruszy
+     * nowej pozycji — konfiguracja użytkownika nie zmienia się bez jego udziału.
+     */
+    public function testTheOldLoopSwitchStillDecidesTheModeUntilTheNewOneIsSet(): void
+    {
+        $off = (new Settings())->withModuleValue('audio', AudioSettings::LOOP, false);
+        $on = (new Settings())->withModuleValue('audio', AudioSettings::LOOP, true);
+
+        self::assertSame(PlaybackMode::StopAfterTrack, AudioSettings::mode($off));
+        self::assertSame(PlaybackMode::LoopList, AudioSettings::mode($on));
+        self::assertSame(PlaybackMode::LoopList, AudioSettings::mode(new Settings()), 'domyślnie pętla listy');
+
+        $chosen = $on->withModuleValue('audio', AudioSettings::MODE, PlaybackMode::RepeatTrack->value);
+
+        self::assertSame(PlaybackMode::RepeatTrack, AudioSettings::mode($chosen), 'nowy klucz wygrywa ze starym');
+    }
+
+    /** Autostart jest domyślnie wyłączony — aplikacja nie gra bez pytania. */
+    public function testAutostartIsOffUntilAskedFor(): void
+    {
+        self::assertFalse(AudioSettings::autostarts(new Settings()));
+        self::assertTrue(AudioSettings::autostarts(
+            (new Settings())->withModuleValue('audio', AudioSettings::AUTOSTART, true),
+        ));
+    }
+
+    /** `audio.music` gra to, co wskazuje playlista — utworu już nie wybiera. */
+    public function testMusicCommandPlaysWhatThePlaylistPoints(): void
+    {
+        $outcome = $this->execute('audio.music');
+
+        self::assertSame([['path' => 'a.mp3', 'volume' => 50, 'loop' => false]], $this->audio->played);
+        self::assertSame(CommandTransition::Close, $outcome->transition);
+        self::assertSame(MessageTone::Info, $outcome->message?->tone);
     }
 
     /**
@@ -153,6 +188,25 @@ final class AudioModuleTest extends TestCase
         self::assertNotNull($message);
         self::assertSame('nie ma czego grać', $message->text);
         self::assertSame(MessageTone::Error, $message->tone);
+    }
+
+    /** `audio.add` dopisuje utwór i zapisuje playlistę — działa spoza okna modułu. */
+    public function testAddCommandPutsATrackOnThePlaylist(): void
+    {
+        $outcome = $this->execute('audio.add', ['path' => '/muzyka/nowy.mp3']);
+
+        self::assertSame(CommandTransition::Close, $outcome->transition);
+        self::assertSame([['a.mp3', 'b.mp3', '/muzyka/nowy.mp3']], $this->storage->saved);
+    }
+
+    /** Podpowiedzi ścieżek liczy **własny port modułu**, bo do przeglądarki sięgać nie wolno. */
+    public function testAddCommandSuggestsPathsFromItsOwnPort(): void
+    {
+        $command = $this->command('audio.add');
+
+        self::assertInstanceOf(SuggestsArguments::class, $command);
+        self::assertSame(['assets/audio/utwor.mp3'], $command->suggestions('path', 'assets/'));
+        self::assertSame([], $command->suggestions('level', 'assets/'), 'cudzy argument nic nie podpowiada');
     }
 
     /** Głośność zmienia się **natychmiast** i zapisuje na dysk. */
@@ -196,18 +250,46 @@ final class AudioModuleTest extends TestCase
     /** Wartość spoza listy wraca z pliku jako domyślna — stąd bierze się reguła przystanków. */
     public function testSettingsFallBackWhenTheFileHoldsSomethingElse(): void
     {
-        $settings = (new Settings())
-            ->withModuleValue('audio', 'volume', 63)
-            ->withModuleValue('audio', 'track', '');
+        $settings = (new Settings())->withModuleValue('audio', 'volume', 63);
 
         self::assertSame(AudioSettings::DEFAULT_VOLUME, AudioSettings::volume($settings));
-        self::assertSame(AudioSettings::DEFAULT_TRACK, AudioSettings::track($settings));
-        self::assertTrue(AudioSettings::loops($settings));
+    }
+
+    /**
+     * Takt modułu prowadzi do playlisty i **do niczego więcej**: moduł jest tu
+     * wyłącznie posłańcem.
+     */
+    public function testTheTickReachesThePlaylist(): void
+    {
+        $module = $this->module();
+
+        // Komenda i takt muszą trafić w **ten sam** odtwarzacz — inaczej takt
+        // pilnowałby stanu, którego komenda nie zmieniła.
+        foreach ($module->commands() as $command) {
+            if ($command->name() === 'audio.music') {
+                $command->execute(new CommandInput([]));
+            }
+        }
+
+        self::assertSame(['a.mp3'], array_column($this->audio->played, 'path'));
+
+        $this->audio->finish();
+        $module->tick(10.0);
+        $module->tick(11.0);
+
+        self::assertSame(['a.mp3', 'b.mp3'], array_column($this->audio->played, 'path'));
     }
 
     private function module(): AudioModule
     {
-        return new AudioModule($this->state, new StubTranslator(), $this->settings, $this->audio);
+        return new AudioModule(
+            $this->state,
+            new StubTranslator(),
+            $this->settings,
+            $this->audio,
+            $this->storage,
+            new StubTrackFiles(hints: ['assets/audio/utwor.mp3']),
+        );
     }
 
     private function command(string $name): CommandInterface

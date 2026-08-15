@@ -91,7 +91,7 @@ final class StartupFlowTest extends TestCase
             $application->screens,
             $application->input,
             $application->state,
-            self::FAST_LOOP,
+            framesPerSecond: self::FAST_LOOP,
         );
 
         $viewport->resize(20, 60);
@@ -120,7 +120,7 @@ final class StartupFlowTest extends TestCase
             $application->screens,
             $application->input,
             $application->state,
-            self::FAST_LOOP,
+            framesPerSecond: self::FAST_LOOP,
         );
     }
 }

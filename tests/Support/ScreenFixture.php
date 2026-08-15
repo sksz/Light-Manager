@@ -20,6 +20,7 @@ use LightManager\Application\Ui\Rect;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Application\UseCase\ChangeSettingUseCase;
 use LightManager\Application\UseCase\RestoreDefaultSettingsUseCase;
+use LightManager\Module\Audio\Presentation\AudioModule;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Domain\Repository\DirectoryRepositoryInterface;
 use LightManager\Module\Browser\Presentation\BrowserModule;
@@ -30,6 +31,7 @@ use LightManager\Presentation\Cli\Command\ScreenCommand;
 use LightManager\Presentation\Cli\Command\SettingCommand;
 use LightManager\Presentation\Cli\InputHandler;
 use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Cli\ModuleTicker;
 use LightManager\Presentation\Cli\ProblemPresenter;
 use LightManager\Presentation\Cli\Screen\HelpScreen;
 use LightManager\Presentation\Cli\Screen\SettingsScreen;
@@ -81,6 +83,12 @@ final class ScreenFixture
     /** Ekran opisu pliku — od kroku 25 pochodzi z modułu, więc widziany kontraktem. */
     public readonly ScreenInterface $fileInfo;
 
+    /** Okno playlisty — moduł dźwięku ma je od kroku 45, wraz z taktem. */
+    public readonly ScreenInterface $audioScreen;
+
+    /** Takt modułów: to samo wołanie, które w aplikacji robi `GameLoop`. */
+    public readonly ModuleTicker $ticker;
+
     public readonly CommandRegistry $commandRegistry;
 
     /** Ekran, który stanął na dnie stosu — i powód, gdy nie ten, o który proszono. */
@@ -109,6 +117,9 @@ final class ScreenFixture
         public readonly FileOperationsPort $operations = new StubFileOperations(),
         public readonly FileTransferPort $transfers = new StubFileTransfers(),
         public readonly TrashPort $trash = new StubTrash(),
+        public readonly StubAudio $audio = new StubAudio(),
+        public readonly StubPlaylistStorage $playlist = new StubPlaylistStorage(),
+        public readonly StubTrackFiles $tracks = new StubTrackFiles(),
     ) {
         $translator = new StubTranslator();
         $themes = new FixedThemes();
@@ -149,11 +160,21 @@ final class ScreenFixture
             $directory->path(),
         );
 
+        // Moduł dźwięku wchodzi tu z atrapami wszystkich trzech portów: silnika
+        // (bo test nie ma prawa zagrać), nośnika playlisty (bo nie ma prawa
+        // dotknąć katalogu domowego) i plików utworów (bo nie ma prawa przeglądać
+        // dysku). Od kroku 45 wnosi ekran i takt, więc bez niego zestaw przestałby
+        // odpowiadać `Bootstrapowi` w rzeczy, którą ten krok wprowadził.
+        $audioModule = new AudioModule($this->state, $translator, $settingsStore, $audio, $playlist, $tracks);
+        $this->audioScreen = $audioModule->screen();
+
         $this->modules = new ModuleRegistry(
-            [$browser, $fileInfo],
+            [$browser, $fileInfo, $audioModule],
             $settingsStore->current()->modules,
             Bootstrap::LAST_RESORT_MODULE,
         );
+
+        $this->ticker = ModuleTicker::of($this->modules->accepted(), new ProblemPresenter($translator));
 
         $this->browser = $browser->screen();
 

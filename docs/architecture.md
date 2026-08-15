@@ -178,12 +178,19 @@ typ z `Presentation`:
 
 | Warstwa | Co tam leży |
 |---|---|
-| `Application/Module` | `ModuleInterface`, `ModuleShortcut`, `ModuleContext`, `ContextEntryKind`, `ModuleSettingsTab`, `ModuleSetting`, `ModuleSettingKind`, `ProvidesSettingsTab`, `ProvidesCommands`, `ModuleRegistry`, `ModuleRejection` |
+| `Application/Module` | `ModuleInterface`, `ModuleShortcut`, `ModuleContext`, `ContextEntryKind`, `ModuleSettingsTab`, `ModuleSetting`, `ModuleSettingKind`, `ProvidesSettingsTab`, `ProvidesCommands`, `NeedsTick`, `ModuleRegistry`, `ModuleRejection` |
 | `Presentation/Ui/Module` | `ProvidesScreen`, `ProvidesHelpTab`, `ReadsContext` |
 
 **Kontrakt modułu nie zyskał w kroku 21 ani jednej metody.** Przeglądarka plików
 — główna funkcja aplikacji — weszła w niego takim, jaki wyszedł z kroku 20, i to
 był jego sprawdzian.
+
+**W kroku 45 zyskał jedną zdolność: takt** (`NeedsTick`, D82 nr 1). Moduł, który
+ją deklaruje, dostaje wywołanie **raz na klatkę, niezależnie od tego, co widać** —
+i to jest pierwsza rzecz, którą rdzeń robi dla modułu z własnej inicjatywy.
+Warunek, pod którym ta zmiana nie łamie D70, jest zapisany przy opisie modułu
+dźwięku niżej: zdolności nie dokłada się dla wygody, tylko wtedy, gdy bez niej
+funkcja nie istnieje.
 
 Powód podziału jest ten sam, co przy komendach: interfejs opisany
 w `Application`, który wymieniałby `ScreenInterface`, sięgałby po klasę z warstwy
@@ -670,15 +677,75 @@ Trzy rzeczy, które warto znać, zanim się ten kod ruszy. **Referencja do `Soun
 musi przeżyć całą grę** — obiekt zebrany przez odśmiecacz zabiera ze sobą dźwięk,
 a testu na to napisać się nie da. **`Sound::stop()` jest pauzą, nie
 przewinięciem** — stąd jedna komenda-przełącznik zamiast pary „graj”
-i „zatrzymaj”. **Autostartu nie ma**, bo kontrakt modułu nie zna cyklu życia:
-nikt modułu przy starcie nie budzi, a dokładanie rdzeniowi zdolności „obudź mnie”
-dla jednego użytkownika byłoby rozszerzaniem rdzenia dla wygody modułu.
+i „zatrzymaj”. **Silnik miksuje kilka dźwięków naraz** (sprawdzone
+2026-08-14) — fakt potrzebny dopiero krokowi 46, ale rozpoznany wcześniej.
 
 Sprzątanie idzie **dwiema drogami naraz** (D47): jawnie i przez
 `register_shutdown_function` rejestrowaną przy starcie silnika. Testy silnika nie
 uruchamiają **w ogóle** — test, który go uruchomi, gra muzykę na maszynie ciągłej
 integracji i zostawia po sobie wątek; sprawdzać wolno wszystko przed pierwszą
 prośbą o granie.
+
+#### Takt modułu i playlista (od kroku 45)
+
+Krok 45 **odwraca jedno zdanie kroku 36**: „autostartu nie ma, bo kontrakt modułu
+nie zna cyklu życia”. Kontrakt zna go od tego kroku — a różnica, która na to
+pozwoliła, jest jedna i musi być zapisana, bo bez niej wygląda to na zmianę
+zdania (D71, D82 nr 1). W kroku 36 zdolność miała **jednego użytkownika
+i wyłącznie dla wygody**: muzykę dało się uruchomić komendą, autostart był
+udogodnieniem. Tutaj **bez wywołania spoza ekranu funkcja nie istnieje**:
+playlista, która nie wie, że utwór się skończył, nie jest playlistą, tylko listą
+ścieżek. `Presentation\Ui\NeedsTime` nie wystarcza i zostało to sprawdzone przed
+pierwszą linią kodu: o czas klatki pyta `FrameComposer`, a pyta o niego **ekran
+i okno nakładane**, czyli to, co akurat widać.
+
+**Mechanizm rdzenia to jedna zdolność i jedna klasa.**
+`Application\Module\NeedsTick` (`tick(float $now)`) deklaruje się osobno, jak
+`ProvidesCommands`; `Presentation\Cli\ModuleTicker` odsiewa chętnych **raz, przy
+składaniu aplikacji** i woła ich raz na klatkę z `GameLoop`, w fazie „aktualizuj
+stan” — obok kawałka pracy okna (`RunsWork`), a nie w rysowaniu. Trzy reguły
+obowiązują każdy przyszły moduł:
+
+- **takt jest tani** — porównanie stanu, nigdy wejście-wyjście; praca dłuższa od
+  klatki dzieli się na kawałki (D46);
+- **takt niczego nie wymusza** — nie prosi o przerysowanie i nie zwraca skutku do
+  pętli (reguła 11b w drugą stronę);
+- **takt nie rzuca** — wyjątek modułu łapie `ModuleTicker` i stawia zdanie
+  w pasku stanu, tą samą drogą, którą łapane są wyjątki ekranu; wyjątek jednego
+  modułu nie zabiera taktu pozostałym.
+
+Czas przychodzi **z zewnątrz**, i to nie jest ozdobnik: playlista mierzy nim
+**karencję po starcie utworu** (pół sekundy), bo `play()` wraca, zanim wątek
+miksujący odnotuje granie — takt tuż po starcie zobaczyłby „nie gram” i przeleciał
+całą listę w ułamku sekundy.
+
+**Playlista zastępuje klucz `track`.** Wybór utworu przestał być pozycją
+ustawień, bo jednej ścieżki już nie wystarcza; dawna wartość **zasila playlistę
+przy pierwszym uruchomieniu po zmianie** i dopiero wtedy zapisuje się plik.
+Ustawienia modułu trzymają wyłącznie skalary, więc nośnikiem listy jest **własny
+plik stanu modułu** `~/.light-manager/audio.json` (wzorem historii komend: zapis
+przez plik tymczasowy i `rename()`, żadna ścieżka nie rzuca). Klucze, których ta
+wersja nie zna, przeżywają zapis — krok 46 dołoży mapę hooków **kluczem, a nie
+drugim plikiem**. Plik ruszony ręcznie daje pustą playlistę **wraz z powodem**,
+pokazywanym w oknie modułu zamiast listy.
+
+Przełącznik `loop` zamienił się w **tryb odtwarzania** (`PlaybackMode`: pętla
+listy, zatrzymaj po utworze, powtarzaj utwór), a dawna wartość przekłada się na
+nowy klucz bez pytania użytkownika o zdanie — do pierwszej zmiany w zakładce
+rządzi nadal stary klucz, więc konfiguracja nie zmienia się bez jego udziału.
+Powtarzanie utworu zapętla **silnik**, nie playlista. Pozycja wskazująca plik,
+którego nie ma, **zostaje na liście** wyszarzona i podpisana, a wypada wyłącznie
+z wyboru „co grać dalej” (D82 nr 6).
+
+Okno modułu (`Ctrl`+`A`) **nie dokłada ani jednego komponentu rdzenia** i to jest
+sprawdzian tego kroku, ten sam, który przeszło menu z kroku 32: całość to
+`ListView`, `Label`, `TextInput` i `ScrollWindow`. Utwory wchodzą **trzema
+drogami**: `F5` bierze wpis zaznaczony w przeglądarce przez `ReadsContext` (moduł
+nie poznaje cudzego modułu, tylko ścieżkę), `F7` otwiera pole na ścieżkę, a
+komenda `audio.add` działa także wtedy, gdy okna nie widać. Kolejność zmienia się
+`Shift`+strzałkami — **nie `Alt`+strzałkami**, bo `Alt` jest w słowniku wejścia
+dopuszczony wyłącznie przy literach (reguła 11j), a otwieranie słownika byłoby
+drugą zmianą rdzenia w kroku, który ma ruszyć wyłącznie takt.
 
 #### Jeden ekran, dwa panele (od kroku 24)
 

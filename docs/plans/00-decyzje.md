@@ -4212,7 +4212,7 @@ miały status „do potwierdzenia” i potwierdziły się w kwadrans:
 
 ### D71 — Rozbudowa modułu dźwięku wchodzi jako Faza XV: dwa kroki, dwa mechanizmy rdzenia, kontrakt modułu odwraca D70
 
-**Dotyczy:** kroków 45 ([45-ekran-audio-i-playlista.md](45-ekran-audio-i-playlista.md))
+**Dotyczy:** kroków 45 ([45-ekran-audio-i-playlista.md](archiwum/45-ekran-audio-i-playlista.md))
 i 46 ([46-efekty-specjalne.md](46-efekty-specjalne.md)).
 
 **Data:** 2026-08-14, tego samego dnia co ukończenie kroku 36 — na polecenie
@@ -5422,3 +5422,106 @@ poniżej rozdzielczości taktu. Pełne porównanie sixelowe — bez regresji pow
 progu (wszystkie scenariusze w rozrzucie ±5%), wzorce PNG **zgodne co do
 piksela** (0 ‰ we wszystkich czterech), bo krok nie zmienia wyglądu żadnej
 klatki. Wzorce `po-kroku-44` zapisane dla czterech torów.
+
+## Decyzje ze startu kroku 45 (2026-08-15)
+
+### D82 — Rozstrzygnięcia startowe kroku 45: takt jedną metodą, trzy drogi do playlisty, jeden plik stanu modułu, `Alt`+strzałki odrzucone przez słownik wejścia
+
+**Dotyczy:** kroku 45 (pełna treść:
+[45-ekran-audio-i-playlista.md](archiwum/45-ekran-audio-i-playlista.md)),
+`Application/Module` (nowa zdolność taktu), `Presentation/Cli` (`GameLoop`,
+`Bootstrap`), modułu dźwięku w całości (`src/Module/Audio/`), katalogów napisów,
+[docs/architecture.md](../architecture.md),
+[SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md) i `README.md`.
+
+**Data:** 2026-08-15, przed pierwszą linią kodu — sześć pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku”, jedno odłożone przez D71 (autostart) i jedno,
+które wynikło dopiero z odpowiedzi na pytanie o kolejność pozycji.
+
+**Sprawdzenie stanu zastanego: tabela z planu zgadza się co do wiersza.**
+`Settings::$modules` bierze wyłącznie skalary (`bool|int|string`), `NeedsTime`
+obsługuje wyłącznie ekran i okno nakładane, `AudioPort::play()` przyjmuje już
+ścieżkę (więc playlista nie rusza kontraktu portu), a litera `a` jest wolna —
+zajęte są `b` (przeglądarka) i `d` (opis pliku), zabronione `c h i j m z`.
+`ModuleSetting::choice()` istnieje od kroku 27, więc tryb odtwarzania ma gotową
+postać pozycji w zakładce.
+
+**Decyzje użytkownika (1–6 — pytania z planu; 7 — odłożone przez D71; 8 —
+wynikłe z odpowiedzi na pytanie 5):**
+
+1. **Takt to jedna metoda `tick(float $now)`**, deklarowana osobno jak
+   `ProvidesCommands`, wołana w `GameLoop` w fazie „aktualizuj stan” — po
+   obsłudze wejścia, przed składaniem klatki, w tym samym miejscu, w którym stoi
+   `advanceWork()`. Czas przychodzi z zewnątrz, jak w `NeedsTime` (11b: zegar
+   nigdy z `microtime()` w środku), więc takt daje się mierzyć osią `--loop`
+   i podstawić w teście. Odrzucono parę `start()` + `tick()`: `start()` miałby
+   dziś jednego użytkownika (autostart), czyli dokładnie ten argument, którym D70
+   odrzuciło cykl życia — a autostart moduł zrobi sam przy pierwszym takcie.
+   Odrzucono też `tick()` bez czasu, bo moduł musiałby sięgnąć po zegar sam.
+2. **Utwory wchodzą na playlistę trzema drogami naraz**, a nie jedną: wpisem
+   zaznaczonym w przeglądarce przez `ReadsContext`, komendą `audio.add <ścieżka>`
+   z podpowiedziami z dysku i polem tekstowym w oknie modułu. Pierwsza jest
+   najtańsza w palcach i najczystsza dla kontraktu (moduł nie poznaje cudzego
+   modułu, tylko ścieżkę), druga działa spoza okna i wchodzi do menu `F9`,
+   trzecia jest jedyną drogą do pliku, którego przeglądarka akurat nie pokazuje.
+3. **Nośnikiem jest jeden plik stanu modułu `~/.light-manager/audio.json`**, a nie
+   plik samej playlisty. Krok 46 dokłada do niego mapę hooków **kluczem, nie
+   drugim plikiem** — i to jest cały powód wyboru. Format JSON, bo pozycja to
+   para (ścieżka, nazwa do pokazania), a nie sam wiersz jak w historii komend;
+   droga zapisu zostaje ta sama co tam: plik tymczasowy i `rename()`, żadna
+   ścieżka nie rzuca.
+4. **`Enter` gra od razu** — zgodnie ze zdaniem-miarą kroku. Kursor listy i utwór
+   grany są przez to dwiema różnymi rzeczami, a znacznik przy granym pokazuje,
+   która pozycja jest którą.
+5. **Kolejność wolno zmieniać w tym kroku**, wbrew rekomendacji planu: pozycja
+   wędruje w górę i w dół wraz z kursorem. Playlista, której nie da się ułożyć,
+   jest listą w kolejności przypadkowej — a kolejność jest jedyną rzeczą, którą
+   playlista naprawdę wnosi ponad zbiór ścieżek.
+6. **Pozycja wskazująca plik, którego nie ma, zostaje — wyszarzona i pomijana.**
+   Wzorem stosu cofnięć z kroku 44 (pozycje nieodwracalne wyszarzone, kursor je
+   przeskakuje). Odpięty nośnik nie kasuje playlisty, a użytkownik widzi, czego
+   brakuje. Automatyczne przejście dalej pomija taką pozycję zamiast zatrzymać
+   się na niej.
+7. **Autostart wchodzi jako pozycja ustawień modułu, domyślnie wyłączona** —
+   dług z kroku 36 domyka się jedną pozycją przełącznika, bo takt daje wreszcie
+   kogo obudzić (D71 zapowiedziało tę decyzję dokładnie w tym miejscu). Domyślnie
+   wyłączona, bo aplikacja grająca bez pytania przy pierwszym uruchomieniu
+   zaskakuje, a `bin/render-bench` czyta tę samą konfigurację.
+8. **Przestawianie pozycji bierze `Shift`+strzałki, nie `Alt`+strzałki** — i to
+   jest rozstrzygnięcie wymuszone przez **regułę 11j sprawdzoną w kodzie**, a nie
+   przez wygodę. `Alt` jest w słowniku wejścia dopuszczony **wyłącznie przy
+   literach**: `KeySequenceParser` odrzuca modyfikatory `Ctrl`/`Alt` przy
+   klawiszach nazwanych, a `GlfwKeyMapper` wystawia znacznik `alt` tylko dla
+   `GLFW_KEY_A`–`Z`. `Alt`+strzałki znaczyłyby więc otwarcie słownika w trzech
+   torach naraz — czyli **drugą** zmianę rdzenia w kroku, który ma ruszyć
+   wyłącznie takt, i to tej wielkości, która w kroku 44 przesunęła model na
+   `Fable / xhigh` (D81, rozstrzygnięcie 1). `Shift`+strzałki działają w obu
+   torach od tamtego kroku i kolizji nie ma: wiązania należą do ekranu, a stopka
+   kontekstowa mówi, co działa tu i teraz.
+
+**Pomiar (maszyna zwolniona przez użytkownika, obciążenie 0,06–0,10 na rdzeń):**
+oś `--loop` wobec wzorca po kroku 44 — **+1,5% bez muzyki, +2,4% przy muzyce
+granej w tle przebiegu**, obie liczby w rozrzucie szumu. Pełne porównanie
+sixelowe: dziewiętnaście scenariuszy w granicach ±4,1%, bez regresji — krok nie
+zmienia ani jednej klatki poza oknem, którego scenariusza świadomie nie ma
+(`ListView` w strefie środkowej mierzy `text`). Wzorzec
+`2026-08-15-po-kroku-45-loop.json` zapisany.
+
+**Granica tego pomiaru jest zapisana w dzienniku kroku i warto ją znać przy
+kroku 46:** `LoopBenchmarkRunner` nie jest `GameLoopem` — powtarza jego trzy fazy
+ręcznie i modułów nie tyka, więc wołania taktu w mierzonej ścieżce **nie ma**.
+Liczba mówi, że reszta taktu pętli się nie zmieniła; koszt samego taktu jest
+rachunkiem konstrukcyjnym (jedno przejście po liście i jedno porównanie pola, bez
+wejścia-wyjścia). Drugi przebieg — ten z muzyką — odpowiada natomiast na pytanie
+odłożone w kroku 36: **wątek miksujący nie wchodzi do ścieżki klatki mierzalnie**.
+
+**Trzy rzeczy wyszły dopiero z uruchomienia** (pełny zapis: dziennik kroku 45).
+`play()` wraca, **zanim silnik zacznie grać**, więc takt tuż po starcie uznałby
+świeży utwór za skończony — stąd karencja pół sekundy, liczona czasem klatki
+i będąca **jedynym użytkownikiem** argumentu `$now` w kontrakcie taktu.
+**Pauza wygląda dla silnika tak samo jak koniec utworu**, więc playlista musi
+wiedzieć, czy to ona prowadzi grę; bez tego spacja przeskakiwałaby utwór.
+I trzecia, złapana dopiero na klatce pod XTermem: **stopka pola na ścieżkę
+obiecywała „Esc zamknij okno komend”**, bo klucz opisu pożyczono z okna komend —
+test pilnuje, że klawisz działa tam, gdzie stoi w spisie, ale nie tego, czy opis
+mówi prawdę o miejscu.

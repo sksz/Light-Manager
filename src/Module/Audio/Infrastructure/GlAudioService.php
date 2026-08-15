@@ -29,6 +29,12 @@ use Throwable;
  * zmienną lokalną: obiekt zebrany przez odśmiecacz w trakcie odtwarzania zabiera
  * ze sobą dźwięk, a testu, który by to złapał, napisać się nie da.
  *
+ * Ścieżkę względną rozstrzyga `TrackFileService`, a nie ta klasa (krok 45).
+ * Reguła („licz od korzenia projektu, bo tam leży `assets/`”) ma od tamtego kroku
+ * **dwóch użytkowników**: tę usługę i sprawdzanie dostępności plików playlisty.
+ * Rozjechana dawałaby listę pokazującą pozycję jako obecną, której zagrać się nie
+ * da — więc mieszka w jednym miejscu.
+ *
  * Silnik startuje **przy pierwszym użyciu**, nie przy budowie modułu: moduł
  * powstaje przy każdym uruchomieniu aplikacji, a wątek audio ma powstać wtedy,
  * gdy ktoś naprawdę poprosi o muzykę.
@@ -64,7 +70,7 @@ final class GlAudioService extends AbstractSingleton implements AudioPort
             return $this->text('module.' . AudioSettings::ID . '.problem.unavailable');
         }
 
-        $resolved = self::resolved($path);
+        $resolved = TrackFileService::resolved($path);
         $sound = $this->soundOf($resolved);
 
         if ($sound === null) {
@@ -193,16 +199,6 @@ final class GlAudioService extends AbstractSingleton implements AudioPort
 
         $this->cleanupRegistered = true;
         register_shutdown_function($this->shutdown(...));
-    }
-
-    /**
-     * Ścieżka względna liczy się od korzenia projektu, bo tam leży katalog
-     * `assets/`. Bezwzględna zostaje nietknięta — to droga do własnego pliku
-     * użytkownika.
-     */
-    private static function resolved(string $path): string
-    {
-        return str_starts_with($path, '/') ? $path : dirname(__DIR__, 4) . '/' . $path;
     }
 
     /** Procenty pozycji ustawień na ułamek, którego chce silnik. */

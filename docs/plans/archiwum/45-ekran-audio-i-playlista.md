@@ -8,7 +8,13 @@
 
 ## Status
 
-**Nie rozpoczęty** (2026-08-14).
+**Ukończony** (2026-08-15).
+
+Rozstrzygnięcia startowe: [00-decyzje.md](../00-decyzje.md), D82 — sześć pytań
+z tego pliku, jedno odłożone przez D71 (autostart) i jedno wynikłe z odpowiedzi
+(`Alt`+strzałki odrzucone przez słownik wejścia, reguła 11j). Wszystkie kryteria
+ukończenia spełnione; szczegóły, granica pomiaru i to, co wyszło dopiero
+z uruchomienia — dziennik realizacji na końcu pliku.
 
 ## Cel
 
@@ -223,4 +229,116 @@ przez `text`.
 
 ## Dziennik realizacji
 
-*(pusty — krok nie rozpoczęty)*
+**2026-08-15 — krok wykonany w całości.** Rozstrzygnięcia startowe: D82 (sześć
+pytań z tego pliku, jedno odłożone przez D71 i jedno wynikłe z odpowiedzi).
+
+### 1. Rdzeń urósł o jedną zdolność i jedną klasę — i to jest cały jego udział
+
+`Application\Module\NeedsTick` (`tick(float $now)`) plus
+`Presentation\Cli\ModuleTicker`, który odsiewa chętnych **raz** i woła ich raz na
+klatkę z `GameLoop`, obok `advanceWork()`. `Bootstrap` dokłada jedno wywołanie
+(`ModuleTicker::of($modules->accepted(), …)`), a `GameLoop` jedno pole. Poza tym
+rdzeń nietknięty — reguła 15 dotrzymana co do litery, mimo że krok **jawnie
+odwraca D70**; różnica, na której ten wyjątek stoi, jest zapisana w D82 nr 1
+i w docblocku zdolności.
+
+Wołanie stoi w fazie „aktualizuj stan”, nie w rysowaniu, i przyjmuje czas klatki
+z zewnątrz. Ten argument **ma prawdziwego użytkownika**, choć przy rozpisywaniu
+wyglądał na ozdobnik: playlista mierzy nim karencję po starcie utworu.
+
+### 2. Co wyszło dopiero z uruchomienia
+
+- **`play()` wraca, zanim silnik zacznie grać.** Bez karencji takt tuż po starcie
+  widzi `isPlaying() === false`, uznaje świeży utwór za skończony i przelatuje
+  całą playlistę w ułamku sekundy. Stąd pół sekundy niewiary — liczone `$now`
+  z taktu, a nie zegarem w środku.
+- **Pauza wygląda dla silnika tak samo jak koniec utworu.** Playlista musi więc
+  wiedzieć, czy to **ona** prowadzi grę (`$leading`), bo inaczej każde naciśnięcie
+  spacji przeskakiwałoby do następnej pozycji. To jest najważniejsza linia całego
+  odtwarzacza i ma własny test.
+- **Cisza po ostatnim utworze musi zdjąć kursor grania**, inaczej górny pas mówi
+  „Gra: X”, gdy nic nie gra. Wyszło z przebiegu funkcjonalnego, poprawione wraz
+  z trzecim stanem pasa: gra / zatrzymane / cisza.
+- **Stopka pola na ścieżkę obiecywała „Esc zamknij okno komend”** — pożyczony
+  klucz `command.key.close` nad polem, które oknem komend nie jest. Widać to było
+  **dopiero na klatce pod XTermem**, nie w teście: test pilnuje, że klawisz działa
+  tam, gdzie stoi w spisie, a nie że opis mówi prawdę o miejscu.
+
+### 3. Rozstrzygnięcie nr 5 zderzyło się ze słownikiem wejścia
+
+Użytkownik wybrał przestawianie pozycji, a plan proponował `Alt`+strzałki.
+Sprawdzenie w kodzie pokazało, że taka droga nie istnieje: `KeySequenceParser`
+odrzuca `Ctrl`/`Alt` przy klawiszach nazwanych, a `GlfwKeyMapper` wystawia `alt`
+wyłącznie dla liter (reguła 11j). Pytanie wróciło do użytkownika **przed pierwszą
+linią kodu** i przestawianie wisi na `Shift`+strzałkach — te działają w obu torach
+od kroku 44. Wniosek na przyszłość: **rozstrzygnięcie o klawiszu warto skonfrontować
+ze słownikiem wejścia w tej samej chwili, w której się je proponuje.**
+
+### 4. Pomiar
+
+**Maszyna zwolniona przez użytkownika** (obciążenie 0,06–0,10 na rdzeń wobec 0,14
+we wzorcu). Oś `--loop` wobec wzorca po kroku 44: **+1,5% bez muzyki i +2,4%
+z muzyką graną w tle przebiegu** — obie liczby w rozrzucie szumu, „bez regresji
+powyżej progu”. Pełne porównanie sixelowe: wszystkie dziewiętnaście scenariuszy
+w granicach ±4,1%, bez regresji. Wzorzec `2026-08-15-po-kroku-45-loop.json`
+zapisany.
+
+**Granica tego pomiaru jest warta zapisania, bo inaczej liczba mówi więcej, niż
+wie.** `LoopBenchmarkRunner` **nie jest** `GameLoopem` — powtarza jego trzy fazy
+ręcznie (wejście → stan → złożenie klatki) i modułów nie tyka, więc wołania taktu
+w mierzonej ścieżce nie ma. Liczba mówi zatem, że **reszta taktu pętli się nie
+zmieniła**, a nie że takt modułu jest darmowy; ten drugi rachunek jest
+konstrukcyjny: jedno przejście po liście jednoelementowej i jedno porównanie pola
+(`$leading`), bez wejścia-wyjścia, przy 33 ms budżetu klatki. Drugi przebieg — ten
+z muzyką — odpowiada za to na pytanie odłożone w kroku 36: **wątek miksujący nie
+wchodzi do ścieżki klatki mierzalnie**.
+
+### 5. Sprawdzenie na żywo (XTerm 100×30, `HOME` podmieniony na tymczasowy)
+
+| Kryterium | Wynik |
+|---|---|
+| `Ctrl`+`A` otwiera okno | tak; górny pas „Odtwarzanie · Cisza · pętla listy” |
+| Migracja klucza `track` | playlista zastana z utworem domyślnym, bez pytania |
+| `Enter` gra wskazany | pas „Gra: Deep Purple — Smoke On The Water”, wiersz w akcencie ze znacznikiem `▶` |
+| `F7` + ścieżka | pole „Ścieżka:”, stopka zmienia miejsce na „Ścieżka utworu” |
+| Pozycja bez pliku | zostaje, wyszarzona, podpisana „brak pliku” |
+| `Shift`+`↑` | pozycja przestawiona, plik zapisany w nowej kolejności |
+| **Utwór skończył się, gdy na wierzchu stała przeglądarka** | następny ruszył sam, pozycję bez pliku pominął, kursor listy **został na swoim miejscu** |
+| Plik playlisty | `~/.light-manager/audio.json`, prawa `0600`, ścieżka względna zapisana jako względna |
+
+Ostatni wiersz sprawdzono utworem **dwusekundowym** zrobionym na tę okazję —
+domyślny ma pięć i pół minuty, a zdanie-miara kroku wymaga doczekania końca.
+
+### 6. Testy
+
+Nowe: `PlaylistTest` (kolejność, kursor, tryby, pozycje bez pliku),
+`PlaylistPlayerTest` (takt, karencja, pauza kontra koniec utworu, autostart,
+migracja, nieudany start), `AudioScreenTest` (klatka i klawisze),
+`AudioStateServiceTest` (plik: brak, ruszony ręcznie, nieznane klucze, prawa),
+`ModuleTickerTest` (mechanizm rdzenia), `AudioPlaylistFlowTest` (przebieg
+użytkownika przez `InputHandler` i `ModuleTicker`). `ScreenFixture` składa odtąd
+**trzy moduły**, więc spis miejsc ogniska w `StatusHintsFlowTest` dostał dwa nowe
+wpisy — i od razu złapał dwie obietnice bez pokrycia (strzałki nad listą
+jednoelementową, karetka w pustym polu), czyli zadziałał dokładnie tak, jak
+zaprojektowano go w kroku 40. **Żaden test nie uruchamia silnika audio.**
+
+Razem: 1723 testy, `make qa` na zielono.
+
+### 7. Kryteria ukończenia
+
+| Kryterium | Stan |
+|---|---|
+| `Ctrl`+`A`, `Enter` gra, następny rusza sam także spod innego ekranu | spełnione (test funkcjonalny **i** sprawdzenie na żywo) |
+| Tryb odtwarzania w trzech wariantach | spełnione |
+| `track` zniknął z zakładki, wartość na playliście | spełnione |
+| Plik ruszony ręcznie nie wywraca startu | spełnione |
+| Takt nie kosztuje mierzalnie | spełnione, z zapisaną granicą pomiaru (pkt 4) |
+| Komponent rdzenia nie powstał ani jeden | spełnione |
+| PHPStan `max`, PHP-CS-Fixer, testy | spełnione |
+
+### 8. Co zostaje krokowi 46
+
+Podział okna audio i lewy panel efektów, mapa hooków w **tym samym**
+`audio.json` (klucz obok `playlist`, nośnik już to przewiduje) oraz przełącznik
+efektów jako czwarta pozycja zakładki. Silnik miksuje kilka dźwięków naraz —
+sprawdzone przy planowaniu fazy, więc efekt zagra **na** muzyce.

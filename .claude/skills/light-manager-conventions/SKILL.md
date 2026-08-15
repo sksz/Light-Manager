@@ -419,6 +419,28 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     wszystko przed pierwszą prośbą o granie, a resztę atrapą portu
     (`tests/Support/StubAudio`). Głośność jest **liczbą z listy przystanków**, bo
     `ModuleSetting::valueFrom()` sprowadza wartość spoza listy do domyślnej.
+11o'. **Moduł dostaje takt, a playlista zastępuje klucz `track`** (krok 45, D82).
+    Zdanie „autostartu nie ma, bo kontrakt nie zna cyklu życia” jest **odwołane**,
+    i to jawnie: `Application\Module\NeedsTick` (`tick(float $now)`) deklaruje się
+    osobno jak `ProvidesCommands`, a `Presentation\Cli\ModuleTicker` woła je raz
+    na klatkę z `GameLoop`, w fazie „aktualizuj stan”, dla **każdego przyjętego**
+    modułu, który o to poprosił. Warunek, pod którym wolno się na to powołać, jest
+    ostry: zdolność wchodzi wtedy, gdy **bez niej funkcja nie istnieje** — nie
+    wtedy, gdy jest wygodna (różnica wobec D70). Trzy reguły taktu: **tani**
+    (porównanie stanu, nigdy wejście-wyjście — praca dłuższa od klatki idzie
+    kawałkami wedle D46), **niczego nie wymusza** (nie prosi o przerysowanie, nie
+    zwraca skutku), **nie rzuca** (łapie `ModuleTicker`, jak wyjątki ekranu; jeden
+    zepsuty moduł nie zabiera taktu pozostałym). Czas idzie z zewnątrz i ma
+    użytkownika: **karencja pół sekundy po starcie utworu**, bo `play()` wraca,
+    zanim wątek miksujący odnotuje granie. Playlista mieszka w **pliku stanu
+    modułu** `~/.light-manager/audio.json` (ustawienia biorą wyłącznie skalary),
+    zapisywanym wzorem historii komend; nieznane klucze przeżywają zapis, bo krok
+    46 dołoży do nich mapę hooków. Pozycja bez pliku **zostaje wyszarzona**
+    i wypada tylko z wyboru „co dalej”; `loop` zamienił się w `PlaybackMode`,
+    a `track` żyje wyłącznie jako źródło migracji. Okno (`Ctrl`+`A`) **nie dokłada
+    komponentu**, kolejność zmienia `Shift`+strzałkami (`Alt` przy klawiszach
+    nazwanych nie istnieje — 11j), a utwory wchodzą trzema drogami: `F5`
+    (`ReadsContext`), `F7` (pole tekstowe), `audio.add` (komenda).
 11p. **Ognisko deklaruje się, a nie odkrywa** (krok 40, D74). Aplikacja **nie ma
     zachowanego drzewa komponentów** (11a), więc „znajdź element z kursorem” nie
     jest wykonalne — pyta rdzeń, a odpowiada ten, kto ognisko trzyma:

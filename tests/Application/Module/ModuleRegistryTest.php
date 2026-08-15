@@ -194,11 +194,12 @@ final class ModuleRegistryTest extends TestCase
 
         self::assertSame([], $app->modules->rejections());
         self::assertSame(
-            ['b', 'd'],
+            ['b', 'd', 'a'],
             array_keys($app->modules->shortcuts()),
-            'przeglądarka trzyma Ctrl+B, FileInfo — Ctrl+D',
+            'przeglądarka trzyma Ctrl+B, FileInfo — Ctrl+D, dźwięk — Ctrl+A (krok 45)',
         );
         self::assertNotNull($app->module('browser'));
         self::assertNotNull($app->module('file-info'));
+        self::assertNotNull($app->module('audio'));
     }
 }

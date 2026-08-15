@@ -169,7 +169,7 @@ kosztuje w terminalu.
 | `F9` | menu kontekstowe — co da się zrobić z zaznaczonym wpisem |
 | `F11` | pełny ekran — **tylko w trybie okienkowym** (`--window`) |
 | `F12` | okno komend |
-| `Ctrl`+litera | okno modułu — `Ctrl+B` przeglądarka plików, `Ctrl+D` opis zaznaczonego pliku |
+| `Ctrl`+litera | okno modułu — `Ctrl+B` przeglądarka plików, `Ctrl+D` opis zaznaczonego pliku, `Ctrl+A` playlista |
 | `Esc` | zdjęcie filtra, a potem zaznaczenia; powrót do modułu domyślnego z każdego ekranu |
 | `F10` | wyjście (działa na każdym ekranie) |
 
@@ -389,6 +389,7 @@ między modułami jest niemożliwa z konstrukcji. Dziś dostępne są:
 | `file-info.show` | — | otwiera opis zaznaczonego wpisu |
 | `audio.music` | — | włącza muzykę albo ją zatrzymuje |
 | `audio.volume` | 0–100 co 10 | ustawia głośność muzyki |
+| `audio.add` | ścieżka | dopisuje utwór do playlisty |
 
 `core.fullscreen` jest pierwszą komendą rdzenia, której **obecność zależy od
 trybu**: w torze terminalowym nie ma jej w spisie wcale, bo pełny ekran nic tam
@@ -509,9 +510,9 @@ dane — i jedyne, które pyta.
 | Opis pliku | Podgląd treści plików tekstowych | tak / nie | **tak** |
 | Opis pliku | Numery wierszy w podglądzie | tak / nie | nie |
 | Opis pliku | Zawijanie wierszy w podglądzie | tak / nie | **tak** |
-| Dźwięk | Utwór | tekst (ścieżka) | plik z `assets/audio/` |
+| Dźwięk | Po utworze | pętla listy / zatrzymaj / powtarzaj utwór | **pętla listy** |
 | Dźwięk | Głośność (%) | 0–100 co 10 | 50 |
-| Dźwięk | Odtwarzanie w kółko | tak / nie | **tak** |
+| Dźwięk | Graj od uruchomienia | tak / nie | nie |
 
 Każda zmiana działa natychmiast — motyw i jakość rysowania widać w następnej
 klatce, bez restartu — i od razu ląduje w pliku, więc przeżywa nawet zabicie
@@ -531,7 +532,7 @@ poprawione.
 ### Moduły
 
 Funkcję dopisuje się do aplikacji **modułem**, nie zmianą w rdzeniu. Moduł ma
-pięć punktów zaczepienia i deklaruje tylko te, których naprawdę potrzebuje:
+sześć punktów zaczepienia i deklaruje tylko te, których naprawdę potrzebuje:
 
 1. własne okno wraz ze skrótem `Ctrl`+litera. Okno to **trzy strefy klatki**:
    górny pas, środkowy panel i pas podglądu — moduł zamawia te, które ma czym
@@ -542,9 +543,16 @@ pięć punktów zaczepienia i deklaruje tylko te, których naprawdę potrzebuje:
 3. własną zakładkę w oknie pomocy: część automatyczną rdzeń składa z deklaracji
    (skrót, klawisze okna, pozycje ustawień), a moduł dokłada własne wiersze,
 4. własne napisy w `src/Module/<Nazwa>/lang/`, scalane z katalogiem rdzenia,
-5. własne komendy w oknie komend.
+5. własne komendy w oknie komend,
+6. **takt** — jedno wywołanie na klatkę, niezależnie od tego, co widać. Punkt
+   dołożony w wersji z playlistą i obwarowany trzema regułami: takt ma być tani
+   (porównanie stanu, nigdy odczyt z dysku), niczego nie wymusza (o przerysowanie
+   nie prosi — klatka i tak idzie trzydzieści razy na sekundę) i nie przerywa
+   pętli, gdy moduł się w nim wywróci. Dziś korzysta z niego jeden: playlista,
+   która musi zauważyć, że utwór się skończył — także wtedy, gdy jej okna nie
+   widać.
 
-Dopisanie modułu ze wszystkimi pięcioma punktami kosztuje **jedną zmianę
+Dopisanie modułu ze wszystkimi sześcioma punktami kosztuje **jedną zmianę
 w rdzeniu**: dopisanie klasy do listy w `Presentation\Cli\Bootstrap`.
 
 Wbudowane są dziś trzy:
@@ -631,28 +639,36 @@ Wbudowane są dziś trzy:
   Numery wierszy są **domyślnie
   wyłączone** i włącza się je w ustawieniach modułu, a w wąskim panelu ustępują
   miejsca treści. Podgląd binariów nie powstaje i mówi o tym wprost.
-- **Dźwięk** (`audio`, bez skrótu) — muzyka grająca **obok** pracy z plikami.
-  Moduł nie wnosi ani ekranu, ani skrótu, ani jednego komponentu: wnosi dwie
-  komendy, zakładkę ustawień i zakładkę pomocy. Jest przez to sprawdzianem
-  kontraktu modułu z drugiej strony niż przeglądarka — pytaniem, czy kontrakt
-  udźwignie moduł, który **nic nie rysuje**.
+- **Dźwięk** (`audio`, `Ctrl`+`A`) — muzyka grająca **obok** pracy z plikami.
+  Moduł wnosi okno z playlistą, trzy komendy, zakładkę ustawień i zakładkę
+  pomocy — a **ani jednego komponentu rdzenia**: okno składa się z listy, etykiet
+  i pola tekstowego, które w aplikacji już były.
 
-  Muzykę włącza i zatrzymuje komenda `audio.music`; drugie jej wywołanie
-  **pauzuje**, więc trzecie wznawia w tym samym miejscu, a nie zaczyna od nowa.
+  `Ctrl`+`A` otwiera playlistę, `Enter` gra wskazany utwór, spacja zatrzymuje
+  i wznawia (silnik **pauzuje**, więc wznowienie wraca w to samo miejsce).
+  Utwory dopisujesz trzema drogami: **`F5`** bierze wpis zaznaczony
+  w przeglądarce, **`F7`** pyta o ścieżkę, a komenda **`audio.add <ścieżka>`**
+  działa także wtedy, gdy okna audio nie widać — z podpowiedziami plików
+  z dysku. `F8` albo `Delete` usuwa pozycję, `Shift`+strzałki przestawiają ją
+  w liście. Formaty to **WAV, MP3 i FLAC** — plik MIDI się nie nada i mówi o tym
+  wprost, bo silnik audio odtwarza próbki, a nie zapis nutowy.
+
+  **Gdy utwór się skończy, następny rusza sam** — także wtedy, gdy dawno wróciłeś
+  do plików i o oknie audio zapomniałeś. Co się wtedy dzieje, rozstrzyga pozycja
+  „Po utworze”: pętla listy gra dalej, „zatrzymaj” milknie, „powtarzaj utwór” gra
+  ten sam w kółko. Pozycja wskazująca plik, którego nie ma, **zostaje na liście**
+  wyszarzona i podpisana — playlista ją pomija, ale odpięty nośnik jej nie kasuje.
+  Playlista mieszka w `~/.light-manager/audio.json`; plik ruszony ręcznie daje
+  pustą listę wraz z komunikatem, nigdy błędu przy starcie.
+
   `audio.volume <0–100>` zmienia głośność natychmiast, także w trakcie grania,
   i zapisuje ją do konfiguracji; przyjmuje wartości co dziesięć — te same,
   po których chodzi strzałka na zakładce ustawień.
 
-  Utwór wskazuje pozycja „Utwór”: ścieżka względna liczy się od katalogu
-  aplikacji, bezwzględna zostaje nietknięta. Domyślnie jest to plik
-  z `assets/audio/`. Formaty to **WAV, MP3 i FLAC** — plik MIDI się nie nada
-  i mówi o tym wprost, bo silnik audio odtwarza próbki, a nie zapis nutowy.
-
-  **Muzyka nie rusza sama.** Autostartu nie ma i jest to skutek kontraktu
-  modułu, a nie przeoczenie: rdzeń nie budzi modułów przy starcie, a dokładanie
-  mu takiej zdolności dla jednej funkcji byłoby rozszerzaniem rdzenia dla wygody
-  modułu. **Dźwięk gra poza ścieżką klatki** — silnik miksuje we własnym wątku,
-  więc pętla główna, renderery i komponenty nie wiedzą, że cokolwiek gra, a koszt
+  **Muzyka rusza sama, jeśli ją o to poprosisz**: pozycja „Graj od uruchomienia”
+  jest domyślnie wyłączona, bo aplikacja grająca przy pierwszym starcie zaskakuje.
+  **Dźwięk gra poza ścieżką klatki** — silnik miksuje we własnym wątku, więc
+  pętla główna, renderery i komponenty nie wiedzą, że cokolwiek gra, a koszt
   klatki nie drga w żadnym z trzech torów.
 
   Bez rozszerzenia `glfw` moduł zachowuje się jak wszystko inne, co od niego
@@ -729,10 +745,20 @@ zmianie ustawienia — sam start aplikacji niczego nie tworzy na dysku.
         "file-info": { "enabled": true, "timeout": 2, "arguments": "",
                        "timeFormat": "absolute", "inode": false,
                        "checksum": false, "checksumLimit": 256,
-                       "textPreview": true, "lineNumbers": false }
+                       "textPreview": true, "lineNumbers": false },
+        "audio": { "enabled": true, "mode": "list", "volume": 50,
+                   "autostart": false }
     }
 }
 ```
+
+**Playlista mieszka osobno**, w `~/.light-manager/audio.json`, i to nie jest
+kaprys: ustawienia biorą wyłącznie wartości proste (prawda/fałsz, liczba, napis),
+a lista utworów żadną z nich nie jest. Plik powstaje przy pierwszym dopisaniu
+utworu; klucz `track` z wersji sprzed playlisty **zasila ją przy pierwszym
+uruchomieniu po aktualizacji**, więc ustawiony utwór nie ginie. Plik ruszony
+ręcznie daje pustą playlistę wraz z komunikatem — start się przez niego nie
+wywraca.
 
 Podobiekt `modules` dopisuje się dopiero wtedy, gdy któreś ustawienie modułu
 zostanie ruszone. **Ustawienia modułu nieznanego zostają nietknięte** — moduł
@@ -798,7 +824,8 @@ Makefile     wejścia do wszystkich procesów projektu (`make` wypisuje spis)
 bin/         skrypty wejściowe CLI (aplikacja, narzędzia diagnostyczne, budowa)
 src/         kod aplikacji (PSR-4, namespace LightManager\)
 src/Module/  moduły — każdy z własnymi warstwami i własnymi napisami
-             (Browser — menadżer plików, FileInfo — opis zaznaczonego pliku)
+             (Browser — menadżer plików, FileInfo — opis zaznaczonego pliku,
+              Audio — playlista grająca obok pracy z plikami)
 tests/       testy PHPUnit (namespace LightManager\Tests\)
 lang/        katalogi napisów interfejsu (rdzeń)
 assets/      zasoby aplikacji (domyślny utwór modułu dźwięku)
@@ -1042,10 +1069,10 @@ Budowa kończy się sprawdzeniem, że wynik się ładuje.
 ```
 
 **Zasoby leżą obok archiwum z powodu, który warto znać**: silnik `GL\Audio` jest
-rozszerzeniem C i pliku spod `phar://` nie przeczyta. W zbudowanej aplikacji
-utwór wskazuje się więc **ścieżką bezwzględną** (ustawienia → zakładka „Dźwięk”
-→ Utwór), np. `/…/build/assets/audio/Deep Purple - Smoke On The Water.mp3`;
-ścieżka względna liczy się od korzenia projektu, którego dystrybucja nie ma.
+rozszerzeniem C i pliku spod `phar://` nie przeczyta. W zbudowanej aplikacji utwór
+dopisuje się więc do playlisty **ścieżką bezwzględną** (`Ctrl`+`A`, potem `F7`),
+np. `/…/build/assets/audio/Deep Purple - Smoke On The Water.mp3`; ścieżka
+względna liczy się od korzenia projektu, którego dystrybucja nie ma.
 Konfiguracja i historia komend idą do katalogu domowego, więc niezapisywalny
 katalog wyniku niczego nie blokuje.
 

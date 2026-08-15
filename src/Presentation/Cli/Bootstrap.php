@@ -259,6 +259,10 @@ final class Bootstrap
                 $menu,
             ),
             $state,
+            // Takt modułów (krok 45). Rejestr oddaje **przyjęte** moduły, więc
+            // wyłączony i odrzucony taktu nie dostaje — a odsiew tych, które
+            // o niego proszą, zdarza się tu raz, nie trzydzieści razy na sekundę.
+            ModuleTicker::of($modules->accepted(), self::problemPresenter()),
         );
     }
 

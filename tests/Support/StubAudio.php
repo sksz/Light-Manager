@@ -79,4 +79,17 @@ final class StubAudio implements AudioPort
         ++$this->shutdownCount;
         $this->playing = false;
     }
+
+    /**
+     * Utwór doszedł do końca — **sam z siebie, bez niczyjego udziału**.
+     *
+     * Od kroku 45 to jest jedyne zdarzenie, którego playlista wypatruje w takcie,
+     * i zarazem jedyne, którego atrapa nie umiałaby udać przez `stop()`: tamto
+     * znaczy pauzę, a to koniec grania. Rozróżnienia pilnuje `PlaylistPlayer`,
+     * więc test musi umieć wywołać oba osobno.
+     */
+    public function finish(): void
+    {
+        $this->playing = false;
+    }
 }

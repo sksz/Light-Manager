@@ -10,8 +10,7 @@ use LightManager\Application\Command\CommandOutcome;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\Audio\Application\AudioSettings;
-use LightManager\Module\Audio\Application\Port\AudioPort;
-use LightManager\Presentation\Cli\LoopState;
+use LightManager\Module\Audio\Application\PlaylistPlayer;
 
 /**
  * `audio.music` — muzyka rusza i staje (krok 36).
@@ -22,22 +21,19 @@ use LightManager\Presentation\Cli\LoopState;
  * obiecywałaby rozróżnienie, którego pod spodem nie ma. Wzorem jest
  * `core.fullscreen` — też przełącznik bez argumentu.
  *
- * Komenda jest **jedynym sposobem uruchomienia muzyki** i to jest rozstrzygnięcie
- * ze startu kroku (D70): kontrakt modułu nie zna cyklu życia, więc autostartu nie
- * ma — moduł nie miałby od kogo dostać momentu startu, a dokładanie rdzeniowi
- * zdolności „obudź mnie” dla jednego użytkownika byłoby rozszerzeniem rdzenia dla
- * wygody modułu.
+ * **Krok 45 zabiera jej dwie rzeczy i to jest cała zmiana.** Utworu już nie
+ * wybiera — gra to, co wskazuje playlista — i nie jest już jedynym sposobem
+ * uruchomienia muzyki: ruszają ją także `Enter` w oknie modułu i autostart, bo
+ * kontrakt modułu poznał takt (`NeedsTick`, D82 nr 1). Zdanie z kroku 36
+ * o „jedynym sposobie” zostaje odwołane wraz z powodem, który je uzasadniał.
  *
- * Ustawienia czyta ze stanu pętli, a nie z portu konfiguracji, bo zakładka
- * ustawień zmienia je **w trakcie uruchomienia** — moduł czytający plik
- * pokazywałby wartość sprzed zmiany (ta sama zależność i z tego samego powodu
- * stoi w `BrowserModule` od kroku 21).
+ * Co się nie zmieniło: komenda pozostaje **przełącznikiem**, bo silnik pauzuje,
+ * a nie przewija (krok 36), więc drugie naciśnięcie wznawia w tym samym miejscu.
  */
 final class MusicCommand implements CommandInterface
 {
     public function __construct(
-        private readonly AudioPort $audio,
-        private readonly LoopState $state,
+        private readonly PlaylistPlayer $player,
         private readonly TranslatorPort $translator,
     ) {
     }
@@ -59,28 +55,25 @@ final class MusicCommand implements CommandInterface
 
     public function execute(CommandInput $input): CommandOutcome
     {
-        if ($this->audio->isPlaying()) {
-            $this->audio->stop();
+        if ($this->player->isPlaying()) {
+            $this->player->pause();
 
             return CommandOutcome::done(Message::info($this->text('stopped')));
         }
 
-        $settings = $this->state->settings();
-        $track = AudioSettings::track($settings);
-
-        $problem = $this->audio->play(
-            $track,
-            AudioSettings::volume($settings),
-            AudioSettings::loops($settings),
-        );
+        $problem = $this->player->resume();
 
         if ($problem !== null) {
             return CommandOutcome::done(Message::error($problem));
         }
 
-        // Nazwa pliku, a nie cała ścieżka: pasek stanu ma jeden wiersz, a
+        // Nazwa pozycji, a nie cała ścieżka: pasek stanu ma jeden wiersz, a
         // użytkownik i tak wie, gdzie trzyma muzykę.
-        return CommandOutcome::done(Message::info($this->text('playing', ['track' => basename($track)])));
+        $playing = $this->player->nowPlaying();
+
+        return CommandOutcome::done(Message::info($this->text('playing', [
+            'track' => $playing === null ? '' : $playing->name,
+        ])));
     }
 
     /** @param array<string, string> $parameters */

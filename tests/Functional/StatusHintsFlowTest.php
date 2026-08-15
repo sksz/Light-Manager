@@ -308,6 +308,30 @@ final class StatusHintsFlowTest extends TestCase
             return [$test->app->settings, 'pozycja tekstowa w edycji'];
         }];
 
+        yield 'dźwięk: playlista' => [static function (self $test): array {
+            // Miejsce dołożone w kroku 45. Playlista **niepusta i dłuższa niż
+            // o jedną pozycję**: spis pokazuje wyłącznie to, co działa tu i teraz,
+            // a nad listą jednoelementową strzałki nie mają dokąd pójść.
+            $test->app = self::fixture();
+            $test->addTrack('/a.mp3');
+            $test->addTrack('/b.mp3');
+
+            return [$test->app->audioScreen, 'playlista'];
+        }];
+
+        yield 'dźwięk: ścieżka' => [static function (self $test): array {
+            $test->app = self::fixture();
+            $test->app->audioScreen->handle(KeyPress::special(Key::F7, "\e[18~"));
+
+            // Karetka w pustym polu nie ma się gdzie ruszyć, a spis obiecuje jej
+            // ruch — pole musi więc coś zawierać, żeby obietnica była sprawdzalna.
+            foreach (['/', 'a'] as $character) {
+                $test->app->audioScreen->handle(KeyPress::character($character));
+            }
+
+            return [$test->app->audioScreen, 'pole na ścieżkę utworu'];
+        }];
+
         yield 'pomoc' => [static function (self $test): array {
             $test->app = self::fixture();
             $test->app->help->handle(KeyPress::special(Key::ArrowDown, "\e[B"));
@@ -557,6 +581,18 @@ final class StatusHintsFlowTest extends TestCase
         }
 
         self::fail('nie ma ani jednej pozycji tekstowej — test edycji nie ma czego sprawdzić');
+    }
+
+    /** Utwór na playliście — tą samą drogą, którą dokłada go użytkownik (`F7` plus ścieżka). */
+    private function addTrack(string $path): void
+    {
+        $this->app->audioScreen->handle(KeyPress::special(Key::F7, "\e[18~"));
+
+        foreach (mb_str_split($path) as $character) {
+            $this->app->audioScreen->handle(KeyPress::character($character));
+        }
+
+        $this->app->audioScreen->handle(KeyPress::special(Key::Enter, "\r"));
     }
 
     private function enableSplit(): void
