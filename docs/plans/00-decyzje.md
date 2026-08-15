@@ -4213,7 +4213,7 @@ miały status „do potwierdzenia” i potwierdziły się w kwadrans:
 ### D71 — Rozbudowa modułu dźwięku wchodzi jako Faza XV: dwa kroki, dwa mechanizmy rdzenia, kontrakt modułu odwraca D70
 
 **Dotyczy:** kroków 45 ([45-ekran-audio-i-playlista.md](archiwum/45-ekran-audio-i-playlista.md))
-i 46 ([46-efekty-specjalne.md](46-efekty-specjalne.md)).
+i 46 ([46-efekty-specjalne.md](archiwum/46-efekty-specjalne.md)).
 
 **Data:** 2026-08-14, tego samego dnia co ukończenie kroku 36 — na polecenie
 użytkownika, który poprosił o okno modułu z dwoma panelami (efekty specjalne po
@@ -5525,3 +5525,108 @@ I trzecia, złapana dopiero na klatce pod XTermem: **stopka pola na ścieżkę
 obiecywała „Esc zamknij okno komend”**, bo klucz opisu pożyczono z okna komend —
 test pilnuje, że klawisz działa tam, gdzie stoi w spisie, ale nie tego, czy opis
 mówi prawdę o miejscu.
+
+## Decyzje ze startu kroku 46 (2026-08-15)
+
+### D83 — Rozstrzygnięcia startowe kroku 46: zdarzenia publikują także moduły, słownik ma 22 pozycje, przełącznik przy każdym przypisaniu
+
+**Dotyczy:** kroku 46 (pełna treść:
+[46-efekty-specjalne.md](archiwum/46-efekty-specjalne.md)), nowego katalogu
+`src/Application/Event/`, dwóch zdolności w `Application/Module`,
+`Presentation/Cli` (`LoopState`, `OverlayStack`, `Bootstrap`), obu okien rejestru
+komend, modułu przeglądarki (`src/Module/Browser/`), modułu dźwięku w całości
+(`src/Module/Audio/`), katalogów napisów, [docs/architecture.md](../architecture.md),
+[SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md) i `README.md`.
+
+**Data:** 2026-08-15, przed pierwszą linią kodu — sześć pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku", jedno dodatkowe (pierwsze uruchomienie)
+i jedno powtórzone, bo odpowiedź na nie **zmieniła zakres kroku**.
+
+**Sprawdzenie stanu zastanego: tabela z planu zgadza się co do wiersza.**
+`src/Domain/Event/` jest pusty od kroku 01, w całym `src/` nie ma ani jednego
+`dispatch()`, `LoopState::report()` jest jedynym miejscem, przez które przechodzą
+wszystkie komunikaty wraz z tonem, a plik `~/.light-manager/audio.json` przeżywa
+nieznane klucze — dokładnie tak, jak krok 45 to zaprojektował (D82 nr 3).
+Doszedł jeden fakt, którego plan nie znał: użytkownik dowiózł **pięć próbek
+dźwiękowych** w `assets/sfx/`.
+
+**Rozstrzygnięcie, które zmieniło zakres kroku.** Plan mówił „rdzeń publikuje,
+moduł odbiera" i miał „zdarzenia publikowane przez moduły" w sekcji *Poza
+zakresem*. Odpowiedź użytkownika na pytanie o dwa efekty naraz okazała się
+odpowiedzią na coś innego: zdarzenia mają być **listą zdarzeń rdzenia
+i modułów**, z przykładami „zakończenie kopiowania z sukcesem", „przejście
+kursora na liście", „niepowodzenie usunięcia pliku". Rozpoznanie w kodzie
+potwierdziło, że inaczej się nie da: wszystkie zdania modułów schodzą się
+w `LoopState::report()` z tonem, więc trzy zdarzenia rdzenia odróżniają
+powodzenie od awarii, ale **nie odróżniają kopiowania od usunięcia**. Zdanie
+z planu zostało odwołane jawnie, a wykluczenie zawężone do tego, co nim naprawdę
+jest: kolejek, priorytetów i zdarzeń asynchronicznych.
+
+**Decyzje użytkownika:**
+
+1. **Słownik ma 22 pozycje: 5 rdzenia i 17 przeglądarki.** Rdzeń ogłasza trzy
+   tony komunikatu, otwarcie okna nakładanego i wykonanie komendy — każde
+   z miejsca, które **już istniało**. Przeglądarka: ruch kursora, wejście do
+   katalogu, zaznaczenie wpisu oraz **siedem czynności × udana/nieudana**
+   (zmiana nazwy, nowy katalog, kopiowanie, przeniesienie, kosz, usunięcie
+   trwałe, cofnięcie). Rozbicie po czynnościach jest świadomie kupione za długość
+   spisu w oknie odbiorcy: wariant „jedno wspólne niepowodzenie" odpadł, bo to
+   właśnie „niepowodzenie usunięcia" było przykładem podanym przez użytkownika.
+   **Koniec pracy do słownika nie wszedł** i powód jest mechaniczny:
+   `Bootstrap::shutdown()` zatrzymuje silnik audio, więc dźwięk podpięty do
+   zakończenia zostałby ucięty w pół.
+2. **Słownik mieszka w `Application/Event`, nie w `Domain/Event`**, a zdolności
+   nazywają się `ListensToEvents` (odbiór) i `DeclaresEvents` (ogłaszanie) — obie
+   w `Application/Module`, bo nie wymieniają typów z `Presentation` (P2). Katalog
+   `Domain/Event` **zostaje pusty**: „otwarto okno" i „wykonano komendę" to fakty
+   aplikacji, a `Domain` rdzenia jest umyślnie chudy i jest słownikiem powłoki
+   (reguła 1). Zdarzenie to **enum**, nie obiekt wartości z danymi — niesie
+   wyłącznie tożsamość (D40 P5).
+3. **Przypisanie idzie trzema drogami**: `F5` (wpis zaznaczony w przeglądarce
+   przez `ReadsContext`), `F7` (pole na ścieżkę) i komenda
+   `audio.hook <zdarzenie> <ścieżka>` — **pierwsza w projekcie z dwoma
+   argumentami podpowiadanymi**. Mechanizm był na to gotowy od kroku 19
+   (`SuggestsArguments` rozdziela podpowiedzi po nazwie argumentu), więc koszt
+   wyniósł jedną klasę komendy.
+4. **Przełącznik stoi przy każdym przypisaniu** (spacja w panelu), a nie tylko
+   globalnie — i mieszka w mapie, nie w ustawieniach, bo mapa i tak trzyma po
+   wierszu na zdarzenie, a pozycja w zakładce musiałaby powstać dla każdego
+   z osobna. Globalny **zostaje** obok niego, bo żąda go kryterium ukończenia
+   kroku („jeden przełącznik ucisza wszystkie efekty"). Wyciszenie zostawia plik,
+   `F8` go zabiera — dwie różne czynności, dwa klawisze.
+5. **Efekty mają własną głośność**, osobną pozycję w zakładce. Powód jest
+   słyszalny, a nie porządkowy: klik zmiksowany na poziomie muzyki ginie pod nią
+   albo krzyczy w ciszy. Domyślnie 70%, muzyka 50%.
+6. **Uchwyt efektu jest jeden — nowy przerywa poprzedni.** Wariant „każdy plik ma
+   własny uchwyt" odpadł; przy dźwiękach trwających pół sekundy różnicy nie
+   słychać, a mapa uchwytów byłaby stanem do sprzątania.
+7. **Zdarzenie bez przypisania zostaje w spisie**, wyszarzone i z kreską —
+   wzorem playlisty i stosu cofnięć (D82 nr 6). Spis składa się przez to **ze
+   słownika, a nie z mapy**: użytkownik ma widzieć, co jeszcze da się przypisać.
+8. **Minimalny odstęp między dwoma odpaleniami tego samego zdarzenia stoi po
+   stronie odbiorcy** (100 ms). Pytanie wynikło z rozstrzygnięcia nr 1: trzymana
+   strzałka daje trzydzieści zdarzeń kursora na sekundę, a klik odpalany trzydzieści
+   razy na sekundę jest warkotem. Wariant „przeglądarka publikuje rzadziej" odpadł,
+   bo wnosiłby wiedzę o dźwięku do publikującego.
+9. **Przy pierwszym uruchomieniu mapa jest pusta, a przełącznik włączony.** Ten
+   sam rachunek, który w kroku 45 wyłączył autostart muzyki (D82 nr 7): aplikacja,
+   która przy pierwszym uruchomieniu zaczyna klikać, zaskakuje. Próbki
+   z `assets/sfx/` są materiałem do przypisania, a nie zestawem domyślnym.
+
+**Co z tego wyszło w kodzie — trzy rzeczy warte zapamiętania.**
+
+**Publikator zamieszkał w `LoopState`**, obok kontekstu sesji i z tego samego
+powodu: stan pętli dostaje **każdy** moduł, więc `Bootstrap` urósł o jedną linię
+(`useModules()`), a nie o argument przy każdym publikującym module.
+
+**Zamkniętość słownika jest wykonana konstrukcyjnie.** Nazwy pochodzą z enumów,
+a deklaracja katalogu powstaje z `cases()` — publikacja i spis u odbiorcy nie mają
+jak się rozjechać. Rozjazd byłby przy tym **niewidoczny**: wiersz, do którego nic
+nie dochodzi, wygląda dokładnie tak samo jak wiersz, do którego nic nie
+przypisano.
+
+**Zdarzenie „wejście do katalogu" ogłasza `BrowserState::enter()`, a nie ekran** —
+i pada wyłącznie wtedy, gdy katalog naprawdę się zmienił. Tą samą metodą wchodzi
+bowiem przełączenie wpisów ukrytych i odczyt katalogu na nowo po operacji, a jedno
+porównanie ścieżek jest tańsze i uczciwsze niż cztery miejsca publikacji
+(klawisz, drzewo, `browser.jump`, `browser.open`).

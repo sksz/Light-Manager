@@ -10,6 +10,8 @@ use LightManager\Application\Port\TrashPort;
 use LightManager\Application\Ui\Role;
 use LightManager\Domain\Exception\FileOperationException;
 use LightManager\Domain\ValueObject\Message;
+use LightManager\Module\Browser\Application\BrowserEvent;
+use LightManager\Module\Browser\Application\BrowserEvents;
 use LightManager\Module\Browser\Application\Undo\UndoEntry;
 use LightManager\Module\Browser\Application\Undo\UndoJournal;
 use LightManager\Module\Browser\Application\Undo\UndoKind;
@@ -52,6 +54,7 @@ final class EntryUndo
         private readonly PaneRefresh $refresh,
         private readonly TranslatorPort $translator,
         private readonly UndoJournal $journal,
+        private readonly BrowserEvents $events,
     ) {
     }
 
@@ -107,9 +110,13 @@ final class EntryUndo
         }
 
         return match ($entry->kind) {
-            UndoKind::Rename => $this->undoRename($entry),
-            UndoKind::MakeDirectory => $this->undoMakeDirectory($entry),
-            UndoKind::Trash => $this->undoTrash($entry),
+            UndoKind::Rename => $this->announced($this->undoRename($entry)),
+            UndoKind::MakeDirectory => $this->announced($this->undoMakeDirectory($entry)),
+            UndoKind::Trash => $this->announced($this->undoTrash($entry)),
+            // Bez `announced()` i to jest jedyna gałąź, której zdarzenie **nie
+            // pada tutaj**: przeniesienie wraca pracą kawałkową, więc mówi o sobie
+            // dopiero wtedy, gdy się skończy — a mówi za nie `EntryTransfer`,
+            // który jako jedyny wie, czy dojechała.
             UndoKind::Move => $this->undoMove($entry),
             // Nieosiągalne z widoku (pozycja niewybieralna) i z klawisza
             // (najnowsze **odwracalne**) — ale spis odwracalnych mieszka
@@ -237,6 +244,20 @@ final class EntryUndo
                 ? $this->translator->translate('module.browser.undo.entry.delete', ['name' => $entry->names[0]])
                 : $this->translator->plural('module.browser.undo.entry.delete.many', $count),
         };
+    }
+
+    /**
+     * Skutek cofnięcia ogłoszony reszcie aplikacji (krok 46).
+     *
+     * Pyta o **ton zdania**, które zostało po czynności, bo drugiej odpowiedzi na
+     * to samo pytanie nie ma: cofnięcie nieudane mówi dlaczego, udane mówi co
+     * wróciło, a nic poza tym stąd nie wychodzi.
+     */
+    private function announced(OverlayOutcome $outcome): OverlayOutcome
+    {
+        $this->events->outcome(BrowserEvent::UndoDone, BrowserEvent::UndoFailed, $outcome->message);
+
+        return $outcome;
     }
 
     private static function forScreen(OverlayOutcome $outcome): ScreenOutcome

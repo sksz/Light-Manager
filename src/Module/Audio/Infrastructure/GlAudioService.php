@@ -57,6 +57,20 @@ final class GlAudioService extends AbstractSingleton implements AudioPort
     /** Ścieżka utworu trzymanego w `$sound`; pusta, dopóki nic nie wczytano. */
     private string $loaded = '';
 
+    /**
+     * Drugi uchwyt — **efekt** (krok 46).
+     *
+     * Osobne pole, a nie drugie użycie `$sound`, bo tamten trzyma muzykę i jego
+     * kursor jest pamięcią pauzy: zagranie efektu przez ten sam obiekt kasowałoby
+     * miejsce, w którym stanął utwór. Referencja musi przy tym przeżyć całą grę
+     * z tego samego powodu, co tamta — obiekt zebrany przez odśmiecacz zabiera ze
+     * sobą dźwięk.
+     */
+    private ?Sound $effect = null;
+
+    /** Ścieżka efektu trzymanego w `$effect`. */
+    private string $loadedEffect = '';
+
     private bool $cleanupRegistered = false;
 
     public function isAvailable(): bool
@@ -80,6 +94,39 @@ final class GlAudioService extends AbstractSingleton implements AudioPort
         $sound->setVolume(self::asFraction($volume));
         $sound->setLoop($loop);
         $sound->play();
+
+        return null;
+    }
+
+    /**
+     * Efekt gra **na** muzyce: drugi `Sound` z tego samego silnika, bez pytania
+     * o to, czy cokolwiek innego akurat gra.
+     *
+     * Wczytanie idzie tą samą drogą, co utwór, więc ten sam plik odpalony drugi
+     * raz nie dotyka dysku — a że efekt zaczyna się zawsze od początku, kursor
+     * trzeba **cofnąć ręcznie**: `play()` na dźwięku, który dobiegł końca, wraca
+     * do zera sam, ale `play()` na przerwanym w połowie wznowiłby go od miejsca
+     * przerwania. Dla klika trwającego pół sekundy różnica jest słyszalna.
+     */
+    public function playEffect(string $path, int $volume): ?string
+    {
+        if (!$this->isAvailable()) {
+            return $this->text('module.' . AudioSettings::ID . '.problem.unavailable');
+        }
+
+        $resolved = TrackFileService::resolved($path);
+        $effect = $this->effectOf($resolved);
+
+        if ($effect === null) {
+            return $this->text('module.' . AudioSettings::ID . '.problem.load', ['path' => $path]);
+        }
+
+        $effect->stop();
+        /** @phpstan-ignore method.notFound */
+        $effect->seekTo(0);
+        $effect->setVolume(self::asFraction($volume));
+        $effect->setLoop(false);
+        $effect->play();
 
         return null;
     }
@@ -128,6 +175,10 @@ final class GlAudioService extends AbstractSingleton implements AudioPort
         $this->sound = null;
         $this->loaded = '';
 
+        $this->effect?->stop();
+        $this->effect = null;
+        $this->loadedEffect = '';
+
         $this->engine?->stop();
         $this->engine = null;
     }
@@ -164,6 +215,39 @@ final class GlAudioService extends AbstractSingleton implements AudioPort
         $this->loaded = $path;
 
         return $sound;
+    }
+
+    /**
+     * Wczytany efekt albo `null`, gdy pliku nie da się odtworzyć.
+     *
+     * Bliźniak `soundOf()` i celowo **nie jest z nim scalony**: obie metody
+     * różnią się polem, w którym trzymają wynik, a scalone przez parametr
+     * kazałyby wołającemu podawać, czym jest to, co puszcza — czyli przenosiłyby
+     * decyzję z tej klasy do jej użytkowników.
+     */
+    private function effectOf(string $path): ?Sound
+    {
+        if ($this->effect !== null && $this->loadedEffect === $path) {
+            return $this->effect;
+        }
+
+        $engine = $this->started();
+
+        if ($engine === null) {
+            return null;
+        }
+
+        try {
+            $effect = $engine->soundFromDisk($path);
+        } catch (Throwable) {
+            return null;
+        }
+
+        $this->effect?->stop();
+        $this->effect = $effect;
+        $this->loadedEffect = $path;
+
+        return $effect;
     }
 
     /** Silnik uruchomiony leniwie; `null`, gdy nie da się go postawić. */

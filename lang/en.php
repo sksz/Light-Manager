@@ -108,6 +108,15 @@ return [
     'command.key.erase' => 'erase a character',
     'command.key.dismiss' => 'close the window',
 
+    // Core event dictionary (step 46) — names shown in the listener's window.
+    // They say **what happened**, not what should play: the core publishes
+    // moments, not sounds.
+    'event.core.message.info' => 'Message: success',
+    'event.core.message.warning' => 'Message: warning',
+    'event.core.message.error' => 'Message: error',
+    'event.core.overlay.opened' => 'Overlay opened',
+    'event.core.command.executed' => 'Command executed',
+
     // Context menu (step 32) — the second door to the command registry.
     'menu.title' => 'ACTIONS',
     'menu.empty' => 'There is nothing to do with the selection.',

@@ -390,6 +390,7 @@ między modułami jest niemożliwa z konstrukcji. Dziś dostępne są:
 | `audio.music` | — | włącza muzykę albo ją zatrzymuje |
 | `audio.volume` | 0–100 co 10 | ustawia głośność muzyki |
 | `audio.add` | ścieżka | dopisuje utwór do playlisty |
+| `audio.hook` | zdarzenie, ścieżka | przypisuje dźwięk do zdarzenia; bez ścieżki — zabiera przypisanie |
 
 `core.fullscreen` jest pierwszą komendą rdzenia, której **obecność zależy od
 trybu**: w torze terminalowym nie ma jej w spisie wcale, bo pełny ekran nic tam
@@ -513,6 +514,8 @@ dane — i jedyne, które pyta.
 | Dźwięk | Po utworze | pętla listy / zatrzymaj / powtarzaj utwór | **pętla listy** |
 | Dźwięk | Głośność (%) | 0–100 co 10 | 50 |
 | Dźwięk | Graj od uruchomienia | tak / nie | nie |
+| Dźwięk | Efekty specjalne | tak / nie | tak |
+| Dźwięk | Głośność efektów (%) | 0–100 co 10 | 70 |
 
 Każda zmiana działa natychmiast — motyw i jakość rysowania widać w następnej
 klatce, bez restartu — i od razu ląduje w pliku, więc przeżywa nawet zabicie
@@ -671,6 +674,24 @@ Wbudowane są dziś trzy:
   pętla główna, renderery i komponenty nie wiedzą, że cokolwiek gra, a koszt
   klatki nie drga w żadnym z trzech torów.
 
+  **Zdarzenia aplikacji mogą dostać dźwięk.** Lewy panel okna (`Tab`) pokazuje
+  spis wszystkich zdarzeń, jakie aplikacja ogłasza — pięć rdzenia (komunikat
+  udany, ostrzeżenie, błąd, otwarcie okna, wykonanie komendy) i siedemnaście
+  przeglądarki (ruch kursora, wejście do katalogu, zaznaczenie wpisu oraz każda
+  z siedmiu czynności na plikach w wersji udanej i nieudanej). Przypisania
+  robisz tymi samymi klawiszami, co w playliście: **`F5`** bierze wpis
+  zaznaczony w przeglądarce, **`F7`** pyta o ścieżkę, **`F8`** zabiera plik,
+  a **spacja** wycisza przypisanie **bez** zabierania go. Spoza okna działa
+  komenda **`audio.hook <zdarzenie> <ścieżka>`** — z podpowiedziami dla obu
+  argumentów. Przykładowe próbki leżą w `assets/sfx/`; przy pierwszym
+  uruchomieniu nic nie jest przypisane, więc aplikacja milczy, dopóki jej nie
+  poprosisz.
+
+  Efekt gra **na muzyce**, własną głośnością i nie przerywa utworu; pozycja
+  „Efekty specjalne” ucisza wszystkie naraz, nie ruszając muzyki. Trzymana
+  strzałka **nie zamienia kliku w warkot** — to samo zdarzenie milczy przez
+  chwilę po zagraniu.
+
   Bez rozszerzenia `glfw` moduł zachowuje się jak wszystko inne, co od niego
   zależy: aplikacja startuje normalnie, a komendy muzyczne odpowiadają zdaniem
   o niedostępności. Rozszerzenie jest tu **możliwością, nie wymogiem** — i nie
@@ -747,7 +768,7 @@ zmianie ustawienia — sam start aplikacji niczego nie tworzy na dysku.
                        "checksum": false, "checksumLimit": 256,
                        "textPreview": true, "lineNumbers": false },
         "audio": { "enabled": true, "mode": "list", "volume": 50,
-                   "autostart": false }
+                   "autostart": false, "effects": true, "effectsVolume": 70 }
     }
 }
 ```
@@ -758,7 +779,9 @@ a lista utworów żadną z nich nie jest. Plik powstaje przy pierwszym dopisaniu
 utworu; klucz `track` z wersji sprzed playlisty **zasila ją przy pierwszym
 uruchomieniu po aktualizacji**, więc ustawiony utwór nie ginie. Plik ruszony
 ręcznie daje pustą playlistę wraz z komunikatem — start się przez niego nie
-wywraca.
+wywraca. W tym samym pliku, pod kluczem `hooks`, leżą **przypisania efektów**:
+para „ścieżka i czy gra” pod nazwą zdarzenia. Obie części czyta się i zapisuje
+niezależnie, więc zapis jednej nie kasuje drugiej.
 
 Podobiekt `modules` dopisuje się dopiero wtedy, gdy któreś ustawienie modułu
 zostanie ruszone. **Ustawienia modułu nieznanego zostają nietknięte** — moduł

@@ -17,13 +17,17 @@ return [
     'module.audio.command.music' => 'start the music or stop it',
     'module.audio.command.volume' => 'set the music volume',
     'module.audio.command.add' => 'add a track to the playlist',
+    'module.audio.command.hook' => 'assign a sound to an event',
     'module.audio.argument.level' => 'volume in percent',
     'module.audio.argument.path' => 'path to an audio file',
+    'module.audio.argument.event' => 'event name',
 
     // Settings tab positions.
     'module.audio.setting.volume' => 'Volume (%)',
     'module.audio.setting.mode' => 'After a track',
     'module.audio.setting.autostart' => 'Play from startup',
+    'module.audio.setting.effects' => 'Sound effects',
+    'module.audio.setting.effectsVolume' => 'Effects volume (%)',
 
     // The module window's top zone and the playback modes.
     'module.audio.zone.now' => 'Playback',
@@ -34,8 +38,13 @@ return [
     'module.audio.mode.once' => 'stop',
     'module.audio.mode.repeat' => 'repeat the track',
 
+    // Labels of both split panels (step 46).
+    'module.audio.zone.effects' => 'Effects',
+    'module.audio.zone.playlist' => 'Playlist',
+
     // Focus places and window keys.
     'module.audio.focus.playlist' => 'Playlist',
+    'module.audio.focus.effects' => 'Effects',
     'module.audio.focus.path' => 'Track path',
     'module.audio.key.play' => 'play the selected track',
     'module.audio.key.play.short' => 'play',
@@ -52,6 +61,19 @@ return [
     'module.audio.key.confirm' => 'add the typed path',
     'module.audio.key.cancel' => 'close the field without adding',
     'module.audio.key.cancel.short' => 'close the field',
+    'module.audio.key.pane' => 'go to the other panel',
+    'module.audio.key.pane.short' => 'panel',
+
+    // Effects panel keys (step 46) — the same numbers as in the playlist,
+    // because they mean the same: take, type, take away.
+    'module.audio.key.hook.take' => 'assign the entry selected in the browser',
+    'module.audio.key.hook.take.short' => 'take entry',
+    'module.audio.key.hook.type' => 'assign a file by typing its path',
+    'module.audio.key.hook.type.short' => 'type',
+    'module.audio.key.hook.clear' => 'take the file away from the event',
+    'module.audio.key.hook.clear.short' => 'take away',
+    'module.audio.key.hook.mute' => 'mute it or switch it back on',
+    'module.audio.key.hook.mute.short' => 'mute',
 
     // Status bar and module window sentences.
     'module.audio.playing' => 'Playing: {track}',
@@ -65,6 +87,17 @@ return [
     'module.audio.playlist.noSelection' => 'Nothing is selected in the browser.',
     'module.audio.playlist.path' => 'Path',
     'module.audio.playlist.unreadable' => 'Cannot read the playlist from "{path}" — starting from an empty one.',
+
+    // Effects panel: row markers and sentences about assignments (step 46).
+    'module.audio.effect.on' => '♪',
+    'module.audio.effect.muted' => '×',
+    'module.audio.effect.missing' => '!',
+    'module.audio.effect.none' => '—',
+    'module.audio.effects.empty' => 'The application announces no events.',
+    'module.audio.effect.assigned' => 'The "{event}" event now plays: {file}.',
+    'module.audio.effect.cleared' => 'The "{event}" event plays nothing now.',
+    'module.audio.effect.nothingToClear' => 'The "{event}" event played nothing anyway.',
+    'module.audio.effect.unknownEvent' => 'There is no event named "{event}".',
 
     // Reasons there is nothing to hear.
     'module.audio.track.empty' => 'The track path is empty.',
@@ -82,4 +115,8 @@ return [
         . 'without a file are skipped.',
     'module.audio.help.volume' => 'The audio.volume command changes the volume at once; the tab position '
         . 'applies from the next start of the track.',
+    'module.audio.help.effects' => 'The window\'s left panel (Tab) assigns sound files to application events: '
+        . 'F5 takes the entry from the browser, F7 asks for a path, F8 takes the assignment away, and Space '
+        . 'mutes it without taking it away. An effect plays over the music, at its own volume, and the "Sound '
+        . 'effects" position mutes them all at once.',
 ];

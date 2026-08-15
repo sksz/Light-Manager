@@ -298,6 +298,25 @@ zdolności, których krok 36 świadomie mu odmówił. Różnica, na której to s
 jest zapisana w obu plikach kroków — tam zdolność miała jednego użytkownika
 i wyłącznie dla wygody, tu bez niej funkcja nie istnieje.
 
+**Krok 46 wykonany — i to on, a nie 45, okazał się tym, który rozsadził własny
+plan.** Zakres urósł o rzecz, którą plan miał w *Poza zakresem*: **zdarzenia
+publikują także moduły** (D83, rozstrzygnięcie 1). Powód jest wymierny, nie
+uznaniowy — wszystkie zdania modułów schodzą się w `LoopState::report()` z tonem,
+więc trzy zdarzenia rdzenia odróżniają powodzenie od awarii, ale **nie
+odróżniają kopiowania od usunięcia**, a to właśnie „zakończone kopiowanie" było
+przykładem podanym przez użytkownika. Słownik ma przez to **22 pozycje** zamiast
+zapowiadanych „kilku": pięć rdzenia i siedemnaście przeglądarki. Zamknięcie
+słownika jest przy tym wykonane **konstrukcyjnie** — nazwy pochodzą z enumów,
+a deklaracje katalogu z `cases()` — bo rozjazd między publikacją a spisem byłby
+niewidoczny: wiersz, do którego nic nie dochodzi, wygląda tak samo jak wiersz,
+do którego nic nie przypisano. Rdzeń zapłacił za to **jedną linią w `Bootstrapie`**
+(rejestr mieszka w `LoopState`, obok kontekstu sesji, więc dostaje go każdy moduł
+za darmo). Pomiar: oś `--loop` **+0,1%** wobec wzorca po kroku 45, sixel bez
+regresji w dziewiętnastu scenariuszach. Czego krok nie dowiózł, stoi w jego
+dzienniku: **klatki pod XTermem nikt jeszcze nie oglądał**, a rachunek kolumn
+panelu — który omal nie uciął najdłuższej nazwy zdarzenia — pilnuje dziś test
+czytający oba katalogi napisów.
+
 **Krok 45 wykonany — a jedno jego rozstrzygnięcie zderzyło się ze słownikiem
 wejścia.** Przestawianie pozycji weszło do zakresu (wbrew rekomendacji planu),
 ale nie na `Alt`+strzałkach: `Alt` jest w słowniku dopuszczony **wyłącznie przy
@@ -314,7 +333,7 @@ klatki”) dał drugi przebieg, z muzyką grającą w tle.
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
 | 45 | Ekran modułu dźwięku i playlista | [45-ekran-audio-i-playlista.md](archiwum/45-ekran-audio-i-playlista.md) | 9, 14, 15, 16, 18, 20, 21, 36 | Opus | xhigh | Ukończony |
-| 46 | Efekty specjalne: zdarzenia aplikacji dostają dźwięk | [46-efekty-specjalne.md](46-efekty-specjalne.md) | 18, 19, 20, 24, 27, 36, 45 | Opus | high | Nie rozpoczęty |
+| 46 | Efekty specjalne: zdarzenia aplikacji dostają dźwięk | [46-efekty-specjalne.md](archiwum/46-efekty-specjalne.md) | 18, 19, 20, 24, 27, 36, 45 | Opus | high | Ukończony |
 
 ### Faza XVI — Spłata długów
 

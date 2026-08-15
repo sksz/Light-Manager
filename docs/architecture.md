@@ -25,6 +25,7 @@ src/
 │   ├── Ui/              # klatka, płaszczyzna, prymitywy, geometria (krok 18)
 │   ├── Command/         # kontrakt komendy, parser wiersza, rejestr (krok 19)
 │   ├── Module/          # kontrakt modułu w części danowej, rejestr (krok 20)
+│   ├── Event/           # zamknięty słownik zdarzeń i ich rejestr (krok 46)
 │   ├── Dto/             # obiekty transferu danych wejście/wyjście
 │   └── Port/             # interfejsy portów wyjściowych
 ├── Infrastructure/
@@ -178,7 +179,7 @@ typ z `Presentation`:
 
 | Warstwa | Co tam leży |
 |---|---|
-| `Application/Module` | `ModuleInterface`, `ModuleShortcut`, `ModuleContext`, `ContextEntryKind`, `ModuleSettingsTab`, `ModuleSetting`, `ModuleSettingKind`, `ProvidesSettingsTab`, `ProvidesCommands`, `NeedsTick`, `ModuleRegistry`, `ModuleRejection` |
+| `Application/Module` | `ModuleInterface`, `ModuleShortcut`, `ModuleContext`, `ContextEntryKind`, `ModuleSettingsTab`, `ModuleSetting`, `ModuleSettingKind`, `ProvidesSettingsTab`, `ProvidesCommands`, `NeedsTick`, `ListensToEvents`, `DeclaresEvents`, `ModuleRegistry`, `ModuleRejection` |
 | `Presentation/Ui/Module` | `ProvidesScreen`, `ProvidesHelpTab`, `ReadsContext` |
 
 **Kontrakt modułu nie zyskał w kroku 21 ani jednej metody.** Przeglądarka plików
@@ -191,6 +192,11 @@ i to jest pierwsza rzecz, którą rdzeń robi dla modułu z własnej inicjatywy.
 Warunek, pod którym ta zmiana nie łamie D70, jest zapisany przy opisie modułu
 dźwięku niżej: zdolności nie dokłada się dla wygody, tylko wtedy, gdy bez niej
 funkcja nie istnieje.
+
+**W kroku 46 zyskał dwie kolejne: odbiór i ogłaszanie zdarzeń**
+(`ListensToEvents`, `DeclaresEvents`, D83). Ten sam warunek co wyżej i ta sama
+odpowiedź: efekt dźwiękowy bez zdarzenia nie ma czego zagrać. Zdarzenia opisuje
+rozdział „Zdarzenia aplikacji” niżej.
 
 Powód podziału jest ten sam, co przy komendach: interfejs opisany
 w `Application`, który wymieniałby `ScreenInterface`, sięgałby po klasę z warstwy
@@ -746,6 +752,116 @@ komenda `audio.add` działa także wtedy, gdy okna nie widać. Kolejność zmien
 `Shift`+strzałkami — **nie `Alt`+strzałkami**, bo `Alt` jest w słowniku wejścia
 dopuszczony wyłącznie przy literach (reguła 11j), a otwieranie słownika byłoby
 drugą zmianą rdzenia w kroku, który ma ruszyć wyłącznie takt.
+
+#### Efekty specjalne (od kroku 46)
+
+Moduł dźwięku jest **pierwszym odbiorcą zdarzeń** i nie zna ani jednej ich nazwy:
+dostaje napis, zagląda do mapy „zdarzenie → plik” i gra albo milczy. Zdarzenie
+dołożone gdziekolwiek indziej pojawia się przez to w jego oknie bez ani jednej
+zmiany w module.
+
+Mapa mieszka **w tym samym pliku, co playlista** (`~/.light-manager/audio.json`,
+klucz `hooks`) — na tym właśnie polegało rozstrzygnięcie D82 nr 3, podjęte krok
+wcześniej. Porty są przy tym dwa (`PlaylistPort`, `EffectMapPort`) mimo jednej
+usługi, bo odbiorcy są różni i żaden nie ma powodu widzieć cudzych metod.
+
+Efekt gra **na muzyce, nie zamiast niej**: `AudioPort::playEffect()` sięga po
+**drugi uchwyt `Sound`** z tego samego silnika, który miksuje oba (sprawdzone
+przy planowaniu fazy). Uchwyt jest jeden, więc nowy efekt przerywa poprzedni —
+przy dźwiękach trwających pół sekundy to jest wybór, a nie ograniczenie. Kursor
+efektu cofa się przed każdym zagraniem, bo `play()` na przerwanym wznowiłby go od
+miejsca przerwania.
+
+Trzy rzeczy, które przy dokładaniu odbiorcy trzeba znać:
+
+- **odbiór nie dotyka dysku** — mapę wczytuje **takt**, a dostępność plików
+  przelicza się przy otwarciu okna; zdarzenie, które padło przed pierwszym
+  taktem, milczy;
+- **minimalny odstęp należy do odbiorcy** — trzymana strzałka daje trzydzieści
+  zdarzeń kursora na sekundę, więc odtwarzacz efektów milczy przez 100 ms po
+  każdym zagraniu **tego samego** zdarzenia; publikujący nie ma prawa wiedzieć,
+  że ktoś zamienia jego zdarzenie na dźwięk;
+- **kłopotu z odtworzeniem nie zgłaszamy nikomu** — jesteśmy w środku cudzej
+  czynności, a zdanie w pasku stanu nadpisałoby to, które ta czynność właśnie
+  o sobie powiedziała.
+
+Okno modułu rośnie do **dwóch paneli** (`Split`, `SplitState`, `Tab`): po lewej
+spis zdarzeń z przypisaniami (`Table`, trzy kolumny), po prawej playlista.
+Spis składa się **ze słownika, a nie z mapy** — widać wszystkie zdarzenia, także
+nieprzypisane, wyszarzone i z kreską. Podział zachowuje się przy tym **inaczej niż
+w przeglądarce**: poniżej progu szerokości widać panel **z ogniskiem**, a nie
+zawsze pierwszy, bo panele są tu dwiema różnymi rzeczami, a nie dwoma widokami
+tego samego.
+
+Wyciszenie i zabranie pliku to **dwie różne czynności** (spacja i `F8`):
+przełącznik siedzi przy przypisaniu, a nie w ustawieniach, bo mapa i tak trzyma po
+wierszu na zdarzenie, a pozycja w zakładce musiałaby powstać dla każdego z osobna.
+W zakładce stoją za to dwie pozycje wspólne: **przełącznik uciszający wszystko
+naraz** i **własna głośność efektów** — bo klik zmiksowany na poziomie muzyki
+ginie pod nią albo krzyczy w ciszy.
+
+#### Zdarzenia aplikacji (od kroku 46)
+
+Aplikacja ogłasza **nazwane momenty**, a moduł może je odebrać i coś z nimi
+zrobić. Mechanizm jest w rdzeniu ogólny — rdzeń nie wie o dźwięku ani o żadnym
+innym odbiorcy — a nazwa klasy wyznacza jego granicę: **`EventRegistry`, nie
+szyna**. Kolejek nie ma, priorytetów nie ma, zdarzeń odłożonych w czasie nie ma;
+publikacja jest synchroniczna i kończy się, zanim wróci wołający. Rzecz jest
+bliższa `CommandRegistry` niż czemukolwiek z podręcznika o zdarzeniach — łącznie
+z regułą przestrzeni nazw, którą stamtąd powtarza co do joty.
+
+**Słownik jest zamknięty, a jego rozszerzenie wymaga zgody użytkownika** — ta
+sama reguła, co przy słowniku prymitywów (reguła 11k). Powód jest inny niż tam:
+zdarzenie publikuje rdzeń albo moduł, a odbiera **ktoś zupełnie inny**, więc
+każde nowe jest umową, której nie da się cofnąć bez zmiany w obu miejscach naraz.
+Kryterium doboru: wchodzi zdarzenie, które publikujący **już zna z nazwy**, bo je
+gdzieś raportuje albo przełącza.
+
+**Zamkniętość jest wykonana konstrukcyjnie, nie regulaminowo**: nazwy pochodzą
+z enumów (`Application\Event\AppEvent` dla rdzenia,
+`Module\Browser\Application\BrowserEvent` dla przeglądarki), a deklaracja
+katalogu powstaje z `cases()`. Publikacja i spis pokazywany użytkownikowi nie mają
+przez to jak się rozjechać — a rozjazd byłby **niewidoczny**: wiersz, do którego
+nic nie dochodzi, wygląda tak samo jak wiersz, do którego nic nie przypisano.
+
+| Kto | Ile | Co ogłasza |
+|---|---|---|
+| rdzeń (`core.*`) | 5 | trzy tony komunikatu (`LoopState::report()` — jedyne miejsce, przez które przechodzą **wszystkie** zdania aplikacji), otwarcie okna nakładanego, wykonanie komendy |
+| przeglądarka (`browser.*`) | 17 | ruch kursora, wejście do katalogu, zaznaczenie wpisu oraz **siedem czynności × udana/nieudana** |
+
+Zdarzenie niesie **wyłącznie tożsamość** — nazwę i nic ponad nią (ta sama zasada,
+którą kieruje się `ModuleContext`, D40 P5). Obiektu domeny modułu przez zdarzenie
+nie przekazujemy nigdy, bo odbiorca musiałby wtedy poznać moduł, który je
+publikuje.
+
+Trzy reguły publikacji, wszystkie **wykonane w `EventRegistry::publish()`**,
+a nie zostawione dobrej woli wołającego:
+
+- **publikacja jest tania i nie rzuca** — wyjątek odbiorcy ginie w rejestrze, bo
+  publikacja stoi w środku `report()` i w środku czynności na plikach, a te nie
+  mają dokąd zgłosić cudzego kłopotu;
+- **publikujący nie wie, kto słucha** — przy zerze odbiorców `publish()` kończy
+  się na jednym sprawdzeniu w tablicy;
+- **zdarzenie nie rodzi zdarzenia** — odbiorca próbujący publikować w trakcie
+  odbioru zostaje zignorowany; bez tego pojedynczy błąd zapętliłby pętlę główną.
+
+Odbiorca dostaje **napis, a nie typ**, i nie ma prawa niczego zwrócić: to nie jest
+droga, którą moduł zmienia bieg aplikacji — od tego są komendy. Czasu odbiór też
+nie dostaje; odbiorca, któremu jest potrzebny, bierze go z taktu (`NeedsTick`),
+o który i tak prosi.
+
+**Kosztem w rdzeniu jest jedna linia w `Bootstrapie`**
+(`$state->events()->useModules($modules->accepted())`), a rejestr mieszka
+w `LoopState` — obok kontekstu sesji i z tego samego powodu: stan pętli dostaje
+**każdy** moduł, więc publikacja nie kosztuje ani jednego argumentu więcej.
+
+**Krok 46 odwrócił przy tym jedno zdanie własnego planu** i warto wiedzieć,
+dlaczego: plan mówił „rdzeń publikuje, moduł odbiera”, a zdarzenia modułów miał
+w wykluczeniach. Rozpoznanie w kodzie pokazało, że wszystkie zdania modułów
+schodzą się w `LoopState::report()` z tonem — trzema zdarzeniami rdzenia da się
+więc odróżnić powodzenie od awarii, ale **nie da się odróżnić kopiowania od
+usunięcia**. Efekt przypisany do „zakończonego kopiowania” wymaga, żeby to
+kopiowanie samo o sobie powiedziało (D83, rozstrzygnięcia 1–2).
 
 #### Jeden ekran, dwa panele (od kroku 24)
 

@@ -14,6 +14,8 @@ use LightManager\Application\Command\SuggestionSource;
 use LightManager\Application\Command\SuggestsArguments;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Event\AppEvent;
+use LightManager\Application\Event\EventRegistry;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
@@ -70,11 +72,16 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
     /** @var array<string, list<string>> podpowiedzi stałe: `komenda/argument` → wartości */
     private array $fixed = [];
 
+    /**
+     * @param ?EventRegistry $events `null` znaczy „nikomu nie ogłaszaj" — dla
+     *                               testów składających okno samodzielnie
+     */
     public function __construct(
         private readonly CommandRegistry $registry,
         private readonly CommandLineParser $parser,
         private readonly CommandHistory $history,
         private readonly TranslatorPort $translator,
+        private readonly ?EventRegistry $events = null,
     ) {
         $this->input = new TextInput();
         $this->window = new ScrollWindow();
@@ -401,7 +408,13 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
             }
         }
 
+        // Trzeci moment ogłaszany przez rdzeń (krok 46): komenda **wykonała
+        // się**. Zdarzenie pada za wykonaniem, a nie przed nim, i nie zależy od
+        // tego, czy komenda się udała — od skutku jest ton komunikatu, który
+        // zaraz przejdzie przez `LoopState::report()`. Komenda, która zamiast
+        // wykonania otworzyła okno, wyszła stąd wyżej i ogłosiła się otwarciem.
         $outcome = $command->execute($input);
+        $this->events?->publish(AppEvent::CommandExecuted->value);
 
         if ($outcome->transition === CommandTransition::Stay) {
             $this->input->useValue($line);

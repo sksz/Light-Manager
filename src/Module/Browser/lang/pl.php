@@ -371,6 +371,29 @@ return [
     'module.browser.problem.noSelection' => 'Nie ma zaznaczonego wpisu.',
     'module.browser.problem.noEntry' => 'W tym katalogu nie ma wpisu „{name}”.',
 
+    // Zdarzenia, które moduł ogłasza reszcie aplikacji (krok 46). Nazwy mówią,
+    // **co się stało**, i nie wiedzą, że ktokolwiek ich słucha. Mieszczą się przy
+    // tym w **27 znakach** — tyle daje kolumna spisu w panelu podziału przy progu
+    // 100 kolumn (`EffectList`), a nazwa ucięta wielokropkiem przestałaby
+    // odróżniać czynność udaną od nieudanej.
+    'module.browser.event.cursor.moved' => 'Ruch kursora',
+    'module.browser.event.directory.entered' => 'Wejście do katalogu',
+    'module.browser.event.entry.marked' => 'Zaznaczenie wpisu',
+    'module.browser.event.rename.done' => 'Zmiana nazwy: udana',
+    'module.browser.event.rename.failed' => 'Zmiana nazwy: nieudana',
+    'module.browser.event.mkdir.done' => 'Nowy katalog: udany',
+    'module.browser.event.mkdir.failed' => 'Nowy katalog: nieudany',
+    'module.browser.event.copy.done' => 'Kopiowanie: zakończone',
+    'module.browser.event.copy.failed' => 'Kopiowanie: nieudane',
+    'module.browser.event.move.done' => 'Przeniesienie: zakończone',
+    'module.browser.event.move.failed' => 'Przeniesienie: nieudane',
+    'module.browser.event.trash.done' => 'Kosz: zakończony',
+    'module.browser.event.trash.failed' => 'Kosz: nieudany',
+    'module.browser.event.delete.done' => 'Usunięcie trwałe: udane',
+    'module.browser.event.delete.failed' => 'Usunięcie trwałe: nieudane',
+    'module.browser.event.undo.done' => 'Cofnięcie: udane',
+    'module.browser.event.undo.failed' => 'Cofnięcie: nieudane',
+
     // Własna część zakładki pomocy — to, czego z deklaracji wyczytać się nie da.
     'module.browser.help.default' => 'Przeglądarka jest modułem domyślnym: Esc wraca do niej z każdego '
         . 'innego ekranu, a wyłączyć się jej nie da.',

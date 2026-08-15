@@ -42,6 +42,14 @@ final class SilentAudioService extends AbstractSingleton implements AudioPort
         );
     }
 
+    /** Cisza gra efekt tak samo, jak gra muzykę — czyli mówi, czego brakuje. */
+    public function playEffect(string $path, int $volume): string
+    {
+        return TranslatorService::getInstance()->translate(
+            'module.' . AudioSettings::ID . '.problem.unavailable',
+        );
+    }
+
     public function stop(): void
     {
     }

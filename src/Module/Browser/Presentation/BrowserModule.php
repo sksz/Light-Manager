@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LightManager\Module\Browser\Presentation;
 
 use LightManager\Application\Command\CommandInterface;
+use LightManager\Application\Module\DeclaresEvents;
 use LightManager\Application\Module\ModuleInterface;
 use LightManager\Application\Module\ModuleSettingsTab;
 use LightManager\Application\Module\ModuleShortcut;
@@ -17,6 +18,8 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Port\TrashPort;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Domain\ValueObject\Message;
+use LightManager\Module\Browser\Application\BrowserEvent;
+use LightManager\Module\Browser\Application\BrowserEvents;
 use LightManager\Module\Browser\Application\BrowserSettings;
 use LightManager\Module\Browser\Application\Undo\UndoJournal;
 use LightManager\Module\Browser\Application\UseCase\ExpandBranchUseCase;
@@ -71,7 +74,8 @@ final class BrowserModule implements
     ProvidesSettingsTab,
     ProvidesCommands,
     ProvidesScreen,
-    ProvidesHelpTab
+    ProvidesHelpTab,
+    DeclaresEvents
 {
     /** „Browser” — litera `b` jest wolna: `0x02` nie znaczy w trybie surowym nic. */
     private const SHORTCUT = 'b';
@@ -123,6 +127,12 @@ final class BrowserModule implements
     {
         $directories = $this->directories ?? new FilesystemDirectoryRepository(EntryComparator::create());
         $opened = $this->opened($directories);
+
+        // Publikator zdarzeń modułu (krok 46). Bierze się ze stanu pętli, jak
+        // kontekst sesji, więc `Bootstrap` nie urósł o ani jeden argument —
+        // i tak samo jak kontekst jest **jeden na moduł**: dwa znaczyłyby dwa
+        // rejestry, a odbiorca słucha jednego.
+        $events = new BrowserEvents($this->state->events());
 
         // Drugi panel dostaje **własny** agregat tego samego katalogu, a nie ten
         // sam obiekt: `Directory` jest mutowalny w miejscu (zaznaczenie zmienia
@@ -177,12 +187,12 @@ final class BrowserModule implements
         // Głębokość pyta ustawień przy każdym zapisie, więc zmiana pozycji
         // działa od następnej operacji.
         $journal = new UndoJournal(fn (): int => BrowserSettings::undoDepth($this->state->settings()));
-        $entries = new EntryOperations($panes, $this->operations, $refresh, $this->translator, $journal);
+        $entries = new EntryOperations($panes, $this->operations, $refresh, $this->translator, $journal, $events);
 
         // Dwie czynności dłuższe od klatki (krok 42) — osobno od tamtych trzech,
         // bo prowadzą pracę kawałkową z własnym stanem i własnym łańcuchem okien.
         // Odświeżenie paneli mają wspólne: dysk jest jeden, a panele te same.
-        $transfers = new EntryTransfer($panes, $this->transfers, $refresh, $this->translator, $journal);
+        $transfers = new EntryTransfer($panes, $this->transfers, $refresh, $this->translator, $journal, $events);
 
         // Rozdroże usunięcia i wykonawca cofnięć (krok 44). `EntryTrash` dostaje
         // `EntryOperations`, bo odpowiedź „usuń trwale” na pytanie o wpis spoza
@@ -198,6 +208,7 @@ final class BrowserModule implements
             $this->state,
             $this->translator,
             $journal,
+            $events,
         );
         $undo = new EntryUndo(
             $this->operations,
@@ -206,6 +217,7 @@ final class BrowserModule implements
             $refresh,
             $this->translator,
             $journal,
+            $events,
         );
 
         return [
@@ -221,6 +233,7 @@ final class BrowserModule implements
                 $transfers,
                 $trash,
                 $undo,
+                $events,
             ),
             [
                 new JumpCommand($panes, $directories, $this->translator),
@@ -304,6 +317,19 @@ final class BrowserModule implements
     public function settingsTab(): ModuleSettingsTab
     {
         return new ModuleSettingsTab($this->nameKey(), BrowserSettings::declarations());
+    }
+
+    /**
+     * Zdarzenia, które moduł wnosi do słownika (krok 46).
+     *
+     * Spis powstaje z enumu, a nie z listy pisanej tutaj ręcznie — dwie listy
+     * rozjechałyby się przy pierwszym dołożonym zdarzeniu, a **rozjazd byłby
+     * niewidoczny**: wiersz w oknie odbiorcy, do którego nic nie dochodzi, wygląda
+     * dokładnie tak samo jak wiersz, do którego nic nie przypisano.
+     */
+    public function events(): array
+    {
+        return BrowserEvent::declarations();
     }
 
     public function commands(): array

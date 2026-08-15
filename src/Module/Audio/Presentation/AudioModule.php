@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Audio\Presentation;
 
+use LightManager\Application\Module\ListensToEvents;
 use LightManager\Application\Module\ModuleInterface;
 use LightManager\Application\Module\ModuleSettingsTab;
 use LightManager\Application\Module\ModuleShortcut;
@@ -15,14 +16,17 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Module\Audio\Application\AudioSettings;
 use LightManager\Module\Audio\Application\PlaylistPlayer;
 use LightManager\Module\Audio\Application\Port\AudioPort;
+use LightManager\Module\Audio\Application\Port\EffectMapPort;
 use LightManager\Module\Audio\Application\Port\PlaylistPort;
 use LightManager\Module\Audio\Application\Port\TrackFilesPort;
+use LightManager\Module\Audio\Application\SoundEffects;
 use LightManager\Module\Audio\Application\UseCase\ChangeVolumeUseCase;
 use LightManager\Module\Audio\Infrastructure\AudioStateService;
 use LightManager\Module\Audio\Infrastructure\GlAudioService;
 use LightManager\Module\Audio\Infrastructure\SilentAudioService;
 use LightManager\Module\Audio\Infrastructure\TrackFileService;
 use LightManager\Module\Audio\Presentation\Command\AddTrackCommand;
+use LightManager\Module\Audio\Presentation\Command\HookCommand;
 use LightManager\Module\Audio\Presentation\Command\MusicCommand;
 use LightManager\Module\Audio\Presentation\Command\VolumeCommand;
 use LightManager\Presentation\Cli\LoopState;
@@ -62,7 +66,8 @@ final class AudioModule implements
     ProvidesCommands,
     ProvidesHelpTab,
     ProvidesScreen,
-    NeedsTick
+    NeedsTick,
+    ListensToEvents
 {
     /**
      * Litera skrótu.
@@ -78,6 +83,8 @@ final class AudioModule implements
 
     private ?PlaylistPlayer $player = null;
 
+    private ?SoundEffects $effects = null;
+
     private ?AudioScreen $screen = null;
 
     /**
@@ -87,6 +94,7 @@ final class AudioModule implements
      *                                  znaczy „wybierz implementację wedle środowiska”
      * @param ?PlaylistPort   $storage  jw. — test nie ma prawa dotknąć pliku w katalogu domowym
      * @param ?TrackFilesPort $files    jw. — ani przeglądać dysku w poszukiwaniu utworów
+     * @param ?EffectMapPort  $effectStorage jw. — mapa przypisań mieszka w tym samym pliku, co playlista
      */
     public function __construct(
         private readonly LoopState $state,
@@ -95,6 +103,7 @@ final class AudioModule implements
         private readonly ?AudioPort $audio = null,
         private readonly ?PlaylistPort $storage = null,
         private readonly ?TrackFilesPort $files = null,
+        private readonly ?EffectMapPort $effectStorage = null,
     ) {
     }
 
@@ -143,7 +152,12 @@ final class AudioModule implements
 
     public function screen(): ScreenInterface
     {
-        return $this->screen ??= new AudioScreen($this->player(), $this->translator);
+        return $this->screen ??= new AudioScreen(
+            $this->player(),
+            $this->effects(),
+            $this->state->events(),
+            $this->translator,
+        );
     }
 
     /**
@@ -157,6 +171,25 @@ final class AudioModule implements
     public function tick(float $now): void
     {
         $this->player()->tick($now);
+        $this->effects()->useTime($now);
+    }
+
+    /**
+     * Zdarzenie z rdzenia albo z cudzego modułu (krok 46).
+     *
+     * Moduł **nie zna ani jednej nazwy zdarzenia** i nie ma jej poznać: przekazuje
+     * napis odtwarzaczowi efektów, a ten zagląda do mapy przypisań. Dzięki temu
+     * zdarzenie dołożone gdziekolwiek indziej pojawia się w oknie modułu bez ani
+     * jednej zmiany tutaj.
+     *
+     * Czasu ta metoda nie dostaje i nie potrzebuje: minimalnym odstępem między
+     * efektami rządzi chwila zapamiętana w takcie, o którą ten moduł i tak już
+     * prosi (`NeedsTick`). Dwie drogi do zegara byłyby dwiema prawdami o tym,
+     * która jest teraz klatka.
+     */
+    public function onEvent(string $event): void
+    {
+        $this->effects()->onEvent($event);
     }
 
     /**
@@ -173,6 +206,7 @@ final class AudioModule implements
             'module.' . AudioSettings::ID . '.help.playlist',
             'module.' . AudioSettings::ID . '.help.mode',
             'module.' . AudioSettings::ID . '.help.volume',
+            'module.' . AudioSettings::ID . '.help.effects',
         ];
     }
 
@@ -195,6 +229,24 @@ final class AudioModule implements
     }
 
     /**
+     * Odtwarzacz efektów — **jeden na moduł**, z tego samego powodu, co odtwarzacz
+     * playlisty: takt karmi go czasem, zdarzenia wołają, okno pokazuje jego mapę,
+     * a komenda ją zmienia. Cztery obiekty znaczyłyby cztery prawdy.
+     *
+     * Port dźwięku dostaje **ten sam**, co muzyka, i to jest warunek, żeby efekt
+     * zagrał **na** utworze: dwa silniki znaczyłyby dwa niezależne miksery.
+     */
+    private function effects(): SoundEffects
+    {
+        return $this->effects ??= new SoundEffects(
+            $this->audio ?? self::engine(),
+            $this->effectStorage ?? AudioStateService::getInstance(),
+            $this->files ?? TrackFileService::getInstance(),
+            $this->settings,
+        );
+    }
+
+    /**
      * @return list<\LightManager\Application\Command\CommandInterface>
      */
     private function assemble(): array
@@ -204,6 +256,12 @@ final class AudioModule implements
         return [
             new MusicCommand($player, $this->translator),
             new AddTrackCommand($player, $this->files ?? TrackFileService::getInstance(), $this->translator),
+            new HookCommand(
+                $this->effects(),
+                $this->state->events(),
+                $this->files ?? TrackFileService::getInstance(),
+                $this->translator,
+            ),
             new VolumeCommand(
                 $this->audio ?? self::engine(),
                 new ChangeVolumeUseCase($this->settings),

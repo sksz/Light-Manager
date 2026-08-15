@@ -441,6 +441,37 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     komponentu**, kolejność zmienia `Shift`+strzałkami (`Alt` przy klawiszach
     nazwanych nie istnieje — 11j), a utwory wchodzą trzema drogami: `F5`
     (`ReadsContext`), `F7` (pole tekstowe), `audio.add` (komenda).
+11o''. **Zdarzenia aplikacji: słownik zamknięty, rejestr zamiast szyny** (krok 46,
+    D83). Rdzeń ogłasza **pięć** nazwanych momentów (`Application\Event\AppEvent`:
+    trzy tony komunikatu z `LoopState::report()`, otwarcie okna nakładanego,
+    wykonanie komendy), a moduł wnosi własne, deklarując `DeclaresEvents` —
+    przeglądarka **siedemnaście** (`BrowserEvent`: kursor, wejście do katalogu,
+    zaznaczenie i siedem czynności × udana/nieudana). Odbiera ten, kto zadeklaruje
+    `ListensToEvents`; obie zdolności leżą w `Application/Module`, bo nie wymieniają
+    typów z `Presentation`. **Zamknięcie jest konstrukcyjne**: nazwy pochodzą
+    z enumów, a deklaracja katalogu powstaje z `cases()`, więc publikacja i spis
+    u odbiorcy nie mają jak się rozjechać; rozszerzenie słownika wymaga **zgody
+    użytkownika**, jak przy prymitywach (11k). Nazwa musi stać w przestrzeni
+    publikującego (`core.*`, `browser.*`) — spoza niej odsiewa `EventRegistry`, jak
+    `CommandRegistry` odsiewa komendy. Trzy reguły wykonane w `publish()`:
+    **nie rzuca** (wyjątek odbiorcy ginie tam, bo publikacja stoi w środku
+    `report()` i w środku czynności na plikach), **nie wie, kto słucha** (zero
+    odbiorców = jedno sprawdzenie w tablicy), **zdarzenie nie rodzi zdarzenia**
+    (publikacja w trakcie odbioru jest ignorowana — inaczej łańcuch zapętliłby
+    pętlę). Zdarzenie niesie **wyłącznie tożsamość** (D40 P5); odbiór dostaje napis,
+    niczego nie zwraca i **nie dostaje czasu** — kto go potrzebuje, bierze z taktu
+    (11o'). Rejestr mieszka w `LoopState`, obok kontekstu sesji i z tego samego
+    powodu: stan pętli dostaje każdy moduł, więc `Bootstrap` rośnie o **jedną
+    linię**. O skutku czynności rozstrzyga **ton zdania**, które po niej zostało
+    (`BrowserEvents::outcome()`), a nie drugi rachunek prowadzony obok.
+    Pierwszy odbiorca — efekty modułu dźwięku: mapa „zdarzenie → plik" w kluczu
+    `hooks` tego samego pliku stanu, drugi uchwyt `Sound` (efekt gra **na**
+    muzyce, nowy przerywa poprzedni), **minimalny odstęp 100 ms na zdarzenie** po
+    stronie odbiorcy, mapa wczytywana w takcie (**odbiór nie dotyka dysku**),
+    przełącznik przy każdym przypisaniu (spacja) **plus** jeden globalny i własna
+    głośność w zakładce. Okno rośnie do dwóch paneli (`Split`), a poniżej progu
+    szerokości widać ten **z ogniskiem** — inaczej niż w przeglądarce, bo panele są
+    dwiema różnymi rzeczami.
 11p. **Ognisko deklaruje się, a nie odkrywa** (krok 40, D74). Aplikacja **nie ma
     zachowanego drzewa komponentów** (11a), więc „znajdź element z kursorem” nie
     jest wykonalne — pyta rdzeń, a odpowiada ten, kto ognisko trzyma:

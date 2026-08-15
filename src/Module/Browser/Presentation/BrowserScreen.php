@@ -10,6 +10,8 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
 use LightManager\Domain\ValueObject\Message;
+use LightManager\Module\Browser\Application\BrowserEvent;
+use LightManager\Module\Browser\Application\BrowserEvents;
 use LightManager\Module\Browser\Application\BrowserSettings;
 use LightManager\Module\Browser\Application\UseCase\MoveSelectionUseCase;
 use LightManager\Module\Browser\Application\UseCase\NavigateIntoDirectoryUseCase;
@@ -122,6 +124,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
         private readonly EntryTransfer $transfers,
         private readonly EntryTrash $trash,
         private readonly EntryUndo $undo,
+        private readonly BrowserEvents $events,
     ) {
     }
 
@@ -630,6 +633,11 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
             return ScreenOutcome::stay();
         }
 
+        // Zaznaczenie, a nie ruch kursora, choć kursor zaraz zejdzie wiersz niżej:
+        // jedno naciśnięcie klawisza to jedno zdarzenie, inaczej spacja grałaby
+        // dwa dźwięki naraz.
+        $this->events->fire(BrowserEvent::EntryMarked);
+
         if ($up) {
             $this->moveSelection->up($pane->directory());
         } else {
@@ -645,6 +653,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
     private function invertMarks(): ScreenOutcome
     {
         $this->panes->focused()->invertMarks();
+        $this->events->fire(BrowserEvent::EntryMarked);
 
         return ScreenOutcome::stay();
     }
@@ -693,6 +702,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
     {
         $tree->moveBy($delta);
         $this->panes->publishFocused();
+        $this->events->fire(BrowserEvent::CursorMoved);
 
         return ScreenOutcome::stay();
     }
@@ -893,6 +903,14 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
         $up ? $this->moveSelection->up($directory) : $this->moveSelection->down($directory);
         $this->panes->focused()->selectionChanged();
 
+        // Zdarzenie ruchu kursora (krok 46) — pada przy **każdym** kroku, także
+        // wtedy, gdy kursor stoi już na krańcu listy i nigdzie się nie ruszył:
+        // ekran o tym nie wie, bo przesunięcie liczy przypadek użycia, a
+        // odpowiedzi nie zwraca. Rzecz zostaje po stronie odbiorcy, i to jest
+        // uczciwsze niż drugi rachunek tutaj — trzymany klawisz i tak daje
+        // trzydzieści zdarzeń na sekundę, więc odbiorca musi mieć własny próg.
+        $this->events->fire(BrowserEvent::CursorMoved);
+
         return ScreenOutcome::stay();
     }
 
@@ -910,6 +928,10 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
         $entered = $this->navigateInto->execute($directory, $this->panes->focused()->showsHiddenEntries());
 
         if ($entered !== null) {
+            // Zdarzenie „panel wszedł do innego katalogu" ogłasza `BrowserState`,
+            // a nie ten ekran (krok 46): `enter()` jest jedyną drogą, którą katalog
+            // się zmienia, a wchodzi się tędy z czterech miejsc — klawisza,
+            // drzewa, `browser.jump` i `browser.open`.
             $this->panes->focused()->enter($entered);
         }
 

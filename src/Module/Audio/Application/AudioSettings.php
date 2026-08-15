@@ -61,6 +61,19 @@ final class AudioSettings
 
     public const AUTOSTART = 'autostart';
 
+    /** Przełącznik efektów — jedna pozycja uciszająca **wszystkie** naraz (krok 46). */
+    public const EFFECTS = 'effects';
+
+    /**
+     * Głośność efektów — **własna, nie wspólna z muzyką** (krok 46,
+     * rozstrzygnięcie użytkownika).
+     *
+     * Powód jest słyszalny, a nie porządkowy: klik zmiksowany na poziomie muzyki
+     * ginie pod nią albo krzyczy w ciszy, a jedna liczba na oba nie pozwala tego
+     * rozdzielić.
+     */
+    public const EFFECTS_VOLUME = 'effectsVolume';
+
     /**
      * Utwór domyślny leży w repozytorium, w `assets/audio/`.
      *
@@ -82,6 +95,21 @@ final class AudioSettings
     public const DEFAULT_MODE = PlaybackMode::LoopList;
 
     public const DEFAULT_AUTOSTART = false;
+
+    /**
+     * Efekty **włączone domyślnie** — i nie kłóci się to z wyłączonym autostartem
+     * muzyki.
+     *
+     * Różnica jest jedna: mapa przypisań rodzi się pusta (rozstrzygnięcie
+     * użytkownika), więc aplikacja po pierwszym uruchomieniu milczy tak samo, jak
+     * milczała przed tym krokiem. Przełącznik ma sens od chwili, w której ktoś coś
+     * przypisze — i wtedy służy do uciszenia wszystkiego naraz, bez rozbierania
+     * mapy.
+     */
+    public const DEFAULT_EFFECTS = true;
+
+    /** Efekt jest krótki i wchodzi na muzykę, więc domyślnie gra ciszej niż ona. */
+    public const DEFAULT_EFFECTS_VOLUME = 70;
 
     /**
      * Wzorzec ścieżki: przechodzi wszystko poza znakami sterującymi — dokładnie
@@ -113,6 +141,17 @@ final class AudioSettings
                 self::AUTOSTART,
                 'module.' . self::ID . '.setting.' . self::AUTOSTART,
                 self::DEFAULT_AUTOSTART,
+            ),
+            ModuleSetting::toggle(
+                self::EFFECTS,
+                'module.' . self::ID . '.setting.' . self::EFFECTS,
+                self::DEFAULT_EFFECTS,
+            ),
+            ModuleSetting::number(
+                self::EFFECTS_VOLUME,
+                'module.' . self::ID . '.setting.' . self::EFFECTS_VOLUME,
+                self::VOLUME_CHOICES,
+                self::DEFAULT_EFFECTS_VOLUME,
             ),
         ];
     }
@@ -180,6 +219,23 @@ final class AudioSettings
         }
 
         return self::DEFAULT_MODE;
+    }
+
+    /** Czy efekty w ogóle grają — jeden przełącznik na wszystkie (krok 46). */
+    public static function effectsEnabled(Settings $settings): bool
+    {
+        $value = self::declarationOf(self::EFFECTS)
+            ->valueFrom($settings->moduleValue(self::ID, self::EFFECTS));
+
+        return is_bool($value) ? $value : self::DEFAULT_EFFECTS;
+    }
+
+    public static function effectsVolume(Settings $settings): int
+    {
+        $value = self::declarationOf(self::EFFECTS_VOLUME)
+            ->valueFrom($settings->moduleValue(self::ID, self::EFFECTS_VOLUME));
+
+        return is_int($value) ? $value : self::DEFAULT_EFFECTS_VOLUME;
     }
 
     public static function autostarts(Settings $settings): bool

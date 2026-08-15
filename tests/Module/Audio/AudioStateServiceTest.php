@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Tests\Module\Audio;
 
+use LightManager\Module\Audio\Application\EffectMap;
 use LightManager\Module\Audio\Application\Playlist;
 use LightManager\Module\Audio\Application\PlaylistEntry;
 use LightManager\Module\Audio\Infrastructure\AudioStateService;
@@ -128,6 +129,45 @@ final class AudioStateServiceTest extends TestCase
         self::assertSame(['file.deleted' => 'pop.wav'], $document['hooks'] ?? null);
         self::assertIsArray($playlist);
         self::assertCount(1, $playlist);
+    }
+
+    /**
+     * Mapa przypisań i playlista mieszkają w **jednym dokumencie** i żadna nie
+     * kasuje drugiej — niezależnie od tego, która zapisze się pierwsza (krok 46).
+     *
+     * To jest właśnie ta rzecz, dla której krok 45 nazwał plik „stanem modułu",
+     * a nie „playlistą": zapis mapy nie zna playlisty i odwrotnie, a obie części
+     * czyta się i pisze niezależnie.
+     */
+    public function testTheEffectMapAndThePlaylistShareOneDocument(): void
+    {
+        $service = AudioStateService::getInstance();
+
+        $map = new EffectMap();
+        $map->assign('core.message.error', 'assets/sfx/fail.mp3');
+        $map->toggle('core.message.error');
+        $service->saveEffects($map);
+        $service->save(new Playlist([PlaylistEntry::of('/muzyka/nowy.mp3')]));
+
+        $this->resetSingleton(AudioStateService::class);
+        $fresh = AudioStateService::getInstance();
+        $assignment = $fresh->loadEffects()->at('core.message.error');
+
+        self::assertNotNull($assignment);
+        self::assertSame('assets/sfx/fail.mp3', $assignment->path);
+        self::assertFalse($assignment->enabled, 'wyciszenie przeżywa zapis');
+        self::assertSame(1, $fresh->load()->playlist->count(), 'playlista przeżyła zapis mapy');
+    }
+
+    /** Wpis mapy bez ścieżki wypada, a reszta zostaje — jak pozycja playlisty. */
+    public function testAnAssignmentWithoutAPathFallsOutAndTheRestSurvives(): void
+    {
+        $this->writeState('{"hooks":{"core.message.error":{"path":"a.wav"},"core.message.info":{"enabled":true}}}');
+
+        $map = AudioStateService::getInstance()->loadEffects();
+
+        self::assertNotNull($map->at('core.message.error'));
+        self::assertNull($map->at('core.message.info'));
     }
 
     /** Plik należy do właściciela i do nikogo więcej — wpisy bywają ścieżkami. */

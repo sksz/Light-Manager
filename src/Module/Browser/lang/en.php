@@ -307,6 +307,26 @@ return [
     'module.browser.problem.noSelection' => 'There is no selected entry.',
     'module.browser.problem.noEntry' => 'This directory has no entry named "{name}".',
 
+    // Events the module announces to the rest of the application (step 46). The
+    // names say **what happened** and know nothing about who listens.
+    'module.browser.event.cursor.moved' => 'Cursor moved',
+    'module.browser.event.directory.entered' => 'Directory entered',
+    'module.browser.event.entry.marked' => 'Entry marked',
+    'module.browser.event.rename.done' => 'Rename: done',
+    'module.browser.event.rename.failed' => 'Rename: failed',
+    'module.browser.event.mkdir.done' => 'New directory: done',
+    'module.browser.event.mkdir.failed' => 'New directory: failed',
+    'module.browser.event.copy.done' => 'Copy: finished',
+    'module.browser.event.copy.failed' => 'Copy: failed',
+    'module.browser.event.move.done' => 'Move: finished',
+    'module.browser.event.move.failed' => 'Move: failed',
+    'module.browser.event.trash.done' => 'Trash: finished',
+    'module.browser.event.trash.failed' => 'Trash: failed',
+    'module.browser.event.delete.done' => 'Permanent delete: done',
+    'module.browser.event.delete.failed' => 'Permanent delete: failed',
+    'module.browser.event.undo.done' => 'Undo: done',
+    'module.browser.event.undo.failed' => 'Undo: failed',
+
     // The module's own part of the help tab.
     'module.browser.help.default' => 'The browser is the default module: Esc returns to it from any other '
         . 'screen, and it cannot be disabled.',

@@ -6,6 +6,7 @@ namespace LightManager\Module\Browser\Presentation;
 
 use LightManager\Application\Module\ContextEntryKind;
 use LightManager\Application\Module\ModuleContext;
+use LightManager\Module\Browser\Application\BrowserEvent;
 use LightManager\Module\Browser\Application\BrowserSettings;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Domain\ValueObject\Entry;
@@ -95,6 +96,14 @@ final class BrowserState
      */
     public function enter(Directory $directory): void
     {
+        // Zdarzenie ogłasza **zmianę**, a nie wywołanie tej metody, i to jest
+        // różnica warta jednego porównania (krok 46): tą samą drogą wchodzi
+        // przełączenie wpisów ukrytych (`HiddenEntries`) i odczyt katalogu na
+        // nowo po operacji — a jedno i drugie zostaje w tym samym miejscu.
+        // Publikujemy wprost rejestrem ze stanu pętli, bez pośrednika: nie ma tu
+        // czego rozstrzygać tonem, bo wejście do katalogu nie ma dwóch końców.
+        $changed = !$this->directory->path()->equals($directory->path());
+
         $this->all = $directory;
         $this->directory = $directory;
         $this->filter = NameFilter::none();
@@ -104,6 +113,10 @@ final class BrowserState
         // operacją na wpisach, których użytkownik nie widział.
         $this->marked = MarkedEntries::none();
         $this->publish();
+
+        if ($changed) {
+            $this->state->events()->publish(BrowserEvent::DirectoryEntered->value);
+        }
     }
 
     /**

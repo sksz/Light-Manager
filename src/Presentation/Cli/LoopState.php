@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace LightManager\Presentation\Cli;
 
 use LightManager\Application\Dto\Settings;
+use LightManager\Application\Event\AppEvent;
+use LightManager\Application\Event\EventRegistry;
 use LightManager\Application\Module\ModuleContext;
 use LightManager\Domain\ValueObject\Message;
 
@@ -48,11 +50,30 @@ final class LoopState
      */
     private ModuleContext $context;
 
+    /**
+     * Słownik zdarzeń wraz z odbiorcami (krok 46).
+     *
+     * Stoi tutaj z tego samego powodu, co `ModuleContext` kilka linii wyżej:
+     * **stan trzyma, ale nie wypełnia**. Rdzeń publikuje przez niego swoje pięć
+     * momentów, moduł publikuje swoje, a kto słucha — wie wyłącznie rejestr.
+     * Miejsce jest przy tym rachunkiem, a nie upodobaniem: `LoopState` dostaje
+     * **każdy** moduł, więc publikacja nie kosztuje ani jednego argumentu więcej
+     * w `Bootstrapie`.
+     */
+    private readonly EventRegistry $events;
+
     public function __construct(
         private Settings $settings = new Settings(),
+        ?EventRegistry $events = null,
     ) {
-        $this->overlays = new OverlayStack();
+        $this->events = $events ?? new EventRegistry();
+        $this->overlays = new OverlayStack($this->events);
         $this->context = new ModuleContext();
+    }
+
+    public function events(): EventRegistry
+    {
+        return $this->events;
     }
 
     public function context(): ModuleContext
@@ -80,11 +101,22 @@ final class LoopState
         return $this->message;
     }
 
+    /**
+     * Komunikat wraz z tonem — i **jedyne miejsce, przez które przechodzą
+     * wszystkie** komunikaty aplikacji, więc zarazem najtańsze źródło trzech
+     * zdarzeń rdzenia (krok 46).
+     *
+     * Publikacja stoi za nadaniem komunikatu, nie przed nim: odbiorca ma prawo
+     * zapytać stan o to, co właśnie zostało powiedziane, a stan pokazujący jeszcze
+     * poprzednie zdanie byłby kłamstwem trwającym jedno wywołanie.
+     */
     public function report(Message $message, float $now): void
     {
         $this->message = $message;
         $this->messageDismissableAt = $now + self::MINIMUM_MESSAGE_SECONDS
             + self::SECONDS_PER_MESSAGE_WORD * self::countWords($message->text);
+
+        $this->events->publish(AppEvent::ofTone($message->tone)->value);
     }
 
     public function reportProblem(string $message, float $now): void

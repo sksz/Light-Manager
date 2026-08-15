@@ -10,6 +10,8 @@ use LightManager\Application\Command\CommandRegistry;
 use LightManager\Application\Command\CommandTransition;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Event\AppEvent;
+use LightManager\Application\Event\EventRegistry;
 use LightManager\Application\Module\ModuleContext;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Primitive\Primitive;
@@ -84,9 +86,14 @@ final class MenuOverlay implements OverlayInterface
 
     private ModuleContext $context;
 
+    /**
+     * @param ?EventRegistry $events `null` znaczy „nikomu nie ogłaszaj" — dla
+     *                               testów składających okno samodzielnie
+     */
     public function __construct(
         private readonly CommandRegistry $registry,
         private readonly TranslatorPort $translator,
+        private readonly ?EventRegistry $events = null,
     ) {
         $this->window = new ScrollWindow();
         $this->context = new ModuleContext();
@@ -281,7 +288,12 @@ final class MenuOverlay implements OverlayInterface
             }
         }
 
+        // Ta sama linia, co w oknie komend — więc i to samo zdarzenie (krok 46).
+        // Menu jest drugim wejściem do tego samego zbioru czynności, a nie drugim
+        // zbiorem, więc dwa różne zdarzenia znaczyłyby, że użytkownik ma podpiąć
+        // ten sam dźwięk dwa razy.
         $outcome = $command->execute($input);
+        $this->events?->publish(AppEvent::CommandExecuted->value);
 
         if ($outcome->transition === CommandTransition::Quit) {
             return OverlayOutcome::quit();

@@ -27,6 +27,18 @@ final class StubAudio implements AudioPort
     /** @var list<int> głośności podane przez `useVolume()` */
     public array $volumes = [];
 
+    /**
+     * Prośby o zagranie **efektu**, w kolejności (krok 46).
+     *
+     * Osobna lista, a nie wpis w `$played`, bo cała rzecz, którą test ma tu
+     * sprawdzić, brzmi „efekt nie rusza muzyki": jedna lista nie odróżniłaby
+     * dźwięku dołożonego od utworu podmienionego. Stan „gra" zostaje przez to
+     * nietknięty — bo w prawdziwym silniku też zostaje.
+     *
+     * @var list<array{path: string, volume: int}>
+     */
+    public array $effects = [];
+
     public int $stopCount = 0;
 
     public int $shutdownCount = 0;
@@ -56,6 +68,13 @@ final class StubAudio implements AudioPort
         $this->playing = true;
 
         return null;
+    }
+
+    public function playEffect(string $path, int $volume): ?string
+    {
+        $this->effects[] = ['path' => $path, 'volume' => $volume];
+
+        return $this->problem;
     }
 
     public function stop(): void

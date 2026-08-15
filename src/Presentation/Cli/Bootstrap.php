@@ -177,6 +177,12 @@ final class Bootstrap
         );
         self::registerTranslations($modules, $translator);
 
+        // Słownik zdarzeń (krok 46): rdzeń wnosi swoje pięć sam, przy budowie
+        // rejestru, a ta linia dokłada zdarzenia modułów i zapisuje odbiorców.
+        // Wyłączony i odrzucony moduł nie wnosi ani nie słucha niczego — rejestr
+        // oddaje **przyjęte**, dokładnie jak przy takcie.
+        $state->events()->useModules($modules->accepted());
+
         $settingsScreen = new SettingsScreen(
             $state,
             new ChangeSettingUseCase(
@@ -586,15 +592,19 @@ final class Bootstrap
 
         self::$history = new CommandHistory(CommandHistoryService::getInstance());
 
+        // Oba okna wykonują komendę tą samą linią, więc oba ogłaszają to samo
+        // zdarzenie (krok 46) — i biorą rejestr z tego samego miejsca, co
+        // wszyscy pozostali publikujący.
         $overlay = new CommandOverlay(
             $registry,
             new CommandLineParser($translator),
             self::$history,
             $translator,
+            $state->events(),
         );
         $overlay->prepare();
 
-        return [$overlay, new MenuOverlay($registry, $translator)];
+        return [$overlay, new MenuOverlay($registry, $translator, $state->events())];
     }
 
     /** @return list<string> */

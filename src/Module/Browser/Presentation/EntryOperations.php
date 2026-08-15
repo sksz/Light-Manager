@@ -10,8 +10,11 @@ use LightManager\Application\Dto\WorkProgress;
 use LightManager\Application\Port\FileOperationsPort;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Domain\Exception\DescribesProblem;
+use LightManager\Domain\Exception\DomainException;
 use LightManager\Domain\Exception\FileOperationException;
 use LightManager\Domain\ValueObject\Message;
+use LightManager\Module\Browser\Application\BrowserEvent;
+use LightManager\Module\Browser\Application\BrowserEvents;
 use LightManager\Module\Browser\Application\Undo\UndoEntry;
 use LightManager\Module\Browser\Application\Undo\UndoJournal;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
@@ -90,6 +93,7 @@ final class EntryOperations
         private readonly PaneRefresh $refreshPanes,
         private readonly TranslatorPort $translator,
         private readonly UndoJournal $journal,
+        private readonly BrowserEvents $events,
     ) {
     }
 
@@ -164,18 +168,33 @@ final class EntryOperations
         }
 
         [$directory, $entry] = $selection;
-        $name = new EntryName($value);
 
-        // Nazwa ta sama co dotąd nie jest błędem, tylko brakiem zmiany: `rename()`
-        // na siebie samego udałby się i zostawiłby po sobie zdanie o czynności,
-        // której nie było.
-        if ($name->value === $entry->name) {
-            return null;
+        // Niepowodzenie tej czynności **wychodzi wyjątkiem**, a nie zdaniem
+        // (droga 1 z opisu klasy), więc zdarzenie o nim musi paść tutaj: wyżej
+        // wyjątek zamienia się w komunikat w dwóch różnych miejscach — w
+        // `InputHandlerze` i w komendzie — a publikacja w obu byłaby tą samą
+        // czynnością opisaną dwa razy.
+        try {
+            $name = new EntryName($value);
+
+            // Nazwa ta sama co dotąd nie jest błędem, tylko brakiem zmiany:
+            // `rename()` na siebie samego udałby się i zostawiłby po sobie zdanie
+            // o czynności, której nie było.
+            if ($name->value === $entry->name) {
+                return null;
+            }
+
+            $this->operations->rename($directory->path()->child($entry->name)->value, $name->value);
+        } catch (DomainException $problem) {
+            $this->events->fire(BrowserEvent::RenameFailed);
+
+            throw $problem;
         }
 
-        $this->operations->rename($directory->path()->child($entry->name)->value, $name->value);
         $this->journal->record(UndoEntry::renamed($directory->path()->value, $entry->name, $name->value));
         $this->refresh($directory->path(), $name->value);
+
+        $this->events->fire(BrowserEvent::RenameDone);
 
         return $this->info('module.browser.rename.done', ['name' => $name->value]);
     }
@@ -189,12 +208,20 @@ final class EntryOperations
      */
     public function createDirectory(string $value): Message
     {
-        $name = new EntryName($value);
         $path = $this->panes->focused()->directory()->path();
 
-        $this->operations->createDirectory($path->child($name->value)->value);
+        try {
+            $name = new EntryName($value);
+            $this->operations->createDirectory($path->child($name->value)->value);
+        } catch (DomainException $problem) {
+            $this->events->fire(BrowserEvent::MakeDirectoryFailed);
+
+            throw $problem;
+        }
+
         $this->journal->record(UndoEntry::directoryCreated($path->value, $name->value));
         $this->refresh($path, $name->value);
+        $this->events->fire(BrowserEvent::MakeDirectoryDone);
 
         return $this->info('module.browser.mkdir.done', ['name' => $name->value]);
     }
@@ -550,6 +577,7 @@ final class EntryOperations
         $this->operations->stopRemoval();
         $this->recordRemoval($directory, $state->done);
         $this->refreshAfterRemoval($directory);
+        $this->events->outcome(BrowserEvent::DeleteDone, BrowserEvent::DeleteFailed, $message);
 
         return $message;
     }
@@ -589,6 +617,10 @@ final class EntryOperations
         $this->recordRemoval($directory, $state->done);
         $this->refreshAfterRemoval($directory);
 
+        // Praca przerwana jest pracą zakończoną (D66), więc zdarzenie pada i tu —
+        // wpisy, które zdążyły zniknąć, zniknęły naprawdę.
+        $this->events->fire(BrowserEvent::DeleteDone);
+
         return Message::info($this->translator->plural(
             'module.browser.delete.stopped',
             $state->done,
@@ -614,11 +646,14 @@ final class EntryOperations
         try {
             $this->operations->delete($directory->path()->child($name)->value);
         } catch (FileOperationException $problem) {
+            $this->events->fire(BrowserEvent::DeleteFailed);
+
             return $this->problem($problem);
         }
 
         $this->journal->record(UndoEntry::deletedPermanently($directory->path()->value, [$name], 1));
         $this->refresh($directory->path(), $successor);
+        $this->events->fire(BrowserEvent::DeleteDone);
 
         return $this->info('module.browser.delete.doneOne', ['name' => $name]);
     }

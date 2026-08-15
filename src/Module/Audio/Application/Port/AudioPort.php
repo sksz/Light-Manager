@@ -50,7 +50,26 @@ interface AudioPort
      */
     public function play(string $path, int $volume, bool $loop): ?string;
 
-    /** Pauzuje. Wolno wołać zawsze, także gdy nic nie gra. */
+    /**
+     * Gra **efekt** — obok muzyki, nie zamiast niej (krok 46).
+     *
+     * Osobna metoda, a nie `play()` z innym argumentem, bo pod spodem jest drugi
+     * uchwyt dźwięku i inne reguły: efekt zaczyna się **zawsze od początku**
+     * (pauzy nie ma, bo nie ma czego pauzować w dźwięku trwającym pół sekundy),
+     * nigdy się nie zapętla i **nie rusza tego, co gra muzyka**. Silnik miksuje
+     * oba — sprawdzone przy planowaniu fazy.
+     *
+     * Nowy efekt **przerywa poprzedni** (rozstrzygnięcie użytkownika): uchwyt jest
+     * jeden, więc dwa efekty w tej samej chwili znaczą, że słychać ten drugi.
+     *
+     * @param int $volume głośność efektów w procentach, 0–100 — **własna pozycja
+     *                    ustawień**, niezależna od głośności muzyki
+     *
+     * @return string|null opis problemu albo `null`, gdy gra
+     */
+    public function playEffect(string $path, int $volume): ?string;
+
+    /** Pauzuje **muzykę**; efektu nie dotyka. Wolno wołać zawsze, także gdy nic nie gra. */
     public function stop(): void;
 
     public function isPlaying(): bool;

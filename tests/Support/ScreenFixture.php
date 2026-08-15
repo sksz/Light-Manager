@@ -120,6 +120,7 @@ final class ScreenFixture
         public readonly StubAudio $audio = new StubAudio(),
         public readonly StubPlaylistStorage $playlist = new StubPlaylistStorage(),
         public readonly StubTrackFiles $tracks = new StubTrackFiles(),
+        public readonly StubEffectStorage $effects = new StubEffectStorage(),
     ) {
         $translator = new StubTranslator();
         $themes = new FixedThemes();
@@ -165,7 +166,15 @@ final class ScreenFixture
         // dotknąć katalogu domowego) i plików utworów (bo nie ma prawa przeglądać
         // dysku). Od kroku 45 wnosi ekran i takt, więc bez niego zestaw przestałby
         // odpowiadać `Bootstrapowi` w rzeczy, którą ten krok wprowadził.
-        $audioModule = new AudioModule($this->state, $translator, $settingsStore, $audio, $playlist, $tracks);
+        $audioModule = new AudioModule(
+            $this->state,
+            $translator,
+            $settingsStore,
+            $audio,
+            $playlist,
+            $tracks,
+            $effects,
+        );
         $this->audioScreen = $audioModule->screen();
 
         $this->modules = new ModuleRegistry(
@@ -173,6 +182,11 @@ final class ScreenFixture
             $settingsStore->current()->modules,
             Bootstrap::LAST_RESORT_MODULE,
         );
+
+        // Słownik zdarzeń i odbiorcy — ta sama jedna linia, co w `Bootstrapie`
+        // (krok 46). Bez niej przebieg sprawdzałby aplikację, w której nikt
+        // niczego nie ogłasza, czyli nie tę, którą uruchamia użytkownik.
+        $this->state->events()->useModules($this->modules->accepted());
 
         $this->ticker = ModuleTicker::of($this->modules->accepted(), new ProblemPresenter($translator));
 
@@ -211,9 +225,10 @@ final class ScreenFixture
             new CommandLineParser($translator),
             new CommandHistory($history),
             $translator,
+            $this->state->events(),
         );
         $this->commands->prepare();
-        $this->menu = new MenuOverlay($this->commandRegistry, $translator);
+        $this->menu = new MenuOverlay($this->commandRegistry, $translator, $this->state->events());
 
         $this->help->knowAbout(
             [$this->settings, $this->help],

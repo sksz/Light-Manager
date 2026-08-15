@@ -125,6 +125,15 @@ return [
     'command.key.erase' => 'kasowanie znaku',
     'command.key.dismiss' => 'zamknij okno',
 
+    // Słownik zdarzeń rdzenia (krok 46) — nazwy widoczne w oknie odbiorcy.
+    // Napisy mówią, **co się stało**, a nie co ma zagrać: rdzeń publikuje
+    // momenty, a nie dźwięki.
+    'event.core.message.info' => 'Komunikat: powodzenie',
+    'event.core.message.warning' => 'Komunikat: ostrzeżenie',
+    'event.core.message.error' => 'Komunikat: błąd',
+    'event.core.overlay.opened' => 'Otwarcie okna',
+    'event.core.command.executed' => 'Wykonanie komendy',
+
     // Menu kontekstowe (krok 32) — drugie wejście do rejestru komend.
     'menu.title' => 'DZIAŁANIA',
     'menu.empty' => 'Dla zaznaczenia nie ma żadnego działania.',

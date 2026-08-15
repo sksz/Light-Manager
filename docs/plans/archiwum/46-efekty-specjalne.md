@@ -6,7 +6,10 @@
 
 ## Status
 
-**Nie rozpoczęty** (2026-08-14).
+**Ukończony** (2026-08-15) — z **jawnym rozszerzeniem zakresu**: zdarzenia
+publikuje nie tylko rdzeń, ale i moduły (D83). Pozycja „zdarzenia publikowane
+przez moduły" wyszła przez to z sekcji *Poza zakresem*; reszta tamtych wykluczeń
+została nietknięta.
 
 ## Cel
 
@@ -143,9 +146,14 @@ treść mierzona już przez `columns` i `text`.
 ## Poza zakresem
 
 - **Szyna zdarzeń ogólnego przeznaczenia** — kolejki, priorytety, zdarzenia
-  publikowane przez moduły, zdarzenia asynchroniczne. Rdzeń publikuje kilka
-  nazwanych momentów i tyle; reszta jest rozwiązaniem problemu, którego nikt
-  jeszcze nie ma.
+  asynchroniczne. Rdzeń publikuje kilka nazwanych momentów i tyle; reszta jest
+  rozwiązaniem problemu, którego nikt jeszcze nie ma.
+  **Poprawka wykonawcza (D83):** „zdarzenia publikowane przez moduły" stały w tej
+  liście i **zostały z niej wyjęte** rozstrzygnięciem użytkownika. Powód jest
+  wymierny, nie estetyczny: wszystkie zdania modułów schodzą się
+  w `LoopState::report()` z tonem, więc zdarzenia rdzenia odróżniają powodzenie od
+  awarii, ale **nie odróżniają kopiowania od usunięcia** — a efekt przypisany do
+  „zakończonego kopiowania" wymaga, żeby to kopiowanie samo o sobie powiedziało.
 - **Ściszanie muzyki na czas efektu (ducking)** — silnik miksuje bez tego,
   a próg „o ile ściszyć i na jak długo” byłby wartością wziętą z sufitu.
 - **Dźwięki syntezowane w aplikacji** — efekt jest plikiem, który ktoś podłożył.
@@ -202,4 +210,127 @@ treść mierzona już przez `columns` i `text`.
 
 ## Dziennik realizacji
 
-*(pusty — krok nie rozpoczęty)*
+### 2026-08-15 — krok wykonany
+
+**Rozstrzygnięcia startowe: [00-decyzje.md](../00-decyzje.md), D83.** Sześć pytań
+z sekcji powyżej, jedno dodatkowe (co widać przy pierwszym uruchomieniu) i jedno
+powtórzone — bo odpowiedź na nie zmieniła zakres kroku.
+
+**1. Zakres urósł o zdarzenia modułów — i to jest główne odstępstwo od planu.**
+Plan mówił „rdzeń publikuje, moduł odbiera", a „zdarzenia publikowane przez
+moduły" miał w *Poza zakresem*. Odpowiedź użytkownika na pytanie o dwa efekty
+naraz okazała się odpowiedzią na coś zupełnie innego: zdarzenia mają być listą
+zdarzeń **rdzenia i modułów**, z przykładami „zakończenie kopiowania z sukcesem",
+„przejście kursora na liście", „niepowodzenie usunięcia pliku". Rozpoznanie
+w kodzie potwierdziło, że inaczej się nie da — wszystkie zdania modułów schodzą
+się w `LoopState::report()` z tonem (sprawdzone: 24 miejsca tworzące `Message`
+w samej przeglądarce), więc trzy zdarzenia rdzenia odróżniają powodzenie od
+awarii, ale **nie odróżniają kopiowania od usunięcia**.
+
+**2. Słownik ma 22 pozycje.** Rdzeń pięć (trzy tony komunikatu, otwarcie okna
+nakładanego, wykonanie komendy), przeglądarka siedemnaście (kursor, wejście do
+katalogu, zaznaczenie oraz siedem czynności × udana/nieudana). Etykieta wariantu
+w pytaniu mówiła „+13", a wyliczenie pod nią dawało 16 — pomyłka wyszła przy
+rozpisywaniu spisu i **wróciła do użytkownika osobnym pytaniem**, zamiast zostać
+rozstrzygnięta po cichu w którąkolwiek stronę.
+
+**3. Zamknięcie słownika jest konstrukcyjne, nie regulaminowe.** Nazwy pochodzą
+z enumów (`AppEvent`, `BrowserEvent`), a deklaracje katalogu powstają
+z `cases()` — publikacja i spis w oknie odbiorcy nie mają jak się rozjechać.
+Warto nazwać, dlaczego to ważniejsze niż zwykła higiena: rozjazd byłby
+**niewidoczny**, bo wiersz, do którego nic nie dochodzi, wygląda dokładnie tak
+samo jak wiersz, do którego nic nie przypisano.
+
+**4. Publikator zamieszkał w `LoopState`.** Obok kontekstu sesji i z tego samego
+powodu: stan pętli dostaje **każdy** moduł, więc `Bootstrap` urósł o jedną linię
+(`useModules()`), a nie o argument przy każdym publikującym module. Reguła 15
+została nietknięta.
+
+**5. Trzy miejsca publikacji rdzenia, wszystkie istniejące wcześniej.**
+`LoopState::report()` (ton → zdarzenie), `OverlayStack::open()`
+i `run()` w obu oknach rejestru komend. Zamknięcia okna **nie ogłaszamy** —
+okno zamyka się na kilka sposobów naraz (`Esc`, wykonanie, ustąpienie miejsca
+przez `replace()`), więc zdarzenie znaczyłoby raz „zrezygnowałem", raz
+„zrobione", czyli nic. Do słownika nie wszedł też **koniec pracy**, i to
+z powodu mechanicznego: `Bootstrap::shutdown()` zatrzymuje silnik audio, więc
+dźwięk podpięty do zakończenia zostałby ucięty w pół.
+
+**6. „Wejście do katalogu" ogłasza `BrowserState::enter()`, a nie ekran.**
+Pierwsza wersja publikowała w `BrowserScreen::open()` i `goUp()`, ale wtedy
+`browser.jump` i `browser.open` milczały. Metoda `enter()` jest **jedyną drogą,
+którą katalog się zmienia** — z tym że wchodzą nią także przełączenie wpisów
+ukrytych i odczyt katalogu na nowo po operacji. Jedno porównanie ścieżek
+(`$changed`) rozwiązało oba problemy naraz i jest tańsze niż cztery miejsca
+publikacji.
+
+**7. Efekt gra na drugim uchwycie `Sound`.** Fakt sprawdzony przy planowaniu fazy
+(silnik miksuje) okazał się wystarczający: `playEffect()` bierze osobne pole,
+bo `$sound` trzyma muzykę, a jego kursor jest pamięcią pauzy — zagranie efektu
+tamtym obiektem kasowałoby miejsce, w którym stanął utwór. Kursor efektu cofamy
+przed każdym zagraniem (`seekTo(0)`), bo `play()` na dźwięku przerwanym w połowie
+wznowiłby go od miejsca przerwania, a przy kliku trwającym pół sekundy różnicę
+słychać.
+
+**8. Odbiór nie dotyka dysku — i to jest reguła, nie optymalizacja.** Mapę
+wczytuje **takt** modułu (`SoundEffects::useTime()`), a dostępność plików
+przelicza się przy otwarciu okna. Zdarzenie, które padło przed pierwszym taktem,
+milczy: to są zdarzenia ze startu aplikacji, a odczyt pliku w środku
+`LoopState::report()` byłby wejściem-wyjściem w cudzej czynności. Przy
+wyłączonych efektach mapa nie czyta się **wcale** — sprawdza to osobny test.
+
+**9. Próg 100 ms na zdarzenie stoi po stronie odbiorcy.** Trzymana strzałka daje
+trzydzieści zdarzeń kursora na sekundę; bez progu klik zamieniłby się w warkot,
+czyli dokładnie w to, przed czym ostrzegał opis modelu i wysiłku. Wariant
+„przeglądarka publikuje rzadziej" odpadł, bo wnosiłby wiedzę o dźwięku do
+publikującego.
+
+**10. Rachunek kolumn wyszedł dopiero z policzenia najdłuższej nazwy.** Pierwsza
+wersja panelu dawała nazwie zdarzenia i nazwie pliku po kolumnie elastycznej,
+czyli po połowie miejsca — a wtedy „Usunięcie trwałe: zakończone" (28 znaków)
+kończyło się wielokropkiem w miejscu, w którym przestawało odróżniać czynność
+udaną od nieudanej. Kolumna pliku jest przez to **stała i ustępuje pierwsza**
+(reguła 11e), a nazwa dostaje 27 znaków treści; jedna polska nazwa została przy
+okazji skrócona o jeden znak. Pilnuje tego test czytający **oba katalogi napisów**
+— dopisanie zdarzenia o zbyt długiej nazwie skończy się na testach, a nie na
+klatce pod XTermem.
+
+**Miara powodzenia z celu kroku: spełniona.** Nieudana operacja gra inny dźwięk
+niż otwarcie pomocy (osobne zdarzenia, `browser.*.failed` wobec
+`core.overlay.opened`), lewy panel mówi, co gdzie gra, a przełącznik „Efekty
+specjalne" ucisza wszystko naraz, nie ruszając muzyki.
+
+### Pomiar (maszyna zwolniona przez użytkownika, obciążenie 0,05–0,07 na rdzeń)
+
+| Oś | Wobec wzorca | Wynik |
+|---|---|---|
+| `--loop` | `2026-08-15-po-kroku-45-loop.json` | **+0,1%** — w szumie |
+| sixel, 19 scenariuszy | `2026-08-15-po-kroku-44.json` | od **−1,6%** do **+6,4%**, bez regresji powyżej progu |
+
+Wzorzec `2026-08-15-po-kroku-46-loop.json` zapisany.
+
+**Granica pomiaru jest ta sama, co w kroku 45, i warto ją powtórzyć:**
+`LoopBenchmarkRunner` powtarza trzy fazy pętli ręcznie i **modułów nie tyka**,
+więc ani takt, ani odbiór zdarzeń nie leżą w mierzonej ścieżce. Liczba mówi, że
+reszta taktu pętli się nie zmieniła. Koszt samej publikacji jest przy tym
+rachunkiem konstrukcyjnym, nie domysłem: przy zerze odbiorców `publish()` kończy
+się na jednym sprawdzeniu pola, a publikacja pada **na klawisz**, nie na klatkę —
+trzydzieści razy na sekundę dzieje się wyłącznie przy trzymanym klawiszu, i to
+jest dokładnie ten przypadek, dla którego powstał próg 100 ms.
+
+Scenariusza okna audio nie ma z tego samego powodu, co w kroku 45: lewy panel to
+`Table` w strefie środkowej, czyli treść mierzona już przez `columns`. Spis
+„element → scenariusz" w [docs/pomiary/README.md](../../pomiary/README.md) nie
+zmienia przez to ani jednej pozycji.
+
+### Czego ten krok nie dowiózł
+
+**Klatki pod XTermem nikt jeszcze nie oglądał.** Rachunek kolumn został
+sprawdzony testem na obu katalogach napisów, ale wygląd panelu w prawdziwym
+terminalu — nie. Krok 45 złapał tą właśnie drogą kłamiącą stopkę, więc jest to
+sprawdzenie warte zrobienia przy najbliższej okazji, w której maszyna będzie
+wolna.
+
+**Podglądu przypisanego dźwięku nie ma.** `Enter` w panelu efektów nie robi nic;
+żeby usłyszeć, co się przypisało, trzeba wywołać samo zdarzenie. Świadomie poza
+zakresem — jedna linia kodu, ale i jeden klawisz więcej w spisie, a plan go nie
+przewidywał.

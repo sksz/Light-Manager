@@ -12,6 +12,8 @@ use LightManager\Application\Dto\WorkProgress;
 use LightManager\Application\Port\FileTransferPort;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Domain\ValueObject\Message;
+use LightManager\Module\Browser\Application\BrowserEvent;
+use LightManager\Module\Browser\Application\BrowserEvents;
 use LightManager\Module\Browser\Application\Undo\UndoEntry;
 use LightManager\Module\Browser\Application\Undo\UndoJournal;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
@@ -120,6 +122,7 @@ final class EntryTransfer
         private readonly PaneRefresh $refresh,
         private readonly TranslatorPort $translator,
         private readonly UndoJournal $journal,
+        private readonly BrowserEvents $events,
     ) {
     }
 
@@ -419,9 +422,20 @@ final class EntryTransfer
             )),
         };
 
+        // Trzy czynności wychodzą stąd jedną drogą, więc i zdarzenie dobiera się
+        // tu, a nie w trzech miejscach (krok 46). Kolejność pytań jest ta sama, co
+        // w zdaniu powyżej: cofnięcie przeniesienia jest **cofnięciem**, a nie
+        // przeniesieniem, choć pod spodem robi dokładnie to samo.
+        [$done, $failed] = match (true) {
+            $this->undoing => [BrowserEvent::UndoDone, BrowserEvent::UndoFailed],
+            $this->moves => [BrowserEvent::MoveDone, BrowserEvent::MoveFailed],
+            default => [BrowserEvent::CopyDone, BrowserEvent::CopyFailed],
+        };
+
         $this->record($full);
         $this->transfers->stop();
         $this->refreshPanes();
+        $this->events->outcome($done, $failed, $message);
 
         return $message;
     }

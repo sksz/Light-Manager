@@ -13,6 +13,8 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Port\TrashPort;
 use LightManager\Domain\Exception\FileOperationException;
 use LightManager\Domain\ValueObject\Message;
+use LightManager\Module\Browser\Application\BrowserEvent;
+use LightManager\Module\Browser\Application\BrowserEvents;
 use LightManager\Module\Browser\Application\BrowserSettings;
 use LightManager\Module\Browser\Application\Undo\UndoEntry;
 use LightManager\Module\Browser\Application\Undo\UndoJournal;
@@ -84,6 +86,7 @@ final class EntryTrash
         private readonly LoopState $state,
         private readonly TranslatorPort $translator,
         private readonly UndoJournal $journal,
+        private readonly BrowserEvents $events,
     ) {
     }
 
@@ -265,11 +268,15 @@ final class EntryTrash
         }
 
         if ($problem !== null) {
+            $this->events->fire(BrowserEvent::TrashFailed);
+
             return Message::error($this->translator->translate(
                 $problem->problemKey(),
                 $problem->problemParameters(),
             ));
         }
+
+        $this->events->fire(BrowserEvent::TrashDone);
 
         return count($names) === 1
             ? $this->info('module.browser.trash.doneOne', ['name' => $names[0]])
@@ -430,7 +437,13 @@ final class EntryTrash
             $this->refresh->after($directory->path(), $fullyDone ? $successor : null);
         }
 
+        // Droga kopiowania kończy się na cztery sposoby, a zdarzenie ma **dwa**:
+        // dwie pierwsze odpowiedzi mówią o niepowodzeniu, dwie kolejne o pracy,
+        // która przejechała w całości albo w części — a praca przerwana jest pracą
+        // zakończoną (D66).
         if ($problem !== null) {
+            $this->events->fire(BrowserEvent::TrashFailed);
+
             return Message::error($this->translator->translate(
                 $problem->problemKey(),
                 $problem->problemParameters(),
@@ -438,11 +451,15 @@ final class EntryTrash
         }
 
         if ($state !== null && $state->stage === TransferStage::Failed) {
+            $this->events->fire(BrowserEvent::TrashFailed);
+
             return Message::error($this->translator->translate(
                 $state->problemKey ?? 'problem.unexpected',
                 $state->problemParameters,
             ));
         }
+
+        $this->events->fire(BrowserEvent::TrashDone);
 
         if (!$fullyDone) {
             return Message::info($this->translator->plural(

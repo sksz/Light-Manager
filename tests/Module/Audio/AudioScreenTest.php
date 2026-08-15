@@ -7,6 +7,7 @@ namespace LightManager\Tests\Module\Audio;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Dto\Settings;
+use LightManager\Application\Event\EventRegistry;
 use LightManager\Application\Module\ContextEntryKind;
 use LightManager\Application\Module\ModuleContext;
 use LightManager\Application\Ui\Primitive\TextRun;
@@ -14,10 +15,12 @@ use LightManager\Application\Ui\Rect;
 use LightManager\Domain\ValueObject\MessageTone;
 use LightManager\Module\Audio\Application\PlaylistEntry;
 use LightManager\Module\Audio\Application\PlaylistPlayer;
+use LightManager\Module\Audio\Application\SoundEffects;
 use LightManager\Module\Audio\Presentation\AudioScreen;
 use LightManager\Presentation\Ui\Transition;
 use LightManager\Tests\Support\InMemorySettings;
 use LightManager\Tests\Support\StubAudio;
+use LightManager\Tests\Support\StubEffectStorage;
 use LightManager\Tests\Support\StubPlaylistStorage;
 use LightManager\Tests\Support\StubTrackFiles;
 use LightManager\Tests\Support\StubTranslator;
@@ -239,14 +242,18 @@ final class AudioScreenTest extends TestCase
 
     private function screen(): AudioScreen
     {
+        $settings = new InMemorySettings(new Settings());
+
         return new AudioScreen(
             new PlaylistPlayer(
                 $this->audio,
                 $this->storage,
                 $this->files,
-                new InMemorySettings(new Settings()),
+                $settings,
                 new StubTranslator(),
             ),
+            new SoundEffects($this->audio, new StubEffectStorage(), $this->files, $settings),
+            new EventRegistry(),
             new StubTranslator(),
         );
     }

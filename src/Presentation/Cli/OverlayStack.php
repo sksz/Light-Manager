@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace LightManager\Presentation\Cli;
 
+use LightManager\Application\Event\AppEvent;
+use LightManager\Application\Event\EventRegistry;
 use LightManager\Presentation\Ui\OverlayInterface;
 use LightManager\Presentation\Ui\Resettable;
 
@@ -20,6 +22,16 @@ final class OverlayStack
 {
     private ?OverlayInterface $current = null;
 
+    /**
+     * @param ?EventRegistry $events `null` znaczy „nikomu nie ogłaszaj" i jest
+     *                               dla testów, które składają stos same; w
+     *                               aplikacji rejestr podaje `LoopState`
+     */
+    public function __construct(
+        private readonly ?EventRegistry $events = null,
+    ) {
+    }
+
     public function current(): ?OverlayInterface
     {
         return $this->current;
@@ -30,6 +42,16 @@ final class OverlayStack
         return $this->current !== null;
     }
 
+    /**
+     * Okno staje nad ekranem — i to jest drugi z trzech momentów, które rdzeń
+     * ogłasza (krok 46).
+     *
+     * Zamknięcia okna **nie ogłaszamy** i nie jest to przeoczenie: okno zamyka się
+     * na kilka sposobów naraz (`Esc`, wykonanie, ustąpienie miejsca innemu oknu
+     * przez `OverlayOutcome::replace()`), a zdarzenie padające przy każdym z nich
+     * znaczyłoby raz „zrezygnowałem", raz „zrobione" — czyli nie znaczyłoby nic.
+     * Skutek czynności mówi ton komunikatu.
+     */
     public function open(OverlayInterface $overlay): void
     {
         if ($overlay instanceof Resettable) {
@@ -37,6 +59,7 @@ final class OverlayStack
         }
 
         $this->current = $overlay;
+        $this->events?->publish(AppEvent::OverlayOpened->value);
     }
 
     /** Ten sam klawisz otwiera okno i je zamyka — jak `F1` i `F2` dla ekranów. */

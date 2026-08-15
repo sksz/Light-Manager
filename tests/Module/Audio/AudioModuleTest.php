@@ -99,19 +99,30 @@ final class AudioModuleTest extends TestCase
     }
 
     /**
-     * Zakładka po kroku 45: tryb wyborem, głośność liczbą, autostart
-     * przełącznikiem — a utworu na niej **nie ma**, bo wybiera go playlista.
+     * Zakładka po krokach 45 i 46: tryb wyborem, głośność liczbą, autostart
+     * przełącznikiem, a na końcu para od efektów — utworu na niej **nie ma**, bo
+     * wybiera go playlista.
+     *
+     * Głośność efektów jest osobną pozycją, a nie wspólną z muzyką, i to jest
+     * rozstrzygnięcie ze startu kroku 46: klik zmiksowany na poziomie utworu ginie
+     * pod nim albo krzyczy w ciszy.
      */
     public function testSettingsTabTradesTheTrackForAModeAndAnAutostart(): void
     {
         $tab = $this->module()->settingsTab();
 
         self::assertSame(
-            [ModuleSettingKind::Choice, ModuleSettingKind::Number, ModuleSettingKind::Toggle],
+            [
+                ModuleSettingKind::Choice,
+                ModuleSettingKind::Number,
+                ModuleSettingKind::Toggle,
+                ModuleSettingKind::Toggle,
+                ModuleSettingKind::Number,
+            ],
             array_map(static fn (ModuleSetting $setting): ModuleSettingKind => $setting->kind, $tab->settings),
         );
         self::assertSame(
-            ['mode', 'volume', 'autostart'],
+            ['mode', 'volume', 'autostart', 'effects', 'effectsVolume'],
             array_map(static fn (ModuleSetting $setting): string => $setting->key, $tab->settings),
         );
     }
