@@ -1,7 +1,7 @@
 # Krok 48 — Moduł `Ssh`: sesja, uwierzytelnienie i książka hostów
 
 > **Skąd ten krok.** Powstał 2026-08-15, na polecenie użytkownika, razem
-> z krokami 49 i 50 jako pierwsza trzecia Fazy XVII ([00-decyzje.md](00-decyzje.md),
+> z krokami 49 i 50 jako pierwsza trzecia Fazy XVII ([00-decyzje.md](../00-decyzje.md),
 > D84). Rozdzielone są dlatego, że każdy dowozi **inną rzecz**: ten sesję, tamten
 > odczyt zdalnego katalogu, ostatni przesył plików.
 
@@ -14,7 +14,7 @@
 > sieć — szczegóły w dzienniku realizacji na końcu pliku.
 
 > **Rozstrzygnięcia startowe odwróciły drogę techniczną kroku i całej fazy —
-> [00-decyzje.md](00-decyzje.md), D87.** Sesja **nie** żyje w procesie
+> [00-decyzje.md](../00-decyzje.md), D87.** Sesja **nie** żyje w procesie
 > aplikacji: `ext-ssh2` wypada z fazy w całości, a jego miejsce zajmuje klient
 > OpenSSH uruchamiany procesem potomnym, z połączeniem trwającym przez
 > `ControlMaster`/`ControlPersist`. Sekcje „Zastrzeżenie", „Zakres" nr 1, 3 i 4
@@ -244,7 +244,7 @@ Oś `--loop` „przed i po”: jeśli moduł weźmie takt (rozstrzygnięcie nr 6
 rozlicza się nim tak samo, jak takt playlisty w kroku 45. Scenariusza klatki
 krok **nie dokłada** — ekran to `Table` w strefie środkowej, czyli treść mierzona
 już przez `columns`; powód pominięcia idzie do
-[docs/pomiary/README.md](../pomiary/README.md).
+[docs/pomiary/README.md](../../pomiary/README.md).
 
 Osobno, poza `bin/render-bench`, do zapisania w dzienniku kroku: **ile trwa
 uścisk dłoni** na maszynie projektu. To nie jest pomiar klatki i narzędzie go nie
@@ -297,7 +297,7 @@ ponad przewidzianą linię.
 
 ## Rozstrzygnięte na starcie kroku (2026-08-15)
 
-Pełne uzasadnienia i odrzucone alternatywy: [00-decyzje.md](00-decyzje.md), D87.
+Pełne uzasadnienia i odrzucone alternatywy: [00-decyzje.md](../00-decyzje.md), D87.
 **Cztery odpowiedzi poszły wbrew rekomendacji planu** — nr 1, 2, 3 i 7.
 
 | # | Pytanie | Rozstrzygnięcie | Wobec rekomendacji |
@@ -350,7 +350,7 @@ rdzenia.
 
 Osiem pytań z sekcji „Do rozstrzygnięcia" plus dwa wynikłe z odpowiedzi na
 pierwsze plus jedno zadane ponownie po sprostowaniu — wszystkie w
-[00-decyzje.md](00-decyzje.md), D87. Stan zastany sprawdzony przed pytaniami
+[00-decyzje.md](../00-decyzje.md), D87. Stan zastany sprawdzony przed pytaniami
 i zgadza się z tabelą co do wiersza; rozpoznanie dołożyło dwa fakty, których
 plan nie miał: klient OpenSSH 9.6p1 wraz z `sftp`, `ssh-keyscan` i `ssh-keygen`
 jest w `PATH`, a `HashKnownHosts` stoi na `yes`.
@@ -465,7 +465,7 @@ liczby jest ta sama, co w kroku 45**: `--loop` nie woła taktu modułów, więc 
 ona, że *reszta* taktu się nie zmieniła; o koszcie samego taktu modułu świadczy
 to, że sprowadza się on do jednego `poll()`, który nigdy nie blokuje. Scenariusza
 klatki krok nie dokłada — powody pominięcia (dwa wiersze) stoją
-w [docs/pomiary/README.md](../pomiary/README.md).
+w [docs/pomiary/README.md](../../pomiary/README.md).
 
 #### Czego krok nie dowiózł
 

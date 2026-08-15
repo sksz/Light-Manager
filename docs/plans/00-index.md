@@ -406,7 +406,7 @@ na dysk lokalny dotyka wyjątku 15b (krok 50, zastrzeżenie startowe).
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 48 | Moduł `Ssh`: sesja, uwierzytelnienie i książka hostów | [48-ssh-sesja-i-hosty.md](48-ssh-sesja-i-hosty.md) | 18, 19, 20, 26, 40, 45, 46, 47 | Opus | high | Ukończony z zastrzeżeniem |
+| 48 | Moduł `Ssh`: sesja, uwierzytelnienie i książka hostów | [48-ssh-sesja-i-hosty.md](archiwum/48-ssh-sesja-i-hosty.md) | 18, 19, 20, 26, 40, 45, 46, 47 | Opus | high | Ukończony z zastrzeżeniem |
 | 49 | Zdalny katalog: panel modułu czyta przez SFTP | [49-zdalny-katalog.md](49-zdalny-katalog.md) | 18, 21, 25, 27, 30, 33, 48 | Opus | xhigh | Nie rozpoczęty |
 | 50 | Przesył plików: pobranie i wysłanie pracą kawałkową | [50-przesyl-plikow.md](50-przesyl-plikow.md) | 21, 23, 41, 42, 43, 46, 47, 48, 49 | Opus | xhigh | Nie rozpoczęty |
 

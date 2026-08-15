@@ -5639,7 +5639,7 @@ porównanie ścieżek jest tańsze i uczciwsze niż cztery miejsca publikacji
 
 ### D84 — Praca na zdalnym hoście wchodzi jako Faza XVII: moduł `Ssh`, `ext-ssh2` w procesie, trzy kroki
 
-**Dotyczy:** kroków 48 ([48-ssh-sesja-i-hosty.md](48-ssh-sesja-i-hosty.md)),
+**Dotyczy:** kroków 48 ([48-ssh-sesja-i-hosty.md](archiwum/48-ssh-sesja-i-hosty.md)),
 49 ([49-zdalny-katalog.md](49-zdalny-katalog.md)) i 50
 ([50-przesyl-plikow.md](50-przesyl-plikow.md)); nowego katalogu
 `src/Module/Ssh/`, jednej linii w `Presentation/Cli/Bootstrap.php`, pola
@@ -6005,7 +6005,7 @@ wyszedł dobrze**, więc nie ma powodu robić tego tutaj.
 
 ### D87 — Rozstrzygnięcia startowe kroku 48: cała sesja w procesie potomnym przez `ControlMaster`, `known_hosts` prowadzi `ssh`, rdzeń rośnie o dwie rzeczy zamiast jednej linii
 
-**Dotyczy:** kroku 48 ([48-ssh-sesja-i-hosty.md](48-ssh-sesja-i-hosty.md)),
+**Dotyczy:** kroku 48 ([48-ssh-sesja-i-hosty.md](archiwum/48-ssh-sesja-i-hosty.md)),
 a przez rozstrzygnięcie nr 1 — **całej Fazy XVII**, czyli także kroków
 [49](49-zdalny-katalog.md) i [50](50-przesyl-plikow.md); nowego katalogu
 `src/Module/Ssh/`, `Application/Module` (nowa zdolność środowiskowa),
