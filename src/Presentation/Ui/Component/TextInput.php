@@ -36,6 +36,15 @@ final class TextInput implements FocusableInterface
     /** Co ile sekund karetka zmienia stan: pół sekundy świeci, pół gaśnie. */
     private const BLINK_SECONDS = 0.5;
 
+    /**
+     * Znak zastępujący treść w trybie maskowanym (krok 48, D87 nr 4).
+     *
+     * Jeden znak na jeden znak treści, a nie stała liczba kropek — inaczej
+     * pole nie pokazywałoby, że cokolwiek się wpisało, i karetka nie miałaby
+     * gdzie stać.
+     */
+    private const MASK = '•';
+
     private string $value = '';
 
     /** Położenie karetki liczone w **znakach**, od 0 do długości napisu. */
@@ -43,8 +52,17 @@ final class TextInput implements FocusableInterface
 
     private bool $caretVisible = true;
 
+    /**
+     * @param bool $masked czy treść ma być rysowana znakiem zastępczym (krok 48).
+     *                     Maskowanie dotyczy **wyłącznie rysowania** — `value()`
+     *                     oddaje to, co wpisano, bo inaczej pole byłoby ozdobą.
+     *                     Stąd też nie jest to tryb przełączany w locie: pole
+     *                     powstaje maskowane albo jawne i takie zostaje, a hasło
+     *                     nie ma jak odsłonić się przez pomyłkę
+     */
     public function __construct(
         private readonly string $prompt = '> ',
+        private readonly bool $masked = false,
     ) {
     }
 
@@ -94,8 +112,13 @@ final class TextInput implements FocusableInterface
             return [];
         }
 
+        // Od tego miejsca w dół rysuje się **wygląd**, nie treść. Rachunek okna
+        // i karetki zostaje ten sam, bo maska ma dokładnie tyle znaków, ile
+        // treść — gdyby miała inną długość, karetka rozjechałaby się z tym,
+        // co widać.
+        $shown = $this->shown();
         $offset = $this->windowOffset($width);
-        $visible = mb_substr($this->value, $offset, $width);
+        $visible = mb_substr($shown, $offset, $width);
         $primitives = [new TextRun($line->row, $line->column, $this->prompt, Role::Muted)];
 
         if ($visible !== '') {
@@ -112,13 +135,19 @@ final class TextInput implements FocusableInterface
             $primitives[] = $primitive;
         }
 
-        $under = mb_substr($this->value, $this->caret, 1);
+        $under = mb_substr($shown, $this->caret, 1);
 
         if ($under !== '') {
             $primitives[] = new TextRun($line->row, $column, $under, Role::SelectionText);
         }
 
         return $primitives;
+    }
+
+    /** Treść tak, jak ma wyglądać: sama treść albo tyle masek, ile ma znaków. */
+    private function shown(): string
+    {
+        return $this->masked ? str_repeat(self::MASK, mb_strlen($this->value)) : $this->value;
     }
 
     public function bindings(): array

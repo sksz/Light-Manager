@@ -25,6 +25,7 @@ use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Domain\Repository\DirectoryRepositoryInterface;
 use LightManager\Module\Browser\Presentation\BrowserModule;
 use LightManager\Module\FileInfo\Presentation\FileInfoModule;
+use LightManager\Module\Ssh\Presentation\SshModule;
 use LightManager\Presentation\Cli\Bootstrap;
 use LightManager\Presentation\Cli\Command\QuitCommand;
 use LightManager\Presentation\Cli\Command\ScreenCommand;
@@ -89,6 +90,9 @@ final class ScreenFixture
     /** Takt modułów: to samo wołanie, które w aplikacji robi `GameLoop`. */
     public readonly ModuleTicker $ticker;
 
+    /** Spis hostów modułu sesji zdalnej (krok 48). */
+    public readonly ScreenInterface $sshScreen;
+
     public readonly CommandRegistry $commandRegistry;
 
     /** Ekran, który stanął na dnie stosu — i powód, gdy nie ten, o który proszono. */
@@ -121,6 +125,8 @@ final class ScreenFixture
         public readonly StubPlaylistStorage $playlist = new StubPlaylistStorage(),
         public readonly StubTrackFiles $tracks = new StubTrackFiles(),
         public readonly StubEffectStorage $effects = new StubEffectStorage(),
+        public readonly StubSshSession $sessions = new StubSshSession(),
+        public readonly StubHostBook $hosts = new StubHostBook(),
     ) {
         $translator = new StubTranslator();
         $themes = new FixedThemes();
@@ -177,8 +183,16 @@ final class ScreenFixture
         );
         $this->audioScreen = $audioModule->screen();
 
+        // Moduł sesji zdalnej wchodzi z atrapami obu portów — sesji (bo test nie
+        // ma prawa wyjść do sieci) i książki hostów (bo nie ma prawa dotknąć
+        // katalogu domowego). Podstawiony port jest zarazem odpowiedzią na
+        // `RequiresEnvironment`: bez niego zestaw modułów zależałby od tego, czy
+        // maszyna uruchamiająca testy ma zainstalowanego klienta OpenSSH (krok 48).
+        $sshModule = new SshModule($this->state, $translator, $settingsStore, $sessions, $hosts);
+        $this->sshScreen = $sshModule->screen();
+
         $this->modules = new ModuleRegistry(
-            [$browser, $fileInfo, $audioModule],
+            [$browser, $fileInfo, $audioModule, $sshModule],
             $settingsStore->current()->modules,
             Bootstrap::LAST_RESORT_MODULE,
         );

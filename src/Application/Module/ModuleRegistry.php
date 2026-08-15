@@ -14,7 +14,8 @@ namespace LightManager\Application\Module;
  * skrót jest `ModuleShortcut`iem, a nie `KeyBinding`iem.
  *
  * Kolejność sprawdzania jest wymuszona: najpierw odsiew wyłączonych, potem
- * tożsamość, na końcu skrót. Moduł wyłączony **nie jest sprawdzany**, bo
+ * tożsamość, potem środowisko (krok 48), na końcu skrót. Moduł wyłączony
+ * **nie jest sprawdzany**, bo
  * wyłączenie może kolizję tylko usunąć, nigdy stworzyć — i dzięki temu wyłączenie
  * modułu z zabronioną literą jest realną drogą wyjścia z sytuacji, a nie
  * kosmetyką.
@@ -210,6 +211,21 @@ final class ModuleRegistry
             $this->reject($id, 'module.rejected.duplicate');
 
             return;
+        }
+
+        // Piąty powód i pierwszy niezależny od autora modułu (krok 48, D87 nr 11).
+        // Stoi **przed** sprawdzeniem skrótu umyślnie: moduł, który i tak nie
+        // wejdzie, nie ma prawa zająć litery, bo zabrałby ją komuś, kto by
+        // działał. Powód jest kluczem podanym przez moduł, a nie stałą rdzenia —
+        // rdzeń nie wie, czego brakuje, i wiedzieć nie ma po co.
+        if ($module instanceof RequiresEnvironment) {
+            $reason = $module->unavailableReason();
+
+            if ($reason !== null) {
+                $this->reject($id, $reason);
+
+                return;
+            }
         }
 
         $shortcut = $module->shortcut();

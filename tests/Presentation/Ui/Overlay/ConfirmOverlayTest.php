@@ -205,6 +205,76 @@ final class ConfirmOverlayTest extends TestCase
         self::assertContains('pytanie.klucz', $texts);
     }
 
+    /**
+     * **Długie pytanie zawija się, zamiast się ucinać** (krok 48).
+     *
+     * Do tego kroku okno miało zawsze sześć wierszy i pytanie dłuższe od nich
+     * ginęło pod wielokropkiem. Odbiorcą zmiany jest pytanie o zaufanie
+     * nieznanemu kluczowi hosta: niesie odcisk SHA256, którego nie widać nigdzie
+     * indziej, a odcisk ucięty w połowie nie jest odciskiem.
+     */
+    public function testALongQuestionWrapsAndTheWindowGrows(): void
+    {
+        $fingerprint = 'ED25519 SHA256:EZQpKi4iUrJWT2nvMqRy5H6Xxy5R1PX65l6pJhzgxjo';
+        $overlay = new ConfirmOverlay(
+            'Host anna@example.com jest nieznany. Odcisk klucza: ' . $fingerprint . '. Zaufać mu?',
+            [],
+            static fn (): OverlayOutcome => OverlayOutcome::close(),
+            new StubTranslator(),
+            dangerous: true,
+        );
+
+        $bounds = $overlay->bounds(24, 100);
+
+        self::assertGreaterThan(6, $bounds->rows, 'okno urosło o wiersze pytania');
+
+        $texts = [];
+
+        foreach ($overlay->draw($bounds) as $primitive) {
+            if ($primitive instanceof TextRun) {
+                $texts[] = $primitive->text;
+            }
+        }
+
+        $drawn = implode(' ', $texts);
+
+        self::assertStringNotContainsString('…', $drawn, 'nic się nie ucięło');
+        self::assertStringContainsString('SHA256:EZQpKi4iUrJWT2nvMqRy5H6Xxy5R1PX65l6pJhzgxjo', $drawn);
+    }
+
+    /** Krótkie pytanie zostaje jednowierszowe — zmiana nie rusza dotychczasowych okien. */
+    public function testAShortQuestionKeepsTheOldHeight(): void
+    {
+        self::assertSame(6, $this->overlay()->bounds(24, 80)->rows);
+    }
+
+    /**
+     * Słowo dłuższe od wiersza dzieli się **twardo**, a nie ucieka poza okno.
+     *
+     * Takim słowem jest właśnie odcisk klucza — czyli dokładnie ta treść, dla
+     * której to zawijanie powstało.
+     */
+    public function testAWordLongerThanTheLineIsSplitInsteadOfLost(): void
+    {
+        $overlay = new ConfirmOverlay(
+            str_repeat('x', 140),
+            [],
+            static fn (): OverlayOutcome => OverlayOutcome::close(),
+            new StubTranslator(),
+        );
+
+        $bounds = $overlay->bounds(24, 100);
+        $letters = 0;
+
+        foreach ($overlay->draw($bounds) as $primitive) {
+            if ($primitive instanceof TextRun) {
+                $letters += substr_count($primitive->text, 'x');
+            }
+        }
+
+        self::assertSame(140, $letters, 'wszystkie znaki znalazły swoje miejsce');
+    }
+
     private function overlay(bool $dangerous = false): ConfirmOverlay
     {
         return new ConfirmOverlay(

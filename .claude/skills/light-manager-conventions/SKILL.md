@@ -122,6 +122,15 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     zostawiłoby ją stojącą). Licznik okna pracy wolno **podać gotowym napisem**
     w `WorkProgress`, gdy praca liczy w czymś innym niż sztuki: `12914688`
     zapisane jako `12,3 MB` wymaga jednostek, a te idą przez katalog napisów.
+    **Krok 48 zmienia w `ConfirmOverlay` jedną rzecz: długie pytanie się
+    zawija, zamiast ucinać.** Okno rośnie o tyle wierszy, ile trzeba (najwyżej
+    sześć), a szerokość zostaje ta sama. Dawne uzasadnienie ucinania — „nazwa
+    ucięta w pytaniu widoczna jest piętro niżej, pod kursorem listy" — okazało się
+    prawdziwe **tylko dla nazw wpisów**: pytanie o zaufanie nieznanemu kluczowi
+    hosta niesie odcisk `SHA256:…`, którego nie widać nigdzie indziej, a odcisk
+    ucięty w połowie nie jest odciskiem, tylko pytaniem bez treści do porównania.
+    Reguła ogólna z tej poprawki: **zanim ucniesz treść pytania, sprawdź, czy
+    użytkownik ma ją skąd wziąć**.
 11a. **Komponent jest bezstanowy** — powstaje na nowo w każdej klatce, więc co ma
     przeżyć klatkę, mieszka **obok** niego, a właścicielem jest ekran. Dwie takie
     klasy: `Presentation\Ui\ScrollWindow` (wycinek listy, krok 18) i
@@ -495,6 +504,45 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     z 28 w kroku 47, gdy zniknął pas podglądu, z którego był liczony. Dawne zdanie z kroków 14 i 18 — „stopka nie
     jest ściągawką, tylko wskazaniem, gdzie ściągawka leży” — jest **odwołane co do
     zasięgu**; źródłem podpowiedzi pozostaje `KeyBinding`, nigdy napis w katalogu.
+11r. **Praca poza maszyną idzie procesem potomnym, nie rozszerzeniem** (krok 48,
+    D87). Moduł `src/Module/Ssh/` utrzymuje sesję SSH przez **`ControlMaster`
+    klienta OpenSSH**: `ssh -M -N -f` zestawia ją raz i demonizuje się sam, każda
+    późniejsza operacja to krótki potomek wchodzący przez gniazdo **bez uścisku
+    dłoni**. Odwraca to D84 nr 2 („dostęp w procesie, przez `ext-ssh2`"), i to
+    jawnie: rozszerzenie nie ma ani jednego wywołania nieblokującego,
+    a `ssh2_connect()` nie przyjmuje limitu czasu — host nieosiągalny zamroziłby
+    **całą aplikację** na minutę. Reguła nadrzędna Fazy XVII: **żadne wywołanie
+    sieciowe nie pada w rysowaniu klatki** — tu spełniona mocniej, bo żadne nie
+    pada w procesie aplikacji w ogóle. Potomków uruchamia **rdzeniowy
+    `BackgroundProcessPort`**, więc obowiązuje jego „jedna praca naraz": stan
+    sesji odświeża się **wyłącznie na żądanie** (`F5`), bo pytanie co kilka sekund
+    zabijałoby cudzą pracę tłową w kółko. Trzy pułapki warte zapamiętania przy
+    każdym potomku rozmawiającym z siecią: **diagnostyka idzie na strumieniu
+    błędów**, którego `BackgroundState` nie niesie — stąd `2>&1`, wolne tutaj, bo
+    mistrz z `-N` na standardowym wyjściu milczy; **hasła nie da się podać
+    wejściem** (`ssh` czyta je z terminala sterującego, a port potomkowi wejścia
+    nie podaje) — idzie przez `SSH_ASKPASS` i zmienną środowiskową, **nigdy przez
+    wiersz polecenia**; **wartość zaczynająca się od `-` jest opcją, nie
+    argumentem**, i żadne `escapeshellarg()` przed tym nie chroni, więc pilnuje
+    tego samowalidacja obiektu wartości. Zaufanie do klucza hosta dzieli się na
+    pół: **czyta moduł** (`KnownHostsReader`, HMAC-SHA1 nazwy **solą jako
+    kluczem**), **pisze `ssh`** (`StrictHostKeyChecking=accept-new`) — aplikacja
+    nie dopisuje do `~/.ssh/known_hosts` ani razu. Brak klienta **odrzuca moduł**
+    (`RequiresEnvironment`), a nie zostawia go na pustym obiekcie jak `ext-glfw`
+    w module dźwięku: cisza jest sensowną postacią muzyki, spis hostów, z którymi
+    nie da się połączyć — nie jest sensowną postacią sesji.
+11s. **Moduł może odmówić startu, a rejestr ma na to zdolność** (krok 48, D87
+    nr 11). `Application\Module\RequiresEnvironment::unavailableReason()` oddaje
+    **klucz katalogu albo `null`**; `ModuleRegistry::admit()` pyta o to **przed**
+    sprawdzeniem skrótu, żeby moduł, który i tak nie wejdzie, nie zabrał litery
+    komuś, kto by działał. Jest to **piąty powód odrzucenia i pierwszy zależny od
+    maszyny** — cztery poprzednie są błędami autora modułu i w wydanej aplikacji
+    nie zdarzają się nigdy. Dwie reguły zdolności: **odpowiedź musi być tania**
+    (`command -v`, `is_file()`, `extension_loaded()` — nigdy uruchomienie
+    programu, bo pytanie pada w ścieżce startu) i **pada raz na uruchomienie**.
+    Skutek uboczny naprawiony przy okazji: napisy do katalogu wchodzą odtąd
+    z **`declared()`, nie `accepted()`** — spis na zakładce „Moduły" tłumaczy
+    także moduł odrzucony, a przy `accepted()` wypisywał tam surowe klucze.
 11. **Nowy element interfejsu to nowy komponent w `Presentation/Ui/Component`**,
     a nie nowa metoda w rendererze. Komponent oddaje prymitywy z ról motywu i
     prostokątów w siatce znakowej — pikseli nie zna. Słownik prymitywów jest

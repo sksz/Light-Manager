@@ -361,6 +361,113 @@ wychodzi z `ScreenInterface`, więc krok rusza kontrakt ekranu, układ, kompozyt
 klatki i wszystkie trzy renderery naraz — czyli zachodzi warunek, dla którego
 przypis przewidywał `Fable / xhigh` zamiast `Opus / xhigh`.
 
+### Faza XVII — Praca na zdalnym hoście (SSH/SFTP)
+
+Aplikacja po raz pierwszy sięga **poza własną maszynę**
+([00-decyzje.md](00-decyzje.md), D84): moduł `src/Module/Ssh/` nawiązuje sesję
+przez `ext-ssh2` **w procesie**, pokazuje zdalny katalog i przesyła pliki w obie
+strony. Rozszerzenie jest w środowisku załadowane (sprawdzone przy planowaniu:
+1.3.1 na libssh2 1.11.0), a jego brak ma być degradacją z komunikatem — jak
+`ext-glfw` w Fazie IX i w module dźwięku.
+
+Faza trzyma rytm Faz VII, XIV i XV: **jedna rzecz — jeden krok**, każdy
+z własnymi rozstrzygnięciami na starcie i własnym rozliczeniem. Kroki tworzą
+**łańcuch**, trzeci po Fazach XIV i XV: bez sesji nie ma czego czytać, bez listy
+nie ma czego przesyłać.
+
+Faza ma przy tym **dwie trudności, których projekt nie miał ani razu**, i to one,
+a nie liczba klas, przesądziły o podziale na trzy kroki. Pierwsza:
+**wszystkie wywołania `ext-ssh2` blokują**, a `ssh2_connect()` nie przyjmuje
+limitu czasu (sprawdzone w sygnaturze) — host nieosiągalny zatrzymałby pętlę na
+`default_socket_timeout`, czyli na minutę. Druga: **kawałek pracy trwa tyle, ile
+trwa sieć**, więc budżet z D46 przestaje dać się liczyć we wpisach ani w bajtach
+i musi pytać zegara. Reguła nadrzędna całej fazy brzmi: **żadne wywołanie
+sieciowe nie pada w rysowaniu klatki.**
+
+Rdzeń faza kosztuje **jedną linię w `Bootstrapie`** (reguła 15) — z jednym
+możliwym wyjątkiem, nazwanym z góry i wymagającym zgody: zapis pobranego pliku
+na dysk lokalny dotyka wyjątku 15b (krok 50, zastrzeżenie startowe).
+
+> **Droga techniczna fazy odwrócona 2026-08-15, na starcie kroku 48**
+> ([00-decyzje.md](00-decyzje.md), D87 nr 1 i 2). `ext-ssh2` **wypada z fazy
+> w całości**: sesja nie żyje w procesie aplikacji, tylko w procesie potomnym —
+> klient OpenSSH z połączeniem trwającym przez `ControlMaster`/`ControlPersist`.
+> Odwraca to D84 nr 2 („dostęp w procesie"), i to jawnie: powodem był problem,
+> którego tamta decyzja nie umiała rozwiązać — brak wywołań nieblokujących
+> w rozszerzeniu i `ssh2_connect()` bez limitu czasu, czyli zamrożenie całej
+> aplikacji na minutę przy hoście nieosiągalnym. Reguła nadrzędna fazy zostaje
+> ta sama i **staje się łatwiejsza**: żadne wywołanie sieciowe nie pada
+> w rysowaniu klatki, bo żadne nie pada w procesie aplikacji w ogóle. Kroki 49
+> i 50 zmieniają przez to drogę (`sftp -o ControlPath=…` zamiast opakowania
+> `ssh2.sftp://`), ale **nie zakres**. Rdzeń kosztuje w kroku 48 trzy rzeczy,
+> nie jedną — dwie ponad linię są rozstrzygnięciami użytkownika podjętymi z ceną
+> wypisaną przed wyborem (tryb maskowany `TextInput`, zdolność
+> `RequiresEnvironment`).
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 48 | Moduł `Ssh`: sesja, uwierzytelnienie i książka hostów | [48-ssh-sesja-i-hosty.md](48-ssh-sesja-i-hosty.md) | 18, 19, 20, 26, 40, 45, 46, 47 | Opus | high | Ukończony z zastrzeżeniem |
+| 49 | Zdalny katalog: panel modułu czyta przez SFTP | [49-zdalny-katalog.md](49-zdalny-katalog.md) | 18, 21, 25, 27, 30, 33, 48 | Opus | xhigh | Nie rozpoczęty |
+| 50 | Przesył plików: pobranie i wysłanie pracą kawałkową | [50-przesyl-plikow.md](50-przesyl-plikow.md) | 21, 23, 41, 42, 43, 46, 47, 48, 49 | Opus | xhigh | Nie rozpoczęty |
+
+### Faza XVIII — Kontenery: Docker, Kubernetes i współpraca modułów
+
+Faza z **dwoma modułami i jednym pytaniem architektonicznym**
+([00-decyzje.md](00-decyzje.md), D85): moduł `docker` (kontenery, obrazy, logi,
+budowanie, compose) i moduł `k8s` (konteksty, zasoby, logi, `apply`) mają się
+**wzajemnie używać** — obraz zbudowany przez jeden ma dać się wdrożyć drugim.
+Reguła 15 mówi tymczasem, że moduł nigdy nie sięga do innego modułu, a rdzeń nie
+ma dziś ani jednego mechanizmu przenoszącego **dane** między modułami: zdarzenia
+niosą samą tożsamość i nie wracają z odpowiedzią, a `CommandOutcome` niesie
+zdanie dla użytkownika.
+
+Odpowiedź jest dwuczęściowa i pochodzi od użytkownika (D85 nr 3): **czynności
+idą istniejącym rejestrem komend, a dane — nowym rejestrem kwerend.** Reguła 15
+zostaje przy tym nietknięta, bo moduł nadal sięga wyłącznie do rdzenia; nowe
+jest to, czym rdzeń oddaje odpowiedź. Zdanie do zapamiętania: **komenda robi,
+kwerenda mówi.**
+
+Droga techniczna jest **mieszana** (D85 nr 2): Docker przez gniazdo
+`/var/run/docker.sock` (sprawdzone: API 1.47 odpowiada z PHP przez `ext-curl`
+bez `sudo`), Kubernetes przez `kubectl` jako proces tłowy — bo uwierzytelnienie
+do klastra dziedziczy się wtedy z `kubeconfig` za darmo. Compose zostaje przy
+CLI mimo gniazda, i to nie z wygody: demon **nie ma dla compose ani jednego
+zasobu w API**.
+
+Faza rusza ponadto **mechanizm rdzenia, którego nikt nie zamawiał, a bez którego
+nic tu nie zadziała**: `BackgroundProcessPort` prowadzi od kroku 26 **jedną pracę
+naraz**, więc `compose up` ubijałoby liczenie zajętości katalogu w module opisu
+pliku i odwrotnie. Port rośnie o kilka prac naraz w kroku 51 — czyli mechanizm
+wchodzi razem z odbiorcą, jak każe reguła 13.
+
+**Krok 53 uzupełniono tego samego dnia, w którym faza powstała** (D86), i było to
+uzupełnienie o zasięgu szerszym niż kontenery: kwerendy dostają **wszystkie
+moduły aplikacji**, a nie tylko dwa powoływane w tej fazie. Powód jest ten sam,
+dla którego mechanizm w ogóle wchodzi razem z odbiorcą — mechanizm rdzenia
+umiejący odpowiedzieć wyłącznie na pytania pary modułów napisanych razem z nim
+nie jest mechanizmem rdzenia, tylko ich wewnętrznym uzgodnieniem. Regułę 13
+domyka przy tym **okno kwerend**: cztery z sześciu kwerend istniejących modułów
+nie mają konsumenta w kodzie, więc ich odbiorcą zostaje **użytkownik**, a nie
+jawny wyjątek. Uzupełnienie przyniosło ponadto zdanie graniczne, bez którego
+pierwsze kwerendy przeglądarki powtórzyłyby kanał stojący w rdzeniu od kroku 21:
+**kontekst mówi, gdzie użytkownik stoi; kwerenda mówi, co u mnie jest.**
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 51 | Moduł `docker`: kontenery, obrazy, logi, budowanie i compose | [51-modul-docker.md](51-modul-docker.md) | 20, 21, 23, 24, 26, 27, 28, 29, 41, 45, 46 | Opus | xhigh | Nie rozpoczęty |
+| 52 | Moduł `k8s`: konteksty, zasoby klastra i logi | [52-modul-kubernetes.md](52-modul-kubernetes.md) | 20, 21, 22, 24, 26, 27, 28, 29, 45, 46, 51 | Opus | high | Nie rozpoczęty |
+| 53 | Kwerendy międzymodułowe: obraz zbudowany Dockerem ląduje w klastrze | [53-kwerendy-miedzymodulowe.md](53-kwerendy-miedzymodulowe.md) | 19, 20, 21, 23, 24, 25, 26, 32, 41, 42, 43, 45, 46, 47, 51, 52 | Opus³ | xhigh | Nie rozpoczęty |
+
+³ Krok **uzupełniony 2026-08-15** ([00-decyzje.md](00-decyzje.md), D86), tego
+samego dnia, w którym powstał: kwerendy dostają **wszystkie moduły**, nie tylko
+dwa kontenerowe, a rozstrzygnięcie nr 7 poszło z góry na „kwerendy widoczne", co
+dokłada **okno kwerend**. Stąd pięć nowych zależności — 24 (dwa panele), 25 i 26
+(stan pracy tłowej jako to, co oddaje kwerenda), 43 (nazwy zaznaczonych wpisów,
+których `ModuleContext` nie niesie) i 45 (playlista). Model **zostaje `Opus`**:
+okno jest `OverlayInterface` złożonym z komponentów kroku 19 i nie dokłada
+prymitywu, więc trzy renderery zostają nietknięte — warunek `Fable` z przypisów
+¹ i ² nie zachodzi.
+
 ### Dokumenty towarzyszące (praca projektowa)
 
 | Krok | Plik | Aktualizowany | Model | Wysiłek | Status |
@@ -369,12 +476,12 @@ przypis przewidywał `Fable / xhigh` zamiast `Opus / xhigh`.
 
 ## Graf zależności
 
-Kolejność realizacji pokrywa się z numeracją (01…47) **do kroku 26 włącznie**;
+Kolejność realizacji pokrywa się z numeracją (01…50) **do kroku 26 włącznie**;
 Faza VII łańcuchem już nie jest, a kroki 33–40 (Fazy VIII–XIII) stoją poza nią
 zupełnie (patrz opisy na końcu tej listy). Faza XIV (41–44) jest **znowu
-łańcuchem**, i to jedyna po Fazie VI — z jednym wtrąceniem: **krok 47 wchodzi
+łańcuchem**, pierwszym po Fazie VI — z jednym wtrąceniem: **krok 47 wchodzi
 między 41 a 42**, bo spłaca dług, na którym tamte kroki się oprą (opis na końcu
-tej listy). Poza prostym
+tej listy). Łańcuchami są ponadto Fazy XV (45–46) i XVII (48–50). Poza prostym
 łańcuchem `01→02→…→26` istnieją węzły zbiegające się z dwóch gałęzi:
 
 - **04** (dokumentacja + Skill) zależy od **01, 02 i 03** — potrzebuje
@@ -791,6 +898,75 @@ tej listy). Poza prostym
   Wykonany później znaczy trzykrotną przeróbkę tego samego miejsca — i to jest
   cały powód, dla którego numer i kolejność się tu rozjeżdżają.
 
+- **48–50** (Faza XVII) tworzą **łańcuch**, trzeci po Fazach XIV i XV, i tym
+  razem łańcuch bez ani jednego luzu: sesja jest warunkiem odczytu, a odczyt
+  warunkiem przesyłu. Wszystkie trzy zależą od **20 i 21** twardo — biorą
+  kontrakt modułu taki, jaki tam powstał, i są jego **czwartym sprawdzianem**:
+  po module rysującym główną funkcję (21), module bez ekranu (36) i module
+  pracującym, gdy go nie widać (45), przychodzi moduł, który **rozmawia z czymś
+  poza maszyną**. Od Faz VIII–XIII nie zależą i one nie zależą od nich.
+  - **48** (sesja i hosty) zależy od **36** wzorcowo i najmocniej: port
+    z **dwiema implementacjami**, wybór raz przy składaniu modułu, rozszerzenie
+    w `suggest` — cała reguła 11o powtarza się tu co do joty, z `ext-ssh2`
+    w miejscu `ext-glfw`. Od **45** bierze plik stanu modułu (książka hostów nie
+    zmieści się w ustawieniach, bo te trzymają skalary — D82 nr 3), od **26 i 47**
+    sprzątanie zasobu dwiema drogami (D47), od **18 i 19** okna i kontrakt
+    komendy, od **40** deklarację ogniska, a od **46** — za darmo — dźwięk przy
+    połączeniu i awarii. Krok jest przy tym **pierwszym sprawdzianem mechanizmu
+    zdarzeń przez moduł, którego przy jego powstawaniu nie było**.
+  - **49** (zdalny katalog) zależy od **48** całkowicie i od **25** wzorcowo:
+    praca kawałkowa (D46) po raz **piąty**, a po raz pierwszy w wariancie, którego
+    wzorzec nie przewidywał — kawałek trwa tyle, ile obieg sieci, więc budżet
+    pyta zegara, a nie licznika. Od **27** bierze wiersz o kolumnach (z tą
+    różnicą, że kolumny przez kilka klatek świecą pustką), od **33** — rozmiar
+    okna, z którego liczy się widoczne okno zamówienia atrybutów. Od **21**
+    zależy **odwrotnie niż zwykle**: bierze go jako wzorzec do **powtórzenia**,
+    nie jako źródło kodu, bo reguła 15 zabrania sięgać do cudzego modułu — i to
+    powtórzenie jest głównym rozstrzygnięciem kroku.
+  - **50** (przesył) zależy od **42** najmocniej: to jest ta sama praca z drugim
+    rodzajem źródła, więc liczenie przed pracą, przystanek na kolizję, sprzątanie
+    połówki i „źródło znika po potwierdzonym zapisaniu celu” przychodzą stamtąd
+    gotowe. Od **41** bierze okna (`ProgressOverlay`, `PromptOverlay`,
+    `ChoiceOverlay`, `RunsWork`), od **23** pasek postępu, od **47** komendę
+    otwierającą okno, od **43** naukę „lista źródeł od pierwszego dnia”. Od **21**
+    zależy przez **`ReadsContext`** i to jest jego najciekawsza zależność:
+    kontekst sesji jest **legalną drogą do drugiej strony przesyłu** — moduł zna
+    katalog, w którym stoi przeglądarka, nie sięgając do niej ani razu.
+    Z **regułą 15b** styka się wprost: pobranie pisze po dysku lokalnym, więc
+    albo wyjątek dostaje drugi nazwany przypadek, albo port rdzenia dostaje
+    wiedzę, której D42 mu odmawia. Rozstrzygnięcie stoi na starcie kroku.
+
+- **51–53** (Faza XVIII) tworzą **łańcuch**, czwarty po Fazach XIV, XV i XVII,
+  ale łańcuch **o luźnym środku**: krok 52 zależy od 51 w **jednym punkcie**
+  (kilka prac tłowych naraz) i poza nim jest od niego niezależny — nie zna
+  Dockera, nie czyta jego danych i nie sięga do jego modułu. Ich spotkanie jest
+  treścią kroku 53 i dopiero tam zależność staje się całkowita.
+  - **51** (moduł docker) zależy od **26** twardo i **zmienia jego najważniejszą
+    regułę**: „jedna praca tłowa naraz” staje się „kilka prac, każda ze swoim
+    uchwytem”. Dzisiejszy odbiorca (`du` z modułu opisu pliku) nie ma prawa na
+    tym ucierpieć i to jest osobne kryterium ukończenia. Od **45** bierze takt
+    (strumień nieczytany zatrzymuje nadawcę, więc bez taktu logi nie płyną, gdy
+    ekranu nie widać — warunek D82 spełniony wprost), od **27, 24, 29, 28, 23
+    i 41** komplet klocków interfejsu, od **46** zdarzenia, na których stanie
+    krok 53. Komponentu **nie dokłada**; rdzeń kosztuje jedną linię
+    w `Bootstrapie` ponad rozbudowę portu.
+  - **52** (moduł k8s) jest w tej fazie krokiem **najlżejszym i taki ma być**:
+    mechanizmu nie wnosi żadnego, kontraktu rdzenia nie rusza, komponentu nie
+    dokłada. Jego wartością jest sprawdzian z drugiej strony — **czy rozbudowa
+    portu z kroku 51 wystarczy komuś, kto przy niej nie stał**. Od **22** bierze
+    zwijane sekcje na opis zasobu, od **26** regułę, która przesądza o kształcie
+    `apply`: potomek nie dostaje wejścia, więc `kubectl apply -f -` jest
+    niewykonalne i plik podaje się ścieżką.
+  - **53** (kwerendy) zależy od **51 i 52** całkowicie, a od **19 i 46**
+    w sposób, który warto nazwać, bo jest nowy: **komenda robi, zdarzenie
+    ogłasza, kwerenda mówi co wyszło**. Trzy mechanizmy rdzenia składają się tu
+    po raz pierwszy w jedną czynność — budowa trwa minuty, więc wołający nie
+    czeka w klatce, tylko dowiaduje się zdarzeniem i pyta kwerendą. Od **21**
+    bierze precedens na dane pierwotne przechodzące między modułami
+    (`ModuleContext`, D40 P5), od **32 i 47** — okna wyboru i pozycję w menu.
+    Reguły 15 **nie odwołuje**: moduł nadal sięga wyłącznie do rdzenia, a nowe
+    jest to, czym rdzeń oddaje odpowiedź.
+
 Żaden krok nie da się sensownie zacząć przed ukończeniem swoich zależności
 z tabel powyżej.
 
@@ -798,8 +974,9 @@ z tabel powyżej.
 
 Katalog `docs/plans/` trzyma **wyłącznie kroki, przed którymi jeszcze praca**:
 nierozpoczęte, w toku i zablokowane. Kroki ukończone przenoszą się do
-[archiwum/](archiwum/) — dziś jest ich 45 z 47, więc bez tego podziału lista
-tego, co zostało do zrobienia, ginęła w historii projektu.
+[archiwum/](archiwum/) — dziś jest ich 47 z 53, więc bez tego podziału lista
+tego, co zostało do zrobienia (kroki **48–50**, Faza XVII, i **51–53**, Faza
+XVIII) ginęłaby w historii projektu.
 
 Trzy rzeczy, które przy tym **nie** zmieniają miejsca, bo są dokumentami
 żywymi, a nie zamkniętymi: ten indeks, [00-decyzje.md](00-decyzje.md) i tabele
@@ -883,4 +1060,50 @@ zakończeniu pracy nad krokiem:
   takt (krok 45), autostart będzie kosztował jedną pozycję ustawień — decyzja do
   podjęcia przy tamtym kroku
 - Ściszanie muzyki na czas efektu (ducking) — wykluczone z kroku 46
+- Zapis po zdalnej stronie (zmiana nazwy, nowy katalog, usunięcie przez SFTP) —
+  wyłączony z kroku **49**; wszystkie cztery wywołania są w rozszerzeniu, więc
+  jest to krok o rozmiarze kroku 41, a nie dopisek do istniejącego
+- Sesja powłoki SSH w oknie aplikacji (`ssh2_shell`) — wyłączona z kroku **48**:
+  wymaga emulacji sekwencji sterujących i własnego bufora ekranu, czyli dwóch
+  rzeczy, których aplikacja nie ma w żadnej postaci
+- Tunele i przekierowania portów (`ssh2_tunnel`, `ssh2_forward_listen`) oraz
+  przekazywanie agenta — wyłączone z kroku **48**, bo nie mają odbiorcy
+  (reguła 13)
+- Czytanie `~/.ssh/config`, `ProxyJump` i `Match` — wyłączone z kroku **48**:
+  libssh2 tego pliku nie czyta, a własny parser `ssh_config` jest osobną pracą
+  o rozmiarze kroku
+- Hasło jako droga uwierzytelnienia SSH — wyłączone z kroku **48**, dopóki
+  `TextInput` nie umie ukryć treści; maskowane pole to zmiana komponentu rdzenia
+- Podgląd zdalnych plików (miniatura, tekst) — wyłączony z kroku **49**:
+  `ImagePreviewService` i `TextPreviewService` czytają ścieżkę lokalną, więc
+  wymagałoby to albo pobrania do pliku tymczasowego, albo nauczenia obu strumienia
+- Zdalny `du` i suma kontrolna przez `ssh2_exec` — wyłączone z kroku **49**, bo
+  zakładają powłokę POSIX po drugiej stronie, czego serwer SFTP mieć nie musi
+- Wznawianie przerwanego przesyłu i przesył zdalny → zdalny — wyłączone
+  z kroku **50**
+- Wiele sesji SSH naraz — wyłączone z kroku **48**, wzorem „jedna praca naraz”
+  (reguła 11d)
+- Wejście do kontenera i do poda (`docker exec`, `kubectl exec`) — wyłączone
+  z kroków **51 i 52** z tego samego powodu, co sesja powłoki SSH: port pracy
+  tłowej **nie daje potomkowi wejścia**, a zasób `/exec` w API Dockera kończy się
+  przejęciem połączenia i terminalem w terminalu
+- Sieci, wolumeny i statystyki Dockera (`/stats`) — wyłączone z kroku **51**, bo
+  nie mają odbiorcy (reguła 13)
+- Rejestry obrazów (`docker login`, `push`, `pull`) — wyłączone z kroku **51**;
+  wchodzą wyłącznie wtedy, gdy krok **53** wybierze wypchnięcie do rejestru jako
+  drogę udostępnienia obrazu klastrowi
+- Swarm, konteksty Dockera i demony zdalne po TCP/TLS — wyłączone z kroku **51**
+- Zdarzenia demona Dockera (`GET /events`) jako źródło odświeżania list —
+  wyłączone z kroku **51**: trzeci strumień do rozebrania, a odświeżanie na
+  żądanie może wystarczyć
+- Helm, `port-forward`, edycja zasobu (`kubectl edit`), obserwowanie zmian przez
+  API klastra, zasoby własne (CRD) i RBAC — wyłączone z kroku **52**
+- Uruchamianie i zatrzymywanie minikube z aplikacji — wyłączone z kroku **52**:
+  to jest zarządzanie maszyną, nie klastrem
+- Kwerendy asynchroniczne, kolejki i obietnice oraz rejestr zdolności ogólnego
+  przeznaczenia („moduł ogłasza, że umie X”) — wyłączone z kroku **53**: nazwa
+  kwerendy wystarcza, a reszta jest rozwiązaniem problemu, którego nikt nie ma
+- Współpraca modułów niezwiązana z kontenerami (np. moduł SSH oddający zdalne
+  ścieżki kwerendą) — mechanizm z kroku **53** to umożliwi, ale odbiorcy dziś
+  nie ma
 - Inicjalizacja repozytorium git

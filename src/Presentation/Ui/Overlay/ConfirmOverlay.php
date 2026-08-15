@@ -66,8 +66,17 @@ final class ConfirmOverlay implements OverlayInterface
 
     private const PADDING_COLUMNS = 2;
 
-    /** Obwódka, tytuł, pytanie, odstęp, przyciski, obwódka. */
+    /** Obwódka, tytuł, **jeden** wiersz pytania, odstęp, przyciski, obwódka. */
     private const CHROME_ROWS = 6;
+
+    /**
+     * Górna granica liczby wierszy pytania (krok 48).
+     *
+     * Okno rosnące bez końca przestałoby być oknem — a pytanie, które nie mieści
+     * się w sześciu wierszach, jest pytaniem źle napisanym, nie oknem za małym.
+     * Nadmiar ucina `Dialog`, tak jak ucinał całe pytanie przed tym krokiem.
+     */
+    private const MAX_QUESTION_ROWS = 6;
 
     /** Odstęp między przyciskami, w kolumnach. */
     private const BUTTON_GAP = 2;
@@ -81,11 +90,16 @@ final class ConfirmOverlay implements OverlayInterface
      * sam rachunek i tę samą usterkę — dziś już z odbiorcą, bo nazwa wpisu wchodzi
      * do pytania przed usunięciem, a nazwy plików bywają dłuższe od okna.
      *
-     * Pytanie dłuższe od granicy **ucina** `Dialog` wielokropkiem, tak jak ucina
-     * każdy napis, i jest to świadoma cena: zawijanie znaczyłoby okno o wysokości
-     * zależnej od treści, czyli nowy mechanizm w oknie, które ma zadawać jedno
-     * pytanie. Nazwa ucięta w pytaniu stoi przy tym pod kursorem listy, więc
-     * użytkownik widzi ją w całości piętro niżej.
+     * **Zdanie o ucinaniu jest od kroku 48 odwołane, a wraz z nim jego
+     * uzasadnienie.** Stało tu, że zawijanie znaczyłoby okno o wysokości
+     * zależnej od treści, i że nazwa ucięta w pytaniu widoczna jest piętro niżej,
+     * pod kursorem listy. Pierwsze zostało zapłacone — okno rośnie o tyle
+     * wierszy, ile trzeba, i jest to dziesięć linii kodu. Drugie okazało się
+     * prawdziwe **tylko dla nazw wpisów**: pytanie o zaufanie nieznanemu kluczowi
+     * hosta niesie odcisk SHA256, którego nie widać nigdzie indziej, a odcisk
+     * ucięty w połowie nie jest odciskiem — jest pytaniem bez treści, którą ma
+     * się porównać. Szerokość zostaje ta sama; zmienia się wyłącznie to, co się
+     * dzieje z nadmiarem.
      */
     private const MAX_COLUMNS = 64;
 
@@ -127,8 +141,13 @@ final class ConfirmOverlay implements OverlayInterface
             $this->widthOf(true) + self::BUTTON_GAP + $this->widthOf(false),
         ), self::MAX_COLUMNS) + 2 * self::PADDING_COLUMNS;
 
-        $height = min(self::CHROME_ROWS, max(1, $rows - self::MARGIN_ROWS));
         $width = min($width, max(1, $columns - self::MARGIN_COLUMNS));
+
+        // Wysokość liczy się **po** szerokości i z niej: dopiero ona mówi, na ile
+        // wierszy rozpadnie się pytanie. Odwrotna kolejność dawałaby okno wysokie
+        // na jeden wiersz treści niezależnie od tego, ile jej jest.
+        $wanted = self::CHROME_ROWS - 1 + count($this->questionLines($width - 2 * self::PADDING_COLUMNS));
+        $height = min($wanted, max(1, $rows - self::MARGIN_ROWS));
 
         return new Rect(
             max(0, intdiv($rows - $height, 2)),
@@ -151,7 +170,7 @@ final class ConfirmOverlay implements OverlayInterface
 
         $primitives = (new Dialog(
             $this->title(),
-            [$this->question()],
+            $this->questionLines($bounds->columns - 2 * self::PADDING_COLUMNS),
             $this->dangerous ? Role::Danger : Role::Accent,
             $this->dangerous ? Role::Danger : Role::Border,
         ))->draw($bounds);
@@ -217,6 +236,59 @@ final class ConfirmOverlay implements OverlayInterface
         }
 
         return OverlayOutcome::close();
+    }
+
+    /**
+     * Pytanie rozłożone na wiersze mieszczące się w podanej szerokości (krok 48).
+     *
+     * Łamie **po słowach**, a nie po znakach — odwrotnie niż `TextView` (11i)
+     * i z odwrotnego powodu: tam treścią jest plik, którego wierszy nie wolno
+     * przeinaczyć, tutaj zdanie do przeczytania przez człowieka. Słowo dłuższe od
+     * wiersza dzieli się mimo to twardo, bo takim słowem jest właśnie odcisk
+     * klucza — czyli dokładnie ta treść, dla której to zawijanie powstało.
+     *
+     * @return list<string> zawsze co najmniej jeden wiersz, także pusty
+     */
+    private function questionLines(int $width): array
+    {
+        $question = $this->question();
+
+        if ($width < 1) {
+            return [$question];
+        }
+
+        $lines = [];
+        $current = '';
+
+        foreach (explode(' ', $question) as $word) {
+            $candidate = $current === '' ? $word : $current . ' ' . $word;
+
+            if (mb_strlen($candidate) <= $width) {
+                $current = $candidate;
+
+                continue;
+            }
+
+            if ($current !== '') {
+                $lines[] = $current;
+                $current = '';
+            }
+
+            // Słowo dłuższe od wiersza (odcisk klucza) dzieli się twardo —
+            // zostawione w całości i tak zostałoby ucięte przez `Dialog`.
+            while (mb_strlen($word) > $width) {
+                $lines[] = mb_substr($word, 0, $width);
+                $word = mb_substr($word, $width);
+            }
+
+            $current = $word;
+        }
+
+        if ($current !== '' || $lines === []) {
+            $lines[] = $current;
+        }
+
+        return array_slice($lines, 0, self::MAX_QUESTION_ROWS);
     }
 
     /**

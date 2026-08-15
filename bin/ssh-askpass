@@ -1,0 +1,17 @@
+#!/bin/sh
+# Pomocnik SSH_ASKPASS dla modułu `ssh` (krok 48).
+#
+# `ssh` czyta hasło z terminala sterującego, a nie ze standardowego wejścia,
+# a `BackgroundProcessPort` potomkowi wejścia nie podaje (krok 26) — więc
+# jedyną drogą jest program wskazany zmienną SSH_ASKPASS. Klient uruchamia go
+# z pytaniem w argumencie i bierze to, co pomocnik wypisze.
+#
+# Sekretu tu nie ma i mieć nie może: hasło przychodzi zmienną środowiskową,
+# którą aplikacja ustawia tuż przed uruchomieniem potomka i zdejmuje zaraz po.
+# Wiersz polecenia widzi w systemie każdy (`ps`), środowisko procesu — tylko
+# ten sam użytkownik, i to jest cały powód takiej drogi.
+#
+# Pusta zmienna daje pustą odpowiedź, a nie pytanie na terminalu: przy
+# NumberOfPasswordPrompts=1 kończy się to odmową, czyli komunikatem, zamiast
+# procesem stojącym do limitu czasu.
+printf '%s\n' "${LM_SSH_PASSWORD-}"

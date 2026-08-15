@@ -79,6 +79,11 @@ final class PromptOverlay implements OverlayInterface, NeedsTime
      * @param array<string, string>       $parameters dane do podstawienia w tytule
      * @param string                            $initial  treść początkowa — nazwa bieżąca albo pustka
      * @param Closure(string): OverlayOutcome   $onAccept czynność po `Enter`; oddaje skutek okna
+     * @param bool                              $masked   czy treść ma być ukryta (krok 48).
+     *                                                    Pytanie o hasło do zdalnego hosta jest
+     *                                                    pierwszym i jedynym dzisiejszym powodem;
+     *                                                    okno **nie zmienia się** poza tym niczym,
+     *                                                    bo hasło jest napisem jak każdy inny
      */
     public function __construct(
         private readonly string $titleKey,
@@ -87,8 +92,9 @@ final class PromptOverlay implements OverlayInterface, NeedsTime
         private readonly Closure $onAccept,
         private readonly TranslatorPort $translator,
         string $promptKey = 'prompt.name',
+        bool $masked = false,
     ) {
-        $this->input = new TextInput($translator->translate($promptKey));
+        $this->input = new TextInput($translator->translate($promptKey), $masked);
         $this->input->useValue($initial);
     }
 

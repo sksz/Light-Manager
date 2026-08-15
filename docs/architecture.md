@@ -1021,6 +1021,85 @@ bloki i-węzła z `lstat`, bez uruchamiania czegokolwiek) i **na żądanie klawi
 `d`**, jak suma kontrolna. Postępu `du` nie zna, więc pasek chodzi w trybie
 „nieznany” — pierwsze prawdziwe użycie tego trybu od kroku 23.
 
+#### Sesja zdalna: praca poza maszyną (od kroku 48)
+
+Moduł `src/Module/Ssh/` nawiązuje i utrzymuje połączenie SSH z hostem ze spisu,
+który użytkownik prowadzi z ekranu (`Ctrl`+`S`). Jest **czwartym sprawdzianem
+kontraktu modułu** — po module rysującym główną funkcję (21), module bez ekranu
+(36) i module pracującym, gdy go nie widać (45), przyszedł moduł **rozmawiający
+z czymś poza maszyną**.
+
+**Reguła nadrzędna, obowiązująca całą Fazę XVII: żadne wywołanie sieciowe nie
+pada w rysowaniu klatki.** Jest to piąta reguła D46 rozciągnięta z zapisu na dysk
+na sieć — i tutaj jest spełniona mocniej, niż brzmi: **żadne nie pada w procesie
+aplikacji w ogóle**.
+
+**Sesja żyje w procesie potomnym, a nie w procesie aplikacji** (D87 nr 1 i 2),
+i to jest jawne odwrócenie D84 nr 2. Powód jest wymierny: `ext-ssh2` nie ma ani
+jednego wywołania nieblokującego, a `ssh2_connect()` nie przyjmuje limitu czasu,
+więc host nieosiągalny zamroziłby **całą aplikację** na `default_socket_timeout`,
+czyli na minutę. Trzy warianty pośrednie — przyjęcie zamrożenia z ograniczeniem
+od góry, strażnik na `pcntl_alarm()`, uścisk w potomku przy sesji w rodzicu —
+zostały postawione i odrzucone. Zasób sesji nie przechodzi przez granicę procesu,
+więc rozstrzygnięcie obejmuje także kroki 49 i 50.
+
+**Trwanie daje `ControlMaster` klienta OpenSSH.** `ssh -M -N -f -o ControlPath=…
+-o ControlPersist=yes` zestawia połączenie **raz** i demonizuje się samo, więc
+aplikacja nie trzyma jego potoków ani przez chwilę; każda późniejsza operacja to
+krótki potomek wchodzący przez gniazdo **bez uścisku dłoni** — milisekundy
+zamiast setek. Stan sesji to `ssh -O check`, rozłączenie to `ssh -O exit`,
+a gniazdo mieszka w `~/.light-manager/` pod nazwą będącą **skrótem z celu**, bo
+gniazdo uniksowe ma twardy limit długości ścieżki.
+
+Potomków uruchamia **rdzeniowy `BackgroundProcessPort`** (D87 nr 9) — moduł
+sięga po port rdzenia, jak `FileInfo` po `du`. Cena przyjęta świadomie: port
+prowadzi **jedną pracę naraz**, więc zestawianie sesji przerywa liczenie `du`
+i odwrotnie. Z tego samego powodu **stan sesji odświeża się wyłącznie na żądanie
+(`F5`)**, a nie w takcie: pytanie co kilka sekund znaczyłoby proces potomny co
+kilka sekund, czyli zabijanie cudzej pracy w kółko. Sesja zerwana przez sieć bywa
+przez to przez chwilę pokazana jako żywa i **jest to znana cena, nie usterka**.
+
+**Weryfikacja klucza hosta: czyta moduł, pisze `ssh`** (D87 nr 5 i 6).
+`KnownHostsReader` — klasa czysta poza jednym odczytem pliku — mówi **przed**
+połączeniem, czy `~/.ssh/known_hosts` zna ten host; nazwy są tam zahaszowane, więc
+dopasowanie to `hash_hmac('sha1', $nazwa, base64_decode($sól), true)`, w którym
+**kluczem HMAC jest sól, a nazwa jest treścią** (odwrotnie, niż podpowiada
+kolejność argumentów). Host nieznany idzie po odcisk potokiem
+`ssh-keyscan | ssh-keygen -lf -`, po czym **zatrzymuje połączenie oknem groźnym**;
+po zgodzie łączy się z `StrictHostKeyChecking=accept-new`, a wiersz dopisuje
+**klient**, w postaci kanonicznej i zahaszowanej. Aplikacja nie dotyka tego pliku
+do zapisu ani razu. Klucz niezgodny z zapamiętanym to nie pytanie, tylko odmowa —
+i tej odmowy też nie piszemy sami.
+
+Dwie rzeczy, o które łatwo się potknąć przy ruszaniu tego kodu. **Diagnostyka
+klienta idzie na strumieniu błędów**, którego `BackgroundState` świadomie nie
+niesie (krok 26), więc polecenia modułu kończą się na `2>&1` — i **wolno im**, bo
+mistrz z `-N` na standardowym wyjściu nie pisze nic; to jest różnica wobec `du`,
+nie odstępstwo od tamtej reguły. **Hasło nie może iść wejściem**: `ssh` czyta je
+z terminala sterującego, a port tłowy potomkowi wejścia nie podaje — więc idzie
+przez `SSH_ASKPASS` (`bin/ssh-askpass`) i zmienną środowiskową, nigdy przez
+wiersz polecenia, który widzi w systemie każdy.
+
+**Profil hosta pilnuje się sam i jest to warstwa bezpieczeństwa, nie porządek.**
+Nazwa hosta, login i ścieżka klucza trafiają do wiersza polecenia uruchamianego
+przez powłokę, więc mają wąskie wzorce — a osobno pilnowane jest to, czego
+cytowanie upilnować nie może: **żadna wartość nie zaczyna się od `-`**, bo `ssh`
+przeczytałby ją jako opcję.
+
+Rdzeń urósł przez ten moduł o **trzy rzeczy, nie o jedną**, i wszystkie trzy są
+rozstrzygnięciami użytkownika podjętymi z ceną wypisaną przed wyborem (D87):
+pozycję w `Bootstrapie` (reguła 15), **tryb maskowany `TextInput`** (bo hasło
+weszło do zakresu) i **zdolność `Application\Module\RequiresEnvironment`** — piąty
+powód odrzucenia w rejestrze i pierwszy zależny od maszyny, na której aplikacja
+stoi. Czwarta zmiana doszła w trakcie i wynikła z obejrzenia okna:
+**`ConfirmOverlay` zawija długie pytanie zamiast je ucinać**, bo odcisk SHA256
+ucięty w połowie nie jest odciskiem.
+
+**Bez klienta OpenSSH moduł znika ze spisu wraz z powodem** — inaczej niż moduł
+dźwięku, który bez rozszerzenia zostaje na pustym obiekcie. Różnica jest
+zamierzona: cisza jest sensowną postacią muzyki, a spis hostów, z którymi nie da
+się połączyć, nie jest sensowną postacią sesji zdalnej — obiecywałby.
+
 #### Kosz i cofnięcie ostatniej operacji (od kroku 44)
 
 Usunięcie przestało być końcem: klawisz domyślny (`F8`, `Delete`) robi to, co

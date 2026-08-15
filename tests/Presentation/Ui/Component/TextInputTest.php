@@ -197,6 +197,65 @@ final class TextInputTest extends TestCase
     }
 
     /**
+     * Tryb maskowany: **treść znika z rysunku, ale nie z pola** (krok 48, D87 nr 4).
+     *
+     * To jest cała umowa maskowania i obie jej połowy stoją tu naraz: `draw()`
+     * nie wypuszcza ani jednego znaku hasła, a `value()` oddaje je w całości —
+     * bo pole, które gubi treść, byłoby ozdobą.
+     */
+    public function testMaskedInputDrawsDotsButKeepsTheValue(): void
+    {
+        $masked = new TextInput('> ', masked: true);
+        $masked->useValue('tajne');
+
+        $texts = self::textsOf($masked->draw(new Rect(0, 0, 1, 20)));
+
+        self::assertSame('tajne', $masked->value());
+        self::assertContains('•••••', $texts);
+        self::assertNotContains('tajne', $texts);
+    }
+
+    /**
+     * Maska ma **tyle znaków, ile treść** — inaczej karetka rozjechałaby się
+     * z tym, co widać, a przy haśle dłuższym od pola okno przewijania
+     * pokazywałoby nie ten fragment.
+     */
+    public function testMaskKeepsTheLengthOfTheValue(): void
+    {
+        $masked = new TextInput('> ', masked: true);
+        $masked->useValue('abcdefghij');
+
+        self::assertContains(str_repeat('•', 10), self::textsOf($masked->draw(new Rect(0, 0, 1, 20))));
+    }
+
+    /** Znak pod karetką też jest zamaskowany — inaczej hasło odsłaniałoby się po literze. */
+    public function testTheCharacterUnderTheCaretIsMaskedToo(): void
+    {
+        $masked = new TextInput('> ', masked: true);
+        $masked->useValue('tajne');
+        $masked->handle(KeyPress::special(Key::Home, ''));
+        $masked->useTime(0.0);
+
+        foreach ($masked->draw(new Rect(0, 0, 1, 20)) as $primitive) {
+            if ($primitive instanceof TextRun && $primitive->role === Role::SelectionText) {
+                self::assertSame('•', $primitive->text);
+
+                return;
+            }
+        }
+
+        self::fail('karetka nie narysowała znaku pod sobą');
+    }
+
+    /** Pole jawne zostaje jawne — maskowanie jest wyborem przy powstaniu, nie domyślnym. */
+    public function testAPlainInputIsStillPlain(): void
+    {
+        $this->input->useValue('jawne');
+
+        self::assertContains('jawne', self::textsOf($this->input->draw(new Rect(0, 0, 1, 20))));
+    }
+
+    /**
      * @param list<\LightManager\Application\Ui\Primitive\Primitive> $primitives
      *
      * @return list<string>

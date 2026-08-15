@@ -16,6 +16,10 @@ rozszerzenie [PHP-GLFW](https://phpgl.net), bez dotykania terminala.
   bez niego
 - Zewnętrzne polecenie `stty` — stąd założenie **Linux/macOS**; Windows nie
   jest wspierany
+- Opcjonalnie klient OpenSSH (`ssh`, `ssh-keyscan`, `ssh-keygen`; weryfikowane:
+  9.6p1) — wyłącznie dla modułu **sesji zdalnej** (`Ctrl`+`S`, krok 48). Bez
+  niego moduł **znika ze spisu wraz z powodem**, a reszta aplikacji działa jak
+  dotąd; rozszerzenia PHP do SSH nie potrzeba żadnego
 - Interaktywny terminal na standardowym wejściu — uruchomienie z potoku lub
   przekierowania z pliku kończy się czytelnym błędem
 - ImageMagick z wkompilowanym koderem `SIXEL` — bez niego aplikacja startuje,
@@ -697,6 +701,32 @@ Wbudowane są dziś trzy:
   o niedostępności. Rozszerzenie jest tu **możliwością, nie wymogiem** — i nie
   potrzebuje przy tym okna: silnik audio startuje bez kontekstu OpenGL, więc
   muzyka gra także w obu torach terminalowych.
+
+- **Sesja zdalna** (`ssh`, `Ctrl`+`S`) — połączenie SSH z hostem ze spisu, który
+  prowadzisz z ekranu modułu. `Enter` łączy z podświetlonym wpisem albo rozłącza,
+  gdy to z nim stoi sesja; `F4` przestawia sposób uwierzytelnienia, `F5` sprawdza
+  stan sesji, `F7` dopisuje host, `F8` usuwa. Wpis podaje się jednym napisem
+  w postaci `użytkownik@host:port`, a spis mieszka w `~/.light-manager/ssh.json`
+  i przeżywa ponowne uruchomienie. To samo robią komendy `ssh.connect <nazwa>`
+  (z podpowiedziami ze spisu), `ssh.disconnect` i `ssh.hosts`.
+
+  **Host o nieznanym odcisku zatrzymuje połączenie pytaniem** — oknem groźnym,
+  tym samym, którym usuwa się trwale, z odciskiem `SHA256:…` pokazanym w całości.
+  Po zgodzie wiersz do `~/.ssh/known_hosts` dopisuje **sam klient `ssh`**,
+  w postaci kanonicznej i zahaszowanej; aplikacja tego pliku nie zapisuje ani
+  razu, a czyta go po to, żeby host, którego `ssh` już zna, nie pytał drugi raz.
+  Klucz **niezgodny** z zapamiętanym to nie pytanie, tylko odmowa.
+
+  Uwierzytelnienie idzie przez agenta (domyślnie), klucz z pliku albo hasło.
+  **Hasła nie są nigdzie zapisywane** — pytanie pada przy każdym połączeniu,
+  w polu, które nie pokazuje wpisywanej treści.
+
+  Sesja żyje w **procesie potomnym**, nie w procesie aplikacji, i trwa przez
+  `ControlMaster` klienta OpenSSH — dzięki temu nic sieciowego nie dzieje się
+  w środku rysowania klatki, a host nieosiągalny kończy się komunikatem w czasie
+  z ustawienia, a nie zawieszeniem. Stan sesji **nie odświeża się sam**: kosztuje
+  osobny proces, a ten kolidowałby z pracą tłową innych modułów — od tego jest
+  `F5`. Bez klienta OpenSSH moduł **znika ze spisu wraz z powodem**.
 
 #### Moduł domyślny
 

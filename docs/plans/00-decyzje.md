@@ -103,6 +103,10 @@ Kolumna **Stan** mówi, co się z decyzją stało w kodzie:
 | [D77](#d77--trzy-długi-bez-właściciela-wchodzą-do-planu-jako-faza-xvi-z-krokiem-47) | Trzy długi bez właściciela wchodzą do planu jako Faza XVI z krokiem 47 | krok 47 | 2026-08-14 | Wdrożona |
 | [D78](#d78--rozstrzygnięcia-startowe-kroku-47-zdolność-zamiast-rejestru-strefa-wychodzi-z-kontraktu-granica-menu-przerysowana) | Rozstrzygnięcia startowe kroku 47: zdolność zamiast rejestru, strefa wychodzi z kontraktu, granica menu przerysowana | krok 47 | 2026-08-14 | Wdrożona |
 | [D81](#d81--rozstrzygnięcia-startowe-kroku-44-shift-wchodzi-do-trzech-torów-wejścia-kosz-jest-katalogiem-konfigurowalnym-stos-cofnięć-dostaje-widok) | Rozstrzygnięcia startowe kroku 44: `Shift` wchodzi do trzech torów wejścia, kosz jest katalogiem konfigurowalnym, stos cofnięć dostaje widok | krok 44 | 2026-08-15 | Wdrożona |
+| [D84](#d84--praca-na-zdalnym-hoście-wchodzi-jako-faza-xvii-moduł-ssh-ext-ssh2-w-procesie-trzy-kroki) | Praca na zdalnym hoście wchodzi jako Faza XVII: moduł `Ssh`, `ext-ssh2` w procesie, trzy kroki | kroki 48, 49, 50 | 2026-08-15 | Czeka |
+| [D85](#d85--kontenery-wchodzą-jako-faza-xviii-dwa-moduły-droga-mieszana-a-współpracę-niosą-komendy-i-nowe-kwerendy) | Kontenery wchodzą jako Faza XVIII: dwa moduły, droga mieszana, a współpracę niosą komendy i nowe kwerendy | kroki 51, 52, 53 | 2026-08-15 | Czeka |
+| [D86](#d86--kwerendy-dostają-wszystkie-moduły-a-odbiorcą-tych-bez-konsumenta-w-kodzie-zostaje-użytkownik) | Kwerendy dostają wszystkie moduły, a odbiorcą tych bez konsumenta w kodzie zostaje użytkownik | krok 53 | 2026-08-15 | Czeka |
+| [D87](#d87--rozstrzygnięcia-startowe-kroku-48-cała-sesja-w-procesie-potomnym-przez-controlmaster-known_hosts-prowadzi-ssh-rdzeń-rośnie-o-dwie-rzeczy-zamiast-jednej-linii) | Rozstrzygnięcia startowe kroku 48: cała sesja w procesie potomnym przez `ControlMaster`, `known_hosts` prowadzi `ssh`, rdzeń rośnie o dwie rzeczy zamiast jednej linii | krok 48 (i przez nr 1 — Faza XVII w całości) | 2026-08-15 | Wdrożona |
 
 > **Indeks jest niekompletny od D62 wzwyż.** Wpisy **D62–D76** stoją w treści
 > dziennika, ale wiersza tutaj nie dostały — regułę „nowy wpis to dwie czynności”
@@ -5630,3 +5634,543 @@ i pada wyłącznie wtedy, gdy katalog naprawdę się zmienił. Tą samą metodą
 bowiem przełączenie wpisów ukrytych i odczyt katalogu na nowo po operacji, a jedno
 porównanie ścieżek jest tańsze i uczciwsze niż cztery miejsca publikacji
 (klawisz, drzewo, `browser.jump`, `browser.open`).
+
+## Decyzje z planowania Fazy XVII (2026-08-15)
+
+### D84 — Praca na zdalnym hoście wchodzi jako Faza XVII: moduł `Ssh`, `ext-ssh2` w procesie, trzy kroki
+
+**Dotyczy:** kroków 48 ([48-ssh-sesja-i-hosty.md](48-ssh-sesja-i-hosty.md)),
+49 ([49-zdalny-katalog.md](49-zdalny-katalog.md)) i 50
+([50-przesyl-plikow.md](50-przesyl-plikow.md)); nowego katalogu
+`src/Module/Ssh/`, jednej linii w `Presentation/Cli/Bootstrap.php`, pola
+`suggest` w `composer.json` oraz — warunkowo, wedle rozstrzygnięcia na starcie
+kroku 50 — granicy wyjątku 15b.
+
+**Data:** 2026-08-15, na polecenie użytkownika („przygotuj krok planu
+z funkcjonalnością połączenia ssh"), przed pierwszą linią kodu i przed
+rozpisaniem kroków.
+
+**Co rozstrzygnęło rozpoznanie w środowisku, zanim padło pierwsze pytanie.**
+Pięć faktów, wszystkie sprawdzone przy planowaniu i wszystkie przesądzające
+o kształcie fazy:
+
+- **`ext-ssh2` jest załadowane** — wersja 1.3.1 na libssh2 1.11.0, 34 funkcje,
+  w tym `ssh2_auth_agent`, komplet `ssh2_sftp_*` i `ssh2_exec`; opakowania
+  `ssh2.sftp://`, `ssh2.exec://`, `ssh2.shell://` i `ssh2.tunnel://`
+  zarejestrowane. Droga „w procesie" nie wymaga więc ani jednej zależności
+  Composera — a projekt ma dziś w `require` wyłącznie `ext-imagick`
+  i `ext-pcntl`.
+- **`ssh2_connect()` nie przyjmuje limitu czasu.** Sygnatura to
+  `(host, port, methods, callbacks)`. Host nieosiągalny zatrzyma pętlę na
+  `default_socket_timeout`, czyli domyślnie na minutę — i będzie to zawieszenie
+  całej aplikacji, nie samego modułu.
+- **`ssh2_fingerprint()` daje wyłącznie MD5 i SHA1**, a API `known_hosts`
+  libssh2 **nie jest w PHP wystawione** (w spisie funkcji nie ma ani jednej
+  `ssh2_known_hosts*`). Plik użytkownika ma przy tym **nazwy hostów
+  zahaszowane** — 23 wpisy, wszystkie `|1|sól|skrót`. Weryfikacja klucza hosta
+  jest więc wykonalna, ale robi ją moduł sam: HMAC-SHA1 nazwy, dopasowanie po
+  typie klucza z `ssh2_methods_negotiated()`, SHA1 z odkodowanego base64.
+- **Litera `s` jest wolna** (zajęte `b`, `d`, `a`; zakazane `c, h, i, j, m, z`),
+  a `Ctrl`+`S` jest w terminalu bezpieczny, bo `TerminalService::RAW_MODE_SETTINGS`
+  zawiera `-ixon` — XOFF nie zadziała.
+- **Serwera SSH na maszynie nie ma** (port 22 zamknięty), jest za to `docker`.
+  Sprawdzenie ręczne każdego z trzech kroków wymaga albo kontenera z `sshd`,
+  albo hosta podanego przez użytkownika — i to jest warunek, o który trzeba
+  poprosić przed pierwszym uruchomieniem, tak jak reguła 17 każe prosić
+  o zwolnienie maszyny przed pomiarem.
+
+**Decyzje użytkownika:**
+
+1. **Zdalny panel przez SFTP**, a nie sesja powłoki ani samo połączenie. Funkcja
+   wpina się w to, co aplikacja już umie: lista wpisów, chodzenie po katalogach,
+   kolumny z kroku 27. Sesja powłoki odpadła, bo wymagałaby emulacji sekwencji
+   sterujących i własnego bufora ekranu — dwóch rzeczy, których projekt nie ma
+   w żadnej postaci, więc byłaby osobną aplikacją w aplikacji.
+2. **Dostęp w procesie, przez `ext-ssh2`.** Wariant „proces potomny (`ssh`,
+   `sftp`, `rsync`) przez `BackgroundProcessPort`" odpadł mimo dwóch realnych
+   zalet (nie blokuje pętli, dziedziczy `~/.ssh/config` i agenta za darmo):
+   ceną byłoby parsowanie wyjścia `sftp` i jedna praca naraz na cały moduł.
+   Wariant „phpseclib przez Composera" odpadł jako pierwsza zależność
+   produkcyjna projektu.
+3. **Nowy moduł `src/Module/Ssh/`**, zgodnie z regułą 15. Rozbudowa modułu
+   `Browser` odpadła, choć byłaby najkrótszą drogą do zdalnego panelu: wiązałaby
+   SSH z przeglądarką na stałe. Port rdzenia odpadł, bo jego jedyna próba
+   („dwóch odbiorców i powtórzenie o koszcie nieodwracalnym", 15b) jest
+   niespełniona — odbiorca jest jeden.
+4. **Faza z trzech kroków, nie jeden krok.** Zakres dzieli się wzdłuż trzech
+   rzeczy, z których każda ma własne rozstrzygnięcia i własne rozliczenie: sesja
+   (48), odczyt (49), zapis obustronny (50). Rytm ten sam, co w D48 i D66.
+
+**Co z tych decyzji wynika dla kroków — i czego plany pilnują:**
+
+- **Reguła nadrzędna fazy: żadne wywołanie sieciowe nie pada w rysowaniu
+  klatki.** Jest to piąta reguła D46 rozciągnięta z zapisu na dysk na sieć,
+  a wynika wprost z faktu, że `ext-ssh2` nie ma wywołań nieblokujących. Każde
+  ma ponadto nałożony własny limit czasu — osiągalność portu sprawdza się
+  osobno, `stream_socket_client()` z limitem sekundowym, **przed** uściskiem
+  dłoni.
+- **Kawałek pracy trwa tyle, ile trwa sieć — i to jest rzecz, której wzorzec
+  z D46 nie przewidywał.** Praca lokalna liczy budżet we wpisach (512 na takt
+  liczenia, krok 41) albo w bajtach (krok 42), bo każdy wpis i każdy bajt
+  kosztuje tyle samo co poprzedni. Tutaj kosztem jest obieg do serwera, więc
+  budżet **pyta zegara**, a nie licznika. Dotyczy to obu kroków pracujących:
+  49 (atrybuty wpisów) i 50 (bloki pliku).
+- **Odczyt katalogu może kosztować obieg na wpis.** `opendir()` na opakowaniu
+  `ssh2.sftp://` oddaje same nazwy; czy rozszerzenie przekazuje atrybuty, które
+  protokół SFTP niesie razem z nazwą, jest **niesprawdzone i sprawdzić się przy
+  planowaniu nie dało** (brak serwera). Rekomendacja kroku 49, gdyby okazało się,
+  że nie: `stat` **tylko dla widocznego okna**, kawałkowo — jedyny z trzech
+  wariantów, który nie zakłada niczego o zdalnym systemie, bo serwer SFTP nie
+  musi mieć powłoki.
+- **Druga domena plikowa jest świadoma, nie przeoczona.** `DirectoryPath`,
+  `Entry` i `EntryComparator` należą do modułu `Browser`, a moduł nigdy nie
+  sięga do innego modułu — więc moduł `Ssh` dostaje własne `RemotePath`
+  i `RemoteEntry`. Alternatywą byłoby wyniesienie ścieżki do rdzenia, czyli
+  odwrócenie D42 („rdzeń nie wie, czym jest katalog ani wpis"), a to jest cena
+  nieporównanie wyższa niż dwie klasy wartości. Granica tego powtarzania jest
+  częścią zakresu kroku 49 i ma trafić do `SKILL.md` wraz z powodem —
+  nienazwana, otworzyłaby drogę do powielania całych modułów.
+- **`ModuleContext` ze ścieżką zdalną skłamałby, i to cicho.** Kontekst niesie
+  ścieżkę **jako napis**, bez informacji, czyja jest, a moduł opisu pliku czyta
+  ją `lstat`em: ekran zdalny publikujący `/var/log` sprawiłby, że `FileInfo`
+  pokaże **lokalny** `/var/log`. Obie ścieżki istnieją, obie się czytają,
+  a użytkownik ogląda opis nie tego pliku, na który patrzy. Rekomendacja kroku
+  49: ekran zdalny kontekstu **nie publikuje**; pole „pochodzenie" w kontekście
+  wchodzi dopiero razem z odbiorcą (reguła 13).
+- **W drugą stronę ta sama droga jest legalna i darmowa.** Krok 50 czyta
+  `ModuleContext`, żeby znać lokalny katalog docelowy pobrania — czyli poznaje
+  drugą stronę przesyłu **nie sięgając do przeglądarki ani razu**. Dokładnie po
+  to kontekst istnieje (D40 P5), i to jest najlepszy dowód, że tamto
+  rozstrzygnięcie było trafne.
+- **Zapis pobranego pliku dotyka wyjątku 15b i wymaga zgody wprost.**
+  Rekomendacja kroku 50: pisze moduł, a wyjątek dostaje **drugi nazwany
+  przypadek** o wąskiej granicy (wyłącznie w pracy przesyłu, wyłącznie do
+  katalogu wskazanego przez użytkownika). Wariant „ścieżkę `ssh2.sftp://` podaje
+  się rdzeniowemu `FileTransferPort` jako napis" kusi, bo port bierze „ścieżkę
+  bezwzględną jako napis" — ale rozpoznanie systemu plików idzie tam przez numer
+  urządzenia, a `is_link()` i prawa dostępu na URI nie znaczą nic; port zacząłby
+  kłamać w miejscu, w którym dziś jest dokładny.
+- **Moduł jest czwartym sprawdzianem kontraktu z kroku 20** — po module
+  rysującym główną funkcję (21), module bez ekranu (36) i module pracującym, gdy
+  go nie widać (45), przychodzi moduł **rozmawiający z czymś poza maszyną**.
+  Rdzeń ma kosztować jedną linię w `Bootstrapie`; jeśli będzie kosztował więcej,
+  jest to błąd do naprawienia, a nie powód, żeby dotknąć rdzenia.
+- **Krok 48 jest zarazem pierwszym sprawdzianem mechanizmu zdarzeń z kroku 46
+  przez moduł, którego przy jego powstawaniu nie było.** „Połączono",
+  „rozłączono" i „nie udało się połączyć" dostają dźwięk przez `DeclaresEvents`,
+  bez ani jednej linii w rdzeniu. Jeśli okaże się, że kosztuje to więcej,
+  zamknięcie słownika zdarzeń z 11o'' ma usterkę, o której dziś nikt nie wie.
+- **Testy nie otwierają połączenia sieciowego — w żadnym z trzech kroków.** Ta
+  sama reguła, co przy silniku audio (11o): sprawdza się wszystko przed pierwszym
+  wywołaniem, a resztę atrapą portu. Klasy czyste — `KnownHostsReader`,
+  `RemotePath`, komparator, stan pracy — dają się sprawdzić bez ani jednego
+  bajtu w sieci, i to jest kryterium ich podziału.
+
+**Odrzucone alternatywy** (poza wymienionymi przy decyzjach 1–4): faza
+dwukrokowa, w której odczyt i przesył idą razem — odpadła, bo krok 50 ma cenę
+błędu nieodwracalną i zasługuje na własne rozliczenie; faza czterokrokowa
+z osobnym krokiem na zapis po zdalnej stronie — zapis zdalny stoi w „Zakresie
+poza MVP" i wejdzie osobno, jeśli okaże się potrzebny.
+
+## Decyzje z planowania Fazy XVIII (2026-08-15)
+
+### D85 — Kontenery wchodzą jako Faza XVIII: dwa moduły, droga mieszana, a współpracę niosą komendy i nowe kwerendy
+
+**Dotyczy:** kroków 51 ([51-modul-docker.md](51-modul-docker.md)),
+52 ([52-modul-kubernetes.md](52-modul-kubernetes.md)) i
+53 ([53-kwerendy-miedzymodulowe.md](53-kwerendy-miedzymodulowe.md)); nowych
+katalogów `src/Module/Docker/`, `src/Module/Kubernetes/` i `src/Application/Query/`,
+**zmiany kontraktu `Application\Port\BackgroundProcessPort`**, trzech linii
+w `Presentation/Cli/Bootstrap.php`, pola `suggest` w `composer.json` oraz reguł
+11d i 15 w [SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md).
+
+**Data:** 2026-08-15, na polecenie użytkownika („stwórz krok planu dodania
+modułu obsługi `docker` i `docker compose`, dodatkowo krok obsługi kubernetesa;
+moduły powinny mieć możliwość wzajemnego użycia"), przed pierwszą linią kodu.
+
+**Co rozstrzygnęło rozpoznanie w środowisku, zanim padło pierwsze pytanie.**
+Sześć faktów, wszystkie sprawdzone przy planowaniu:
+
+- **Docker działa bez `sudo`** — 27.3.1, API demona **1.47**, 29 kontenerów
+  i 123 obrazy. Gniazdo `/var/run/docker.sock` odpowiada **wprost z PHP**:
+  `ext-curl` 8.5.0 obsługuje `CURLOPT_UNIX_SOCKET_PATH`, a `curl_multi_*` daje
+  pracę nieblokującą. Klient nie wymaga więc ani procesu potomnego, ani
+  zależności Composera.
+- **Compose nie ma API.** Docker Compose v2.29.7 jest **wtyczką CLI**, a demon
+  nie wystawia dla niej ani jednego zasobu — więc nawet moduł idący gniazdem
+  potrzebuje procesu potomnego. `docker compose ls --format json` oddaje tablicę
+  (jeden projekt, `dev`, uruchomiony), a `docker ps -a --format json` oddaje JSON
+  **wierszami** i niesie etykietę `com.docker.compose.project`, czyli wiąże
+  kontener z projektem za darmo.
+- **Klastra k8s nie ma pod ręką.** `kubectl` v1.25.2 (2022), jedyny kontekst
+  `ca-dev` **nie jest bieżący** (więc `kubectl` idzie na `localhost:8080`
+  i dostaje odmowę), minikube zatrzymany, `helm` obecny. Sprawdzenie ręczne
+  kroków 52 i 53 wymaga uruchomienia minikube — czyli zgody użytkownika, jak
+  przy pomiarach (reguła 17).
+- **`BackgroundProcessPort` prowadzi jedną pracę naraz** i jest to **decyzja
+  z kroku 26**, zapisana wprost w kontrakcie, a nie ograniczenie techniczne.
+  Dziś odbiorca jest jeden (`du` w module opisu pliku), więc nikomu to nie
+  przeszkadzało; `compose up` i `kubectl logs -f` są pracami długimi
+  i równoległymi, więc przy dzisiejszej regule jedna funkcja aplikacji ubijałaby
+  drugą bez słowa wyjaśnienia.
+- **Potomek nie dostaje wejścia** (ta sama reguła) — z czego wynika rzecz
+  drobna, ale przesądzająca o kształcie kroku 52: `kubectl apply -f -` jest
+  **niewykonalne**, plik podaje się ścieżką.
+- **`src/Application/Query/` nie istnieje**, a `CommandOutcome` niesie przejście,
+  `?Message` i `?screenId` — **danych nie niesie**. Rdzeń nie ma więc dziś ani
+  jednego kanału, którym moduł oddałby drugiemu daną.
+
+**Decyzje użytkownika:**
+
+1. **Moduł `docker` bierze cały zakres**: podgląd i cykl życia kontenerów oraz
+   obrazów, logi na żywo, budowanie obrazów **i** Docker Compose. Nic z tego nie
+   zostało odłożone.
+2. **Droga mieszana**: gniazdo dla Dockera, CLI dla Kubernetesa. Wariant „CLI dla
+   obu" odpadł mimo wygody jednolitości, wariant „gniazdo dla obu" jest dla k8s
+   niewykonalny bez własnego klienta HTTPS z certyfikatami z `kubeconfig`. Cena
+   jest zapisana w planach wprost: **dwa różne rodzaje wejścia-wyjścia w jednej
+   fazie i dwie różne drogi awarii do opisania** — a w module Dockera nawet trzy,
+   bo compose i tak idzie procesem potomnym.
+3. **Współpraca modułów: czynności przez istniejący rejestr komend, dane przez
+   nowy rejestr kwerend.** To jest rozstrzygnięcie własne użytkownika, szersze
+   niż którykolwiek z wariantów postawionych w pytaniu — te przewidywały rejestr
+   zdolności **albo** same komendy. Powód, dla którego same komendy nie
+   wystarczają, jest wymierny: `CommandOutcome` niesie **zdanie dla
+   użytkownika**, a nie identyfikator zbudowanego obrazu, więc „zbuduj i podaj mi
+   tag" nie ma czym wrócić. Dopisanie mu pola z danymi zamieniłoby skutek dla
+   interfejsu w kanał danych — stąd druga, osobna rzecz.
+4. **Trzy kroki**, wedle rytmu „jeden mechanizm — jeden krok" z D48 i D71:
+   51 (prace tłowe równoległe wraz z modułem Dockera), 52 (moduł k8s), 53
+   (kwerendy wraz z pierwszą czynnością przechodzącą przez oba moduły).
+
+**Odstępstwo od brzmienia wariantu, świadome i uzasadnione regułą 13.** Etykieta
+wybranego wariantu mówiła „52: mechanizm wraz z odbiorcą — modułem k8s". Po
+rozstrzygnięciu nr 3 mechanizmem są **kwerendy**, a ich pierwszym odbiorcą nie
+jest moduł k8s (ten stoi sam z siebie i Dockera nie potrzebuje), tylko
+**czynność łącząca oba moduły**. Mechanizm przeniósł się więc do kroku 53, żeby
+wejść razem z odbiorcą — dokładnie tak, jak każe reguła 13. W kroku 52 nie
+zostało przez to **nic** z rdzenia i to jest jego zaleta, a nie brak: jest
+sprawdzianem rozbudowy portu z kroku 51 przeprowadzonym przez kogoś, kto przy
+niej nie stał.
+
+**Co z tego wynika dla kroków — i czego plany pilnują:**
+
+- **Reguła 11d dostaje poprawkę, i to na oczach dzisiejszego odbiorcy.** „Jedna
+  praca naraz" staje się „kilka prac, każda ze swoim uchwytem, z górnym
+  ograniczeniem liczby". Trzy rzeczy zostają nietknięte: zaglądanie nigdy nie
+  blokuje, oba potoki czytane co klatkę **dla każdej pracy**, sprzątanie dwiema
+  drogami (D47). Osobnym kryterium ukończenia kroku 51 jest zdanie: **`du`
+  działa w trakcie pracy compose i odwrotnie** — bo zmiana reguły, po której
+  starszy odbiorca przestaje działać, nie jest rozbudową, tylko regresją.
+- **Reguła 15 zostaje w mocy i zostaje dopowiedziana.** Moduł nadal nie sięga do
+  modułu — sięga do **rdzenia**, a rdzeń trzyma rejestr, do którego wpisał się
+  ktoś inny. Tak działa to od kroku 19 przy komendach i od 46 przy zdarzeniach
+  (`MenuOverlay` wywołuje komendę przeglądarki, nie znając przeglądarki); nikt
+  tego wtedy nie nazwał współpracą modułów, ale nią było. Nowy jest **kanał,
+  którym wraca dana**. Granica dopowiedzenia, do zapisania w `SKILL.md`: moduł
+  zna **nazwę** cudzej komendy i kwerendy (napis), nigdy jej typ; kwerenda oddaje
+  **dane pierwotne** (precedens `ModuleContext`, D40 P5); **moduł pytający musi
+  umieć żyć bez odpowiedzi**, bo ten drugi bywa wyłączony, odrzucony albo
+  nieobecny.
+- **Cztery reguły kwerendy, wszystkie w kontrakcie albo w rejestrze**: kwerenda
+  **czyta i nie zmienia** (co zmienia — jest komendą; bez tego pierwsza kwerenda
+  `docker.prune` uczyniłaby mechanizm drugą drogą do czynności), **nie zna
+  wołającego**, **nie woła kwerendy** (wzorem „zdarzenie nie rodzi zdarzenia",
+  11o''), **odpowiada w klatce albo wcale** — praca dłuższa od klatki idzie
+  komendą, a kwerenda oddaje jej **stan**, nie czeka na koniec.
+- **Trzy mechanizmy rdzenia składają się po raz pierwszy w jedną czynność:
+  komenda robi, zdarzenie ogłasza, kwerenda mówi co wyszło.** Budowa obrazu trwa
+  minuty, więc wołający nie czeka w klatce — dowiaduje się zdarzeniem
+  `docker.build.finished` i dopiero wtedy pyta o wynik. To zdanie jest zarazem
+  najkrótszym opisem tego, po co krok 53 istnieje.
+- **Krok 51 jest największym krokiem projektu** i plan mówi to wprost, razem
+  z linią cięcia na wypadek, gdyby okazał się za duży: wychodzi z niego
+  **compose**, bo jako jedyny nie dzieli z resztą ani drogi technicznej (CLI
+  zamiast gniazda), ani danych (projekt zamiast kontenera). Wyjęcie czegokolwiek
+  innego rozerwałoby rzecz trzymającą się razem.
+- **Obraz zbudowany lokalnie nie istnieje w klastrze** — i to jest miejsce,
+  w którym funkcja z kroku 53 może wyjść atrapą. Bez rozstrzygnięcia (`minikube
+  image load` / rejestr i `push` / klaster dzielący demona) czynność skończy się
+  podem w `ImagePullBackOff`, co wygląda jak usterka aplikacji, a nie jak
+  brakujący krok. Rozstrzygnięcie stoi na starcie kroku 53, a `docker push` jest
+  świadomie **poza zakresem kroku 51** i wchodzi tylko wtedy, gdy wybrana
+  zostanie droga przez rejestr.
+- **Dwie pułapki strumieniowe Dockera są w planie nazwane**, bo obie dają
+  „działa, ale wygląda na zepsute": logi kontenera bez TTY są **multipleksowane
+  ośmiobajtowymi ramkami** (czytane jak tekst dają śmieci co kilka wierszy),
+  a budowa oddaje postęp jako **strumień obiektów JSON po jednym na wiersz**.
+- **Testy nie rozmawiają ani z demonem, ani z klastrem** — w żadnym z trzech
+  kroków, tą samą regułą, co przy silniku audio (11o) i sesji SSH (D84).
+  Rozbieranie ramek i parsowanie JSON-a sprawdza się na próbkach bajtów,
+  współpracę modułów — na **dwóch modułach-atrapach**.
+
+**Odrzucone alternatywy** (poza wymienionymi przy decyzjach 1–4): jeden moduł
+`containers` obejmujący Dockera i k8s — problem współpracy znikałby zamiast
+zostać rozwiązany, a moduł urósłby do rozmiaru przeglądarki i robił dwie różne
+rzeczy; jawny wyjątek od reguły 15 (moduł k8s zna port modułu docker) — najkrótsza
+droga, ale otwiera regułę trzymającą cały podział, a następna para modułów
+powołałaby się na precedens; cztery kroki z mechanizmami oddzielonymi od modułów —
+dwa kroki dowoziłyby wtedy mechanizm bez odbiorcy, wbrew regule 13.
+
+### D86 — Kwerendy dostają wszystkie moduły, a odbiorcą tych bez konsumenta w kodzie zostaje użytkownik
+
+**Dotyczy:** kroku 53 ([53-kwerendy-miedzymodulowe.md](53-kwerendy-miedzymodulowe.md));
+katalogów `src/Module/Browser/`, `src/Module/FileInfo/` i `src/Module/Audio/`
+wraz z ich `lang/`; okna kwerend w `src/Presentation/Ui/Overlay/`; reguły 15
+w [SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md).
+
+**Data:** 2026-08-15, tego samego dnia co D85, przed pierwszą linią kodu — na
+pytanie użytkownika, czy krok 53 zakłada kwerendy także w modułach istniejących.
+
+**Nie zakładał — i było to wykluczenie świadome, nie przeoczenie.** Punkt *Poza
+zakresem* w pierwotnym brzmieniu kroku mówił wprost: „współpraca modułów
+niezwiązana z kontenerami — mechanizm to umożliwi, ale odbiorcy dziś nie ma".
+Wykluczenie stało na regule 13 i było poprawne co do litery. Co do skutku —
+zostawiało projekt z mechanizmem rdzenia **umiejącym odpowiedzieć wyłącznie na
+pytania dwóch modułów napisanych razem z nim**, a to nie jest mechanizm rdzenia,
+tylko wewnętrzne uzgodnienie tej pary.
+
+**Co rozstrzygnęło rozpoznanie w kodzie, zanim padło pytanie do użytkownika.**
+Trzy fakty, wszystkie sprawdzone przy uzupełnianiu:
+
+- **`ModuleContext` niesie już ścieżkę i zaznaczenie** — `path`, `selection`,
+  `kind`, `markedCount`, `markedBytes`, `markedDirectories`, wszystko jako dane
+  pierwotne publikowane przez `BrowserState`. Kroki 51 i 52 **już się na tym
+  opierają**: ścieżka pliku `compose` i ścieżka manifestu do `apply` biorą się
+  stamtąd. Pierwsze kwerendy, które przychodzą do głowy (`browser.cwd`,
+  `browser.selection`), byłyby więc **drugą drogą do danej rozdawanej co klatkę
+  za darmo** — i drogą gorszą, bo wymagającą pytania i obsłużenia braku
+  odpowiedzi.
+- **Rdzeń nie umie wypisać katalogu.** `FileOperationsPort` ma `rename`,
+  `createDirectory`, `delete` i usuwanie kawałkowe — listy nie ma; wypis należy
+  do `DirectoryRepositoryInterface` w dziedzinie przeglądarki. Czyli
+  `browser.entries` **jest jedyną uczciwą drogą** do zawartości katalogu dla
+  cudzego modułu: alternatywą byłoby drugie czytanie systemu plików w module k8s
+  albo sięgnięcie po typ przeglądarki, czyli złamanie reguły 15.
+- **Kwerendy modułu opisu pliku mają gotowy precedens na regułę nr 4.**
+  `ChecksumStage` i `DiskUsageStage` z kroków 25 i 26 opisują **stan pracy
+  tłowej**, a kwerenda ma oddawać właśnie stan, a nie czekać na koniec. Nie
+  trzeba wymyślać drugiego wzorca.
+
+**Decyzje użytkownika:**
+
+1. **Kwerendy dostają wszystkie trzy istniejące moduły** — `browser`,
+   `file-info` i `audio`, po dwie każdy. Sześć kwerend dobranych jedną zasadą:
+   kwerendą zostaje **to, o czym wie tylko ten moduł, a czego nie niesie
+   `ModuleContext`**.
+2. **Rozstrzygnięcie nr 7 kroku idzie na „kwerendy widoczne"** i krok dowozi
+   **okno kwerend**. To ono, a nie wyjątek od reguły 13, jest powodem, dla
+   którego cztery z sześciu kwerend wolno napisać bez konsumenta w kodzie:
+   **konsument jest, tylko siedzi przed terminalem**.
+
+**Co z tego wynika dla kroku — i czego plan pilnuje:**
+
+- **Reguła 15 dostaje drugie zdanie graniczne**, obok „komenda robi, kwerenda
+  mówi": **kontekst mówi, gdzie użytkownik stoi; kwerenda mówi, co u mnie jest.**
+  Kontekst niesie jedno miejsce i jedno zaznaczenie — ścieżkę panelu czynnego,
+  ale nie drugiego; liczbę zaznaczonych, ale nie ich nazwy; wpis pod kursorem,
+  ale nie zawartość katalogu. To, czego kontekst nie niesie, jest zakresem
+  kwerend; to, co niesie, **nie ma prawa się w nich powtórzyć**.
+- **Zaznaczenie wielokrotne z kroku 43 po raz pierwszy dochodzi poza
+  przeglądarkę.** `browser.marked` oddaje nazwy, których kontekst nie niesie,
+  a odbiorcą jest `k8s.apply` na wielu manifestach naraz.
+- **Okno kwerend ma być drugim trybem okna komend, nie drugim oknem**
+  (rekomendacja, rozstrzygnięcie nr 9 kroku): te same komponenty, ten sam
+  `CommandLineParser`, ten sam scenariusz pomiarowy `command` — i słownik
+  wejścia nierosnący o klawisz. Wariant „osobne okno" ma cenę zapisaną z góry:
+  własny scenariusz w `bin/render-bench`, a przy własnym klawiszu **trzy tory
+  wejścia**, czyli ponowny rachunek modelu.
+- **Model zostaje `Opus / xhigh`.** Sześć kwerend czyta kod, który stoi
+  i działa, a okno nie dokłada ani jednego prymitywu, więc trzy renderery
+  zostają nietknięte — warunek, dla którego kroki 44 i 47 poszły na `Fable`,
+  nie zachodzi.
+- **Rachunek kolumn przelicza się jak w kroku 46**: najdłuższa nazwa kwerendy
+  z najdłuższym opisem z obu katalogów ma się zmieścić w oknie, a pilnuje tego
+  test czytający `pl` i `en`. Tam ta sama rzecz omal nie ucięła najdłuższej
+  nazwy zdarzenia i było to widać dopiero w klatce.
+
+**Odrzucone alternatywy:** **jawny wyjątek od reguły 13** (kwerendy bez odbiorcy,
+nazwane w planie wzorem `ProgressBar` z kroku 23) — wariant postawiony
+użytkownikowi i odrzucony; tamten wyjątek kosztował trzy kroki długu i sam
+`SKILL.md` mówi, że nie jest precedensem. **Kwerendy tylko dla przeglądarki**
+(jedynego modułu z konsumentem w kodzie) — najtańszy wariant, zgodny z regułą 13
+bez żadnego zabiegu, ale zostawiał dwa moduły nieme i odkładał pytanie
+o widoczność kwerend na krok, którego nikt nie zaplanował. **Dociągnięcie modułu
+`Ssh`** (`ssh.hosts`, zdalne ścieżki) — wiązałoby krok 53 z nierozpoczętą Fazą
+XVII, dokładając do jego zależności kroki 48, 49 i 50; dopisanie kwerend
+do gotowego modułu kosztuje jedną zdolność i **jest sprawdzianem, że mechanizm
+wyszedł dobrze**, więc nie ma powodu robić tego tutaj.
+
+## Decyzje z realizacji kroku 48 (2026-08-15)
+
+### D87 — Rozstrzygnięcia startowe kroku 48: cała sesja w procesie potomnym przez `ControlMaster`, `known_hosts` prowadzi `ssh`, rdzeń rośnie o dwie rzeczy zamiast jednej linii
+
+**Dotyczy:** kroku 48 ([48-ssh-sesja-i-hosty.md](48-ssh-sesja-i-hosty.md)),
+a przez rozstrzygnięcie nr 1 — **całej Fazy XVII**, czyli także kroków
+[49](49-zdalny-katalog.md) i [50](50-przesyl-plikow.md); nowego katalogu
+`src/Module/Ssh/`, `Application/Module` (nowa zdolność środowiskowa),
+`Application/Module/ModuleRegistry` (piąty powód odrzucenia),
+`Presentation/Ui/Component/TextInput` (tryb maskowany),
+`Presentation/Cli/Bootstrap` (jedna linia), katalogów napisów,
+[docs/architecture.md](../architecture.md),
+[SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md)
+i `README.md`.
+
+**Data:** 2026-08-15, przed pierwszą linią kodu — osiem pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku” plus dwa, które wynikły dopiero z odpowiedzi
+na pytanie pierwsze, plus jedno zadane ponownie po sprostowaniu błędu w opisie
+wariantu.
+
+**Sprawdzenie stanu zastanego: tabela z planu zgadza się co do wiersza.**
+`ext-ssh2` 1.3.1 z 34 funkcjami, `ssh2_fingerprint()` wyłącznie MD5 i SHA1,
+ani jednej `ssh2_known_hosts*`, `default_socket_timeout` = 60,
+`SSH_AUTH_SOCK` ustawiony, `~/.ssh/known_hosts` z 23 wpisami o zahaszowanych
+nazwach, `~/.ssh/config` z dwoma wpisami `Host`, litera `s` wolna, port 22
+zamknięty, `src/Module/Ssh/` nie istnieje. Rozpoznanie dołożyło dwa fakty,
+o które plan nie pytał, a które przesądziły o kształcie: **klient OpenSSH
+9.6p1** wraz z `sftp`, `ssh-keyscan` i `ssh-keygen` jest w `PATH`,
+a `HashKnownHosts` stoi na `yes` — czyli wpis dopisany przez `ssh` będzie
+zahaszowany tak samo jak 23 istniejące.
+
+**Decyzje użytkownika (1–8 — pytania z planu; 9 i 10 — wynikłe z odpowiedzi na
+pytanie 1; 11 — pytanie 7 zadane ponownie po sprostowaniu):**
+
+1. **Cała sesja żyje w procesie potomnym, a nie w procesie aplikacji.** To jest
+   **jawne odwrócenie D84 nr 2** („dostęp w procesie, przez `ext-ssh2`”)
+   i obejmuje całą Fazę XVII, nie sam krok 48. Powodem był problem, którego plan
+   nie umiał rozwiązać inaczej: `ext-ssh2` nie ma ani jednego wywołania
+   nieblokującego, więc uścisk dłoni zamrażał klatkę na setki milisekund,
+   a `ssh2_connect()` bez limitu czasu zamrażał ją przy hoście nieosiągalnym na
+   minutę. Wariant „przyjąć zamrożenie z ograniczeniem od góry” i wariant
+   „strażnik na `SIGALRM`” zostały użytkownikowi postawione i odrzucone.
+   **Zasób sesji nie przechodzi przez granicę procesu**, więc z tej odpowiedzi
+   wynika wprost, że kroki 49 i 50 też idą potomkiem — i to zostało
+   użytkownikowi powiedziane przed wyborem, a nie po nim.
+2. **Postacią potomka jest klient OpenSSH, nie robotnik PHP.** Rozstrzygnięcie
+   brzmiało dosłownie: „całość w procesie potomnym, żadnych robotników, wymiana
+   danych z procesem głównym”. `ext-ssh2` wypada przez to z fazy **w całości**
+   — razem z nim wypada `SshSessionPort` na rozszerzeniu, `UnavailableSshService`,
+   `ssh2_methods_negotiated()` i cały rachunek odcisku rozpisany w zakresie nr 4
+   planu. Wariant „robotnik PHP z `ext-ssh2` i własnym protokołem na potoku”
+   został postawiony i odrzucony; wariant „tylko uścisk w potomku, sesja
+   w rodzicu” też — bo nie rozwiązywał zastrzeżenia, tylko płacił za dwa uściski
+   zamiast jednego.
+3. **Sesja trwa przez `ControlMaster` + `ControlPersist`.** Mistrz zestawia się
+   raz (`ssh -M -N -f -o ControlPath=…`) i **demonizuje się sam**, więc aplikacja
+   nie trzyma jego potoków ani przez chwilę. Każda późniejsza operacja to krótki
+   potomek wchodzący przez gniazdo **bez uścisku dłoni** — milisekundy zamiast
+   setek. Stan sesji to `ssh -O check`, rozłączenie to `ssh -O exit`. Odrzucono
+   długo żyjący `sftp` na potokach (rdzeniowy `BackgroundProcessPort` **nie umie
+   podać potomkowi wejścia** — granica postawiona świadomie w kroku 26 — więc
+   trzeba by własnej obsługi procesu i parsowania znaku zachęty `sftp>`) oraz
+   świeży uścisk na każdą operację (zdanie z celu kroku — „nawiązać
+   i **utrzymać** sesję” — przestałoby cokolwiek znaczyć).
+4. **Hasło wchodzi jako droga uwierzytelnienia, a `TextInput` dostaje tryb
+   maskowany.** To jest zmiana **komponentu rdzenia**, świadoma i przyjęta wraz
+   z ceną: rekomendacja planu brzmiała odwrotnie („hasło poza zakresem, dopóki
+   `TextInput` nie umie ukryć treści”). Odbiorca wchodzi razem z mechanizmem
+   (reguła 13), a hasła w pliku nie ma i nie będzie — pytanie pada przy każdym
+   połączeniu.
+5. **Zapamiętane odciski mieszkają w `~/.ssh/known_hosts`, a prowadzi go `ssh`
+   sam.** Aplikacja **nie dotyka tego pliku do zapisu ani razu**: pokazuje własne
+   okno groźne z odciskiem, a po zgodzie łączy się z `StrictHostKeyChecking=accept-new`
+   i to klient dopisuje wiersz w postaci kanonicznej, zahaszowanej. Rekomendacja
+   planu (plik modułu) została odrzucona. **Sprostowanie zapisane, bo zmieniło
+   wykonalność:** wariant ten byłby przy `ext-ssh2` **niewykonalny** — wiersz
+   `known_hosts` wymaga pełnego klucza publicznego w base64, a rozszerzenie
+   oddaje wyłącznie odcisk i nie ma funkcji zwracającej klucz. Dopiero
+   rozstrzygnięcie nr 2 uczyniło tę odpowiedź wykonalną.
+   **Druga poprawka, wynikła ze sprawdzenia zachowania klienta już po
+   rozstrzygnięciu:** `ssh-keyscan` jest jednak w łańcuchu potrzebny — nie do
+   zapisu, bo ten robi `ssh`, tylko do **pokazania odcisku w oknie pytania**.
+   Powód jest mechaniczny: `ssh` z `StrictHostKeyChecking=yes` przy nieznanym
+   hoście wypisuje „No … host key is known for …” na **strumieniu błędów**,
+   a `BackgroundState` strumienia błędów świadomie nie niesie (krok 26: `du`
+   zasypałby go wierszami „brak dostępu”). Odcisk bierze więc potok
+   `ssh-keyscan -T <limit> -p <port> <host> | ssh-keygen -lf -`, sprawdzony na
+   maszynie projektu — oddaje `SHA256:…`, czyli **dokładnie ten napis, który
+   pokazałby `ssh`**. Rozstrzygnięcie nr 2 zarobiło tu drugi raz: `ssh2_fingerprint()`
+   nie umiał SHA256 w ogóle i plan godził się na SHA1.
+6. **`~/.ssh/known_hosts` czytamy.** Host, którego `ssh` już zna, nie zatrzymuje
+   aplikacji pytaniem. Czyta go **własna klasa czysta** (`KnownHostsReader`:
+   HMAC-SHA1 nazwy solą z wpisu), a nie proces potomny — bo to jedyny sposób,
+   żeby ekran **przed** połączeniem wiedział, czy pytanie padnie, i jedyny, który
+   daje się sprawdzić testem bez ani jednego bajtu w sieci.
+7. **Jedna sesja naraz**, zgodnie z rekomendacją i wzorem „jedna praca naraz”
+   (11d).
+8. **Moduł bierze takt (`NeedsTick`).** Warunek z D82 jest przy potomku spełniony
+   wprost, a nie naciągnięty: ktoś musi co klatkę zajrzeć, czy łączenie się
+   skończyło, i przeczytać potoki (11d: nieczytany potok zatrzymuje potomka).
+   Bez taktu „łączę…” nigdy nie zmieniłoby się w „połączono”.
+9. **Potomków uruchamia rdzeniowy `BackgroundProcessPort`**, a nie własna usługa
+   modułu. Reguła 15 w czystej postaci — moduł sięga po port rdzenia, jak
+   `FileInfo` po `du`. **Cena przyjęta świadomie: jedna praca naraz**, więc
+   zestawianie sesji przerwie liczenie `du` w module opisu pliku i odwrotnie.
+   Przy `ControlMaster` boli to najmniej, bo potomki są krótkie — mistrz odchodzi
+   w tło sam. Odrzucono rozszerzenie portu o wiele prac naraz: to jest zakres
+   kroku 51 i zrobione tutaj ruszałoby kontrakt portu, usługę, uchwyt
+   i wszystkich dzisiejszych odbiorców.
+10. **Autostartu nie ma** — uruchomienie aplikacji nie sięga do sieci ani razu.
+    Zgodnie z rekomendacją; zero pozycji ustawień, zero pytania o odcisk, zanim
+    użytkownik cokolwiek zrobił.
+11. **Brak klienta `ssh` odrzuca moduł, a rejestr dostaje na to zdolność.**
+    Rekomendacja planu (moduł przyjęty, ekran mówi czego brak — wzorem 11o)
+    została odrzucona. **Pytanie zadano dwa razy, bo pierwszy opis wariantu był
+    błędny:** napisano „rejestr taki wariant zna”, a `ModuleRegistry::admit()`
+    odrzuca z czterech powodów i wszystkie dotyczą samej deklaracji (zły
+    identyfikator, identyfikator zajęty, litera spoza dozwolonych, litera zajęta)
+    — mechanizmu „moduł mówi, że w tym środowisku nie ma czym działać” w rdzeniu
+    **nie było**. Po sprostowaniu użytkownik wybrał dołożenie zdolności
+    `RequiresEnvironment` (`unavailableReason(): ?string`, deklarowana osobno jak
+    `NeedsTick`, pytana w `admit()` przed wpuszczeniem).
+
+**Co z tych decyzji wynika dla kroku — i czego dziennik kroku pilnuje:**
+
+- **Kryterium ukończenia „rdzeń urósł o jedną linię” jest odwołane, i to
+  jawnie.** Rdzeń rośnie o **trzy** rzeczy: pozycję w `Bootstrapie` (przewidziane
+  regułą 15), tryb maskowany `TextInput` (rozstrzygnięcie nr 4) i zdolność
+  `RequiresEnvironment` wraz z piątym powodem odrzucenia (rozstrzygnięcie nr 11).
+  Obie zmiany ponad linię są **rozstrzygnięciami użytkownika podjętymi wraz
+  z ceną wypisaną przed wyborem**, a nie długiem przeoczonym w trakcie. Reguła 15
+  zostaje przy tym nietknięta co do treści: obie nowe rzeczy są **mechanizmami
+  rdzenia z odbiorcą** (reguła 13), a nie funkcją modułu wepchniętą do rdzenia.
+- **`RequiresEnvironment` ma trzeciego i czwartego odbiorcę już zaplanowanych.**
+  Kroki 51 (`docker`) i 52 (`kubectl`) potrzebują dokładnie tego samego pytania,
+  więc mechanizm nie powstaje na zapas. Cena, którą trzeba znać: `admit()` dzieje
+  się przy starcie aplikacji, więc sprawdzenie obecności programu wchodzi
+  w ścieżkę uruchomienia — i musi być tanie.
+- **Zakres nr 4 planu (odcisk klucza hosta) traci połowę treści i zyskuje
+  nową.** Rachunek `ssh2_methods_negotiated()` → SHA1 z base64 →
+  `ssh2_fingerprint()` znika razem z rozszerzeniem. Zostaje: `KnownHostsReader`
+  czyta plik i mówi, czy host jest znany; nieznany → okno groźne z odciskiem →
+  zgoda → `accept-new` i wiersz dopisuje `ssh`; klucz **niezgodny** to nie
+  pytanie, tylko odmowa — i tutaj nie musimy jej pisać sami, bo `ssh` odmawia
+  z własnym komunikatem, a moduł go pokazuje.
+- **Kroki 49 i 50 zmieniają drogę techniczną, nie zakres.** Zdalny katalog czyta
+  `sftp -o ControlPath=…`, a nie opakowanie `ssh2.sftp://`; przesył idzie tą samą
+  drogą. Zastrzeżenie startowe kroku 50 (wyjątek 15b na zapis pobranego pliku)
+  **zostaje otwarte** — potomek nie zmienia tego, kto pisze po dysku lokalnym.
+  Pytanie z D84 o to, czy `opendir()` na opakowaniu oddaje atrybuty, **odpada
+  bezprzedmiotowo**: `sftp ls -l` oddaje je razem z nazwą, więc rekomendacja
+  „stat tylko dla widocznego okna” przestaje być potrzebna.
+- **Faza przestaje zależeć od rozszerzenia PHP i zaczyna od programu w `PATH`.**
+  `ext-ssh2` nie wchodzi do `suggest` w `composer.json`, bo nie jest już do
+  niczego potrzebne; wymaganiem jest klient OpenSSH, a jego brak odrzuca moduł
+  (nr 11). To jest **inna postać degradacji** niż przy `ext-glfw` w Fazie IX
+  i w module dźwięku, i różnica jest zamierzona: tam brak rozszerzenia zostawiał
+  moduł działający na pustym obiekcie, tu nie ma czego zostawić.
+- **Reguła nadrzędna fazy zostaje w mocy i staje się łatwiejsza, nie
+  trudniejsza:** żadne wywołanie sieciowe nie pada w rysowaniu klatki — bo żadne
+  nie pada w procesie aplikacji w ogóle.
+
+**Odrzucone alternatywy** (poza wymienionymi przy decyzjach): **`pcntl_alarm()`
+jako strażnik zawieszonego uścisku** — postawiony i odrzucony razem z całym
+wariantem „sesja w procesie”; niesprawdzalny bez serwera, bo libssh2 nie musi
+poprawnie znieść EINTR w środku uścisku. **`ssh-keyscan` jako źródło klucza
+**do zapisu** w `known_hosts`** — odrzucone: wpis pisze `ssh`, więc keyscan
+kosztowałby wpis niezahaszowany albo własne HMAC-owanie nazwy. Do **pokazania**
+odcisku keyscan zostaje, z powodu opisanego przy rozstrzygnięciu nr 5. **Własna usługa
+procesu w module** (`SshProcessService`) — legalna wobec reguły 15, bo moduł ma
+prawo do własnej warstwy `Infrastructure`, ale byłaby drugim w projekcie
+miejscem robiącym `proc_open`, z własnym sprzątaniem i własnym limitem czasu,
+czyli powtórzeniem kroku 26 w module.

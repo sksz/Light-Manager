@@ -49,6 +49,7 @@ use LightManager\Infrastructure\Terminal\TerminalSizeService;
 use LightManager\Module\Audio\Presentation\AudioModule;
 use LightManager\Module\Browser\Presentation\BrowserModule;
 use LightManager\Module\FileInfo\Presentation\FileInfoModule;
+use LightManager\Module\Ssh\Presentation\SshModule;
 use LightManager\Presentation\Cli\Command\DumpFrameCommand;
 use LightManager\Presentation\Cli\Command\FullscreenCommand;
 use LightManager\Presentation\Cli\Command\QuitCommand;
@@ -391,6 +392,12 @@ final class Bootstrap
             // Trzecia pozycja i **cały koszt modułu dźwięku w rdzeniu** (krok 36).
             // Rdzeń nie wie o nim nic ponad to: ani że gra, ani czym.
             new AudioModule($state, $translator, $settings),
+            // Czwarta pozycja i **cały koszt modułu sesji zdalnej w rdzeniu**
+            // (krok 48). Rdzeń nie wie o nim nic ponad to — ani z czym rozmawia,
+            // ani że rozmawia w procesie potomnym. Moduł bywa przy tym pierwszym,
+            // który się tu nie zjawi: bez klienta OpenSSH rejestr go odrzuca
+            // (`RequiresEnvironment`, D87 nr 11), a ta linia zostaje ta sama.
+            new SshModule($state, $translator, $settings),
         ];
     }
 
@@ -437,10 +444,20 @@ final class Bootstrap
         return $ids;
     }
 
-    /** Napisy modułów wchodzą do katalogu przed pierwszym tłumaczeniem. */
+    /**
+     * Napisy modułów wchodzą do katalogu przed pierwszym tłumaczeniem.
+     *
+     * **Wszystkich zadeklarowanych, nie tylko przyjętych** — poprawka z kroku 48.
+     * Spis na zakładce „Moduły" idzie po `declared()`, więc tłumaczy nazwę
+     * i powód odrzucenia także temu, kto nie wszedł; przy `accepted()` wypisywał
+     * w tych dwóch miejscach surowe klucze. Do kroku 48 nikt tego nie widział,
+     * bo wszystkie cztery powody odrzucenia były błędami autora modułu i w wydanej
+     * aplikacji nie zdarzały się nigdy. Piąty powód (`RequiresEnvironment`) zależy
+     * od maszyny użytkownika, więc usterka przestała być teoretyczna.
+     */
     private static function registerTranslations(ModuleRegistry $modules, TranslatorService $translator): void
     {
-        foreach ($modules->accepted() as $module) {
+        foreach ($modules->declared() as $module) {
             $directory = $module->translations();
 
             if ($directory !== null) {

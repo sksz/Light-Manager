@@ -474,9 +474,11 @@ final class InputHandlerTest extends TestCase
     {
         $this->special(Key::F1);
 
-        // Dwa razy w lewo, a nie raz: od kroku 45 ostatnią zakładką jest dźwięk,
-        // a ten test opisuje zakładkę **modułu opisu pliku** — to on ma
-        // w deklaracji wszystkie cztery rzeczy, które sprawdzamy niżej.
+        // Trzy razy w lewo, a nie dwa: od kroku 48 ostatnią zakładką jest sesja
+        // zdalna, przed nią dźwięk, a ten test opisuje zakładkę **modułu opisu
+        // pliku** — to on ma w deklaracji wszystkie cztery rzeczy, które
+        // sprawdzamy niżej.
+        $this->special(Key::ArrowLeft);
         $this->special(Key::ArrowLeft);
         $this->special(Key::ArrowLeft);
 

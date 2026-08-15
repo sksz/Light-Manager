@@ -8,6 +8,7 @@ use LightManager\Application\Module\ModuleRegistry;
 use LightManager\Application\Module\ModuleShortcut;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
 use LightManager\Module\Browser\Domain\ValueObject\Entry;
+use LightManager\Tests\Support\FakeEnvironmentModule;
 use LightManager\Tests\Support\FakeModule;
 use LightManager\Tests\Support\InMemoryDirectoryRepository;
 use LightManager\Tests\Support\ScreenFixture;
@@ -24,6 +25,66 @@ use PHPUnit\Framework\TestCase;
  */
 final class ModuleRegistryTest extends TestCase
 {
+    /**
+     * **Piąty powód odrzucenia i pierwszy niezależny od autora modułu** (krok 48,
+     * D87 nr 11).
+     *
+     * Cztery poprzednie dotyczą samej deklaracji i w wydanej aplikacji nie
+     * zdarzają się nigdy. Ten zależy od maszyny użytkownika — i to on sprawił,
+     * że powody odrzucenia zaczęły trafiać przed oczy kogokolwiek.
+     */
+    public function testModuleWithoutItsEnvironmentIsRejectedWithItsOwnReason(): void
+    {
+        $registry = new ModuleRegistry([new FakeEnvironmentModule('narzedziowy', 'module.narzedziowy.brak')]);
+
+        self::assertSame([], $registry->accepted());
+        self::assertNull($registry->find('narzedziowy'));
+
+        $rejection = $registry->rejectionOf('narzedziowy');
+        self::assertNotNull($rejection);
+        self::assertSame('module.narzedziowy.brak', $rejection->reasonKey, 'powód podaje moduł, nie rdzeń');
+    }
+
+    public function testModuleWithItsEnvironmentEntersNormally(): void
+    {
+        $registry = new ModuleRegistry([new FakeEnvironmentModule('narzedziowy', null, new ModuleShortcut('n'))]);
+
+        self::assertCount(1, $registry->accepted());
+        self::assertSame([], $registry->rejections());
+        self::assertSame(['n'], array_keys($registry->shortcuts()));
+    }
+
+    /**
+     * **Moduł odrzucony przez środowisko nie zajmuje litery.**
+     *
+     * Sprawdzenie środowiska stoi przed sprawdzeniem skrótu właśnie po to:
+     * inaczej moduł, który i tak nie wejdzie, zabrałby literę komuś, kto by
+     * działał — i użytkownik bez zainstalowanego narzędzia straciłby przy okazji
+     * drugi moduł.
+     */
+    public function testARejectedModuleLeavesItsLetterFree(): void
+    {
+        $registry = new ModuleRegistry([
+            new FakeEnvironmentModule('narzedziowy', 'module.narzedziowy.brak', new ModuleShortcut('n')),
+            new FakeModule('inny', new ModuleShortcut('n')),
+        ]);
+
+        self::assertCount(1, $registry->accepted());
+        self::assertNotNull($registry->find('inny'));
+        self::assertSame(['n'], array_keys($registry->shortcuts()));
+        self::assertSame($registry->find('inny'), $registry->shortcuts()['n']);
+    }
+
+    /** Moduł wyłączony **nie jest pytany o środowisko** — wyłączenie wyprzedza wszystko. */
+    public function testADisabledModuleIsNotAskedAboutItsEnvironment(): void
+    {
+        $module = new FakeEnvironmentModule('narzedziowy', 'module.narzedziowy.brak');
+        $registry = new ModuleRegistry([$module], ['narzedziowy' => ['enabled' => false]]);
+
+        self::assertSame([], $registry->rejections(), 'wyłączony nie jest odrzucony');
+        self::assertSame(0, $module->asked);
+    }
+
     public function testModuleWithoutAnyCapabilityIsLegal(): void
     {
         $registry = new ModuleRegistry([new FakeModule('samotny')]);
@@ -194,12 +255,13 @@ final class ModuleRegistryTest extends TestCase
 
         self::assertSame([], $app->modules->rejections());
         self::assertSame(
-            ['b', 'd', 'a'],
+            ['b', 'd', 'a', 's'],
             array_keys($app->modules->shortcuts()),
-            'przeglądarka trzyma Ctrl+B, FileInfo — Ctrl+D, dźwięk — Ctrl+A (krok 45)',
+            'przeglądarka trzyma Ctrl+B, FileInfo — Ctrl+D, dźwięk — Ctrl+A (krok 45), sesja zdalna — Ctrl+S (krok 48)',
         );
         self::assertNotNull($app->module('browser'));
         self::assertNotNull($app->module('file-info'));
         self::assertNotNull($app->module('audio'));
+        self::assertNotNull($app->module('ssh'));
     }
 }
