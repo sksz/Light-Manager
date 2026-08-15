@@ -62,6 +62,8 @@ return [
     // Directory tree (step 31). The arrow descriptions show up only in a pane
     // displaying the tree — in the list the same keys mean something else.
     'module.browser.help.rename' => 'rename the entry',
+    'module.browser.help.copy' => 'copy the entry',
+    'module.browser.help.move' => 'move the entry',
     'module.browser.help.mkdir' => 'new directory',
     'module.browser.help.delete' => 'delete the entry',
     'module.browser.help.tree' => 'pane as a tree or a list',
@@ -76,6 +78,8 @@ return [
     'module.browser.help.filter.short' => 'filter',
     'module.browser.help.filter.clear.short' => 'no filter',
     'module.browser.help.rename.short' => 'rename',
+    'module.browser.help.copy.short' => 'copy',
+    'module.browser.help.move.short' => 'move',
     'module.browser.help.mkdir.short' => 'mkdir',
     'module.browser.help.delete.short' => 'delete',
     'module.browser.help.tree.short' => 'tree',
@@ -103,6 +107,10 @@ return [
     'module.browser.command.rename' => 'rename the selected entry',
     'module.browser.command.mkdir' => 'create a directory in the pane directory',
     'module.browser.command.delete' => 'delete the selected entry',
+    // Two commands of step 42. The path is optional: without it the window opens
+    // with the other pane's directory, exactly as the key does.
+    'module.browser.command.copy' => 'copy the selected entry into the given directory',
+    'module.browser.command.move' => 'move the selected entry into the given directory',
     'module.browser.argument.path' => 'path',
     'module.browser.argument.name' => 'name',
     'module.browser.jump.failed' => 'Cannot open the directory "{path}".',
@@ -130,6 +138,45 @@ return [
         'Stopped — deleted {count} entries out of {total}.',
     ],
     'module.browser.delete.abandoned' => 'Counting stopped — the disk was left untouched.',
+
+    // Copying and moving (step 42). Window titles end with a colon, because a
+    // path field stands below them — not a yes-or-no question.
+    'module.browser.copy.title' => 'Copy "{name}" to:',
+    'module.browser.move.title' => 'Move "{name}" to:',
+    'module.browser.copy.progress' => 'Copying "{name}"',
+    'module.browser.move.progress' => 'Moving "{name}"',
+    'module.browser.transfer.counting' => 'Counting the contents of "{name}"',
+    'module.browser.transfer.abandoned' => 'Counting stopped — the disk was left untouched.',
+    'module.browser.transfer.counter' => '{done} of {total} · {entry}/{entries}',
+    'module.browser.transfer.counter.size' => '{done} of {total}',
+    'module.browser.transfer.needsOverlay' => 'Copying needs a window — use F5 or F6, or the F9 menu.',
+
+    // A name collision: six answers, because "all" is a different answer and not
+    // a switch next to the other four (D79, no. 4).
+    'module.browser.transfer.collision' => '"{name}" is already there',
+    'module.browser.transfer.overwrite' => 'Overwrite',
+    'module.browser.transfer.overwriteAll' => 'Overwrite all',
+    'module.browser.transfer.skip' => 'Skip',
+    'module.browser.transfer.skipAll' => 'Skip all',
+    'module.browser.transfer.rename' => 'Save under another name',
+    'module.browser.transfer.abort' => 'Stop',
+    'module.browser.transfer.newName' => 'New name for "{name}"',
+    'module.browser.copy.done' => [
+        'Copied {count} entry.',
+        'Copied {count} entries.',
+    ],
+    'module.browser.move.done' => [
+        'Moved {count} entry.',
+        'Moved {count} entries.',
+    ],
+    'module.browser.copy.stopped' => [
+        'Stopped — copied {count} of {total} entry.',
+        'Stopped — copied {count} of {total} entries.',
+    ],
+    'module.browser.move.stopped' => [
+        'Stopped — moved {count} of {total} entry.',
+        'Stopped — moved {count} of {total} entries.',
+    ],
 
     // A name typed by the user — every reason for refusing it has its own sentence.
     'module.browser.name.empty' => 'The name cannot be empty.',

@@ -100,8 +100,8 @@ Kolumna **Stan** mówi, co się z decyzją stało w kodzie:
 | [D59](#d59--ósmy-prymityw-jest-napisem-na-tle-filtr-mieszka-w-panelu-a-esc-odmawia) | Ósmy prymityw jest napisem na tle, filtr mieszka w panelu, a `Esc` odmawia | krok 30 | 2026-08-12 | Wdrożona |
 | [D60](#d60--podgląd-tekstu-dostaje-ognisko-a-przewijanie-liczy-się-w-linijkach-panelu) | Podgląd tekstu dostaje ognisko, a przewijanie liczy się w linijkach panelu | kroki 25, 29 | 2026-08-12 | Wdrożona |
 | [D61](#d61--diagnostyka-benchmark-i-testy-funkcjonalne-wchodzą-do-planu-jako-faza-xi-z-krokiem-38) | Diagnostyka, benchmark i testy funkcjonalne wchodzą do planu jako Faza XI z krokiem 38 | krok 38 | 2026-08-13 | Czeka |
-| [D77](#d77--trzy-długi-bez-właściciela-wchodzą-do-planu-jako-faza-xvi-z-krokiem-47) | Trzy długi bez właściciela wchodzą do planu jako Faza XVI z krokiem 47 | krok 47 | 2026-08-14 | W realizacji |
-| [D78](#d78--rozstrzygnięcia-startowe-kroku-47-zdolność-zamiast-rejestru-strefa-wychodzi-z-kontraktu-granica-menu-przerysowana) | Rozstrzygnięcia startowe kroku 47: zdolność zamiast rejestru, strefa wychodzi z kontraktu, granica menu przerysowana | krok 47 | 2026-08-14 | W realizacji |
+| [D77](#d77--trzy-długi-bez-właściciela-wchodzą-do-planu-jako-faza-xvi-z-krokiem-47) | Trzy długi bez właściciela wchodzą do planu jako Faza XVI z krokiem 47 | krok 47 | 2026-08-14 | Wdrożona |
+| [D78](#d78--rozstrzygnięcia-startowe-kroku-47-zdolność-zamiast-rejestru-strefa-wychodzi-z-kontraktu-granica-menu-przerysowana) | Rozstrzygnięcia startowe kroku 47: zdolność zamiast rejestru, strefa wychodzi z kontraktu, granica menu przerysowana | krok 47 | 2026-08-14 | Wdrożona |
 
 > **Indeks jest niekompletny od D62 wzwyż.** Wpisy **D62–D76** stoją w treści
 > dziennika, ale wiersza tutaj nie dostały — regułę „nowy wpis to dwie czynności”
@@ -3711,7 +3711,7 @@ w osiemdziesięciu kolumnach nie ma o czym mówić.
 
 **Dotyczy:** kroków 41–44 (pełna treść:
 [41-operacje-fundament.md](archiwum/41-operacje-fundament.md),
-[42-kopiowanie-i-przenoszenie.md](42-kopiowanie-i-przenoszenie.md),
+[42-kopiowanie-i-przenoszenie.md](archiwum/42-kopiowanie-i-przenoszenie.md),
 [43-zaznaczenie-wielokrotne.md](43-zaznaczenie-wielokrotne.md),
 [44-kosz-i-cofanie.md](44-kosz-i-cofanie.md)) i struktury planu
 ([00-index.md](00-index.md)).
@@ -4725,7 +4725,7 @@ pokazuje ją w prawym panelu opisu wraz z wymiarami i formatem.
 
 ### D77 — Trzy długi bez właściciela wchodzą do planu jako Faza XVI z krokiem 47
 
-**Dotyczy:** kroku 47 (pełna treść: [47-splata-dlugow.md](47-splata-dlugow.md)),
+**Dotyczy:** kroku 47 (pełna treść: [47-splata-dlugow.md](archiwum/47-splata-dlugow.md)),
 a przez niego: `Application/Command/CommandOutcome`,
 `Presentation/Cli/InputHandler`, `Presentation/Ui/OverlayInterface`,
 `Presentation/Ui/ScreenInterface`, `Presentation/Ui/HudLayout`,
@@ -4796,7 +4796,7 @@ renderery naraz. Model wybiera się **po** tej odpowiedzi, wzorem kroku 44.
 
 ### D78 — Rozstrzygnięcia startowe kroku 47: zdolność zamiast rejestru, strefa wychodzi z kontraktu, granica menu przerysowana
 
-**Dotyczy:** kroku 47 ([47-splata-dlugow.md](47-splata-dlugow.md)),
+**Dotyczy:** kroku 47 ([47-splata-dlugow.md](archiwum/47-splata-dlugow.md)),
 `Presentation/Ui/Command/OpensOverlay` (nowe), `Presentation/Ui/ScreenInterface`,
 `Presentation/Ui/HudLayout`, `Presentation/Cli/FrameComposer`,
 `Presentation/Cli/Screen/SettingsScreen`, `Infrastructure/Diagnostics/ScenarioFactory`,
@@ -4906,3 +4906,177 @@ kawałkową **wewnątrz** `FileOperationsPort`. Rozstrzygnięcie 1 tamtego kroku
 nad listą”) wchodzi w spór z regułą „jeden pasek, jedno miejsce”, a zdanie
 „kopiowanie nie ma prawa dojść do portu operacji” trzeba rozstrzygnąć od nowa.
 Poprawki w pliku kroku 42 należą do jego startu, nie do tego kroku.
+
+## Decyzje ze startu kroku 42 (2026-08-15)
+
+### D79 — Rozstrzygnięcia startowe kroku 42: osobny port pracy, okno postępu zamiast paska nad listą, etap liczenia i okno wyboru w rdzeniu
+
+**Dotyczy:** kroku 42 (pełna treść:
+[42-kopiowanie-i-przenoszenie.md](archiwum/42-kopiowanie-i-przenoszenie.md)),
+`Application/Port` (`FileTransferPort`), `Application/Dto` (`TransferState`,
+`TransferStage`, `TransferChoice`, `WorkProgress`), `Infrastructure/FileSystem`
+(`FileTransferService`), `Presentation/Ui/Overlay` (`ChoiceOverlay`,
+`ConfirmOverlay`, `ProgressOverlay`), modułu przeglądarki, czterech katalogów
+napisów, [docs/architecture.md](../architecture.md),
+[SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md) i `README.md`.
+
+**Data:** 2026-08-15, przed pierwszą linią kodu — osiem pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku” (dwa z nich rozstrzygnięte przez sprawdzenie,
+nie przez wybór) oraz dwa wynikłe z odpowiedzi.
+
+**Sprawdzenie stanu zastanego potwierdziło zapowiedź D78 (rozstrzygnięcie 9)
+co do słowa: trzy założenia planu kroku są nieaktualne**, bo kroki 41 i 47
+dowiozły to, czego plan spodziewał się dopiero tutaj.
+
+1. **„Praca kawałkowa posuwa się w `draw()` ekranu”** — cała sekcja o trudności
+   strukturalnej i rozstrzygnięcie nr 1. Krok 41 dowiózł `Presentation\Ui\RunsWork`:
+   pracę posuwa **okno nakładane, raz na takt w `GameLoop`**, w fazie „aktualizuj
+   stan”. Trzy warianty planu („pętla główna”, „ekran przeglądarki”, „ekran nie
+   oddaje klawiszy”) opisują świat sprzed kroku 41; wygrał czwarty, którego plan
+   nie znał, bo wtedy nie istniał.
+2. **„Kopiowanie nie ma prawa dojść do portu operacji”** — `FileOperationsPort`
+   prowadzi od kroku 41 własną pracę kawałkową (usunięcie drzewa), więc powód
+   z planu („czynność natychmiastowa nie ma stanu, a kopiowanie ma go całe”)
+   przestał odróżniać te dwa porty.
+3. **„Pasek postępu nad listą panelu czynnego”** (punkt 7 zakresu) — istnieje
+   gotowy i z założenia ogólny `ProgressOverlay`, którego docblock wprost mówi:
+   „kopiowanie z kroku 42 i kosz z kroku 44 mają wziąć to samo okno, nie napisać
+   drugiego”.
+
+Reszta tabeli stanu zastanego zgadza się w każdym wierszu; poprawki wymagała
+jedna liczba (scenariuszy jest osiemnaście, nie siedemnaście).
+
+**Decyzje użytkownika (1–8 — pytania z planu):**
+
+1. **Osobny `FileTransferPort` i osobna usługa**, mimo że pierwotny powód tego
+   podziału się zdezaktualizował. Zostaje drugi, mocniejszy: stan kopiowania jest
+   nieporównanie większy od stanu usuwania (lista źródeł, cel, otwarte uchwyty,
+   pozycja w pliku, pamięć decyzji o kolizjach), a `FileOperationsService` ma już
+   377 linii i własną pracę kawałkową. Odrzucono rozszerzenie
+   `FileOperationsPort` — port urósłby z siedmiu do trzynastu metod i trzymał dwa
+   różne stany pracy w jednej klasie.
+   **Cena zapisana od razu:** granica wyjątku od reguły 15 (D66, D75) obejmuje
+   odtąd **katalog `Infrastructure/FileSystem` jako całość**, a nie jedną klasę —
+   zdanie „drugie i ostatnie miejsce rdzenia piszące po dysku” z docblocku usługi
+   z kroku 41 traci ważność co do liczby, a zostaje co do zasady. Sama granica
+   wiedzy jest nietknięta: port zna ścieżkę bezwzględną jako napis, czynność
+   i stan pracy — i nic ponad to.
+2. **Postęp pokazuje okno (`ProgressOverlay`), nie pasek nad listą.** Punkt 7
+   zakresu zostaje **odwołany**. Zero nowych mechanizmów, reguła „jeden pasek,
+   jedno miejsce” (krok 23) nietknięta, `Esc` przerywa tą samą drogą, co przy
+   usuwaniu. Cena zapisana wprost, bo jest widoczna: **w trakcie kopiowania nie
+   widać listy i nie da się nawigować**, bo okno nie oddaje klawiszy niżej
+   (reguła 10). To rozstrzyga zarazem pytanie nr 8 planu („przerwanie przez zmianę
+   katalogu”) — zmiana katalogu w trakcie pracy jest niemożliwa, więc pytanie
+   znika, a nie doczekuje się odpowiedzi.
+3. **Całość poznaje się etapem liczenia, przed pierwszym skopiowanym bajtem** —
+   wzorem usuwania z kroku 41: liczenie (kawałkowe, z własnym oknem, jeśli nie
+   zmieści się w pierwszym kawałku) → kopiowanie ze znanym mianownikiem
+   w bajtach. Punkt 3 zakresu („leniwe chodzenie po drzewie”) zostaje przez to
+   **odwołany co do kolejności, a nie co do kawałkowości**: chodzenie po drzewie
+   nadal jest pracą kawałkową, tylko dzieje się w całości **przed** kopiowaniem,
+   a nie na przemian z nim. Odrzucono rosnący mianownik (pasek potrafiłby się
+   cofnąć, a kryterium ukończenia mówi „pasek mówi prawdę”) i tryb „postęp
+   nieznany” (przy kopiowaniu płyty użytkownik nie wiedziałby, ile zostało —
+   czyli dokładnie w przypadku, który jest miarą powodzenia kroku).
+4. **Kolizja pyta nowym oknem wyboru w rdzeniu.** `Presentation\Ui\Overlay\ChoiceOverlay`
+   — `Dialog` plus `ListView`, **bez nowego komponentu**, wzorem `MenuOverlay`
+   z kroku 32. Sześć pozycji zamiast czterech z przełącznikiem: nadpisz / nadpisz
+   wszystkie / pomiń / pomiń wszystkie / zmień nazwę / przerwij; „do wszystkich”
+   wchodzi **teraz**, a nie z krokiem 43, bo lista źródeł istnieje od pierwszego
+   dnia (punkt 2 zakresu). Odrzucono trzeci przycisk w `ConfirmOverlay` (okno
+   mające oddawać „tak/nie” zaczęłoby oddawać trzy rzeczy) i pominięcie kolizji
+   bez pytania (D75, rozstrzygnięcie 9, odesłał pytanie o nadpisanie właśnie
+   tutaj).
+5. **Cel zapisuje się wprost, a przerwanie usuwa niedokończony plik.** Odrzucono
+   nazwę tymczasową z przemianowaniem na końcu. Cena, znana i przyjęta: zabicie
+   procesu (`SIGKILL`, awaria zasilania) zostawia plik z właściwą nazwą i połową
+   treści — `Esc` i `F10` sprzątają, `kill -9` nie ma jak.
+6. **Dowiązanie symboliczne kopiuje się jako dowiązanie**, nigdy jako jego treść.
+   Ta sama reguła, którą usługa z kroku 41 stosuje przy usuwaniu (`is_link()`
+   sprawdzane **przed** `is_dir()`), i ten sam powód: dowiązanie do `/` w drzewie
+   znaczyłoby przy podążaniu skopiowanie systemu. Pętli w drzewie nie trzeba przez
+   to wykrywać wcale — chodzenie po drzewie w nie nie wchodzi.
+7. **`F5` kopiowanie, `F6` przeniesienie, zmiana nazwy schodzi na `F4`.**
+   Wierność klasykom w parze `F5`/`F6` okazała się warta przestawienia klawisza
+   dowiezionego krok wcześniej. Odrzucono `F4` dla przeniesienia (para `F5`/`F4`
+   nie znaczy nic w żadnym menadżerze) i jedno okno robiące obie rzeczy wzorem
+   „RenMov” (jedno okno rozstrzygałoby o dwóch czynnościach, a krok 41 zbudował
+   zmianę nazwy na `EntryName`, dla którego ukośnik jest błędem).
+8. **Cel bierze się z okna ze ścieżką, wypełnionego katalogiem drugiego panelu.**
+   `PromptOverlay` z kroku 41 — dokładnie ten trzeci użytkownik, którego D75
+   (rozstrzygnięcie 8) obiecywał. `Enter` jest zarazem potwierdzeniem, więc
+   osobnego okna pytania nie ma, a droga działa **także przy wyłączonym
+   podziale**. Odrzucono cel brany z drugiego panelu bez pytania (przy wyłączonym
+   podziale kopiowanie szłoby w miejsce niewidoczne na ekranie, a kosza nie ma do
+   kroku 44).
+   **Cena:** wpisana ścieżka nie jest nazwą, więc omija `EntryName` — sprawdzenie
+   („istnieje, jest katalogiem, wolno w nim pisać”) należy do modułu, w domknięciu
+   okna.
+
+**Decyzje użytkownika (9–10 — wynikłe z odpowiedzi, bo plan ich nie
+przewidział):**
+
+9. **`WorkProgress` zyskuje gotowy napis licznika; pasek rośnie w bajtach.**
+   Do dziś okno postępu składało licznik samo z pary liczb („3840 z 30001”) — to
+   działa dla wpisów, a dla bajtów dałoby „12914688 z 734003200”. Dana rdzenia
+   dostaje więc **czwarte, opcjonalne pole**: napis licznika **już złożony przez
+   wołającego** („12,3 MB z 700 MB — plik 3 ze 120”). Pusty znaczy „złóż jak
+   dotąd”, więc usuwanie z kroku 41 zostaje nietknięte, a okno przestaje wiedzieć,
+   co liczy. Odrzucono formater rozmiaru w rdzeniu (rdzeń zyskałby pojęcie,
+   którego nie ma, a moduły liczyłyby to samo dwiema drogami — dziś rozmiar
+   zapisuje `Module\Browser\Presentation\Component\EntrySize`) i pasek liczony we
+   wpisach (kopiowanie jednego pliku wielkości płyty pokazywałoby „0 z 1”
+   i nieruchomy pasek przez cały czas pracy).
+10. **Kawałek ma stały rozmiar, dobrany pomiarem** — jedna liczba wyprowadzona
+    z budżetu klatki i sprawdzona trybem `--loop` (takt pętli w trakcie
+    kopiowania kontra bez niego), wzorem `SCAN_PER_TICK` i `DELETE_PER_TICK`
+    z kroku 41. Odrzucono kawałek dobierany do czasu poprzedniego kawałka:
+    zachowanie zależne od zegara byłoby pierwszym takim mechanizmem w projekcie
+    i test sprawdzałby regułę doboru zamiast skutku (D28 — zegar stoi po stronie
+    narzędzia pomiarowego, nie produkcji).
+
+**Rozstrzygnięcia wykonawcze, których pytania nie przewidziały, a które wynikają
+z odpowiedzi:**
+
+- **Pytanie o kolizję pada dla każdego wpisu, który miałby coś nadpisać —
+  i wyłącznie dla takiego.** Katalog docelowy o tej samej nazwie **nie jest
+  kolizją**, tylko scaleniem: utworzenie katalogu, który już jest, niczego nie
+  niszczy. Kolizją jest plik pod istniejącą ścieżką i plik pod ścieżką zajętą
+  przez katalog (i odwrotnie). „Nadpisz wszystkie” i „pomiń wszystkie” pamiętają
+  odpowiedź do końca pracy — bez tego scalenie drzewa o dwudziestu kolizjach
+  byłoby dwudziestoma pytaniami.
+- **Przeniesienie w obrębie jednego systemu plików nie liczy niczego i nie
+  kopiuje ani bajtu** — idzie `rename()`em, w całości, w klatce, w której się
+  zaczęło. Rozpoznanie idzie przez **numer urządzenia** (`lstat()['dev']` źródła
+  kontra `stat()['dev']` katalogu docelowego), a **nie** przez próbę `rename()`
+  z odczytaniem błędu: PHP obsługuje `EXDEV` dla zwykłych plików sam, kopiując je
+  wewnątrz wywołania — czyli dokładnie tak, jak ten krok kopiować nie może, bo
+  zatrzymałoby to pętlę na czas całego pliku. Pułapka warta zapamiętania:
+  **`rename()` w PHP nie zawsze jest operacją na metadanych.**
+- **Źródło znika dopiero po potwierdzonym zapisaniu celu** i to jest reguła
+  nieodwoływalna (punkt 4 zakresu): przy przenoszeniu między systemami plików
+  usunięcie źródła jest ostatnią czynnością **każdego pliku z osobna**, a katalogi
+  źródłowe znikają na końcu, w kolejności odwrotnej do odkrycia — tą samą regułą,
+  którą krok 41 usuwa drzewo.
+- **Prawa i czas zmiany ustawiają się na końcu pracy, nie przy tworzeniu.**
+  Katalog o prawach `0555` musi być zapisywalny, dopóki wchodzi do niego
+  zawartość, więc kopia dostaje prawa dopiero wtedy, gdy jest kompletna —
+  osobnymi pozycjami na końcu tej samej listy pracy, w kolejności odwrotnej do
+  odkrycia. Właściciela nie kopiujemy w ogóle (punkt 8 zakresu).
+- **Kopiowanie w miejsce, z którego się kopiuje, jest niemożliwe i mówi
+  dlaczego** — sprawdzeniem ścieżkowym w `begin()`, nie limitem: cel równy
+  katalogowi źródła, cel wewnątrz kopiowanego katalogu i źródło równe celowi to
+  trzy zdania w katalogu napisów, a nie trzy drogi do pętli nieskończonej.
+- **Czynność mieszka w `Presentation` modułu, nie w jego `Application`.** Plan
+  przewidywał `CopyEntriesUseCase` i `MoveEntriesUseCase`; powstaje zamiast nich
+  `EntryTransfer` — wzorem `EntryOperations` z kroku 41 i z tego samego powodu:
+  klasa składa łańcuch okien i zna `LoopState`, a to jest warstwa prezentacji
+  (D41). Przypadek użycia, który niczego nie robi poza wywołaniem portu, byłby
+  warstwą przepisującą argumenty.
+
+**Dług spłacany przy okazji, bo krok dowozi mu pierwszego prawdziwego odbiorcę:**
+`ConfirmOverlay` liczy szerokość z długości napisu i nie ma górnej granicy, którą
+`PromptOverlay` dostał po obejrzeniu okna w prawdziwym terminalu (dziennik kroku
+41). Pytania tego kroku niosą **nazwy plików**, więc granica wchodzi tu razem
+z nimi — D77 wskazał krok 42 jako właściciela tego długu.

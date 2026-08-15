@@ -31,6 +31,7 @@ use LightManager\Infrastructure\Diagnostics\DumpingFrameRenderer;
 use LightManager\Infrastructure\Diagnostics\FrameDumpService;
 use LightManager\Infrastructure\Diagnostics\TrackImageGrabbers;
 use LightManager\Infrastructure\FileSystem\FileOperationsService;
+use LightManager\Infrastructure\FileSystem\FileTransferService;
 use LightManager\Infrastructure\Glfw\GlfwInputService;
 use LightManager\Infrastructure\Glfw\GlfwViewportService;
 use LightManager\Infrastructure\Glfw\GlfwWindowService;
@@ -355,15 +356,18 @@ final class Bootstrap
         SettingsService $settings,
     ): array {
         return [
-            // Port operacji na plikach jest **piątą rzeczą rdzenia**, którą dostaje
-            // przeglądarka (krok 41): usługa zapisu mieszka w rdzeniu jako wspólna,
-            // bo drugim jej odbiorcą jest moduł opisu pliku, a moduł nigdy nie
-            // sięga do innego modułu (D66, jawny wyjątek od reguły 15).
+            // Porty zapisu są **piątą i szóstą rzeczą rdzenia**, którą dostaje
+            // przeglądarka (kroki 41 i 42): usługi pisania po dysku mieszkają
+            // w rdzeniu jako wspólne, bo drugim ich odbiorcą jest moduł opisu
+            // pliku, a moduł nigdy nie sięga do innego modułu (D66, jawny wyjątek
+            // od reguły 15). Porty są dwa, bo czynność natychmiastowa i praca
+            // kawałkowa mają zupełnie inny stan (D79, nr 1).
             new BrowserModule(
                 $state,
                 $translator,
                 $settings,
                 FileOperationsService::getInstance(),
+                FileTransferService::getInstance(),
             ),
             new FileInfoModule(
                 $state,

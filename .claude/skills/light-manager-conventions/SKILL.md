@@ -112,6 +112,16 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     wpisanego napisu **nie ocenia**) i `ProgressOverlay` (nazwa, licznik, pasek;
     karmiony ogólną daną `Application\Dto\WorkProgress`, a pasek pokazuje
     dopiero wtedy, gdy praca zna swoją całość).
+    **Krok 42 dokłada trzecie i przesuwa granicę domknięcia.** `PromptOverlay`
+    oddaje odtąd `OverlayOutcome`, a nie `?Message` — tą samą drogą, którą krok 41
+    przeprowadził `ConfirmOverlay`, i z tego samego powodu: okno stoi **w środku**
+    łańcucha, bo wpisana ścieżka zaczyna pracę pokazywaną oknem postępu. Nowe okno
+    to `ChoiceOverlay` — pytanie o **więcej niż dwie odpowiedzi**, złożone
+    z `Dialog`u i `ListView`, z pozycjami podanymi jako klucze katalogu i `Esc`
+    znaczącym odpowiedź **ostatnią** (praca czeka, więc okno zamknięte milczkiem
+    zostawiłoby ją stojącą). Licznik okna pracy wolno **podać gotowym napisem**
+    w `WorkProgress`, gdy praca liczy w czymś innym niż sztuki: `12914688`
+    zapisane jako `12,3 MB` wymaga jednostek, a te idą przez katalog napisów.
 11a. **Komponent jest bezstanowy** — powstaje na nowo w każdej klatce, więc co ma
     przeżyć klatkę, mieszka **obok** niego, a właścicielem jest ekran. Dwie takie
     klasy: `Presentation\Ui\ScrollWindow` (wycinek listy, krok 18) i
@@ -167,6 +177,18 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     niepowodzeniem** — `du` kończy się jedynką za nieprzeczytany katalog, a wynik
     mimo to podaje. Pierwszy odbiorca: wiersz „zajęte na dysku” w `FileInfo`,
     tylko dla katalogów i tylko na klawisz `d`.
+    **Trzecim i czwartym użytkownikiem wzorca są operacje na plikach** (kroki 41
+    i 42) i one dokładają piątą regułę: praca, która **zmienia dysk**, posuwa się
+    w `GameLoop` (przez `RunsWork`), a nie w `draw()` — rysowanie nie ma prawa mieć
+    skutków ubocznych. Kopiowanie dokłada trzy rzeczy warte zapamiętania: **liczy
+    przed pracą** (mianownik znany od pierwszego bajtu, więc pasek nie cofa się),
+    **mierzy dwiema miarami naraz** (pasek w bajtach, licznik we wpisach) i ma
+    **przystanek w środku pracy** (`Colliding` — pytanie o kolizję nazw, po którym
+    praca rusza dalej). Pułapka, na którą uważaj przy plikach: **`rename()` w PHP
+    nie zawsze jest operacją na metadanych** — dla zwykłych plików obsługuje
+    `EXDEV` sam, kopiując je w środku wywołania, więc „ten sam system plików”
+    sprawdza się **numerem urządzenia** (`lstat()['dev']`), a nie próbą
+    i odczytaniem błędu.
 11e. **Miejsce dzieli się jedną regułą na obie osie** (krok 27, D49):
     `Container\Span` niesie minimum, rozmiar preferowany i kolejność ustępowania,
     a `Container\Distribution` je dzieli — wiersze dla `VStack`, kolumny dla
@@ -474,10 +496,15 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     a powtórzone `unlink()` kosztuje utratę danych w dwóch miejscach zamiast
     w jednym. Powtórzony rachunek `permissionsAsText()` wolno było zostawić, bo
     kosztował dziesięć linii bez skutków ubocznych.
+    **Granicą jest katalog `Infrastructure/FileSystem`, a nie jedna klasa**
+    (krok 42, D79 nr 1): kopiowanie dostało własny port i własną usługę, bo jego
+    stan nie ma nic wspólnego ze stanem usuwania. Zasada zostaje ta sama —
+    wszystko, co pisze po dysku, idzie **przez port rdzenia**.
     **Granica wyjątku, poza którą nie wolno wyjść:** rdzeń zna *ścieżkę
     bezwzględną jako napis*, *nazwę jako napis* (bez oceny, czy jest poprawna),
-    *cztery czynności* (zmiana nazwy, nowy katalog, usunięcie wpisu, usunięcie
-    drzewa pracą kawałkową) i *stan tej pracy*. Nie zna wpisu, katalogu,
+    *sześć czynności* (zmiana nazwy, nowy katalog, usunięcie wpisu, usunięcie
+    drzewa, kopiowanie i przeniesienie — trzy ostatnie pracą kawałkową) i *stan tej
+    pracy*. Nie zna wpisu, katalogu,
     sortowania, ukrywania, zaznaczenia ani podglądu — `Entry`, `Directory`,
     `DirectoryPath` i `EntryType` nie mają prawa trafić do sygnatury niczego
     w `src/Application` ani `src/Domain` (pilnuje `CoreKnowsNothingAboutFilesTest`).

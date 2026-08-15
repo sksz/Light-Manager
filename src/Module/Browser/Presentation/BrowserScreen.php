@@ -91,6 +91,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
         private readonly HiddenEntries $hidden,
         private readonly TranslatorPort $translator,
         private readonly EntryOperations $entries,
+        private readonly EntryTransfer $transfers,
     ) {
     }
 
@@ -330,10 +331,14 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
             KeyBinding::character('.', 'module.browser.help.hidden', 'module.browser.help.hidden.short'),
             KeyBinding::character('/', 'module.browser.help.filter', 'module.browser.help.filter.short'),
             KeyBinding::ctrl(self::TREE_KEY, 'module.browser.help.tree', 'module.browser.help.tree.short'),
-            // Trzy czynności zmieniające dysk (krok 41). Klawisze z układu
-            // klasycznych menadżerów: `F6` nazwa, `F7` katalog, `F8` usunięcie —
-            // a `F5` zostaje wolne dla kopiowania z kroku 42.
-            KeyBinding::of([Key::F6], 'module.browser.help.rename', 'module.browser.help.rename.short'),
+            // Pięć czynności zmieniających dysk: trzy z kroku 41 i dwie z kroku 42.
+            // Klawisze z układu klasycznych menadżerów, i to on rozstrzygnął spór
+            // o `F6`: para `F5` kopiowanie / `F6` przeniesienie jest tam jedną
+            // rzeczą, więc zmiana nazwy zeszła na wolne `F4` (D79, nr 7) — mimo że
+            // `F6` znaczył ją przez cały krok 41.
+            KeyBinding::of([Key::F4], 'module.browser.help.rename', 'module.browser.help.rename.short'),
+            KeyBinding::of([Key::F5], 'module.browser.help.copy', 'module.browser.help.copy.short'),
+            KeyBinding::of([Key::F6], 'module.browser.help.move', 'module.browser.help.move.short'),
             KeyBinding::of([Key::F7], 'module.browser.help.mkdir', 'module.browser.help.mkdir.short'),
             KeyBinding::of([Key::F8, Key::Delete], 'module.browser.help.delete', 'module.browser.help.delete.short'),
         ];
@@ -375,8 +380,16 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
         // (krok 41): zmiana nazwy i usunięcie dotyczą wpisu pod kursorem, a kursor
         // ma i lista, i drzewo. Klawisz znaczący w obu widokach to samo nie ma po
         // co trafiać do dwóch gałęzi.
-        if ($key->key === Key::F6) {
+        if ($key->key === Key::F4) {
             return $this->entries->renamePrompt();
+        }
+
+        if ($key->key === Key::F5) {
+            return $this->transfers->copyPrompt();
+        }
+
+        if ($key->key === Key::F6) {
+            return $this->transfers->movePrompt();
         }
 
         if ($key->key === Key::F7) {

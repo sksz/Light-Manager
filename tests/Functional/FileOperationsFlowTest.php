@@ -109,12 +109,18 @@ final class FileOperationsFlowTest extends TestCase
         self::assertDirectoryDoesNotExist($this->root . '/a');
     }
 
-    /** `F6` z nazwą bieżącą w polu: kursor idzie **za nową nazwą**. */
+    /**
+     * `F4` z nazwą bieżącą w polu: kursor idzie **za nową nazwą**.
+     *
+     * Klawisz zszedł tu z `F6` w kroku 42: para `F5`/`F6` znaczy w klasycznych
+     * menadżerach kopiowanie i przeniesienie, więc zmiana nazwy ustąpiła im
+     * miejsca (D79, nr 7).
+     */
     public function testRenamingFollowsTheNewName(): void
     {
         $this->select('notatka.txt');
 
-        $this->press(Key::F6);
+        $this->press(Key::F4);
         $this->clear();
         $this->type('umowa.txt');
         $this->press(Key::Enter);
@@ -354,6 +360,10 @@ final class FileOperationsFlowTest extends TestCase
         $this->select('notatka.txt');
 
         $this->press(Key::F9);
+
+        // `browser.delete` stoi w menu drugi: rejestr układa pozycje
+        // alfabetycznie, a krok 42 dołożył przed nim `browser.copy`.
+        $this->press(Key::ArrowDown);
         $this->press(Key::Enter);
 
         self::assertSame('confirm', $this->app->state->overlays()->current()?->id());

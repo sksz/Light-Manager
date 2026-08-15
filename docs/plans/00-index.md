@@ -268,7 +268,7 @@ z powodem — nienazwana, otworzyłaby rdzeń na wszystko.
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
 | 41 | Fundament operacji: nazwa, nowy katalog, usunięcie | [41-operacje-fundament.md](archiwum/41-operacje-fundament.md) | 14, 15, 18, 19, 21, 24, 28, 38 | Opus | high | Ukończony z zastrzeżeniem |
-| 42 | Kopiowanie i przenoszenie po kawałku, z postępem | [42-kopiowanie-i-przenoszenie.md](42-kopiowanie-i-przenoszenie.md) | 23, 24, 25, 38, 41 | Fable | xhigh | Nie rozpoczęty |
+| 42 | Kopiowanie i przenoszenie po kawałku, z postępem | [42-kopiowanie-i-przenoszenie.md](archiwum/42-kopiowanie-i-przenoszenie.md) | 23, 24, 25, 38, 41, 47 | Fable | xhigh | Ukończony |
 | 43 | Zaznaczenie wielokrotne jako mnożnik operacji | [43-zaznaczenie-wielokrotne.md](43-zaznaczenie-wielokrotne.md) | 21, 27, 28, 30, 38, 41 | Opus | high | Nie rozpoczęty |
 | 44 | Kosz i cofnięcie ostatniej operacji | [44-kosz-i-cofanie.md](44-kosz-i-cofanie.md) | 6, 14, 15, 19, 29, 38, 41, 42 | Opus | high¹ | Nie rozpoczęty |
 
@@ -319,7 +319,7 @@ dotyczy wzorców pomiarowych w trzech torach — przelicza się je raz.
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 47 | Spłata długów: komenda otwiera okno, strefa bez odbiorcy, zakładka bez przewijania | [47-splata-dlugow.md](47-splata-dlugow.md) | 14, 18, 19, 21, 22, 29, 32, 33, 38, 40, 41 | Fable² | xhigh | Ukończony |
+| 47 | Spłata długów: komenda otwiera okno, strefa bez odbiorcy, zakładka bez przewijania | [47-splata-dlugow.md](archiwum/47-splata-dlugow.md) | 14, 18, 19, 21, 22, 29, 32, 33, 38, 40, 41 | Fable² | xhigh | Ukończony |
 
 ² Model **rozstrzygnięty 2026-08-14** (D78, rozstrzygnięcie 4): trzecia strefa
 wychodzi z `ScreenInterface`, więc krok rusza kontrakt ekranu, układ, kompozytor
@@ -653,6 +653,17 @@ tej listy). Poza prostym
     zależy **odwrotnie niż zwykle**: bierze go jako wzorzec do **odrzucenia** —
     proces potomny prowadzi jedną pracę naraz i wypierałby `du`, a postępu nie
     zna.
+
+    **Wykonany — a trzy z tych zależności okazały się inne, niż zakładano.** Od
+    **41** krok zależy nawet mocniej, niż mówił plan, ale **nie tam, gdzie go
+    szukano**: nie chodzi o port operacji (kopiowanie ma własny), tylko o
+    `RunsWork`, `ProgressOverlay` i `PromptOverlay` — czyli o **okna**. Od **23**
+    zależy **słabiej**: tryb „postęp nieznany” nie dostał tu drugiego użytkownika,
+    bo etap liczenia sprawia, że postęp jest znany od pierwszego bajtu; przy
+    liczeniu paska nie ma w ogóle. Doszła za to zależność od **47**, której plan
+    nie wymieniał, bo tamten krok jeszcze nie istniał: `OpensOverlay` dał obu
+    czynnościom komendę i pozycję w menu `F9` **za darmo**, dokładnie tak, jak
+    obiecywał rachunek z D77.
   - **43** (zaznaczenie wielokrotne) zależy od **41** (jest mnożnikiem jego
     czynności), od **30** (reguła „zaznaczenie przenosi się po nazwie” i drugi
     widok na tę samą listę), od **27** (wiersz, w którym znacznik ma się
@@ -715,7 +726,7 @@ z tabel powyżej.
 
 Katalog `docs/plans/` trzyma **wyłącznie kroki, przed którymi jeszcze praca**:
 nierozpoczęte, w toku i zablokowane. Kroki ukończone przenoszą się do
-[archiwum/](archiwum/) — dziś jest ich 41 z 47, więc bez tego podziału lista
+[archiwum/](archiwum/) — dziś jest ich 43 z 47, więc bez tego podziału lista
 tego, co zostało do zrobienia, ginęła w historii projektu.
 
 Trzy rzeczy, które przy tym **nie** zmieniają miejsca, bo są dokumentami

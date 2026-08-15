@@ -75,6 +75,8 @@ return [
     // Drzewo katalogów (krok 31). Opisy strzałek widać wyłącznie w panelu
     // pokazującym drzewo — w liście te same klawisze znaczą co innego.
     'module.browser.help.rename' => 'zmiana nazwy wpisu',
+    'module.browser.help.copy' => 'kopiowanie wpisu',
+    'module.browser.help.move' => 'przeniesienie wpisu',
     'module.browser.help.mkdir' => 'nowy katalog',
     'module.browser.help.delete' => 'usunięcie wpisu',
     'module.browser.help.tree' => 'panel jako drzewo albo lista',
@@ -92,6 +94,8 @@ return [
     'module.browser.help.filter.short' => 'filtr',
     'module.browser.help.filter.clear.short' => 'bez filtra',
     'module.browser.help.rename.short' => 'nazwa',
+    'module.browser.help.copy.short' => 'kopiuj',
+    'module.browser.help.move.short' => 'przenieś',
     'module.browser.help.mkdir.short' => 'katalog',
     'module.browser.help.delete.short' => 'usuń',
     'module.browser.help.tree.short' => 'drzewo',
@@ -123,6 +127,10 @@ return [
     'module.browser.command.rename' => 'zmień nazwę zaznaczonego wpisu',
     'module.browser.command.mkdir' => 'utwórz katalog w katalogu panelu',
     'module.browser.command.delete' => 'usuń zaznaczony wpis',
+    // Dwie komendy kroku 42. Ścieżka jest opcjonalna: bez niej otwiera się okno
+    // z katalogiem drugiego panelu, czyli to samo, co pod klawiszem.
+    'module.browser.command.copy' => 'skopiuj zaznaczony wpis do wskazanego katalogu',
+    'module.browser.command.move' => 'przenieś zaznaczony wpis do wskazanego katalogu',
     'module.browser.argument.path' => 'ścieżka',
     'module.browser.argument.name' => 'nazwa',
     'module.browser.jump.failed' => 'Nie można otworzyć katalogu „{path}”.',
@@ -155,6 +163,51 @@ return [
         'Przerwano — usunięto {count} wpisów z {total}.',
     ],
     'module.browser.delete.abandoned' => 'Liczenie przerwane — dysk nietknięty.',
+
+    // Kopiowanie i przenoszenie (krok 42). Tytuły okien kończą się dwukropkiem,
+    // bo pod nimi stoi pole ze ścieżką — a nie pytanie o tak albo nie.
+    'module.browser.copy.title' => 'Skopiuj „{name}” do:',
+    'module.browser.move.title' => 'Przenieś „{name}” do:',
+    'module.browser.copy.progress' => 'Kopiowanie „{name}”',
+    'module.browser.move.progress' => 'Przenoszenie „{name}”',
+    'module.browser.transfer.counting' => 'Liczenie zawartości „{name}”',
+    'module.browser.transfer.abandoned' => 'Liczenie przerwane — dysk nietknięty.',
+    // Licznik idzie w środek paska, więc jest krótki: rozmiar, a po kropce
+    // wypunktowującej — który to wpis z ilu.
+    'module.browser.transfer.counter' => '{done} z {total} · {entry}/{entries}',
+    'module.browser.transfer.counter.size' => '{done} z {total}',
+    'module.browser.transfer.needsOverlay' => 'Kopiowanie wymaga okna — użyj klawisza F5 albo F6 lub menu F9.',
+
+    // Kolizja nazw: sześć odpowiedzi, bo „do wszystkich” jest inną odpowiedzią,
+    // a nie przełącznikiem przy tamtych czterech (D79, nr 4).
+    'module.browser.transfer.collision' => 'W celu jest już „{name}”',
+    'module.browser.transfer.overwrite' => 'Nadpisz',
+    'module.browser.transfer.overwriteAll' => 'Nadpisz wszystkie',
+    'module.browser.transfer.skip' => 'Pomiń',
+    'module.browser.transfer.skipAll' => 'Pomiń wszystkie',
+    'module.browser.transfer.rename' => 'Zapisz pod inną nazwą',
+    'module.browser.transfer.abort' => 'Przerwij',
+    'module.browser.transfer.newName' => 'Nowa nazwa dla „{name}”',
+    'module.browser.copy.done' => [
+        'Skopiowano {count} wpis.',
+        'Skopiowano {count} wpisy.',
+        'Skopiowano {count} wpisów.',
+    ],
+    'module.browser.move.done' => [
+        'Przeniesiono {count} wpis.',
+        'Przeniesiono {count} wpisy.',
+        'Przeniesiono {count} wpisów.',
+    ],
+    'module.browser.copy.stopped' => [
+        'Przerwano — skopiowano {count} wpis z {total}.',
+        'Przerwano — skopiowano {count} wpisy z {total}.',
+        'Przerwano — skopiowano {count} wpisów z {total}.',
+    ],
+    'module.browser.move.stopped' => [
+        'Przerwano — przeniesiono {count} wpis z {total}.',
+        'Przerwano — przeniesiono {count} wpisy z {total}.',
+        'Przerwano — przeniesiono {count} wpisów z {total}.',
+    ],
 
     // Nazwa wpisana przez użytkownika — każdy powód odmowy ma własne zdanie.
     'module.browser.name.empty' => 'Nazwa nie może być pusta.',

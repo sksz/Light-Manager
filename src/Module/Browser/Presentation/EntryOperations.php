@@ -13,8 +13,6 @@ use LightManager\Domain\Exception\DescribesProblem;
 use LightManager\Domain\Exception\FileOperationException;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\Browser\Application\BrowserSettings;
-use LightManager\Module\Browser\Application\UseCase\OpenStartingDirectoryUseCase;
-use LightManager\Module\Browser\Application\UseCase\ReloadDirectoryUseCase;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Domain\Exception\DirectoryNotReadableException;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
@@ -79,8 +77,7 @@ final class EntryOperations
     public function __construct(
         private readonly BrowserPanes $panes,
         private readonly FileOperationsPort $operations,
-        private readonly ReloadDirectoryUseCase $reload,
-        private readonly OpenStartingDirectoryUseCase $fallback,
+        private readonly PaneRefresh $refreshPanes,
         private readonly LoopState $state,
         private readonly TranslatorPort $translator,
     ) {
@@ -107,7 +104,7 @@ final class EntryOperations
             'module.browser.rename.title',
             ['name' => $entry->name],
             $entry->name,
-            fn (string $value): ?Message => $this->rename($value),
+            fn (string $value): OverlayOutcome => OverlayOutcome::close($this->rename($value)),
             $this->translator,
         ));
     }
@@ -136,7 +133,7 @@ final class EntryOperations
             'module.browser.mkdir.title',
             [],
             '',
-            fn (string $value): Message => $this->createDirectory($value),
+            fn (string $value): OverlayOutcome => OverlayOutcome::close($this->createDirectory($value)),
             $this->translator,
         ));
     }
@@ -438,50 +435,12 @@ final class EntryOperations
     /**
      * Odświeżenie po zmianie na dysku — **obu paneli**, jeśli oba jej dotyczą.
      *
-     * Panel odświeża się w dwóch przypadkach: patrzy dokładnie na zmieniony
-     * katalog albo leży **w środku** niego. Drugi jest tym, o którym łatwo
-     * zapomnieć: usunięcie katalogu wyciąga panelowi ziemię pod nogami, a wtedy
-     * ponowny odczyt się nie udaje i panel wchodzi do najbliższego czytelnego
-     * wyżej — tą samą drogą, którą aplikacja otwiera katalog startowy.
-     *
-     * Drzewa tracą zapamiętane gałęzie bezwarunkowo: zmiana mogła dotyczyć
-     * dowolnego poziomu, a gałęzie wracają po jednej na takt (D46), więc
-     * zapomnienie ich kosztuje najwyżej kilka odczytów rozwiniętych węzłów.
+     * Rachunek wyprowadził się w kroku 42 do `PaneRefresh`, bo doszedł drugi
+     * wołający (kopiowanie), a ten zmienia dwa katalogi naraz.
      */
     private function refresh(DirectoryPath $changed, ?string $select): void
     {
-        foreach ($this->panes->all() as $pane) {
-            $path = $pane->directory()->path();
-
-            if ($path->equals($changed)) {
-                $this->reloadPane($pane, $select);
-
-                continue;
-            }
-
-            if (self::liesInside($path, $changed)) {
-                $this->reloadPane($pane, null);
-            }
-        }
-
-        $this->panes->forgetBranches();
-    }
-
-    private function reloadPane(BrowserState $pane, ?string $select): void
-    {
-        $hidden = $pane->showsHiddenEntries();
-
-        try {
-            $pane->refresh($this->reload->execute($pane->directory(), $hidden, $select), $select);
-        } catch (DirectoryNotReadableException) {
-            $pane->enter($this->fallback->execute($pane->directory()->path(), $hidden));
-        }
-    }
-
-    /** Czy ścieżka leży wewnątrz katalogu — rachunek tekstowy, bez pytania dysku. */
-    private static function liesInside(DirectoryPath $path, DirectoryPath $root): bool
-    {
-        return str_starts_with($path->value, $root->isRoot() ? '/' : $root->value . '/');
+        $this->refreshPanes->after($changed, $select);
     }
 
     /**
@@ -510,10 +469,7 @@ final class EntryOperations
      */
     private function selection(): ?array
     {
-        $directory = $this->panes->focusedDirectory();
-        $entry = $directory->selectedEntry();
-
-        return $entry === null ? null : [$directory, $entry];
+        return $this->panes->focusedSelection();
     }
 
     /**

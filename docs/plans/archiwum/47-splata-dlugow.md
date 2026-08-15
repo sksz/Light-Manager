@@ -13,7 +13,7 @@
 
 **Ukończony** (2026-08-14). Trzy długi spłacone w całości, bez zastrzeżeń.
 Rozstrzygnięcia startowe — dziewięć, z czego jedno przerysowuje granicę z D69,
-a jedno odwraca opis długu w tym pliku — leżą w [00-decyzje.md](00-decyzje.md),
+a jedno odwraca opis długu w tym pliku — leżą w [00-decyzje.md](../00-decyzje.md),
 D78.
 
 ## Ustalenia (decyzje użytkownika, 2026-08-14)

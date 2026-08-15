@@ -11,6 +11,7 @@ use LightManager\Application\Module\ModuleShortcut;
 use LightManager\Application\Module\ProvidesCommands;
 use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Port\FileOperationsPort;
+use LightManager\Application\Port\FileTransferPort;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
@@ -27,10 +28,12 @@ use LightManager\Module\Browser\Domain\Repository\DirectoryRepositoryInterface;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
 use LightManager\Module\Browser\Infrastructure\EntryComparator;
 use LightManager\Module\Browser\Infrastructure\FilesystemDirectoryRepository;
+use LightManager\Module\Browser\Presentation\Command\CopyCommand;
 use LightManager\Module\Browser\Presentation\Command\DeleteCommand;
 use LightManager\Module\Browser\Presentation\Command\HiddenCommand;
 use LightManager\Module\Browser\Presentation\Command\JumpCommand;
 use LightManager\Module\Browser\Presentation\Command\MakeDirectoryCommand;
+use LightManager\Module\Browser\Presentation\Command\MoveCommand;
 use LightManager\Module\Browser\Presentation\Command\OpenCommand;
 use LightManager\Module\Browser\Presentation\Command\RenameCommand;
 use LightManager\Module\Browser\Presentation\Command\TreeCommand;
@@ -89,6 +92,7 @@ final class BrowserModule implements
         private readonly TranslatorPort $translator,
         private readonly SettingsPort $settings,
         private readonly FileOperationsPort $operations,
+        private readonly FileTransferPort $transfers,
         private readonly ?DirectoryRepositoryInterface $directories = null,
         private readonly ?DirectoryPath $startingPath = null,
     ) {
@@ -162,14 +166,13 @@ final class BrowserModule implements
         // a katalog panelu, któremu usunięto przodka, wraca do najbliższego
         // czytelnego wyżej — czyli tam, gdzie prowadzi otwieranie katalogu
         // startowego.
-        $entries = new EntryOperations(
-            $panes,
-            $this->operations,
-            $reload,
-            new OpenStartingDirectoryUseCase($directories),
-            $this->state,
-            $this->translator,
-        );
+        $refresh = new PaneRefresh($panes, $reload, new OpenStartingDirectoryUseCase($directories));
+        $entries = new EntryOperations($panes, $this->operations, $refresh, $this->state, $this->translator);
+
+        // Dwie czynności dłuższe od klatki (krok 42) — osobno od tamtych trzech,
+        // bo prowadzą pracę kawałkową z własnym stanem i własnym łańcuchem okien.
+        // Odświeżenie paneli mają wspólne: dysk jest jeden, a panele te same.
+        $transfers = new EntryTransfer($panes, $this->transfers, $refresh, $this->translator);
 
         return [
             new BrowserScreen(
@@ -181,6 +184,7 @@ final class BrowserModule implements
                 $hidden,
                 $this->translator,
                 $entries,
+                $transfers,
             ),
             [
                 new JumpCommand($panes, $directories, $this->translator),
@@ -190,6 +194,8 @@ final class BrowserModule implements
                 new RenameCommand($entries, $this->translator),
                 new MakeDirectoryCommand($entries, $this->translator),
                 new DeleteCommand($entries, $this->translator),
+                new CopyCommand($transfers, $this->translator),
+                new MoveCommand($transfers, $this->translator),
             ],
         ];
     }

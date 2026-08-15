@@ -64,6 +64,23 @@ final class ConfirmOverlay implements OverlayInterface
     /** Odstęp między przyciskami, w kolumnach. */
     private const BUTTON_GAP = 2;
 
+    /**
+     * Górna granica szerokości — **dług kroku 41 spłacony w kroku 42**, bo to on
+     * dowiózł pierwszego prawdziwego odbiorcę.
+     *
+     * `PromptOverlay` dostał ją po obejrzeniu okna w prawdziwym terminalu: tytuł
+     * z pełną ścieżką rozdmuchiwał okno na całą szerokość klatki. Pytanie ma ten
+     * sam rachunek i tę samą usterkę — dziś już z odbiorcą, bo nazwa wpisu wchodzi
+     * do pytania przed usunięciem, a nazwy plików bywają dłuższe od okna.
+     *
+     * Pytanie dłuższe od granicy **ucina** `Dialog` wielokropkiem, tak jak ucina
+     * każdy napis, i jest to świadoma cena: zawijanie znaczyłoby okno o wysokości
+     * zależnej od treści, czyli nowy mechanizm w oknie, które ma zadawać jedno
+     * pytanie. Nazwa ucięta w pytaniu stoi przy tym pod kursorem listy, więc
+     * użytkownik widzi ją w całości piętro niżej.
+     */
+    private const MAX_COLUMNS = 64;
+
     /** Ognisko: `false` znaczy „nie”, czyli stan początkowy. */
     private bool $confirmed = false;
 
@@ -93,11 +110,11 @@ final class ConfirmOverlay implements OverlayInterface
     /** Okno staje pośrodku, w rozmiarze mieszczącym pytanie i oba przyciski. */
     public function bounds(int $rows, int $columns): Rect
     {
-        $width = max(
+        $width = min(max(
             mb_strlen($this->title()),
             mb_strlen($this->question()),
             $this->widthOf(true) + self::BUTTON_GAP + $this->widthOf(false),
-        ) + 2 * self::PADDING_COLUMNS;
+        ), self::MAX_COLUMNS) + 2 * self::PADDING_COLUMNS;
 
         $height = min(self::CHROME_ROWS, max(1, $rows - self::MARGIN_ROWS));
         $width = min($width, max(1, $columns - self::MARGIN_COLUMNS));

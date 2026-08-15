@@ -34,11 +34,13 @@ final class ContextMenuFlowTest extends TestCase
     }
 
     /**
-     * Menu na katalogu: wejście, opis wpisu i **trzy operacje na plikach**.
+     * Menu na katalogu: wejście, opis wpisu i **pięć operacji na plikach**.
      *
      * Do kroku 47 pozycje były dwie, bo czynności kroku 41 nie umiały otworzyć
      * okna (D75, rozstrzygnięcie 5). Zdolność `OpensOverlay` to zmieniła i ten
-     * test jest dowodem spłaty tamtego długu.
+     * test jest dowodem spłaty tamtego długu — a krok 42 dowiózł dwie następne
+     * (`browser.copy`, `browser.move`) **bez zmiany w rdzeniu**, czyli dokładnie
+     * tak, jak zapowiadał rachunek z D77.
      */
     public function testMenuOnADirectoryShowsWhatCanBeDoneWithADirectory(): void
     {
@@ -46,7 +48,15 @@ final class ContextMenuFlowTest extends TestCase
 
         self::assertTrue($this->app->state->overlays()->isOpen());
         self::assertSame(
-            ['browser.delete', 'browser.mkdir', 'browser.open', 'browser.rename', 'file-info.show'],
+            [
+                'browser.copy',
+                'browser.delete',
+                'browser.mkdir',
+                'browser.move',
+                'browser.open',
+                'browser.rename',
+                'file-info.show',
+            ],
             $this->itemsOnScreen(),
         );
     }
@@ -61,7 +71,7 @@ final class ContextMenuFlowTest extends TestCase
         $this->special(Key::F9);
 
         self::assertSame(
-            ['browser.delete', 'browser.mkdir', 'browser.rename', 'file-info.show'],
+            ['browser.copy', 'browser.delete', 'browser.mkdir', 'browser.move', 'browser.rename', 'file-info.show'],
             $this->itemsOnScreen(),
         );
     }
@@ -118,10 +128,12 @@ final class ContextMenuFlowTest extends TestCase
         $throughMenu = self::fixture();
         $throughMenu->input->handle(KeyPress::special(Key::F9, ''), $throughMenu->state, self::NOW);
 
-        // `browser.open` stoi w menu trzecia (po `delete` i `mkdir`), a wybór
-        // idzie strzałkami — pozycji nie wskazuje się numerem nigdzie indziej.
-        $throughMenu->input->handle(KeyPress::special(Key::ArrowDown, ''), $throughMenu->state, self::NOW);
-        $throughMenu->input->handle(KeyPress::special(Key::ArrowDown, ''), $throughMenu->state, self::NOW);
+        // `browser.open` stoi w menu piąta (rejestr układa pozycje alfabetycznie,
+        // więc idą przed nią `copy`, `delete`, `mkdir` i `move`), a wybór idzie
+        // strzałkami — pozycji nie wskazuje się numerem nigdzie indziej.
+        for ($step = 0; $step < 4; ++$step) {
+            $throughMenu->input->handle(KeyPress::special(Key::ArrowDown, ''), $throughMenu->state, self::NOW);
+        }
         $throughMenu->input->handle(KeyPress::special(Key::Enter, "\r"), $throughMenu->state, self::NOW);
 
         $throughWindow = self::fixture();
@@ -148,10 +160,11 @@ final class ContextMenuFlowTest extends TestCase
         $this->special(Key::ArrowDown);
         $this->special(Key::F9);
 
-        // Na pliku menu ma cztery pozycje, a `file-info.show` jest ostatnia.
-        $this->special(Key::ArrowDown);
-        $this->special(Key::ArrowDown);
-        $this->special(Key::ArrowDown);
+        // Na pliku menu ma sześć pozycji, a `file-info.show` jest ostatnia.
+        for ($step = 0; $step < 5; ++$step) {
+            $this->special(Key::ArrowDown);
+        }
+
         $this->special(Key::Enter);
 
         self::assertSame('file-info', $this->app->screens->current()->id());

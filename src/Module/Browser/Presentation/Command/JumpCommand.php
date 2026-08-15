@@ -147,15 +147,12 @@ final class JumpCommand implements CommandInterface, SuggestsArguments
     /**
      * Ścieżka bezwzględna z tego, co wpisał użytkownik. Wartość względna liczy
      * się od bieżącego miejsca — tak samo, jak liczyłaby ją powłoka.
+     *
+     * Sam rachunek zszedł w kroku 42 do `DirectoryPath`, gdy zamówiło go drugie
+     * miejsce: okno pytające o katalog docelowy kopiowania.
      */
     private function resolved(string $value): DirectoryPath
     {
-        if (str_starts_with($value, '/')) {
-            return new DirectoryPath($value);
-        }
-
-        $current = $this->panes->focused()->directory()->path();
-
-        return $value === '' ? $current : new DirectoryPath($current->value . '/' . $value);
+        return DirectoryPath::resolvedFrom($value, $this->panes->focused()->directory()->path());
     }
 }

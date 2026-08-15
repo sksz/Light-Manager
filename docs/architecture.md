@@ -105,7 +105,8 @@ Granica tej wiedzy jest **wąska i szersza być nie ma prawa**:
 | ścieżka bezwzględna jako **napis** | czym jest wpis katalogu (`Entry`) |
 | nazwa jako **napis** — bez oceny, czy jest poprawna | czym jest katalog (`Directory`, `DirectoryPath`) i jego ścieżka jako pojęcie |
 | cztery czynności: zmiana nazwy, nowy katalog, usunięcie wpisu, usunięcie drzewa | sortowanie, ukrywanie, zaznaczenie, podgląd, filtr |
-| stan pracy usuwania (`RemovalState`) i stan pracy do pokazania (`WorkProgress`) | po co ta czynność zachodzi i co ma się odświeżyć potem |
+| dwie czynności dłuższe od klatki: kopiowanie i przeniesienie (krok 42) | po co ta czynność zachodzi i co ma się odświeżyć potem |
+| stan pracy (`RemovalState`, `TransferState`) i stan pracy do pokazania (`WorkProgress`) | który panel na to patrzy i gdzie ma stanąć kursor |
 
 Praktyczne skutki, których pilnuje test: `Entry`, `Directory`, `DirectoryPath`
 i `EntryType` **nie mają prawa** pojawić się w sygnaturze niczego w
@@ -114,10 +115,21 @@ i `EntryType` **nie mają prawa** pojawić się w sygnaturze niczego w
 nazwa wpisu; rdzeń **nie rysuje** niczego z powodu operacji — okna, klawisze
 i komunikaty zamawia moduł.
 
-Kod: `Application/Port/FileOperationsPort` (kontrakt),
-`Infrastructure/FileSystem/FileOperationsService` (Singleton, jedyne miejsce
-piszące po dysku obok `SettingsService`), `Domain/Exception/FileOperationException`
-(niepowodzenie, które samo podaje zdanie dla użytkownika).
+Kod: `Application/Port/FileOperationsPort` i `Application/Port/FileTransferPort`
+(kontrakty), `Infrastructure/FileSystem/FileOperationsService`
+i `Infrastructure/FileSystem/FileTransferService` (Singletony),
+`Domain/Exception/FileOperationException` (niepowodzenie, które samo podaje zdanie
+dla użytkownika).
+
+**Granicą wyjątku jest katalog `Infrastructure/FileSystem`, a nie jedna klasa**
+(krok 42, D79 nr 1). Do kroku 42 usług było tam dwie razem z `SettingsService`
+i docblock mówił „ostatnie miejsce, które ma prawo powstać”; kopiowanie dostało
+własną usługę, bo jego stan — lista źródeł, cel, otwarte uchwyty, kolejka
+i pamięć odpowiedzi o kolizjach — nie ma nic wspólnego ze stanem usuwania. Zasada
+zostaje nietknięta co do treści: **wszystko, co pisze po dysku, idzie przez port
+rdzenia**, a poza tym katalogiem nie pisze nic poza `SettingsService`
+(własny plik konfiguracyjny) i `DesktopEntryInstaller` (wpis `.desktop`,
+uruchamiany wyłącznie z `bin/`).
 
 **Reguła zależności** — strzałki tylko „do środka”:
 
@@ -213,8 +225,9 @@ komunikat, podgląd, tryb renderowania i położenie okna listy.
 | Kontekst sesji | `ModuleContext` | Application | `Application/Module` | Gdzie użytkownik stoi i co ma zaznaczone — **dane pierwotne** (napis, napis, enum). Publikuje go ten, kto zna bieżące miejsce; czyta każdy ekran z `ReadsContext`. |
 | Okno nakładane | `OverlayInterface` | Presentation | `Presentation/Ui` | Płaszczyzna **nad** ekranem, która sama mówi, gdzie stanąć, i **zużywa albo przepuszcza** klawisz. Przepuszczony trafia wyłącznie do klawiszy globalnych — nigdy do ekranu pod spodem. |
 | Okno pytające | `ConfirmOverlay` | Presentation | `Presentation/Ui/Overlay` | Okno nakładane, które **czegoś chce od wołającego** (krok 28). Decyzja wraca domknięciem podanym przy tworzeniu: po „tak” wykonuje się ono i oddaje **skutek okna** (`OverlayOutcome`, od kroku 41 — bo pytanie stoi w środku łańcucha okien). Ognisko startuje na „nie”, `Esc` znaczy to samo co „nie”, a drugie, opcjonalne domknięcie sprząta **po odmowie**. |
-| Okno o nazwę | `PromptOverlay` | Presentation | `Presentation/Ui/Overlay` | Jedno pole tekstowe w `Dialog`u (krok 41): `Enter` zatwierdza, `Esc` odmawia, `Enter` na pustym polu nie robi nic. Wpisanego napisu **nie ocenia** — o tym, co jest poprawną nazwą, wie ten, kto wie, czym jest nazwa (moduł). |
-| Okno pracy | `ProgressOverlay` | Presentation | `Presentation/Ui/Overlay` | Okno pracy dłuższej od klatki (krok 41) i pierwsze, które **działa samo**: deklaruje `RunsWork`, więc pętla pyta je raz na takt. Karmione ogólną daną `WorkProgress` — o plikach nie wie nic. Pasek pokazuje się dopiero wtedy, gdy praca zna swoją całość. |
+| Okno o nazwę | `PromptOverlay` | Presentation | `Presentation/Ui/Overlay` | Jedno pole tekstowe w `Dialog`u (krok 41): `Enter` zatwierdza, `Esc` odmawia, `Enter` na pustym polu nie robi nic. Wpisanego napisu **nie ocenia** — o tym, co jest poprawną nazwą, wie ten, kto wie, czym jest nazwa (moduł). Domknięcie oddaje `OverlayOutcome` (od kroku 42, tą samą drogą co `ConfirmOverlay`): okno stoi w środku łańcucha, bo wpisana ścieżka zaczyna pracę pokazywaną oknem postępu. |
+| Okno wyboru | `ChoiceOverlay` | Presentation | `Presentation/Ui/Overlay` | Pytanie o **więcej niż dwie odpowiedzi** (krok 42): `Dialog` plus `ListView`, pozycje przychodzą kluczami katalogu, domknięcie dostaje identyfikator wybranej. `Esc` znaczy odpowiedź **ostatnią** — bo praca, która czeka na odpowiedź, nie może zostać z oknem zamkniętym milczkiem. Pierwszym pytaniem jest kolizja nazw przy kopiowaniu. |
+| Okno pracy | `ProgressOverlay` | Presentation | `Presentation/Ui/Overlay` | Okno pracy dłuższej od klatki (krok 41) i pierwsze, które **działa samo**: deklaruje `RunsWork`, więc pętla pyta je raz na takt. Karmione ogólną daną `WorkProgress` — o plikach nie wie nic. Pasek pokazuje się dopiero wtedy, gdy praca zna swoją całość, a licznik składa **wołający**, jeśli praca liczy w czymś innym niż sztuki (krok 42: bajty zapisane jako `12,3 MB z 700 MB`). |
 | Zdolność okna „prowadzę pracę” | `RunsWork` | Presentation | `Presentation/Ui` | Deklarowana osobno, jak `NeedsTime` i `DeclaresFocus` (krok 41). `advance()` posuwa pracę o kawałek i oddaje `OverlayOutcome` — więc okno może **zamknąć się samo** albo `replace()`em ustąpić miejsca kolejnemu. Pytanie pada w `GameLoop`, w fazie „aktualizuj stan”: praca zmieniająca dysk nie ma prawa dziać się w środku rysowania. |
 | Karetka | `TextInput` | Presentation | `Presentation/Ui/Component` | Miejsce wpisywania **wewnątrz** komponentu — w odróżnieniu od kursora, który wędruje **między** komponentami. |
 | Komenda | `CommandInterface` | Application | `Application/Command` | Czynność wywoływana po nazwie wraz z deklaracją argumentów. Nazwa nosi przestrzeń właściciela (`core.*`), a wynik wskazuje ekran **identyfikatorem**, bo `Application` nie widzi `ScreenInterface`. |
@@ -877,6 +890,7 @@ infrastruktury i nie różnią się niczym od usług rdzenia.
 | `SettingsPort` | `Config\SettingsService` | Tak | Tak — kolejność 3, **przed** rendererem; w torze okienkowym **pierwsza** (rozmiar okna z ustawień) |
 | `ThemePort` | `Rendering\ThemeService` | Tak | Nie — leniwa inicjalizacja |
 | `FileOperationsPort` (krok 41) | `FileSystem\FileOperationsService` | Tak | Nie — `Bootstrap` podaje go modułowi przeglądarki, jak `ImagePreviewPort` |
+| `FileTransferPort` (krok 42) | `FileSystem\FileTransferService` | Tak | Nie — tą samą drogą, co port wyżej |
 
 Tor okienkowy dokłada do sekwencji bootstrapu usługę bez portu:
 `Glfw\GlfwWindowService` (`glfwInit()`, okno z kontekstem 3.3 core,

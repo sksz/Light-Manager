@@ -162,9 +162,19 @@ final class ProgressOverlay implements OverlayInterface, RunsWork
         return ($this->onFinished)($this->progress);
     }
 
-    /** „7 z 120” — dwie liczby, bo procent dokłada sam pasek. */
+    /**
+     * „7 z 120” — dwie liczby, bo procent dokłada sam pasek.
+     *
+     * Praca licząca w czymś innym niż sztuki podaje licznik **gotowym napisem**
+     * (krok 42): okno nie ma jak wiedzieć, że 12914688 należy zapisać jako
+     * „12,3 MB”, a zgadywanie jednostki z wielkości liczby byłoby zgadywaniem.
+     */
     private function counter(): string
     {
+        if ($this->progress->counter !== '') {
+            return $this->progress->counter;
+        }
+
         return $this->translator->translate('progress.counter', [
             'done' => $this->translator->number((float) $this->progress->done),
             'total' => $this->translator->number((float) ($this->progress->total ?? 0)),

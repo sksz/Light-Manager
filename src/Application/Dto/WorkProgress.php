@@ -35,6 +35,17 @@ final class WorkProgress
         public readonly int $done = 0,
         /** Ile w całości; `null` — jeszcze nie wiadomo. */
         public readonly ?int $total = null,
+        /**
+         * Licznik **już złożony i przetłumaczony** — albo pustka, gdy okno ma
+         * złożyć go samo z `done` i `total` (krok 42, D79 rozstrzygnięcie 9).
+         *
+         * Pole doszło, bo druga praca w projekcie liczy w bajtach: „3840 z 30001”
+         * czyta się dobrze, „12914688 z 734003200” nie czyta się wcale. Skoro
+         * jednostki i separator dziesiętny idą przez katalog napisów, licznik
+         * musi złożyć ten, kto ma tłumacza — a okno postępu przestaje przez to
+         * wiedzieć, **co** właściwie liczy, co jest tu zaletą.
+         */
+        public readonly string $counter = '',
     ) {
     }
 

@@ -291,10 +291,11 @@ final class BrowserModuleTest extends TestCase
      * bo panel pokazujący listę zachowuje się tak, jak przed tym krokiem;
      * spisu drzewa pilnuje osobny test.
      *
-     * Krok 41 dokłada trzy klawisze czynności zmieniających dysk (`F6`, `F7`,
-     * `F8`/`Delete`) — i one też stoją na końcu, bo dotyczą wpisu, a nie widoku.
-     * Że są w spisie **jednym** wpisem na czynność, ma znaczenie dla stopki:
-     * `F8` i `Delete` robią to samo, więc jedno wiązanie o dwóch klawiszach.
+     * Krok 41 dokłada trzy klawisze czynności zmieniających dysk (`F4`, `F7`,
+     * `F8`/`Delete`), krok 42 dwa następne (`F5`, `F6`) — i one też stoją na
+     * końcu, bo dotyczą wpisu, a nie widoku. Że są w spisie **jednym** wpisem na
+     * czynność, ma znaczenie dla stopki: `F8` i `Delete` robią to samo, więc jedno
+     * wiązanie o dwóch klawiszach.
      */
     public function testKeyBindingsGrewByTheFilterOnly(): void
     {
@@ -312,6 +313,8 @@ final class BrowserModuleTest extends TestCase
                 'module.browser.help.filter',
                 'module.browser.help.tree',
                 'module.browser.help.rename',
+                'module.browser.help.copy',
+                'module.browser.help.move',
                 'module.browser.help.mkdir',
                 'module.browser.help.delete',
             ],

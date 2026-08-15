@@ -151,6 +151,17 @@ return [
     'progress.counter' => '{done} z {total}',
     'progress.key.cancel' => 'przerwij pracę',
     'progress.key.cancel.short' => 'przerwij',
+
+    // Okno wpisywania ścieżki i okno wyboru (krok 42). Okno nazwy dostało drugą
+    // etykietę pola, bo katalog docelowy nie jest nazwą wpisu; okno wyboru jest
+    // piąte w rdzeniu i o tym, czego dotyczy pytanie, nie wie nic.
+    'prompt.path' => 'katalog: ',
+    'choice.key.pick' => 'wybór z listy',
+    'choice.key.pick.short' => 'wybór',
+    'choice.key.answer' => 'odpowiedz',
+    'choice.key.answer.short' => 'odpowiedz',
+    'choice.key.cancel' => 'wycofaj się',
+    'choice.key.cancel.short' => 'wycofaj',
     'command.history' => 'historia',
     'command.dump.requested' => 'Zrzut następnej klatki: {file}-prymitywy.txt oraz {file}.png',
     'command.problem.empty' => 'nie wpisano nazwy komendy',
@@ -268,6 +279,14 @@ return [
     'problem.fileops.denied' => 'Brak uprawnień do zmiany „{name}”.',
     'problem.fileops.notEmpty' => 'Katalog „{name}” nie jest pusty.',
     'problem.fileops.failed' => 'Nie udało się wykonać czynności na „{name}”: {detail}',
+
+    // Niepowodzenia kopiowania i przenoszenia (krok 42). Trzy pierwsze zamykają
+    // trzy drogi do pętli nieskończonej — i mówią, którą z nich zamknęły.
+    'problem.transfer.noTarget' => 'Nie ma katalogu „{name}”.',
+    'problem.transfer.sameDirectory' => '„{name}” już leży w tym katalogu.',
+    'problem.transfer.intoItself' => 'Nie można skopiować „{name}” do wnętrza samego siebie.',
+    'problem.transfer.targetDirectory' => 'W celu jest niepusty katalog „{name}” — usuń go najpierw.',
+    'problem.transfer.unreadable' => 'Nie można odczytać „{name}”.',
 
     // Okno trybu okienkowego (krok 34).
     'window.title' => 'Light Manager',

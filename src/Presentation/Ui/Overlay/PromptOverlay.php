@@ -25,12 +25,18 @@ use LightManager\Presentation\Ui\OverlayOutcome;
  * a nowy jest wyłącznie sposób ich użycia — dokładnie jak w kroku 28.
  *
  * Wynik wraca **domknięciem** (D56): czynność przychodzi w konstruktorze
- * i oddaje `?Message`, który okno pakuje w `OverlayOutcome::close()`. Kontrakt
- * okna nie rośnie ani o pole, a okno nie wie, co uruchamia — może więc stać
- * w rdzeniu, choć jedynym dzisiejszym wołającym jest przeglądarka plików. Kroki
- * 42 (nazwa zastępcza przy kolizji) i 44 (nazwa przy przywracaniu z kosza)
- * poproszą o to samo okno i to one przesądziły o jego miejscu (D75,
- * rozstrzygnięcie 8).
+ * i oddaje `OverlayOutcome`. Kontrakt okna nie rośnie ani o pole, a okno nie wie,
+ * co uruchamia — może więc stać w rdzeniu, choć jedynym dzisiejszym wołającym
+ * jest przeglądarka plików. Kroki 42 (nazwa zastępcza przy kolizji) i 44 (nazwa
+ * przy przywracaniu z kosza) poprosiły o to samo okno i to one przesądziły o jego
+ * miejscu (D75, rozstrzygnięcie 8).
+ *
+ * **Domknięcie oddaje `OverlayOutcome`, a nie `?Message`, od kroku 42** — tą samą
+ * drogą i z tego samego powodu, którym krok 41 przeprowadził `ConfirmOverlay`:
+ * okno stoi odtąd **w środku** łańcucha okien i musi umieć powiedzieć, co ma
+ * stanąć po nim. Ścieżka wpisana w to okno zaczyna pracę dłuższą od klatki, a ta
+ * pokazuje się oknem postępu — więc „zamknij i otwórz” musi stać się naraz
+ * (`OverlayOutcome::replace()`; stos ma jedno piętro).
  *
  * **Napis jest treścią, nie ścieżką.** Okno przyjmuje dowolne znaki, także
  * ukośnik, i nie ocenia ich w ogóle: poprawność nazwy zna ten, kto wie, czym jest
@@ -71,8 +77,8 @@ final class PromptOverlay implements OverlayInterface, NeedsTime
     /**
      * @param string                      $titleKey   klucz katalogu, nie napis
      * @param array<string, string>       $parameters dane do podstawienia w tytule
-     * @param string                      $initial    treść początkowa — nazwa bieżąca albo pustka
-     * @param Closure(string): ?Message   $onAccept   czynność po `Enter`; oddaje zdanie do paska stanu
+     * @param string                            $initial  treść początkowa — nazwa bieżąca albo pustka
+     * @param Closure(string): OverlayOutcome   $onAccept czynność po `Enter`; oddaje skutek okna
      */
     public function __construct(
         private readonly string $titleKey,
@@ -157,7 +163,7 @@ final class PromptOverlay implements OverlayInterface, NeedsTime
                 return OverlayOutcome::stay();
             }
 
-            return OverlayOutcome::close(($this->onAccept)($this->input->value()));
+            return ($this->onAccept)($this->input->value());
         }
 
         if (!$this->input->handle($key)) {

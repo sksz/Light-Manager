@@ -10,6 +10,7 @@ use LightManager\Application\Ui\Primitive\TextRun;
 use LightManager\Application\Ui\Rect;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Presentation\Ui\Overlay\PromptOverlay;
+use LightManager\Presentation\Ui\OverlayOutcome;
 use LightManager\Tests\Support\StubTranslator;
 use PHPUnit\Framework\TestCase;
 
@@ -111,7 +112,7 @@ final class PromptOverlayTest extends TestCase
             str_repeat('bardzo-długi-tytuł-', 12),
             [],
             '',
-            static fn (string $value): ?Message => null,
+            static fn (string $value): OverlayOutcome => OverlayOutcome::close(),
             new StubTranslator(),
         );
 
@@ -141,10 +142,10 @@ final class PromptOverlayTest extends TestCase
             'tytul.klucz',
             [],
             $initial,
-            function (string $value): Message {
+            function (string $value): OverlayOutcome {
                 $this->accepted[] = $value;
 
-                return Message::info('gotowe');
+                return OverlayOutcome::close(Message::info('gotowe'));
             },
             new StubTranslator(),
         );

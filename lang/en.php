@@ -134,6 +134,17 @@ return [
     'progress.counter' => '{done} of {total}',
     'progress.key.cancel' => 'stop the work',
     'progress.key.cancel.short' => 'stop',
+
+    // Path prompt and choice overlay (step 42). The name prompt got a second
+    // field label, because a target directory is not an entry name; the choice
+    // overlay is the fifth in the core and knows nothing about what it asks for.
+    'prompt.path' => 'directory: ',
+    'choice.key.pick' => 'pick from the list',
+    'choice.key.pick.short' => 'pick',
+    'choice.key.answer' => 'answer',
+    'choice.key.answer.short' => 'answer',
+    'choice.key.cancel' => 'back out',
+    'choice.key.cancel.short' => 'back out',
     'command.history' => 'history',
     'command.dump.requested' => 'Next frame will be written to {file}-prymitywy.txt and {file}.png',
     'command.problem.empty' => 'no command name was typed',
@@ -243,6 +254,14 @@ return [
     'problem.fileops.denied' => 'No permission to change "{name}".',
     'problem.fileops.notEmpty' => 'Directory "{name}" is not empty.',
     'problem.fileops.failed' => 'The action on "{name}" failed: {detail}',
+
+    // Copy and move failures (step 42). The first three close the three roads to
+    // an endless loop — and say which one they closed.
+    'problem.transfer.noTarget' => 'There is no directory "{name}".',
+    'problem.transfer.sameDirectory' => '"{name}" already lies in that directory.',
+    'problem.transfer.intoItself' => 'Cannot copy "{name}" into itself.',
+    'problem.transfer.targetDirectory' => 'A non-empty directory "{name}" is in the way — remove it first.',
+    'problem.transfer.unreadable' => 'Cannot read "{name}".',
 
     // Background work (step 26). The reasons belong to the core because they
     // speak about the process, not about what it was started for.

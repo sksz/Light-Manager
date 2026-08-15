@@ -31,6 +31,27 @@ final class DirectoryPath
         return new self('/');
     }
 
+    /**
+     * Ścieżka **wpisana przez użytkownika**: bezwzględna zostaje sobą, względna
+     * liczy się od katalogu, w którym użytkownik stoi.
+     *
+     * Reguła mieszkała w `JumpCommand` od kroku 21 i wystarczała mu jednemu.
+     * Krok 42 dołożył drugiego wołającego — okno pytające o katalog docelowy
+     * kopiowania — a dwa rachunki tej samej rzeczy rozjeżdżają się przy pierwszej
+     * poprawce (`EntrySize`, krok 31). Miejsce jest tu, bo to reguła o tym, czym
+     * jest ścieżka, a nie o tym, kto o nią pyta.
+     *
+     * @throws InvalidDirectoryPathException gdy ani jedno, ani drugie nie da się odczytać jako ścieżka
+     */
+    public static function resolvedFrom(string $value, self $current): self
+    {
+        if (str_starts_with($value, '/')) {
+            return new self($value);
+        }
+
+        return $value === '' ? $current : new self($current->value . '/' . $value);
+    }
+
     public function isRoot(): bool
     {
         return $this->value === '/';

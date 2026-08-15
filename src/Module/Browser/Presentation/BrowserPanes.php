@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LightManager\Module\Browser\Presentation;
 
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
+use LightManager\Module\Browser\Domain\ValueObject\Entry;
 use LightManager\Presentation\Ui\ScrollWindow;
 use LightManager\Presentation\Ui\SplitState;
 
@@ -92,6 +93,27 @@ final class BrowserPanes
         return $this->focusShowsTree()
             ? $this->focusedTree()->cursorDirectory()
             : $this->focused()->directory();
+    }
+
+    /**
+     * Katalog i wpis, na który panel czynny **wskazuje** — albo `null`, gdy lista
+     * jest pusta.
+     *
+     * Para chodzi razem, bo czynności zmieniające dysk potrzebują obu naraz:
+     * wpisu, żeby wiedzieć, na czym działają, i katalogu, żeby wiedzieć gdzie.
+     * Rachunek stoi tutaj od kroku 42, gdy zamówił go drugi wołający
+     * (`EntryTransfer` obok `EntryOperations`) — a odpowiedź na pytanie „co jest
+     * zaznaczone” jest w drzewie inna niż w liście i policzona dwa razy
+     * rozjechałaby się przy pierwszym widoku, który dojdzie po drzewie.
+     *
+     * @return ?array{Directory, Entry}
+     */
+    public function focusedSelection(): ?array
+    {
+        $directory = $this->focusedDirectory();
+        $entry = $directory->selectedEntry();
+
+        return $entry === null ? null : [$directory, $entry];
     }
 
     /** @return array{BrowserState, ScrollWindow, bool} katalog, okno i czy panel jest czynny */

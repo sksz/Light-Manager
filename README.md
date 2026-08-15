@@ -153,7 +153,9 @@ kosztuje w terminalu.
 | `/` | zawężenie listy fragmentem nazwy — pole filtra przy dolnej krawędzi |
 | `Tab` | przejście do drugiego panelu — tylko przy włączonym podziale |
 | `Ctrl`+`T` | panel jako **drzewo** albo z powrotem jako lista |
-| `F6` | zmiana nazwy wpisu pod kursorem |
+| `F4` | zmiana nazwy wpisu pod kursorem |
+| `F5` | skopiowanie wpisu do wskazanego katalogu |
+| `F6` | przeniesienie wpisu do wskazanego katalogu |
 | `F7` | nowy katalog w katalogu panelu czynnego |
 | `F8` albo `Delete` | usunięcie wpisu pod kursorem — **nieodwracalnie** |
 | `F1` | ekran pomocy — pełna lista klawiszy |
@@ -190,8 +192,8 @@ ręcznie: jedno i drugie powstaje z tych samych wiązań, które klawisze obsłu
 
 ### Operacje na plikach
 
-Trzy czynności zmieniają zawartość dysku i wszystkie trzy działają na wpisie pod
-kursorem — w liście i w drzewie. `F6` otwiera okno z **nazwą bieżącą** w polu,
+Pięć czynności zmienia zawartość dysku i wszystkie działają na wpisie pod
+kursorem — w liście i w drzewie. `F4` otwiera okno z **nazwą bieżącą** w polu,
 `F7` z pustym, a `Enter` zatwierdza; `Esc` odmawia i nie dotyka dysku. Nazwa jest
 nazwą, nie ścieżką: ukośnik w niej jest błędem, a nie zaproszeniem do utworzenia
 katalogu piętro niżej. Nazwa zajęta **nie zamyka okna** — jest co poprawić.
@@ -212,9 +214,41 @@ katalog — a panel, któremu usunięto katalog pod nogami, wchodzi do najbliżs
 czytelnego wyżej. Zmiana zrobiona spoza aplikacji nadal wymaga wejścia do
 katalogu na nowo: aplikacja odświeża listę po **własnej** operacji.
 
-Zmiana nazwy i nowy katalog mają drugie wejście — komendy `browser.rename <nazwa>`
-i `browser.mkdir <nazwa>` w oknie komend (`F12`). Nazwa ze spacją idzie
-w cudzysłowach.
+#### Kopiowanie i przenoszenie
+
+`F5` kopiuje, `F6` przenosi — obydwa otwierają okno z **katalogiem docelowym**
+wypełnionym katalogiem drugiego panelu; `Enter` zatwierdza, a ścieżkę wolno
+poprawić albo wpisać własną, także względną (liczy się od katalogu, w którym
+stoisz). Okno działa również przy wyłączonym podziale, więc cel nigdy nie jest
+niespodzianką.
+
+Przeniesienie w obrębie **jednego systemu plików** dzieje się natychmiast —
+kosztuje jedną zmianę nazwy, niezależnie od tego, ile plików jest w katalogu.
+Między systemami plików nie ma innej drogi niż skopiowanie i usunięcie źródła,
+a wtedy obowiązuje reguła bez odstępstwa: **źródło znika dopiero po zapisaniu
+celu w całości**.
+
+Praca idzie po kawałku na klatkę, jak usuwanie: aplikacja najpierw liczy, ile
+bajtów i wpisów przybędzie, a potem kopiuje — pasek postępu mówi więc prawdę od
+pierwszego bajtu, a licznik podaje rozmiar i „który plik z ilu”. `Esc` przerywa;
+**plik zapisany w połowie znika**, bo plik wyglądający na gotowy jest gorszy niż
+brak pliku.
+
+Kiedy w katalogu docelowym coś już stoi pod tą nazwą, aplikacja pyta — sześcioma
+odpowiedziami: nadpisz, nadpisz wszystkie, pomiń, pomiń wszystkie, zapisz pod inną
+nazwą, przerwij. Katalog o tej samej nazwie **nie jest kolizją**, tylko scaleniem:
+wejście do niego niczego nie niszczy. Dowiązanie symboliczne kopiuje się **jako
+dowiązanie**, a kopia dostaje prawa dostępu i czas zmiany oryginału; właściciela
+nie — na to trzeba uprawnień, których aplikacja nie ma i mieć nie powinna.
+
+Skopiować katalogu do jego własnego wnętrza ani do katalogu, w którym już leży,
+nie można — aplikacja odmawia i mówi dlaczego.
+
+Wszystkie czynności poza usunięciem mają drugie wejście — komendy
+`browser.rename <nazwa>`, `browser.mkdir <nazwa>`, `browser.copy <ścieżka>`
+i `browser.move <ścieżka>` w oknie komend (`F12`); `browser.delete [nazwa]` też
+tam jest, ale pytanie stawia zawsze. Nazwa ze spacją idzie w cudzysłowach,
+a komenda bez argumentu otwiera to samo okno, co klawisz.
 
 Przeglądarkę można podzielić na **dwa panele** — dwa katalogi, dwa kursory,
 niezależne od siebie. Włącza się to w ustawieniach modułu („Podział na dwa
@@ -329,12 +363,14 @@ bo jest śladem pracy, a nie ustawieniem.
 
 `F9` otwiera pośrodku klatki listę czynności **dla tego, co jest zaznaczone** —
 bez pamiętania klawisza i bez pisania nazwy. Na katalogu widać wejście do niego,
-opis wpisu i trzy operacje na plikach (zmiana nazwy, nowy katalog, usunięcie);
-na pliku znika samo wejście, bo dotyczy wyłącznie katalogów.
+opis wpisu i pięć operacji na plikach (zmiana nazwy, kopiowanie, przeniesienie,
+nowy katalog, usunięcie); na pliku znika samo wejście, bo dotyczy wyłącznie
+katalogów.
 
 Pozycja, która potrzebuje okna, otwiera je zamiast pytać o nazwę w wierszu:
-usunięcie stawia to samo pytanie, co `F8`, a zmiana nazwy — to samo pole, co
-`F6`. Menu pokazuje przy tym czynności zmieniające **zawartość miejsca**, a nie
+usunięcie stawia to samo pytanie, co `F8`, zmiana nazwy — to samo pole, co `F4`,
+a kopiowanie — to samo okno ze ścieżką, co `F5`. Menu pokazuje przy tym
+czynności zmieniające **zawartość miejsca**, a nie
 sposób jego oglądania — dlatego są w nim operacje na plikach, a nie ma
 przełącznika wpisów ukrytych ani drzewa.
 
