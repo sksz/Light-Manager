@@ -53,15 +53,65 @@ final class SftpFailureReader
         'subsystem request failed' => 'module.ssh.listing.unsupported',
     ];
 
+    /**
+     * Wzorce przesyłu — **druga tablica, nie drugie rozpoznanie** (krok 50).
+     *
+     * Osobna, bo te same słowa znaczą tu co innego dla użytkownika: „nie ma
+     * takiego pliku" przy odczycie katalogu mówi „wpisz inną ścieżkę", a przy
+     * przesyle — „plik zniknął, zanim po niego sięgnęliśmy". Wspólny został
+     * rachunek, nie słownik.
+     *
+     * Napisy z prawdziwego przebiegu (OpenSSH 9.6): odmowa zapisu po stronie
+     * zdalnej to `dest open "…": Permission denied`, zajęta nazwa przy
+     * zatwierdzeniu — `remote rename "…" to "…": Failure` (bo `rename -l` idzie
+     * bez rozszerzenia POSIX-owego), a **sesja zerwana w środku pracy nie mówi
+     * nic**: `sftp` ginie od `SIGPIPE` z kodem 141 i pustym strumieniem błędów.
+     * Ten ostatni przypadek rozstrzyga więc kod wyjścia u wołającego, a nie ta
+     * tablica — i dlatego pusty wypis wraca stąd z ogólnym „nie udało się".
+     *
+     * @var array<string, string>
+     */
+    private const TRANSFER_PATTERNS = [
+        'remote rename .*Failure' => 'module.ssh.transfer.nameTaken',
+        'remote rename .*[Pp]ermission denied' => 'module.ssh.transfer.denied',
+        'dest open .*[Pp]ermission denied' => 'module.ssh.transfer.denied',
+        'dest open .*No such file' => 'module.ssh.transfer.missingTarget',
+        'open local .*[Pp]ermission denied' => 'module.ssh.transfer.denied',
+        'open local .*No such file' => 'module.ssh.transfer.missingTarget',
+        'stat .*No such file' => 'module.ssh.transfer.missingSource',
+        'File .* not found' => 'module.ssh.transfer.missingSource',
+        '(Couldn\'t|Can\'t) (get|put|stat|fsetstat).*No such file' => 'module.ssh.transfer.missingSource',
+        '(Couldn\'t|Can\'t) (get|put|stat).*[Pp]ermission denied' => 'module.ssh.transfer.denied',
+        'No space left' => 'module.ssh.transfer.noSpace',
+        'Disk quota exceeded' => 'module.ssh.transfer.noSpace',
+        'Connection closed' => 'module.ssh.transfer.dropped',
+        'Broken pipe' => 'module.ssh.transfer.dropped',
+        'Control socket connect.*: No such file' => 'module.ssh.transfer.dropped',
+        'Connection (refused|timed out)' => 'module.ssh.transfer.dropped',
+        'Permission denied' => 'module.ssh.transfer.dropped',
+    ];
+
     /** Klucz katalogu z powodem — nigdy `null`, bo aplikacja nie ma prawa milczeć. */
     public static function read(string $output): string
     {
-        foreach (self::PATTERNS as $needle => $key) {
+        return self::match(self::PATTERNS, $output, 'module.ssh.listing.failed');
+    }
+
+    /** To samo dla przesyłu (krok 50) — inna tablica, ten sam rachunek. */
+    public static function readTransfer(string $output): string
+    {
+        return self::match(self::TRANSFER_PATTERNS, $output, 'module.ssh.transfer.failed');
+    }
+
+    /** @param array<string, string> $patterns */
+    private static function match(array $patterns, string $output, string $fallback): string
+    {
+        foreach ($patterns as $needle => $key) {
             if (preg_match('/' . $needle . '/i', $output) === 1) {
                 return $key;
             }
         }
 
-        return 'module.ssh.listing.failed';
+        return $fallback;
     }
 }

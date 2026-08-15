@@ -730,8 +730,8 @@ Wbudowane są dziś trzy:
 
   **Po połączeniu ekran pokazuje zdalny katalog** — z nazwami, rozmiarami, datami
   i prawami, w tych samych kolumnach, co lista lokalna. `Enter` wchodzi do
-  katalogu, `Backspace` wraca wyżej, `F5` czyta na nowo, `/` zawęża listę nazwą
-  (z podświetleniem dopasowania), `Ctrl`+`H` przełącza wpisy ukryte, a `F3`
+  katalogu, `Backspace` wraca wyżej, `Ctrl`+`R` czyta na nowo, `/` zawęża listę
+  nazwą (z podświetleniem dopasowania), `Ctrl`+`H` przełącza wpisy ukryte, a `F3`
   zagląda z powrotem do spisu hostów. Ostatni katalog pamięta się **osobno dla
   każdego wpisu spisu** i przeżywa ponowne uruchomienie.
 
@@ -743,6 +743,21 @@ Wbudowane są dziś trzy:
   prośby po prostu ich nie przysyła. Ile wyjścia takiej pracy aplikacja pamięta,
   mówi pozycja **„Pamięć na wynik pracy w tle”** na zakładce „Zasoby”
   (domyślnie 1 MiB, czyli około dwunastu tysięcy wpisów).
+
+  **Pliki przenosi się w obie strony**: `F5` pobiera wpis zdalny do katalogu,
+  w którym stoi przeglądarka, `F6` wysyła zaznaczony plik lokalny do katalogu
+  otwartego w panelu. Obie czynności pytają najpierw o katalog docelowy, pokazują
+  okno postępu i mają swoje komendy (`ssh.get`, `ssh.put`) oraz pozycje w menu
+  `F9`. Zajęta nazwa w celu **zatrzymuje pracę pytaniem** (nadpisz / pomiń /
+  zmień nazwę / przerwij, z odpowiedzią „dla wszystkich”), a `Esc` przerywa
+  przesył.
+
+  Przerwanie **nie zostawia pliku wyglądającego na gotowy**: treść ląduje pod
+  nazwą roboczą (`.nazwa.lm-part`) i dopiero po całości dostaje nazwę docelową,
+  a połówka znika po obu stronach — także wtedy, gdy to sieć zerwała się w środku
+  pracy. Pasek postępu liczy bajty przy pobieraniu; przy wysyłaniu pokazuje, że
+  praca trwa, bo ile z pliku poszło w sieć, klient `sftp` na potoku nie mówi.
+  Przesyłane są **pliki, nie katalogi**, a przesył kopiuje — źródła nie usuwa.
 
 #### Moduł domyślny
 

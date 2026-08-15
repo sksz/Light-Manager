@@ -108,6 +108,7 @@ Kolumna **Stan** mówi, co się z decyzją stało w kodzie:
 | [D86](#d86--kwerendy-dostają-wszystkie-moduły-a-odbiorcą-tych-bez-konsumenta-w-kodzie-zostaje-użytkownik) | Kwerendy dostają wszystkie moduły, a odbiorcą tych bez konsumenta w kodzie zostaje użytkownik | krok 53 | 2026-08-15 | Czeka |
 | [D87](#d87--rozstrzygnięcia-startowe-kroku-48-cała-sesja-w-procesie-potomnym-przez-controlmaster-known_hosts-prowadzi-ssh-rdzeń-rośnie-o-dwie-rzeczy-zamiast-jednej-linii) | Rozstrzygnięcia startowe kroku 48: cała sesja w procesie potomnym przez `ControlMaster`, `known_hosts` prowadzi `ssh`, rdzeń rośnie o dwie rzeczy zamiast jednej linii | krok 48 (i przez nr 1 — Faza XVII w całości) | 2026-08-15 | Wdrożona |
 | [D88](#d88--rozstrzygnięcia-startowe-kroku-49-jeden-ekran-w-dwóch-postaciach-kontekst-dostaje-pochodzenie-a-polecenie-którego-wyjściem-jest-treść-nie-scala-strumieni) | Rozstrzygnięcia startowe kroku 49: jeden ekran w dwóch postaciach, kontekst dostaje pochodzenie, a polecenie, którego wyjściem jest treść, nie scala strumieni | krok 49 (i przez nr 11 — rdzeniowy port pracy tłowej) | 2026-08-15 | Wdrożona |
+| [D89](#d89--rozstrzygnięcia-startowe-kroku-50-przesył-idzie-potomkiem-prosto-na-dysk-postęp-czyta-stat-a-wyjątek-15b-zostaje-bezprzedmiotowy) | Rozstrzygnięcia startowe kroku 50: przesył idzie potomkiem prosto na dysk, postęp czyta `stat`, a wyjątek 15b zostaje bezprzedmiotowy | krok 50 | 2026-08-15 | Wdrożona |
 
 > **Indeks jest niekompletny od D62 wzwyż.** Wpisy **D62–D76** stoją w treści
 > dziennika, ale wiersza tutaj nie dostały — regułę „nowy wpis to dwie czynności”
@@ -5641,8 +5642,8 @@ porównanie ścieżek jest tańsze i uczciwsze niż cztery miejsca publikacji
 ### D84 — Praca na zdalnym hoście wchodzi jako Faza XVII: moduł `Ssh`, `ext-ssh2` w procesie, trzy kroki
 
 **Dotyczy:** kroków 48 ([48-ssh-sesja-i-hosty.md](archiwum/48-ssh-sesja-i-hosty.md)),
-49 ([49-zdalny-katalog.md](49-zdalny-katalog.md)) i 50
-([50-przesyl-plikow.md](50-przesyl-plikow.md)); nowego katalogu
+49 ([49-zdalny-katalog.md](archiwum/49-zdalny-katalog.md)) i 50
+([50-przesyl-plikow.md](archiwum/50-przesyl-plikow.md)); nowego katalogu
 `src/Module/Ssh/`, jednej linii w `Presentation/Cli/Bootstrap.php`, pola
 `suggest` w `composer.json` oraz — warunkowo, wedle rozstrzygnięcia na starcie
 kroku 50 — granicy wyjątku 15b.
@@ -6008,7 +6009,7 @@ wyszedł dobrze**, więc nie ma powodu robić tego tutaj.
 
 **Dotyczy:** kroku 48 ([48-ssh-sesja-i-hosty.md](archiwum/48-ssh-sesja-i-hosty.md)),
 a przez rozstrzygnięcie nr 1 — **całej Fazy XVII**, czyli także kroków
-[49](49-zdalny-katalog.md) i [50](50-przesyl-plikow.md); nowego katalogu
+[49](archiwum/49-zdalny-katalog.md) i [50](archiwum/50-przesyl-plikow.md); nowego katalogu
 `src/Module/Ssh/`, `Application/Module` (nowa zdolność środowiskowa),
 `Application/Module/ModuleRegistry` (piąty powód odrzucenia),
 `Presentation/Ui/Component/TextInput` (tryb maskowany),
@@ -6178,7 +6179,7 @@ czyli powtórzeniem kroku 26 w module.
 
 ### D88 — Rozstrzygnięcia startowe kroku 49: jeden ekran w dwóch postaciach, kontekst dostaje pochodzenie, a polecenie, którego wyjściem jest treść, nie scala strumieni
 
-**Dotyczy:** kroku 49 ([49-zdalny-katalog.md](49-zdalny-katalog.md)),
+**Dotyczy:** kroku 49 ([49-zdalny-katalog.md](archiwum/49-zdalny-katalog.md)),
 `src/Module/Ssh/` (własna domena plikowa, odczyt, drugi ekran),
 `Application/Module/ContextOrigin` i `ModuleContext` (pochodzenie),
 `Application/Dto/BackgroundState` oraz
@@ -6304,3 +6305,171 @@ użytkownika, bo leczyłby objaw zamiast przyczyny; **`| cat` w potoku** — zmn
 stratę (211 KB zamiast 130 KB), więc był obejściem gorszym od tamtego;
 **wykrywanie obcięcia po liczbie wpisów** — `sftp` nie mówi, ile miało być, więc
 nie da się tego wykryć pewnie.
+
+### D89 — Rozstrzygnięcia startowe kroku 50: przesył idzie potomkiem prosto na dysk, postęp czyta `stat`, a wyjątek 15b zostaje bezprzedmiotowy
+
+**Dotyczy:** kroku 50 ([50-przesyl-plikow.md](archiwum/50-przesyl-plikow.md)),
+`src/Module/Ssh/` (praca przesyłu, drugi i trzeci klawisz czynności, dwie
+komendy, dwa zdarzenia), rdzeniowego `Application\Port\FileOperationsPort`
+(nowy wołający, bez zmiany kontraktu), katalogów napisów,
+[docs/architecture.md](../architecture.md),
+[SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md)
+i [docs/pomiary/README.md](../pomiary/README.md).
+
+**Data:** 2026-08-15, przed pierwszą linią kodu — siedem pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku” plus cztery wynikłe z rozpoznania, plus jedno
+**zadane dwa razy**, bo wariant wybrany za pierwszym razem stracił adresata
+wraz z drogą techniczną fazy.
+
+**Sprawdzenie stanu zastanego: tabela z planu opisuje drogę, której już nie
+ma.** Plan pisano pod `ext-ssh2` — strumień `ssh2.sftp://` czytany i pisany po
+kawałku w PHP — a D87 nr 1 i 2 odwołały tę drogę w całości. Wszystkie trzy
+wiersze o rozszerzeniu są przez to bezprzedmiotowe, a pytania kroku trzeba było
+zadać na nowo `sftp`-owi. Zadano je na żywym serwerze (kontener
+`atmoz/sftp:alpine`, ten sam co w kroku 49), **przed pierwszą linią kodu**:
+
+| Fakt | Liczba / zachowanie |
+|---|---|
+| `sftp -b -` z `get`/`put` przez gniazdo mistrza | działa; wsad wraca **echem na wyjściu** (`sftp> get "…"`), więc granice plików widać |
+| pasek postępu `sftp` na potoku | **nie wychodzi w ogóle** — `progressmeter.c` pyta `getpgrp() == tcgetpgrp(stdout)`; polecenie `progress` w wsadzie melduje „enabled” i milczy przez 14 s |
+| ten sam przebieg pod pty (`script`) | pasek **jest** (`61% 20MB 2.4MB/s 00:05 ETA`), raz na sekundę, dokładność 1% — ale pty jest jeden, więc strumienie się scalają |
+| plik lokalny w trakcie pobierania | **rośnie i widać go zwykłym `stat`** — 5,2 MB po 3 s |
+| przerwanie potomka | zostaje połówka: lokalna przy pobieraniu, **zdalna przy wysyłaniu** (5,2 MB z 32 MB) |
+| zerwanie sesji w środku pracy | `sftp` ginie z kodem **141** (SIGPIPE), a `stderr` jest **pusty** |
+| błąd w środku wsadu | wsad **przerywa resztę**, kod wyjścia 1 |
+| koszt wywołania | ~1,05 s (sshd kontenera, jak w kroku 49); **trzy pliki jednym wywołaniem — też 1,06 s** |
+| 32 MB: `sftp` vs `scp` | 1,10–1,20 s vs 1,20 s — **parytet**; `-B 262144 -R 256` bez wpływu na pętli zwrotnej |
+| `get -r` na katalogu | działa jednym poleceniem, tworzy podkatalogi, wypisuje „Retrieving …” |
+| kolizja nazw | `get` **nadpisuje po cichu** — rozpoznanie kolizji jest w całości nasze |
+
+Dwie rzeczy wynikają z tej tabeli wprost i obie zdejmują z kroku trudność, którą
+plan zapowiadał jako główną. **Budżet kawałka mierzony zegarem nie ma się do
+czego odnieść** — takt to jedno `poll()`, dokładnie jak przy listowaniu w kroku
+49 — a **rozmiar bloku nie jest naszą sprawą**, bo bajtów nie przepisuje PHP.
+Z zakresu nr 3 planu zostaje przez to sam limit czasu, i to w innej postaci, niż
+tam napisano (rozstrzygnięcie nr 11).
+
+**Decyzje użytkownika (1–7 — pytania z planu; 8–11 — wynikłe z rozpoznania;
+nr 1 zadany dwa razy):**
+
+1. **Nikt nowy nie pisze po dysku lokalnym, a wyjątek 15b zostaje przy jednym
+   nazwanym przypadku.** Zastrzeżenie startowe kroku okazało się bezprzedmiotowe
+   z tego samego powodu, co połowa tabeli stanu zastanego: plik pisze **`sftp`**,
+   czyli potomek uruchomiony rdzeniowym `BackgroundProcessPort`, a nie ani jedna
+   linia PHP. Po stronie aplikacji zostają dwa zapisy — zatwierdzenie pobranego
+   pliku zmianą nazwy i skasowanie połówki — i **oba umie już
+   `FileOperationsPort`** (`rename()`, `delete()`) z kroku 41.
+   **Pytanie zadano dwa razy.** Za pierwszym razem wybrano wariant (a) z planu
+   („rdzeń dostaje port *zapisz strumień do pliku*”); wariant ten opisano
+   w planie pod `ext-ssh2` i przy drodze potomkiem **nie ma czego przyjąć ani
+   kto by go wołał** — strumienia z treścią pliku w procesie aplikacji nie ma.
+   Po sprostowaniu postawiono trzy wykonalne odczytania tamtego wyboru (port
+   pilnujący pliku pisanego z zewnątrz; port prowadzący cały przesył; port na
+   zapas, bez odbiorcy) i użytkownik wybrał powrót do rekomendacji.
+2. **Postęp bierze się z lokalnego `stat`.** Pobieranie liczy bajty **dokładnie
+   i co klatkę** (plik rośnie na dysku, odczyt jest lokalny i darmowy).
+   Wysyłanie bajtów w środku pliku **nie zna** — pasek liczy tam pliki, a wewnątrz
+   jednego wchodzi w tryb „postęp nieznany” z kroku 23. Asymetria jest widoczna
+   dla użytkownika i przyjęta świadomie. Odrzucono pty przez `script` (dawało
+   pasek w obie strony, ale kosztowało nową zależność środowiskową, scalenie
+   strumieni w jednym pty — wbrew duchowi reguły 15f — i parsowanie napisu
+   złożonego dla ludzi) oraz wariant mieszany (dwie drogi do tej samej liczby
+   w jednej pracy).
+3. **Jeden potomek na plik.** Pytanie o kolizję pada wtedy, kiedy ma sens,
+   „i-ty z n” jest dokładny, niepowodzenie jednego pliku nie ubija reszty,
+   a przerwanie jest czyste. **Cena jest zmierzona i nazwana:** ~1 s otwarcia
+   kanału na plik w tym kontenerze (na zwykłym serwerze rzędu 100–150 ms), czyli
+   dwieście drobnych plików to minuty samego zestawiania. Odrzucono jeden potomek
+   na całą pracę (kolizje trzeba by rozstrzygnąć w komplecie **przed** startem,
+   a błąd w środku wsadu przerywa resztę) oraz wariant mieszany „wsad plus
+   powtórki”.
+4. **`F5` pobiera, `F6` wysyła, a odświeżanie panelu zdalnego przenosi się na
+   `Ctrl`+`R`.** Układ zgodny z przeglądarką (`F5` kopiuj, `F6` przenieś)
+   i z nawykiem menadżerów dwupanelowych. Cena: klawisz nadany w kroku 49 zmienia
+   znaczenie — do poprawienia w spisie wiązań, w stopce kontekstowej i w przebiegu
+   funkcjonalnym.
+5. **Wyłącznie pliki.** Katalog pod kursorem odmawia zdaniem w pasku stanu.
+   Zgodnie z rekomendacją planu: `get -r` działa jednym poleceniem, ale mianownika
+   paska nie ma skąd wziąć (policzenie zdalnego drzewa to kolejne obiegi),
+   a kolizje w środku drzewa `sftp` nadpisuje po cichu, poza naszym pytaniem.
+6. **Wyłącznie kopiowanie, bez wariantu przenoszącego.** Przesył nie kasuje
+   niczego po żadnej ze stron. Zdanie „zapis po zdalnej stronie poza przesyłem”
+   zostaje w *Poza zakresem* nietknięte — z jednym wyjątkiem, który z tego
+   rozstrzygnięcia nie wynika, tylko z nr 10: sprzątaniem **własnej** połówki.
+7. **Prawa i czas zmiany zostają domyślne** — bez `sftp -p`. Plik pobrany dostaje
+   umaskę użytkownika i czas „teraz”, wysłany ląduje jako `0644` (zmierzone).
+   Prawa z cudzej maszyny bywają na tej bez sensu, a plik pobrany z prawami `000`
+   wygląda na uszkodzony.
+8. **Stronę lokalną moduł zatrzaskuje z kontekstu.** Pytanie wynikło
+   z rozpoznania i plan go nie miał: kontekst sesji jest **jeden**, a ekran zdalny
+   nadpisuje go własnym (pochodzenie `Remote`, D88 nr 6), więc w chwili przesyłu
+   lokalnej ścieżki **nie ma czego zapytać**. Ekran zdalny deklaruje przez to
+   `ReadsContext` i pamięta ostatni kontekst o pochodzeniu `Local`. Zero zmian
+   w rdzeniu; cena: przy module `ssh` jako ekranie startowym lokalnego kontekstu
+   nie było nigdy, więc cel trzeba wpisać. Odrzucono pamiętanie kontekstu osobno
+   dla każdego pochodzenia w `LoopState` (szósta zmiana rdzenia w fazie)
+   i pytanie o katalog przy każdym przesyle.
+9. **Praca bierze listę źródeł, dziś zawsze jednoelementową.** Kształt jak
+   `FileTransferPort::begin()` z kroku 42, ale wpisem jest to, co pod kursorem:
+   zdalny przy pobieraniu, lokalny (z kontekstu) przy wysyłaniu. Powód
+   ograniczenia jest mechaniczny, nie uznaniowy — `ModuleContext` niesie **liczbę**
+   zaznaczonych wpisów, ale **nie ich nazwy**, a panel zdalny zaznaczania
+   wielokrotnego nie ma w ogóle. Odrzucono dołożenie zaznaczenia do panelu
+   zdalnego w tym kroku (funkcja panelu, nie przesyłu) i dołożenie nazw do
+   kontekstu (szósta zmiana rdzenia i wejście w zakres kroku 53, który odpowiada
+   na to pytanie inaczej — kwerendami).
+10. **Zerwana sesja przerywa pracę i sprząta po sobie.** Połówka znika po obu
+    stronach (lokalnie przez `FileOperationsPort`, zdalnie osobnym `sftp rm`),
+    a powód mówi pasek stanu — i **powód musi być nasz**, bo `sftp` ginie wtedy
+    z kodem 141 i pustym strumieniem błędów. Wznawianie zostaje poza zakresem
+    zgodnie z planem; odrzucono ponowne łączenie (przy haśle znaczyłoby pytanie
+    o nie w środku pracy, a przy łączu zrywającym cyklicznie — pętlę prób).
+11. **Limit czasu hojny, a straż pełni zastój.** Limit twardy rzędu godziny
+    istnieje po to, żeby zawieszony potomek nie został na zawsze; pracę kończy
+    wcześniej **plik, który przestał rosnąć** (~30 s bez przyrostu → „łącze
+    milczy”). Cena nazwana przed wyborem: zastój widać wyłącznie przy
+    **pobieraniu** — przy wysyłaniu zostaje sam limit twardy. Odrzucono limit
+    liczony z rozmiaru i najwolniejszego dopuszczalnego tempa (liczba z sufitu
+    udająca pomiar, a łącze wolniejsze od progu ubijałoby własną udaną pracę).
+
+**Co z tych decyzji wynika dla kroku:**
+
+- **Połówki nie ma, bo pliku pod docelową nazwą nie ma aż do końca.** Z nr 1
+  wynika wprost postać pracy, której plan nie przewidywał: `sftp` pisze pod
+  **nazwą tymczasową**, a zatwierdzenie jest **zmianą nazwy** — lokalnie
+  `FileOperationsPort::rename()`, zdalnie `rename` w tym samym wsadzie `sftp`.
+  Przerwanie i awaria zostawiają plik, który nazwą mówi, czym jest, a nie plik
+  wyglądający na gotowy. Kryterium ukończenia „`Esc` nie zostawia połówki” jest
+  przez to spełnione **konstrukcyjnie**, a nie sprzątaniem po fakcie — sprzątanie
+  zostaje jako druga linia obrony.
+- **Rdzeń kosztuje w tym kroku zero zmian** — pierwszy raz w całej Fazie XVII.
+  Krok 48 kosztował trzy rzeczy, krok 49 pięć; tutaj `Bootstrap` jest już
+  nietknięty (moduł stoi na liście od kroku 48), a jedyny rdzeniowy port, po
+  który krok sięga, dostaje **nowego wołającego, nie nową metodę**. Reguła 15
+  wraca do postaci wzorcowej.
+- **Wyjątek 15b zostaje przy jednym nazwanym przypadku.** Próba na przyszłość
+  („dwóch odbiorców i powtórzenie o koszcie nieodwracalnym”) nie została tu
+  spełniona i nie musiała być obchodzona — rozwiązała ją droga techniczna fazy.
+  Do `SKILL.md` idzie zdanie graniczne, którego wcześniej nie było: **pisanie
+  przez proces potomny nie jest obejściem reguły 15b, dopóki każda zmiana nazwy
+  i każde skasowanie idą przez port rdzenia**.
+- **Zakaz z reguły 15f obowiązuje tu tak samo**, choć wypisem nie jest treść:
+  strumienie zostają rozdzielone, bo powód niepowodzenia przychodzi wyłącznie
+  strumieniem błędów, a przy zerwaniu sesji **nie przychodzi w ogóle**.
+- **Jedna praca naraz obowiązuje mocniej niż gdziekolwiek dotąd.** Przesył
+  zajmuje rdzeniowy port tłowy na **cały czas trwania**, więc w tym czasie panel
+  zdalny się nie odświeży, a `du` w module opisu pliku nie policzy. To jest cena
+  D87 nr 9 zapłacona w najdroższym możliwym miejscu i **nie da się jej tu
+  obejść** — rozszerzenie portu o wiele prac naraz jest zakresem kroku 51.
+
+**Odrzucone alternatywy** (poza wymienionymi przy decyzjach): **`rsync`
+i `scp` jako droga przesyłu** — plan wykluczał je zdaniem „dostęp ma być
+w procesie (D84)”, które po D87 przestało cokolwiek znaczyć, więc sprawdzono je
+na nowo: `scp` przenosi 32 MB w tym samym czasie co `sftp` (parytet), ale ma ten
+sam pasek postępu niewidoczny na potoku, nie umie zmiany nazwy w tym samym
+wywołaniu i wymaga po drugiej stronie powłoki, której serwer z `internal-sftp`
+mieć nie musi; `rsync` wymaga siebie samego na cudzej maszynie. **Odczyt
+postępu z `/proc/<pid>/fdinfo` potomka** — dawałby dokładne bajty także przy
+wysyłaniu, za darmo i bez pty, ale wymaga wystawienia numeru procesu przez
+rdzeniowy port tłowy i działa wyłącznie na Linuksie. **Wsad `put` + `chmod`
++ `chown`** — odrzucony razem z rozstrzygnięciem nr 7.

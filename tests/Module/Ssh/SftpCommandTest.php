@@ -98,6 +98,116 @@ final class SftpCommandTest extends TestCase
         self::assertStringContainsString('ls -lf "/kat ze spacja"', $command);
     }
 
+    /** Pobranie: jedno wywołanie, treść pod nazwą roboczą, bez scalania strumieni (krok 50). */
+    public function testDownloadWritesUnderAWorkingName(): void
+    {
+        $command = SftpCommand::download(
+            self::host(),
+            RemotePath::of('/upload/plik.bin'),
+            '/home/anna/.plik.bin.lm-part',
+            self::SOCKET,
+        );
+
+        self::assertStringContainsString('get "/upload/plik.bin" "/home/anna/.plik.bin.lm-part"', $command);
+        self::assertSame(1, substr_count($command, 'sftp -b -'), 'jeden potomek na plik');
+        self::assertStringNotContainsString('2>&1', $command);
+    }
+
+    /**
+     * **Najważniejsze zdanie o wysyłaniu**: zatwierdzenie idzie `rename -l`.
+     *
+     * Zwykłe `rename` idzie rozszerzeniem `posix-rename@openssh.com`, które
+     * **nadpisuje cicho** — sprawdzone na żywym serwerze: kod zero na zajętej
+     * nazwie. `-l` wymusza `SSH_FXP_RENAME`, czyli odmowę. Nadpisanie ma być
+     * skutkiem odpowiedzi użytkownika, nie właściwością protokołu.
+     */
+    public function testUploadCommitsWithANonClobberingRenameAndRemovesNothingByItself(): void
+    {
+        $command = SftpCommand::upload(
+            self::host(),
+            '/home/anna/plik.bin',
+            RemotePath::of('/upload/.plik.bin.lm-part'),
+            RemotePath::of('/upload/plik.bin'),
+            false,
+            self::SOCKET,
+        );
+
+        self::assertStringContainsString('put "/home/anna/plik.bin" "/upload/.plik.bin.lm-part"', $command);
+        self::assertStringContainsString('rename -l "/upload/.plik.bin.lm-part" "/upload/plik.bin"', $command);
+        self::assertStringNotContainsString('rm ', $command);
+        self::assertStringNotContainsString('2>&1', $command);
+    }
+
+    /** Nadpisanie zwalnia nazwę **jawnie**, a myślnik pozwala pracy iść dalej, gdy celu już nie ma. */
+    public function testOverwritingFreesTheNameExplicitly(): void
+    {
+        $command = SftpCommand::upload(
+            self::host(),
+            '/home/anna/plik.bin',
+            RemotePath::of('/upload/.plik.bin.lm-part'),
+            RemotePath::of('/upload/plik.bin'),
+            true,
+            self::SOCKET,
+        );
+
+        self::assertStringContainsString('-rm "/upload/plik.bin"', $command);
+        self::assertTrue(
+            strpos($command, '-rm') < strpos($command, 'rename -l'),
+            'najpierw zwolnienie nazwy, potem zatwierdzenie',
+        );
+    }
+
+    /** Sprzątanie zdalnej połówki to osobne, najkrótsze możliwe wywołanie. */
+    public function testRemovingTheRemoteHalfIsASingleCommand(): void
+    {
+        $command = SftpCommand::remove(self::host(), RemotePath::of('/upload/.plik.bin.lm-part'), self::SOCKET);
+
+        self::assertStringContainsString('rm "/upload/.plik.bin.lm-part"', $command);
+        self::assertStringNotContainsString('2>&1', $command);
+    }
+
+    /** Nazwa z odstępem i cudzysłowem przechodzi przez oba cytowania także w przesyle. */
+    public function testTransferQuotingSurvivesAwkwardNames(): void
+    {
+        $command = SftpCommand::download(
+            self::host(),
+            RemotePath::of('/upload/plik z "cudzysłowem".bin'),
+            '/home/anna/cel.bin',
+            self::SOCKET,
+        );
+
+        self::assertStringContainsString('get "/upload/plik z \\"cudzysłowem\\".bin"', $command);
+    }
+
+    /** Powody przesyłu są **osobne** od powodów odczytu, bo te same słowa znaczą tam co innego. */
+    public function testTransferProblemsHaveTheirOwnSentences(): void
+    {
+        self::assertSame(
+            'module.ssh.transfer.nameTaken',
+            SftpFailureReader::readTransfer('remote rename "/upload/.a.lm-part" to "/upload/a": Failure'),
+        );
+        self::assertSame(
+            'module.ssh.transfer.denied',
+            SftpFailureReader::readTransfer('dest open "/x.bin": Permission denied'),
+        );
+        self::assertSame(
+            'module.ssh.transfer.missingTarget',
+            SftpFailureReader::readTransfer('open local "/nie-ma/x.bin": No such file or directory'),
+        );
+        self::assertSame(
+            'module.ssh.transfer.missingSource',
+            SftpFailureReader::readTransfer('File "/upload/nie-ma.bin" not found.'),
+        );
+        self::assertSame(
+            'module.ssh.transfer.dropped',
+            SftpFailureReader::readTransfer('Connection closed'),
+        );
+        self::assertSame(
+            'module.ssh.transfer.failed',
+            SftpFailureReader::readTransfer('coś zupełnie nowego'),
+        );
+    }
+
     /**
      * Powody odczytu rozstrzygają się **przed** powodami połączenia, bo
      * „odmowa dostępu" pada w obu, a `ls` wyłącznie w tym pierwszym.

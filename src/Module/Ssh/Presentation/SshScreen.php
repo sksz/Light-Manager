@@ -19,6 +19,7 @@ use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\DeclaresFocus;
 use LightManager\Presentation\Ui\FocusHint;
 use LightManager\Presentation\Ui\KeyBinding;
+use LightManager\Presentation\Ui\Module\ReadsContext;
 use LightManager\Presentation\Ui\Resettable;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
@@ -46,7 +47,7 @@ use LightManager\Presentation\Ui\ScreenZone;
  * host nie jest miejscem w drzewie plików i nie ma czego o nim powiedzieć
  * odbiorcy, który czeka na ścieżkę.
  */
-final class SshScreen implements ScreenInterface, DeclaresFocus, Resettable
+final class SshScreen implements ScreenInterface, DeclaresFocus, Resettable, ReadsContext
 {
     public const ID = 'ssh';
 
@@ -73,7 +74,25 @@ final class SshScreen implements ScreenInterface, DeclaresFocus, Resettable
         private readonly HostsScreen $hosts,
         private readonly RemoteScreen $remote,
         private readonly LoopState $state,
+        private readonly LocalPlace $local,
     ) {
+    }
+
+    /**
+     * Kontekst przychodzi tu **czytany**, a nie tylko publikowany (krok 50).
+     *
+     * Ekran zdalny jest jedynym miejscem, które kontekst i publikuje, i czyta —
+     * i nie jest to sprzeczność, tylko jedyna droga do drugiej strony przesyłu.
+     * `FrameComposer` podaje kontekst **przed** rysowaniem, więc w pierwszej
+     * klatce po przełączeniu przychodzi jeszcze ten opublikowany przez
+     * przeglądarkę; `LocalPlace` przyjmuje wyłącznie kontekst z tej maszyny, więc
+     * własny, zdalny mija go bez śladu. Bez tego zatrzasku „pobierz do katalogu,
+     * w którym stoi przeglądarka" nie miałoby czego zapytać — kontekst jest
+     * jeden, a ekran zdalny właśnie go nadpisał (D89 nr 8).
+     */
+    public function useContext(ModuleContext $context): void
+    {
+        $this->local->remember($context);
     }
 
     public function id(): string

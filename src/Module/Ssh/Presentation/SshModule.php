@@ -18,17 +18,21 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Module\Ssh\Application\Port\HostBookPort;
 use LightManager\Module\Ssh\Application\Port\RemoteDirectoryPort;
+use LightManager\Module\Ssh\Application\Port\RemoteTransferPort;
 use LightManager\Module\Ssh\Application\Port\SshSessionPort;
 use LightManager\Module\Ssh\Application\RemoteBrowser;
 use LightManager\Module\Ssh\Application\SshEvent;
 use LightManager\Module\Ssh\Application\SshSession;
 use LightManager\Module\Ssh\Application\SshSettings;
 use LightManager\Module\Ssh\Infrastructure\OpenSshSessionService;
+use LightManager\Module\Ssh\Infrastructure\RemoteTransferService;
 use LightManager\Module\Ssh\Infrastructure\SftpDirectoryService;
 use LightManager\Module\Ssh\Infrastructure\SshStateService;
 use LightManager\Module\Ssh\Presentation\Command\ConnectCommand;
 use LightManager\Module\Ssh\Presentation\Command\DisconnectCommand;
+use LightManager\Module\Ssh\Presentation\Command\DownloadCommand;
 use LightManager\Module\Ssh\Presentation\Command\HostsCommand;
+use LightManager\Module\Ssh\Presentation\Command\UploadCommand;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
@@ -92,6 +96,10 @@ final class SshModule implements
 
     private ?ConnectFlow $flow = null;
 
+    private ?RemoteTransfer $transfers = null;
+
+    private ?LocalPlace $place = null;
+
     /**
      * @param ?SshSessionPort $sessions wstrzyknięcie istnieje dla testów, które nie mają
      *                                  prawa otworzyć połączenia — tak samo, jak testy
@@ -100,6 +108,8 @@ final class SshModule implements
      * @param ?HostBookPort        $storage     jw. — test nie ma prawa dotknąć pliku w katalogu domowym
      * @param ?RemoteDirectoryPort  $directories jw. — odczyt katalogu uruchamia proces potomny,
      *                                           więc test dostaje atrapę (krok 49)
+     * @param ?RemoteTransferPort   $files       jw. — przesył uruchamia proces potomny **i pisze
+     *                                           po dysku** (krok 50), więc test dostaje atrapę
      */
     public function __construct(
         private readonly LoopState $state,
@@ -108,6 +118,7 @@ final class SshModule implements
         private readonly ?SshSessionPort $sessions = null,
         private readonly ?HostBookPort $storage = null,
         private readonly ?RemoteDirectoryPort $directories = null,
+        private readonly ?RemoteTransferPort $files = null,
     ) {
     }
 
@@ -184,9 +195,38 @@ final class SshModule implements
                 $this->translator,
                 new ChangeModuleSettingUseCase($this->settings, $this->translator),
                 $this->state,
+                $this->transfers(),
             ),
             $this->state,
+            $this->local(),
         );
+    }
+
+    /**
+     * Przesył — **jeden na moduł**, jak sesja i chodzenie po katalogu (krok 50).
+     *
+     * Dzielą go ekran (`F5`, `F6`) i dwie komendy, i to jest cały powód, dla
+     * którego jest osobną klasą (11n). Dwie implementacje pamiętałyby o kolizji
+     * nazw dopóty, dopóki ktoś nie poprawiłby jednej z nich.
+     */
+    private function transfers(): RemoteTransfer
+    {
+        return $this->transfers ??= new RemoteTransfer(
+            $this->browser(),
+            $this->files ?? RemoteTransferService::getInstance(),
+            $this->local(),
+            $this->translator,
+            $this->state->events(),
+        );
+    }
+
+    /**
+     * Zatrzask ostatniego miejsca na tej maszynie — **jeden na moduł**, bo
+     * zapisuje go ekran, a czyta praca przesyłu.
+     */
+    private function local(): LocalPlace
+    {
+        return $this->place ??= new LocalPlace();
     }
 
     /**
@@ -243,6 +283,8 @@ final class SshModule implements
             'module.' . SshSettings::ID . '.help.remote',
             'module.' . SshSettings::ID . '.help.hidden',
             'module.' . SshSettings::ID . '.help.refresh',
+            'module.' . SshSettings::ID . '.help.transfer',
+            'module.' . SshSettings::ID . '.help.collision',
         ];
     }
 
@@ -283,6 +325,8 @@ final class SshModule implements
             new ConnectCommand($session, $this->flow(), $this->translator),
             new DisconnectCommand($session, $this->translator),
             new HostsCommand(),
+            new DownloadCommand($this->transfers(), $this->translator),
+            new UploadCommand($this->transfers(), $this->translator),
         ];
     }
 }

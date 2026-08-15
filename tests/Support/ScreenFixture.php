@@ -128,6 +128,7 @@ final class ScreenFixture
         public readonly StubSshSession $sessions = new StubSshSession(),
         public readonly StubHostBook $hosts = new StubHostBook(),
         public readonly StubRemoteDirectory $remote = new StubRemoteDirectory(),
+        public readonly StubRemoteTransfer $remoteTransfers = new StubRemoteTransfer(),
     ) {
         $translator = new StubTranslator();
         $themes = new FixedThemes();
@@ -195,7 +196,19 @@ final class ScreenFixture
         // prawdziwe procesy `sftp`** do hosta z przykładowego wpisu książki.
         // Podstawiona sesja mówiła „połączono", więc ekran zamawiał odczyt
         // katalogu — a odczyt bez atrapy szedł prawdziwą usługą.
-        $sshModule = new SshModule($this->state, $translator, $settingsStore, $sessions, $hosts, $remote);
+        // **Czwarty port doszedł w kroku 50 z tego samego powodu, co trzeci** —
+        // i stawka jest tu wyższa: przesył nie tylko wychodzi do sieci, ale
+        // **pisze po dysku**, więc przebieg bez atrapy zostawiałby po sobie pliki
+        // w katalogu, w którym akurat stoi test.
+        $sshModule = new SshModule(
+            $this->state,
+            $translator,
+            $settingsStore,
+            $sessions,
+            $hosts,
+            $remote,
+            $remoteTransfers,
+        );
         $this->sshScreen = $sshModule->screen();
 
         $this->modules = new ModuleRegistry(

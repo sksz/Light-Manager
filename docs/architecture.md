@@ -1169,6 +1169,62 @@ ani dysku, ani sieci. Kontekst niesie po to trzy atrybuty zaznaczenia (rozmiar,
 czas, prawa), a suma kontrolna i zajętość odmawiają pracy zdaniem, które mówi
 dlaczego.
 
+#### Przesył plików: pobranie i wysłanie (od kroku 50)
+
+Ten sam moduł **przenosi pliki w obie strony**: `F5` pobiera wpis zdalny do
+katalogu, w którym stoi przeglądarka, `F6` wysyła wpis lokalny do katalogu
+otwartego w panelu. Odświeżanie listy przeprowadziło się przy tym z `F5` na
+`Ctrl`+`R` — układ jest odtąd ten sam, co w przeglądarce (`F5` kopiuj, `F6`
+przenieś) i w menadżerach dwupanelowych. Obie czynności mają komendy (`ssh.get`,
+`ssh.put`) i pozycje w menu `F9`, a mieszkają w **jednym** miejscu
+(`RemoteTransfer`, reguła 11n).
+
+**Treść ląduje pod nazwą roboczą, a zatwierdza ją zmiana nazwy** — i to jest
+całe zabezpieczenie przed połówką pliku. Lokalnie zatwierdza `FileOperationsPort`
+rdzenia, zdalnie — `rename -l` w tym samym wsadzie `sftp`. Myślnik w `rename -l`
+nie jest ozdobą: zwykłe `rename` idzie rozszerzeniem `posix-rename@openssh.com`
+i **nadpisuje cicho** (sprawdzone: kod zero na zajętej nazwie), a nadpisanie ma
+być skutkiem odpowiedzi użytkownika, nie właściwością protokołu. Cel zwalnia się
+przez to **jawnie** (`-rm`) i tylko po zgodzie.
+
+**Wyjątek 15b zostaje przy jednym nazwanym przypadku**, choć krok pisze po dysku:
+plik pisze `sftp`, czyli potomek uruchomiony rdzeniowym `BackgroundProcessPort`,
+a jedyne zapisy z PHP — zmiana nazwy i skasowanie połówki — idą przez port
+rdzenia z kroku 41. Zastrzeżenie startowe planu („rdzeń dostaje port zapisu
+strumienia”) okazało się bezprzedmiotowe wraz z drogą techniczną fazy (D89 nr 1).
+
+**Postęp czyta `stat`, a nie klienta.** `sftp` pokazuje pasek postępu wyłącznie
+wtedy, gdy jego wyjście jest terminalem sterującym (`progressmeter.c` porównuje
+`getpgrp()` z `tcgetpgrp()`), więc na potoku milczy — nawet po poleceniu
+`progress` w wsadzie. Pobieranie liczy się przez to **rosnącym plikiem roboczym**
+(odczyt lokalny, darmowy, co klatkę), a wysyłanie zna wyłącznie granice plików:
+w środku jednego pasek wchodzi w tryb „postęp nieznany”. Asymetria jest
+własnością drogi i jest widoczna dla użytkownika. Ten sam odczyt pełni straż nad
+zerwanym łączem: plik, który nie rośnie przez 30 s, kończy pracę zdaniem „łącze
+milczy”, a limit twardy (godzina) jest wyłącznie sufitem awarii.
+
+**Jeden potomek na plik** (D89 nr 3). Wsad `sftp` przerywa się na pierwszym
+błędzie, więc jedno wywołanie na całą pracę znaczyłoby, że niepowodzenie jednego
+pliku ubija resztę, a o kolizje trzeba by pytać w komplecie przed startem. Cena
+jest zmierzona i nazwana: otwarcie kanału kosztuje tyle, co cały odczyt katalogu.
+
+**Kolizję rozstrzyga strona, która wie za darmo**: przy pobieraniu dysk
+(`file_exists`), przy wysyłaniu **lista, którą panel ma na ekranie**. Katalog
+zdalny inny niż otwarty oddaje „nie wiem”, a nie „nic tam nie ma” — i wtedy przed
+cichym nadpisaniem broni `rename -l`. Odpowiedzi są rdzeniowe (`TransferChoice`),
+bo słownik „nadpisz / pomiń / zmień nazwę / przerwij (i wszystkie)” jest
+mechanizmem, a mechanizmów rdzenia moduł nie powtarza (15e).
+
+**Druga strona przesyłu bierze się z kontekstu sesji.** Ekran zdalny publikuje
+własny kontekst (`Remote`), więc lokalnej ścieżki w chwili przesyłu nie ma czego
+zapytać — `LocalPlace` zatrzaskuje ostatni kontekst z pochodzeniem `Local`,
+podany ekranowi przez `ReadsContext` przed rysowaniem. Moduł nie sięga przez to
+do przeglądarki ani razu (reguła 15).
+
+**Przesyłane są pliki, nie katalogi**, a przesył wyłącznie kopiuje: wariantu
+przenoszącego nie ma, praw i czasu zmiany nie przenosi (`sftp -p` poza zakresem),
+a wznawianie przerwanej pracy zostaje osobną rzeczą do zaprojektowania.
+
 #### Kosz i cofnięcie ostatniej operacji (od kroku 44)
 
 Usunięcie przestało być końcem: klawisz domyślny (`F8`, `Delete`) robi to, co

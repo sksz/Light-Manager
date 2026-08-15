@@ -406,6 +406,29 @@ przyczynę potwierdzono A/B na flagach deskryptora i odtworzono bez PHP. Zakaz
 scalania wraz z osobnym polem strumienia błędów w `BackgroundState` stoi odtąd
 w `SKILL.md` jako reguła 15f.
 
+**Krok 50 wykonany — i to rozpoznanie, a nie kod, było w nim najdroższe.**
+Zastrzeżenie startowe o wyjątku 15b („kto pisze po dysku lokalnym”) okazało się
+**bezprzedmiotowe**: plik pisze `sftp` uruchomiony rdzeniowym portem pracy tłowej,
+a jedyne zapisy z PHP — zatwierdzenie zmianą nazwy i skasowanie połówki — umie już
+`FileOperationsPort` z kroku 41. **Rdzeń kosztował przez to zero zmian**, pierwszy
+raz w całej fazie (48 kosztował trzy rzeczy, 49 — pięć). Bezprzedmiotowa okazała
+się też druga zapowiadana trudność: budżet kawałka mierzony zegarem nie ma się do
+czego odnieść, bo bajtów nie przepisuje PHP — takt to jedno `poll()` i jedno
+`stat()`.
+
+Trzy fakty z żywego serwera przesądziły o kształcie kodu i żadnego z nich nie było
+w planie. **`sftp` nie odda postępu na potoku** (pasek rysuje wyłącznie na
+terminalu sterującym), więc bajty czyta się **rosnącym plikiem roboczym** — co
+działa przy pobieraniu i nie działa w środku wysyłanego pliku; asymetria jest
+widoczna dla użytkownika i przyjęta jawnie. **Zwykłe `rename` po stronie zdalnej
+nadpisuje cicho** (rozszerzenie `posix-rename@openssh.com`), więc zatwierdzenie
+idzie `rename -l`, a cel zwalnia się jawnie i tylko po zgodzie. **Zerwana sesja
+nie mówi nic** — `sftp` ginie od sygnału z pustym strumieniem błędów — więc powód
+podaje moduł z kodu wyjścia. Miara kroku spełniona: 32 MB w 1,03 s (parytet ze
+`scp`), suma kontrolna zgodna, `Esc` i zerwane łącze nie zostawiają połówki po
+żadnej ze stron. Pomiar `--loop`: **−2,3% / −1,1% / +0,1%**, przy czym dwa ostatnie
+przebiegi szły w chwili, gdy prawdziwy kod modułu przenosił przez sieć 3,4 GB.
+
 > **Droga techniczna fazy odwrócona 2026-08-15, na starcie kroku 48**
 > ([00-decyzje.md](00-decyzje.md), D87 nr 1 i 2). `ext-ssh2` **wypada z fazy
 > w całości**: sesja nie żyje w procesie aplikacji, tylko w procesie potomnym —
@@ -425,8 +448,8 @@ w `SKILL.md` jako reguła 15f.
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
 | 48 | Moduł `Ssh`: sesja, uwierzytelnienie i książka hostów | [48-ssh-sesja-i-hosty.md](archiwum/48-ssh-sesja-i-hosty.md) | 18, 19, 20, 26, 40, 45, 46, 47 | Opus | high | Ukończony z zastrzeżeniem |
-| 49 | Zdalny katalog: panel modułu czyta przez SFTP | [49-zdalny-katalog.md](49-zdalny-katalog.md) | 18, 21, 25, 27, 30, 33, 48 | Opus | xhigh | Ukończony z zastrzeżeniem |
-| 50 | Przesył plików: pobranie i wysłanie pracą kawałkową | [50-przesyl-plikow.md](50-przesyl-plikow.md) | 21, 23, 41, 42, 43, 46, 47, 48, 49 | Opus | xhigh | Nie rozpoczęty |
+| 49 | Zdalny katalog: panel modułu czyta przez SFTP | [49-zdalny-katalog.md](archiwum/49-zdalny-katalog.md) | 18, 21, 25, 27, 30, 33, 48 | Opus | xhigh | Ukończony z zastrzeżeniem |
+| 50 | Przesył plików: pobranie i wysłanie pracą kawałkową | [50-przesyl-plikow.md](archiwum/50-przesyl-plikow.md) | 21, 23, 41, 42, 43, 46, 47, 48, 49 | Opus | xhigh | Ukończony |
 
 ### Faza XVIII — Kontenery: Docker, Kubernetes i współpraca modułów
 

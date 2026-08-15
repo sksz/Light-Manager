@@ -67,6 +67,75 @@ final class SftpCommand
     }
 
     /**
+     * Pobranie jednego pliku **pod nazwę tymczasową** (krok 50).
+     *
+     * Jedno wywołanie na plik — rozstrzygnięcie użytkownika ze startu kroku
+     * (D89 nr 3) wraz z ceną: otwarcie kanału kosztuje tyle samo, co cały odczyt
+     * katalogu. Kupuje za to pytanie o kolizję zadane w naturalnej chwili
+     * i niepowodzenie jednego pliku, które nie ubija reszty — wsad `sftp`
+     * **przerywa się na pierwszym błędzie** (sprawdzone: kod 1, reszta poleceń
+     * nie wykonana).
+     *
+     * Zatwierdzenie idzie **osobno, po stronie PHP** (`FileOperationsPort`), bo
+     * dopiero tam wiadomo, czy potomek skończył pomyślnie.
+     */
+    public static function download(
+        HostProfile $host,
+        RemotePath $source,
+        string $localTemporary,
+        string $socket,
+    ): string {
+        return self::pipeline(
+            ['get ' . self::quote($source->value) . ' ' . self::quote($localTemporary)],
+            $host,
+            $socket,
+        );
+    }
+
+    /**
+     * Wysłanie jednego pliku: **treść pod nazwę tymczasową, potem zmiana nazwy**.
+     *
+     * Zatwierdzenie mieści się w tym samym wsadzie i to jest cała odpowiedź na
+     * kryterium „przerwanie nie zostawia połówki": przerwany potomek zostawia
+     * plik o nazwie, która mówi, czym jest, a nie plik wyglądający na gotowy.
+     *
+     * **`rename -l`, a nie `rename`** — i to jest linia, której nie wolno tu
+     * uprościć. Zwykłe `rename` idzie rozszerzeniem `posix-rename@openssh.com`
+     * i **nadpisuje cicho** (sprawdzone: kod 0 na zajętej nazwie); `-l` wymusza
+     * `SSH_FXP_RENAME`, które na zajętej nazwie odmawia (kod 1). Nadpisanie ma
+     * być skutkiem odpowiedzi użytkownika, a nie właściwością protokołu, więc
+     * cel usuwa się **jawnie** — i tylko wtedy, gdy o to poprosił.
+     *
+     * `-rm` z myślnikiem na początku znaczy w wsadzie „nie przerywaj, jeśli się
+     * nie uda": cel mógł w międzyczasie zniknąć, a to nie jest powód, żeby nie
+     * dokończyć przesyłu.
+     */
+    public static function upload(
+        HostProfile $host,
+        string $localPath,
+        RemotePath $temporary,
+        RemotePath $target,
+        bool $overwrite,
+        string $socket,
+    ): string {
+        $batch = ['put ' . self::quote($localPath) . ' ' . self::quote($temporary->value)];
+
+        if ($overwrite) {
+            $batch[] = '-rm ' . self::quote($target->value);
+        }
+
+        $batch[] = 'rename -l ' . self::quote($temporary->value) . ' ' . self::quote($target->value);
+
+        return self::pipeline($batch, $host, $socket);
+    }
+
+    /** Sprzątanie zdalnej połówki po przerwaniu albo niepowodzeniu (krok 50). */
+    public static function remove(HostProfile $host, RemotePath $path, string $socket): string
+    {
+        return self::pipeline(['rm ' . self::quote($path->value)], $host, $socket);
+    }
+
+    /**
      * Cytowanie **dla parsera `sftp`**, nie dla powłoki.
      *
      * Cudzysłów obejmuje całość, a odwrotny ukośnik chroni cudzysłów i sam

@@ -18,6 +18,7 @@ use LightManager\Module\Ssh\Application\RemoteBrowser;
 use LightManager\Module\Ssh\Application\SshSettings;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntry;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntryType;
+use LightManager\Module\Ssh\Presentation\Component\RemoteSize;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Component\Align;
 use LightManager\Presentation\Ui\Component\Column;
@@ -65,8 +66,16 @@ final class RemoteScreen
     /** Zapis daty ten sam, co w liście lokalnej — sortowalny wzrokiem i o stałej szerokości. */
     private const DATE_FORMAT = 'Y-m-d H:i';
 
-    /** @var list<string> */
-    private const UNITS = ['B', 'kB', 'MB', 'GB', 'TB'];
+    /**
+     * Litera odświeżania — **przeprowadzka z `F5`** (krok 50, D89 nr 4).
+     *
+     * `F5` znaczy odtąd „pobierz", zgodnie z przeglądarką (`F5` kopiuj, `F6`
+     * przenieś) i z nawykiem menadżerów dwupanelowych. Odświeżanie schodzi na
+     * `Ctrl`+`R`, czyli w **przestrzeń skrótów modułów** (krok 19) — działa
+     * dopóty, dopóki litery `r` nie zajmie żaden moduł, i pilnuje tego
+     * `RemoteShortcutsTest`, wzorem `Ctrl`+`T` z kroku 31.
+     */
+    private const REFRESH_KEY = 'r';
 
     private readonly ScrollWindow $window;
 
@@ -86,6 +95,7 @@ final class RemoteScreen
         private readonly TranslatorPort $translator,
         private readonly ChangeModuleSettingUseCase $changeSetting,
         private readonly LoopState $state,
+        private readonly RemoteTransfer $transfers,
     ) {
         $this->window = new ScrollWindow();
         $this->window->useContext(self::ID);
@@ -200,6 +210,16 @@ final class RemoteScreen
             ),
             KeyBinding::of(
                 [Key::F5],
+                'module.' . SshSettings::ID . '.transfer.key.get',
+                'module.' . SshSettings::ID . '.transfer.key.get.short',
+            ),
+            KeyBinding::of(
+                [Key::F6],
+                'module.' . SshSettings::ID . '.transfer.key.put',
+                'module.' . SshSettings::ID . '.transfer.key.put.short',
+            ),
+            KeyBinding::ctrl(
+                self::REFRESH_KEY,
                 'module.' . SshSettings::ID . '.remote.key.refresh',
                 'module.' . SshSettings::ID . '.remote.key.refresh.short',
             ),
@@ -242,6 +262,10 @@ final class RemoteScreen
             return $this->toggleHidden();
         }
 
+        if ($key->key === Key::Character && $key->raw === self::REFRESH_KEY && $key->ctrl) {
+            return $this->refresh();
+        }
+
         return match ($key->key) {
             Key::ArrowUp => $this->moved(-1),
             Key::ArrowDown => $this->moved(1),
@@ -251,7 +275,8 @@ final class RemoteScreen
             Key::End => $this->put($this->browser->count() - 1),
             Key::Enter => $this->enter(),
             Key::Backspace => $this->goUp(),
-            Key::F5 => $this->refresh(),
+            Key::F5 => $this->transfers->downloadPrompt(),
+            Key::F6 => $this->transfers->uploadPrompt(),
             Key::Escape => $this->clearFilter(),
             default => ScreenOutcome::stay(),
         };
@@ -456,10 +481,9 @@ final class RemoteScreen
     /**
      * Rozmiar dla oka — katalog nie ma żadnego i pokazuje pustkę.
      *
-     * Rachunek powtarza `EntrySize` przeglądarki, bo tamten zna `TranslatorPort`
-     * i nic ponadto, ale mieszka w cudzym module (reguła 15). Skróty jednostek
-     * nie idą przez katalog napisów, bo są międzynarodowe; liczbę formatuje
-     * tłumacz, bo separator dziesiętny już nie jest.
+     * Sam rachunek stoi od kroku 50 w `RemoteSize`, bo ma w tym module drugiego
+     * użytkownika: licznik okna przesyłu. Tutaj zostaje wyłącznie to, co należy
+     * do listy — że katalog rozmiaru nie pokazuje.
      */
     private function sizeOf(RemoteEntry $entry): string
     {
@@ -469,15 +493,7 @@ final class RemoteScreen
             return '';
         }
 
-        $value = (float) $bytes;
-        $unit = 0;
-
-        while ($value >= 1024.0 && $unit < count(self::UNITS) - 1) {
-            $value /= 1024.0;
-            ++$unit;
-        }
-
-        return $unit === 0 ? $bytes . ' B' : $this->translator->number($value, 1) . ' ' . self::UNITS[$unit];
+        return RemoteSize::of($this->translator, $bytes);
     }
 
     /** @param array<string, string|int|float> $parameters */

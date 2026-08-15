@@ -20,7 +20,11 @@ return [
     'module.ssh.command.connect' => 'połącz z hostem ze spisu',
     'module.ssh.command.disconnect' => 'zamknij sesję zdalną',
     'module.ssh.command.hosts' => 'pokaż spis hostów',
+    'module.ssh.command.get' => 'pobierz zaznaczony plik zdalny',
+    'module.ssh.command.put' => 'wyślij zaznaczony plik lokalny',
     'module.ssh.argument.host' => 'nazwa wpisu w spisie hostów',
+    'module.ssh.argument.target' => 'katalog docelowy na tej maszynie',
+    'module.ssh.argument.remoteTarget' => 'katalog docelowy na hoście',
 
     // Pozycje zakładki ustawień.
     'module.ssh.setting.timeout' => 'Limit czasu połączenia (s)',
@@ -92,6 +96,56 @@ return [
     'module.ssh.listing.dropped' => 'Sesja została zerwana — odczyt nie doszedł do skutku.',
     'module.ssh.listing.unsupported' => 'Host nie udostępnia podsystemu SFTP.',
     'module.ssh.listing.interrupted' => 'Odczyt katalogu przerwała inna praca w tle.',
+
+    // Przesył plików (krok 50) — okna, klawisze i licznik.
+    'module.ssh.transfer.key.get' => 'pobierz plik na tę maszynę',
+    'module.ssh.transfer.key.get.short' => 'pobierz',
+    'module.ssh.transfer.key.put' => 'wyślij zaznaczony plik lokalny',
+    'module.ssh.transfer.key.put.short' => 'wyślij',
+    'module.ssh.transfer.download.title' => 'Pobierz „{name}” do katalogu',
+    'module.ssh.transfer.upload.title' => 'Wyślij „{name}” do katalogu',
+    'module.ssh.transfer.download.progress' => 'Pobieram {name}',
+    'module.ssh.transfer.upload.progress' => 'Wysyłam {name}',
+    'module.ssh.transfer.counter.size' => '{done} z {total}',
+    'module.ssh.transfer.counter' => '{done} z {total} — plik {entry} z {entries}',
+    'module.ssh.transfer.download.done' => [
+        'Pobrano {count} plik.',
+        'Pobrano {count} pliki.',
+        'Pobrano {count} plików.',
+    ],
+    'module.ssh.transfer.upload.done' => [
+        'Wysłano {count} plik.',
+        'Wysłano {count} pliki.',
+        'Wysłano {count} plików.',
+    ],
+    'module.ssh.transfer.stopped' => 'Przerwano — przeniesiono {done} z {total}.',
+    'module.ssh.transfer.nothing' => 'Nic nie zostało przeniesione.',
+
+    // Zajęta nazwa w celu — sześć odpowiedzi, te same, co przy kopiowaniu lokalnym.
+    'module.ssh.transfer.collision' => 'W celu jest już „{name}”. Co zrobić?',
+    'module.ssh.transfer.overwrite' => 'nadpisz',
+    'module.ssh.transfer.overwriteAll' => 'nadpisz wszystkie',
+    'module.ssh.transfer.skip' => 'pomiń',
+    'module.ssh.transfer.skipAll' => 'pomiń wszystkie',
+    'module.ssh.transfer.rename' => 'zmień nazwę',
+    'module.ssh.transfer.abort' => 'przerwij',
+    'module.ssh.transfer.newName' => 'Nowa nazwa dla „{name}”',
+
+    // Powody, dla których przesył nie ruszył albo stanął (SftpFailureReader).
+    'module.ssh.transfer.onlyFiles' => 'Przesyłać można pliki — katalog trzeba otworzyć.',
+    'module.ssh.transfer.noLocal' => 'W przeglądarce nie ma zaznaczonego pliku do wysłania.',
+    'module.ssh.transfer.noSession' => 'Żadna sesja nie jest otwarta — nie ma dokąd ani skąd przesyłać.',
+    'module.ssh.transfer.badPath' => 'To nie jest ścieżka, którą da się przyjąć.',
+    'module.ssh.transfer.needsOverlay' => 'Przesył potrzebuje okna — wywołaj go z ekranu zdalnego.',
+    'module.ssh.transfer.failed' => 'Nie udało się przenieść pliku.',
+    'module.ssh.transfer.denied' => 'Brak prawa zapisu w katalogu docelowym.',
+    'module.ssh.transfer.missingSource' => 'Pliku źródłowego już nie ma.',
+    'module.ssh.transfer.missingTarget' => 'Katalogu docelowego nie ma.',
+    'module.ssh.transfer.nameTaken' => 'Nazwa „{name}” jest w celu zajęta.',
+    'module.ssh.transfer.noSpace' => 'Po drugiej stronie zabrakło miejsca.',
+    'module.ssh.transfer.dropped' => 'Sesja została zerwana — przesył nie doszedł do skutku.',
+    'module.ssh.transfer.stalled' => 'Łącze milczy — przesył przerwany.',
+    'module.ssh.transfer.interrupted' => 'Przesył przerwała inna praca w tle.',
 
     // Etapy sesji — kolumna „Stan” i wiersz okna postępu.
     'module.ssh.stage.idle' => 'rozłączony',
@@ -167,13 +221,17 @@ return [
     'module.ssh.event.connected' => 'sesja zdalna otwarta',
     'module.ssh.event.disconnected' => 'sesja zdalna zamknięta',
     'module.ssh.event.failed' => 'nieudane połączenie zdalne',
+    'module.ssh.event.transfer.done' => 'plik przeniesiony przez sieć',
+    'module.ssh.event.transfer.failed' => 'nieudany przesył pliku',
 
     // Zakładka pomocy.
     'module.ssh.help.start' => 'Ctrl+S otwiera spis hostów; to samo robi komenda ssh.hosts.',
     'module.ssh.help.hosts' => 'Hosty dopisuje się klawiszem F7 w postaci użytkownik@host:port; spis mieszka w ~/.light-manager/ssh.json i przeżywa ponowne uruchomienie.',
     'module.ssh.help.auth' => 'Domyślnym sposobem uwierzytelnienia jest agent SSH. Hasła nie są nigdzie zapisywane — pytanie pada przy każdym połączeniu.',
     'module.ssh.help.fingerprint' => 'Host nieznany zatrzymuje połączenie pytaniem o odcisk klucza. Po zgodzie wpis dopisuje sam klient OpenSSH do ~/.ssh/known_hosts; klucz niezgodny z zapamiętanym odmawia bez pytania.',
-    'module.ssh.help.remote' => 'Po połączeniu ekran pokazuje zdalny katalog: Enter wchodzi, Backspace wraca wyżej, F5 czyta na nowo, / zawęża listę, a F3 zagląda do spisu hostów. Ostatni katalog jest pamiętany osobno dla każdego wpisu spisu.',
+    'module.ssh.help.remote' => 'Po połączeniu ekran pokazuje zdalny katalog: Enter wchodzi, Backspace wraca wyżej, Ctrl+R czyta na nowo, / zawęża listę, a F3 zagląda do spisu hostów. Ostatni katalog jest pamiętany osobno dla każdego wpisu spisu.',
     'module.ssh.help.hidden' => 'Ctrl+H przełącza wpisy ukryte i zapisuje wybór w ustawieniach modułu. Przełączenie czyta katalog na nowo, bo serwer bez tej prośby wpisów zaczynających się kropką w ogóle nie przysyła.',
-    'module.ssh.help.refresh' => 'Stan sesji odświeża F5. Aplikacja nie sprawdza go co klatkę, bo każde sprawdzenie to osobny proces — sesja zerwana przez sieć bywa więc przez chwilę pokazana jako żywa.',
+    'module.ssh.help.refresh' => 'Stan sesji odświeża F5 w spisie hostów. Aplikacja nie sprawdza go co klatkę, bo każde sprawdzenie to osobny proces — sesja zerwana przez sieć bywa więc przez chwilę pokazana jako żywa.',
+    'module.ssh.help.transfer' => 'F5 pobiera zaznaczony plik zdalny do katalogu, w którym stoi przeglądarka, a F6 wysyła zaznaczony plik lokalny do katalogu otwartego w panelu; obie czynności mają też komendy (ssh.get, ssh.put) i pozycje w menu F9. Przesyłane są pliki, nie katalogi.',
+    'module.ssh.help.collision' => 'Treść ląduje pod nazwą roboczą (kropka z przodu, .lm-part na końcu) i dopiero po niej dostaje nazwę docelową, więc przerwany przesył nie zostawia pliku wyglądającego na gotowy. Esc przerywa i sprząta po obu stronach; zajęta nazwa w celu zatrzymuje pracę pytaniem.',
 ];

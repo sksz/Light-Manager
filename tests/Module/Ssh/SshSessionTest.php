@@ -185,7 +185,10 @@ final class SshSessionTest extends TestCase
             SshEvent::declarations(),
         );
 
-        self::assertSame(['ssh.connected', 'ssh.disconnected', 'ssh.failed'], $names);
+        self::assertSame(
+            ['ssh.connected', 'ssh.disconnected', 'ssh.failed', 'ssh.transfer.done', 'ssh.transfer.failed'],
+            $names,
+        );
     }
 
     private function sessionWith(

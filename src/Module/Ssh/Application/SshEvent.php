@@ -25,6 +25,13 @@ use LightManager\Application\Event\EventDeclaration;
  * zdarzeniem nie są, bo zdarzenie ma opisywać **rzecz, która się stała**, a nie
  * fazę pracy, która trwa. Efekt dźwiękowy przypisany do „właśnie pytam
  * o odcisk" grałby w środku pytania.
+ *
+ * **Krok 50 dokłada dwa i ani jednego więcej.** Przesył ma prawo do własnych,
+ * bo trzy zdarzenia rdzenia odróżniają powodzenie od awarii, ale nie odróżniają
+ * **przesyłu** od czegokolwiek innego (D83, rozstrzygnięcie 1) — a przeniesiony
+ * plik jest dokładnie tym rodzajem zdarzenia, dla którego efekty w kroku 46
+ * powstały. Pobrania od wysłania **nie odróżniają** i to też jest wybór: kierunek
+ * jest szczegółem czynności, a nie inną czynnością.
  */
 enum SshEvent: string
 {
@@ -36,6 +43,12 @@ enum SshEvent: string
 
     /** Połączenia nie udało się nawiązać — z dowolnego powodu. */
     case Failed = 'ssh.failed';
+
+    /** Plik doszedł na drugą stronę — pobrany albo wysłany (krok 50). */
+    case TransferDone = 'ssh.transfer.done';
+
+    /** Przesył stanął: niepowodzenie albo przerwanie przez użytkownika. */
+    case TransferFailed = 'ssh.transfer.failed';
 
     public function labelKey(): string
     {

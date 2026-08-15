@@ -531,6 +531,29 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     (`RequiresEnvironment`), a nie zostawia go na pustym obiekcie jak `ext-glfw`
     w module dźwięku: cisza jest sensowną postacią muzyki, spis hostów, z którymi
     nie da się połączyć — nie jest sensowną postacią sesji.
+11r'. **Przesył plików: nazwa robocza, `rename -l` i postęp czytany `stat`em**
+    (krok 50, D89). `F5` pobiera, `F6` wysyła, a odświeżanie listy przeprowadziło
+    się na `Ctrl`+`R` (pilnuje `RemoteShortcutsTest`, wzorem `Ctrl`+`T` z kroku
+    31). Pięć reguł, których nie wolno tu uprościć. **Treść ląduje pod nazwą
+    roboczą** (`.<nazwa>.lm-part`), a zatwierdza ją zmiana nazwy — lokalnie
+    `FileOperationsPort`, zdalnie `rename` w tym samym wsadzie; przerwanie
+    zostawia więc plik, który nazwą mówi, czym jest, a nie plik wyglądający na
+    gotowy. **Zdalne zatwierdzenie idzie `rename -l`**, bo zwykłe `rename` używa
+    rozszerzenia `posix-rename@openssh.com` i **nadpisuje cicho** (zmierzone: kod
+    zero na zajętej nazwie); cel zwalnia się jawnie (`-rm`) i tylko po zgodzie
+    użytkownika. **Postępu nie da się wziąć od klienta** — `sftp` rysuje pasek
+    wyłącznie na terminalu sterującym (`progressmeter.c`: `getpgrp()` vs
+    `tcgetpgrp()`), więc na potoku milczy nawet po poleceniu `progress`; bajty
+    czyta się **rosnącym plikiem roboczym**, co działa przy pobieraniu i nie
+    działa przy wysyłaniu (tam pasek liczy pliki). Ten sam odczyt wykrywa
+    **zastój** — brak przyrostu przez 30 s kończy pracę, bo zerwane łącze poznaje
+    się po kodzie wyjścia, a `sftp` ginie wtedy od `SIGPIPE` z **pustym**
+    strumieniem błędów. **Jeden potomek na plik**, bo wsad przerywa się na
+    pierwszym błędzie; kolizję rozstrzyga strona, która wie za darmo (dysk przy
+    pobieraniu, lista panelu przy wysyłaniu), a odpowiedzi bierze się z rdzenia
+    (`TransferChoice`). Drugą stronę przesyłu daje **zatrzask kontekstu**
+    (`LocalPlace`): ekran zdalny publikuje własny kontekst, więc lokalnej ścieżki
+    nie ma czego zapytać, a `ReadsContext` podaje ją przed rysowaniem.
 11s. **Moduł może odmówić startu, a rejestr ma na to zdolność** (krok 48, D87
     nr 11). `Application\Module\RequiresEnvironment::unavailableReason()` oddaje
     **klucz katalogu albo `null`**; `ModuleRegistry::admit()` pyta o to **przed**
@@ -632,6 +655,14 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     ścieżek**, a nie jedną (`beginRemoval(list<string>)`, jak `begin()` w porcie
     kopiowania od kroku 42). Skąd ta lista się wzięła — z zaznaczenia czy
     z kursora — port nadal nie wie i wiedzieć nie ma prawa.
+    **Krok 50 dokłada zdanie graniczne, którego wcześniej nie było:** pisanie
+    **przez proces potomny** nie jest obejściem tej reguły, dopóki każda zmiana
+    nazwy i każde skasowanie idą przez port rdzenia. Przesył plików pisze po
+    dysku `sftp`-em uruchomionym rdzeniowym `BackgroundProcessPort`, a zatwierdza
+    i sprząta `FileOperationsPort`em — więc wyjątek 15b zostaje przy **jednym**
+    nazwanym przypadku, a moduł nie woła ani `rename()`, ani `unlink()`. Próba na
+    przyszłość nie zmienia się: dwóch odbiorców i powtórzenie o koszcie
+    nieodwracalnym.
 15c. **Zaznaczenie wielokrotne jest własnością panelu, a operacje biorą je jako
     listę nazw** (krok 43, D80). `MarkedEntries` mieszka w `Domain` modułu
     przeglądarki, a jego właścicielem jest `BrowserState` — obok filtra i z tego

@@ -6,17 +6,25 @@ namespace LightManager\Tests\Functional;
 
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Module\ContextEntryKind;
+use LightManager\Application\Module\ModuleContext;
 use LightManager\Application\Ui\Primitive\TextRun;
 use LightManager\Application\Ui\Rect;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
 use LightManager\Module\Browser\Domain\ValueObject\Entry;
 use LightManager\Module\Ssh\Application\HostBook;
+use LightManager\Module\Ssh\Application\RemoteTransferState;
 use LightManager\Module\Ssh\Application\SessionStage;
+use LightManager\Module\Ssh\Application\TransferDirection;
 use LightManager\Module\Ssh\Domain\ValueObject\AuthMethod;
 use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
+use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntry;
+use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntryType;
+use LightManager\Presentation\Ui\Module\ReadsContext;
 use LightManager\Tests\Support\InMemoryDirectoryRepository;
 use LightManager\Tests\Support\ScreenFixture;
 use LightManager\Tests\Support\StubHostBook;
+use LightManager\Tests\Support\StubRemoteDirectory;
 use LightManager\Tests\Support\StubSshSession;
 use PHPUnit\Framework\TestCase;
 
@@ -326,6 +334,88 @@ final class SshSessionFlowTest extends TestCase
         );
     }
 
+    /**
+     * **Sedno kroku 50**: `F5` na wpisie zdalnym pyta o katalog, a `Enter`
+     * zaczyna pracę i otwiera okno postępu.
+     *
+     * Kontekst lokalny podaje się tą samą metodą, którą przed rysowaniem woła
+     * `FrameComposer` (`ReadsContext`) — bo to on jest jedyną drogą, którą ekran
+     * zdalny poznaje katalog przeglądarki (D89 nr 8).
+     */
+    public function testDownloadingAsksForTheTargetAndRunsWithAWindow(): void
+    {
+        $this->connect();
+        $this->publishLocal(new ModuleContext('/home/anna/pobrane'));
+
+        // Kursor startuje na katalogu, a katalogów ten krok nie przesyła
+        // (D89 nr 5) — strzałka staje na pliku.
+        $this->press(KeyPress::special(Key::ArrowDown, "\e[B"));
+        $this->press(KeyPress::special(Key::F5, "\e[15~"));
+
+        self::assertSame('prompt', $this->app->state->overlays()->current()?->id());
+        self::assertStringContainsString('/home/anna/pobrane', implode(' ', $this->overlayTexts()));
+
+        $this->press(KeyPress::special(Key::Enter, "\r"));
+
+        self::assertSame('progress', $this->app->state->overlays()->current()?->id(), 'praca ma swoje okno');
+        self::assertCount(1, $this->app->remoteTransfers->started);
+
+        [$items, $target, $direction] = $this->app->remoteTransfers->started[0];
+
+        self::assertSame('/home/anna/list.txt', $items[0]->path);
+        self::assertSame('/home/anna/pobrane', $target);
+        self::assertSame(TransferDirection::Download, $direction);
+
+        $this->app->remoteTransfers->willStep(RemoteTransferState::idle()->withFinished(0)->done());
+        $this->advanceWork();
+
+        self::assertNull($this->app->state->overlays()->current(), 'okno zamknęło się samo');
+        self::assertStringContainsString('module.ssh.transfer.download.done', $this->message());
+    }
+
+    /** `F6` wysyła plik zaznaczony **w przeglądarce** — źródło bierze się z kontekstu. */
+    public function testUploadingTakesTheSourceFromTheBrowserContext(): void
+    {
+        $this->connect();
+        $this->publishLocal(new ModuleContext(
+            '/home/anna',
+            'raport.pdf',
+            ContextEntryKind::File,
+            selectionBytes: 900,
+        ));
+
+        $this->press(KeyPress::special(Key::F6, "\e[17~"));
+        $this->press(KeyPress::special(Key::Enter, "\r"));
+
+        [$items, $target, $direction] = $this->app->remoteTransfers->started[0];
+
+        self::assertSame('/home/anna/raport.pdf', $items[0]->path);
+        self::assertSame(900, $items[0]->sizeInBytes);
+        self::assertSame('/home/anna', $target, 'celem jest katalog otwarty w panelu');
+        self::assertSame(TransferDirection::Upload, $direction);
+    }
+
+    /**
+     * Odświeżanie listy przeprowadziło się z `F5` na `Ctrl`+`R` (D89 nr 4).
+     *
+     * Sprawdzamy **obie** połowy tej zmiany: nowy klawisz zamawia nowy obieg,
+     * a stary nie zamawia go już wcale — bo klawisz, który po przeprowadzce
+     * robiłby jedno i drugie, byłby przeoczeniem, nie zgodnością wstecz.
+     */
+    public function testTheListingRefreshMovedFromFiveToControlR(): void
+    {
+        $this->connect();
+        $before = $this->app->remote->reads;
+
+        $this->press(KeyPress::ctrl('r'));
+
+        self::assertSame($before + 1, $this->app->remote->reads);
+
+        $this->press(KeyPress::special(Key::F5, "\e[15~"));
+
+        self::assertSame($before + 1, $this->app->remote->reads, 'F5 nie czyta katalogu, tylko pobiera plik');
+    }
+
     /** Takt posuwa pracę także wtedy, gdy spisu hostów nie widać. */
     public function testTheTickAdvancesTheWorkFromAnyScreen(): void
     {
@@ -351,6 +441,30 @@ final class SshSessionFlowTest extends TestCase
         $message = $this->app->state->message();
 
         return $message === null ? '' : $message->text;
+    }
+
+    /**
+     * Kontekst przeglądarki podany ekranowi zdalnemu **tą samą drogą, którą
+     * podaje go aplikacja**: `FrameComposer` woła `ReadsContext::useContext()`
+     * przed rysowaniem. Sprawdzenie zdolności jest tu częścią przebiegu — bez
+     * niej ekran nie miałby jak poznać katalogu, w którym stoi użytkownik.
+     */
+    private function publishLocal(ModuleContext $context): void
+    {
+        $screen = $this->app->sshScreen;
+
+        self::assertInstanceOf(ReadsContext::class, $screen);
+
+        $screen->useContext($context);
+    }
+
+    /** Sesja stojąca i zdalny katalog na ekranie — punkt wyjścia przebiegów przesyłu. */
+    private function connect(): void
+    {
+        $this->openHosts();
+        $this->press(KeyPress::special(Key::Enter, "\r"));
+        $this->sessions->settleConnected($this->profile('biuro'));
+        $this->advanceWork();
     }
 
     private function openHosts(): void
@@ -434,11 +548,19 @@ final class SshSessionFlowTest extends TestCase
     {
         $directories = (new InMemoryDirectoryRepository())->add('/', [Entry::file('plik.txt', 10)]);
 
+        // Zdalny katalog ma **treść**, bo od kroku 50 przebieg sięga po wpis pod
+        // kursorem: pobranie bez pliku do pobrania sprawdzałoby wyłącznie odmowę.
         return new ScreenFixture(
             $directories->get(new DirectoryPath('/'), false),
             $directories,
             sessions: $this->sessions,
             hosts: $this->hosts,
+            remote: new StubRemoteDirectory([
+                '/home/anna' => [
+                    new RemoteEntry('dokumenty', RemoteEntryType::Directory),
+                    new RemoteEntry('list.txt', RemoteEntryType::File, 120),
+                ],
+            ]),
         );
     }
 }

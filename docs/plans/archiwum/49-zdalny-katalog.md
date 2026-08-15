@@ -1,7 +1,7 @@
 # Krok 49 — Zdalny katalog: panel modułu czyta przez SFTP
 
 > **Skąd ten krok.** Powstał 2026-08-15 razem z krokami 48 i 50 jako środkowa
-> trzecia Fazy XVII ([00-decyzje.md](00-decyzje.md), D84). To on jest tym,
+> trzecia Fazy XVII ([00-decyzje.md](../00-decyzje.md), D84). To on jest tym,
 > po co faza istnieje: sesja bez listy plików jest połączeniem donikąd.
 
 ## Status
@@ -179,7 +179,7 @@ przechodzącego przez granicę portu** (reguła 8) i bez przerwania pętli.
 
 Rysowanie jest to samo, co w liście lokalnej (`Table` w strefie środkowej,
 mierzy `columns`), więc **scenariusza klatki krok nie dokłada** — powód
-pominięcia idzie do [docs/pomiary/README.md](../pomiary/README.md), tą samą
+pominięcia idzie do [docs/pomiary/README.md](../../pomiary/README.md), tą samą
 drogą, którą zapisano go dla `MenuOverlay` i `EntryTree`.
 
 Osobno, do dziennika kroku, dwie liczby, których `bin/render-bench` nie zna
@@ -195,7 +195,7 @@ ma prawa urosnąć**.
 - **Zapis po zdalnej stronie** — zmiana nazwy, nowy katalog, usunięcie. Wszystkie
   cztery wywołania są w rozszerzeniu (`ssh2_sftp_rename`, `_mkdir`, `_rmdir`,
   `_unlink`), więc jest to krok o rozmiarze kroku 41 — i osobny krok, jeśli
-  faza się przedłuży (patrz [00-index.md](00-index.md), „Zakres poza MVP”).
+  faza się przedłuży (patrz [00-index.md](../00-index.md), „Zakres poza MVP”).
 - **Przesył plików** — krok 50.
 - **Podgląd zdalnych plików** (miniatura, tekst) — `ImagePreviewService`
   i `TextPreviewService` czytają **ścieżkę lokalną**; podgląd zdalny wymagałby
@@ -229,7 +229,7 @@ ma prawa urosnąć**.
 
 ## Rozstrzygnięte na starcie kroku (2026-08-15)
 
-Pełne uzasadnienia i odrzucone alternatywy: [00-decyzje.md](00-decyzje.md), D88.
+Pełne uzasadnienia i odrzucone alternatywy: [00-decyzje.md](../00-decyzje.md), D88.
 **Cztery odpowiedzi poszły wbrew rekomendacji planu** — nr 3, 5, 6 i 9.
 
 | # | Pytanie | Rozstrzygnięcie | Wobec rekomendacji |
@@ -280,7 +280,7 @@ pytanie „czy `readdir` rozszerzenia niesie atrybuty" straciło adresata. Zadan
 na nowo `sftp`-owi — na żywym serwerze, przed pierwszą linią kodu — i odpowiedź
 przesądziła o kształcie kroku (tabela w sekcji „Zastrzeżenie").
 
-Jedenaście rozstrzygnięć (osiem z planu, trzy wynikłe) w [00-decyzje.md](00-decyzje.md),
+Jedenaście rozstrzygnięć (osiem z planu, trzy wynikłe) w [00-decyzje.md](../00-decyzje.md),
 D88. Cztery poszły wbrew rekomendacji planu.
 
 ### 2026-08-15 — wykonanie
@@ -393,6 +393,12 @@ wzorcu — czyli szum, i to szum, w którym drugi przebieg miał **wyższe obci�
 niż wzorzec**. Narzędzie nie zgłosiło regresji w żadnym z nich. Wzorzec zapisany
 jako `2026-08-15-po-kroku-49-loop.json`.
 
+**Przy pracy trwającej w tle** — a tego kryterium wymaga wprost — dwa dalsze
+przebiegi, prowadzone w chwili, gdy prawdziwy kod modułu czytał w kółko katalog
+o pięciu tysiącach wpisów przez żywą sesję: **+0,1%** wobec wzorca po tym kroku
+i **−1,1%** wobec wzorca po kroku 48. Obie strony zera, obciążenie maszyny niższe
+niż we wzorcach (0,09–0,10 wobec 0,11–0,15 na rdzeń), bez regresji.
+
 **Granica tej liczby jest ta sama, co w krokach 45, 46 i 48**: `--loop` nie woła
 taktu modułów, więc mówi ona, że *reszta* taktu się nie zmieniła. O koszcie
 samego taktu tego modułu świadczy to, na co się on składa: jedno `poll()`, które
@@ -400,7 +406,7 @@ z definicji nie blokuje, plus — raz na odczyt — rozczytanie wypisu, zmierzon
 **3,2 ms dla pięciu tysięcy wpisów**.
 
 Scenariusza klatki krok **nie dokłada**; dwa powody pominięcia (panel i odczyt)
-stoją w [docs/pomiary/README.md](../pomiary/README.md).
+stoją w [docs/pomiary/README.md](../../pomiary/README.md).
 
 #### Czego krok nie dowiózł
 
