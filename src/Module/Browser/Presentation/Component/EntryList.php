@@ -10,6 +10,7 @@ use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Domain\ValueObject\Entry;
+use LightManager\Module\Browser\Domain\ValueObject\MarkedEntries;
 use LightManager\Module\Browser\Domain\ValueObject\NameFilter;
 use LightManager\Presentation\Ui\Component\Align;
 use LightManager\Presentation\Ui\Component\Column;
@@ -44,6 +45,24 @@ use LightManager\Presentation\Ui\ScrollWindow;
  * a teraz liczy go `Table` z reguły wspólnej dla obu osi. Kolumny szczegółów
  * **ustępują w wąskim oknie** — prawa pierwsze, potem data, potem rozmiar —
  * a nazwa nie ustępuje nigdy.
+ *
+ * **Od kroku 43 kolumn bywa pięć — ale wyłącznie wtedy, gdy coś jest zaznaczone.**
+ * Kolumna znacznika powstaje dopiero przy niepustym zbiorze i to nie jest
+ * oszczędność, tylko wymóg: panel bez zaznaczenia ma wyglądać **co do znaku** jak
+ * przed tamtym krokiem, czego dowodzą niezmienione wzorce pozostałych
+ * scenariuszy. Wiersz zaznaczony poznaje się po dwóch rzeczach naraz (D80,
+ * rozstrzygnięcie 5) — po znaczniku i po **własnej roli motywu** — bo kursor
+ * zabrał już `Selection`, katalogi `Accent`, a wpisy ukryte `Muted`; jeden
+ * sygnał mniej znaczyłby, że w torze tekstowym bez kolorów zaznaczenia nie
+ * widać wcale albo że wiersz zaznaczony i podświetlony kursorem jest
+ * nieodróżnialny od zwykłego.
+ *
+ * Rola `Marked` jest **dwunastą w motywie i pierwszą dołożoną od kroku 13**
+ * (D80, rozstrzygnięcie 5a). Wzięła się z obejrzenia klatki, a nie z projektu:
+ * pierwsza wersja malowała wiersz rolą `Warning`, a ta jest w motywie Grafit
+ * **tym samym kolorem, co akcent** (jeden nasycony kolor, D25) — więc zaznaczony
+ * plik wyglądał w domyślnym motywie jak katalog i z dwóch sygnałów zostawał
+ * jeden.
  */
 final class EntryList implements ComponentInterface
 {
@@ -62,6 +81,21 @@ final class EntryList implements ComponentInterface
 
     /** `rwxr-xr-x` — dokładnie dziewięć znaków, bez odstępu, bo stoi ostatnia. */
     private const PERMISSIONS_WIDTH = 9;
+
+    /** Znak zaznaczenia — jeden znak treści plus odstęp od nazwy (krok 43). */
+    private const MARK_WIDTH = 2;
+
+    /**
+     * Kolumna znacznika ustępuje **ostatnia z kolumn stałych**.
+     *
+     * Kolejność jest ciągiem dalszym drabinki z kroku 27 (prawa 1, data 2,
+     * rozmiar 3) i wynika z tego samego rachunku: znacznik jest jedynym miejscem,
+     * w którym widać, że operacja dotyczy dwunastu wpisów, a nie jednego —
+     * a szczegóły wpisu można doczytać w module opisu pliku.
+     */
+    private const MARK_YIELD_ORDER = 4;
+
+    private const MARK_KEY = 'module.browser.marked.marker';
 
     /**
      * Poniżej tylu kolumn nazwa przestaje być nazwą — i to ta liczba, a nie
@@ -98,6 +132,14 @@ final class EntryList implements ComponentInterface
          * wiedzieć, którą część nazwy pokazać jako dopasowaną.
          */
         private readonly NameFilter $filter = new NameFilter(''),
+        /**
+         * Wpisy zaznaczone wielokrotnie (krok 43).
+         *
+         * Zbiór dotyczy **całego katalogu**, a lista rysuje jego wycinek, więc
+         * komponent pyta go wyłącznie o dwie rzeczy: czy jest pusty (od tego
+         * zależy istnienie kolumny) i czy zawiera wiersz, który właśnie rysuje.
+         */
+        private readonly MarkedEntries $marked = new MarkedEntries(),
     ) {
     }
 
@@ -189,11 +231,24 @@ final class EntryList implements ComponentInterface
      * — „kolumny szczegółów” — a resztą rządzi drabinka: **prawa ustępują
      * pierwsze, potem data, potem rozmiar, a nazwa nie ustępuje nigdy**.
      *
+     * **Kolumna znacznika stoi przed nazwą i istnieje warunkowo** (krok 43):
+     * przy pustym zbiorze nie ma jej wcale, więc rozdział szerokości daje
+     * dokładnie te same liczby, co przed tamtym krokiem. Nagłówka nie dostaje —
+     * nazwa dla kolumny szerokiej na jeden znak byłaby napisem przyciętym do
+     * wielokropka.
+     *
      * @return list<Column>
      */
     private function columns(): array
     {
+        $columns = [];
+
+        if (!$this->marked->isEmpty()) {
+            $columns[] = Column::fixed(self::MARK_WIDTH, yieldOrder: self::MARK_YIELD_ORDER);
+        }
+
         $columns = [
+            ...$columns,
             Column::flexible(
                 self::NAME_MINIMUM,
                 label: $this->translator->translate('module.browser.column.name'),
@@ -237,15 +292,31 @@ final class EntryList implements ComponentInterface
      */
     private function row(Entry $entry): TableRow
     {
+        $cells = [
+            $entry->name . ($entry->isDirectory() ? '/' : ''),
+            $entry->isDirectory() ? '' : EntrySize::of($this->translator, $entry->sizeInBytes),
+            $this->formatDate($entry->modifiedAt),
+            $entry->permissionsAsText(),
+        ];
+
+        if ($this->marked->isEmpty()) {
+            return new TableRow(
+                $cells,
+                $entry->isDirectory() ? Role::Accent : Role::Text,
+                $this->marksIn($entry, 0),
+            );
+        }
+
+        $isMarked = $this->marked->has($entry->name);
+
         return new TableRow(
-            [
-                $entry->name . ($entry->isDirectory() ? '/' : ''),
-                $entry->isDirectory() ? '' : EntrySize::of($this->translator, $entry->sizeInBytes),
-                $this->formatDate($entry->modifiedAt),
-                $entry->permissionsAsText(),
-            ],
-            $entry->isDirectory() ? Role::Accent : Role::Text,
-            $this->marksIn($entry),
+            [$isMarked ? $this->translator->translate(self::MARK_KEY) : '', ...$cells],
+            // Rola zaznaczenia bierze górę nad rolą rodzaju wpisu: zaznaczony
+            // katalog przestaje być akcentem, bo pytanie „co zniknie po
+            // naciśnięciu F8” jest w tej chwili ważniejsze niż „co jest
+            // katalogiem” — a ukośnik po nazwie mówi to drugie tak samo dobrze.
+            $isMarked ? Role::Marked : ($entry->isDirectory() ? Role::Accent : Role::Text),
+            $this->marksIn($entry, 1),
         );
     }
 
@@ -259,9 +330,16 @@ final class EntryList implements ComponentInterface
      * Przy pustym filtrze oddaje pustą tablicę i to jest cała cena, jaką klatka
      * bez filtra płaci za istnienie tego kroku: jedno porównanie napisu na wiersz.
      *
+     * Numer kolumny przychodzi z zewnątrz, bo od kroku 43 **nazwa nie zawsze
+     * stoi pierwsza**: przy niepustym zbiorze wyprzedza ją kolumna znacznika.
+     * Policzony tutaj z `$this->marked` byłby tym samym warunkiem sprawdzanym
+     * dwa razy na wiersz.
+     *
+     * @param int $column numer kolumny z nazwą wpisu
+     *
      * @return array<int, list<TextSpan>>
      */
-    private function marksIn(Entry $entry): array
+    private function marksIn(Entry $entry, int $column): array
     {
         if ($this->filter->isEmpty()) {
             return [];
@@ -269,7 +347,7 @@ final class EntryList implements ComponentInterface
 
         $spans = TextSpan::occurrencesOf($this->filter->value, $entry->name);
 
-        return $spans === [] ? [] : [0 => $spans];
+        return $spans === [] ? [] : [$column => $spans];
     }
 
     /**

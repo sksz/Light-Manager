@@ -40,6 +40,19 @@ final class Theme
         public readonly string $selection,
         /** Tekst zaznaczonego wiersza. */
         public readonly string $selectionText,
+        /**
+         * Wpis zaznaczony wielokrotnie (krok 43).
+         *
+         * Dwunasta rola i pierwsza dołożona od kroku 13. Powód jest w każdej
+         * palecie ten sam i wynikł z obejrzenia klatki, a nie z projektu:
+         * zaznaczenie potrzebuje koloru **odróżnialnego naraz od trzech** —
+         * od tekstu (bo inaczej znacznik zostaje jedynym sygnałem), od akcentu
+         * (bo akcentem są katalogi) i od czerwieni (bo ta znaczy „nieodwracalne”).
+         * We wszystkich czterech paletach jest nim **zieleń**: kolor, którego
+         * projekt nie używał dotąd do niczego, więc nie odbiera znaczenia
+         * niczemu innemu.
+         */
+        public readonly string $marked,
         public readonly string $info,
         public readonly string $warning,
         public readonly string $danger,
@@ -47,10 +60,17 @@ final class Theme
     }
 
     /**
-     * Neutralne, chłodne szarości z jednym ciepłym akcentem. Akcent jest tu
-     * jedynym nasyconym kolorem, więc niesie hierarchię sam z siebie, a paleta
-     * Sixela idzie na półcienie liter zamiast na barwy
-     * ([00-decyzje.md](../../../docs/plans/00-decyzje.md), D25).
+     * Neutralne, chłodne szarości z jednym ciepłym akcentem. Akcent niesie
+     * hierarchię sam z siebie, a paleta Sixela idzie na półcienie liter zamiast
+     * na barwy ([00-decyzje.md](../../../docs/plans/00-decyzje.md), D25).
+     *
+     * **Od kroku 43 nasycone kolory są dwa, nie jeden** (D80, rozstrzygnięcie
+     * 5a), i jest to świadome odstępstwo od zasady, na której ten motyw stał.
+     * Powód: zaznaczenie wielokrotne potrzebuje koloru odróżnialnego naraz od
+     * tekstu, od akcentu (którym są katalogi) i od czerwieni (która znaczy
+     * „nieodwracalne”) — a przy jednym nasyconym kolorze takiego koloru po prostu
+     * nie ma. Zieleń jest przygaszona, żeby nie konkurowała z akcentem o uwagę:
+     * ma odróżniać, a nie krzyczeć.
      */
     public static function grafit(): self
     {
@@ -63,6 +83,11 @@ final class Theme
             accent: '#d9a441',
             selection: '#313845',
             selectionText: '#f2f4f7',
+            // Zasada „jeden nasycony kolor” (D25) ustępuje tu **drugiemu**
+            // i jest to świadoma cena rozstrzygnięcia 5a: zieleń jest przy tym
+            // przygaszona, żeby nie konkurowała z akcentem o uwagę — ma
+            // odróżniać, a nie krzyczeć.
+            marked: '#7fb069',
             info: '#8d939d',
             warning: '#d9a441',
             danger: '#e0645c',
@@ -85,6 +110,8 @@ final class Theme
             accent: '#88c0d0',
             selection: '#434c5e',
             selectionText: '#eceff4',
+            // Zieleń z kanonicznej palety Nord — ta sama rodzina, co reszta motywu.
+            marked: '#a3be8c',
             info: '#81a1c1',
             warning: '#ebcb8b',
             danger: '#bf616a',
@@ -108,6 +135,8 @@ final class Theme
             accent: '#b06a2c',
             selection: '#ddd5c4',
             selectionText: '#1b1814',
+            // Jedyny motyw, w którym kolor musi być **ciemniejszy** od tła.
+            marked: '#4f7a2e',
             info: '#55606e',
             warning: '#9a6c10',
             danger: '#a8352b',
@@ -129,6 +158,7 @@ final class Theme
             accent: '#8ab4f8',
             selection: '#2a3358',
             selectionText: '#f0f4ff',
+            marked: '#81c995',
             info: '#8b95b8',
             warning: '#f2c14e',
             danger: '#f28b82',

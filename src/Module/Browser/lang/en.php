@@ -29,6 +29,15 @@ return [
     'module.browser.filter.key.accept' => 'keep the list narrowed',
     'module.browser.filter.key.cancel' => 'drop the filter and go back',
 
+    // Multiple selection (step 43). The marker takes one column before the name
+    // and appears only once the set is not empty.
+    'module.browser.marked.marker' => '•',
+    'module.browser.marked.summary' => '• {count} of {total} · {size}',
+    // The variant with directories says outright what the sum leaves out:
+    // nothing but `du` knows the size of a directory, so a sum silent about the
+    // omission is a lie.
+    'module.browser.marked.summary.dirs' => '• {count} of {total} · {size} excl. {dirs} dir.',
+
     // Settings tab entries.
     'module.browser.setting.showHidden' => 'Show hidden entries',
     'module.browser.setting.split' => 'Split into two panes',
@@ -59,6 +68,11 @@ return [
     'module.browser.help.filter' => 'narrow the list by a name fragment',
     'module.browser.help.filter.clear' => 'drop the filter',
 
+    // Marking (step 43) — keys of the **list**; the tree does not have them.
+    'module.browser.help.mark' => 'mark the entry and step down',
+    'module.browser.help.invert' => 'invert the marks on the visible list',
+    'module.browser.help.marked.clear' => 'drop the marks',
+
     // Directory tree (step 31). The arrow descriptions show up only in a pane
     // displaying the tree — in the list the same keys mean something else.
     'module.browser.help.rename' => 'rename the entry',
@@ -77,6 +91,9 @@ return [
     'module.browser.help.focus.short' => 'pane',
     'module.browser.help.filter.short' => 'filter',
     'module.browser.help.filter.clear.short' => 'no filter',
+    'module.browser.help.mark.short' => 'mark',
+    'module.browser.help.invert.short' => 'invert',
+    'module.browser.help.marked.clear.short' => 'no marks',
     'module.browser.help.rename.short' => 'rename',
     'module.browser.help.copy.short' => 'copy',
     'module.browser.help.move.short' => 'move',
@@ -125,8 +142,21 @@ return [
     'module.browser.mkdir.done' => 'Directory "{name}" created.',
     'module.browser.delete.confirm.file' => 'Delete "{name}" for good?',
     'module.browser.delete.confirm.tree' => 'Delete "{name}" with everything inside? To be deleted: {count}.',
+    // A set asks with a **number**, not with the name of the first of twelve
+    // (step 43). English needs two forms where Polish needs three; the singular
+    // never shows up, because a one-entry set asks with the name instead.
+    'module.browser.delete.confirm.many' => [
+        'Delete the marked entry for good?',
+        'Delete {count} marked entries for good?',
+    ],
+    'module.browser.delete.confirm.manyTrees' => [
+        'Delete the marked entry with everything inside? To be deleted: {total}.',
+        'Delete {count} marked entries with everything inside? To be deleted: {total}.',
+    ],
     'module.browser.delete.counting' => 'Counting the contents of "{name}"',
     'module.browser.delete.deleting' => 'Deleting "{name}"',
+    'module.browser.delete.counting.many' => 'Counting the contents of marked: {count}',
+    'module.browser.delete.deleting.many' => 'Deleting marked: {count}',
     'module.browser.delete.doneOne' => 'Deleted "{name}".',
     'module.browser.delete.needsOverlay' => 'Deleting needs a confirmation — use F8 or the F9 menu.',
     'module.browser.delete.done' => [
@@ -146,6 +176,12 @@ return [
     'module.browser.copy.progress' => 'Copying "{name}"',
     'module.browser.move.progress' => 'Moving "{name}"',
     'module.browser.transfer.counting' => 'Counting the contents of "{name}"',
+    // Variants for a set (step 43): a number instead of the first entry's name.
+    'module.browser.copy.title.many' => 'Copy the marked ({count}) to:',
+    'module.browser.move.title.many' => 'Move the marked ({count}) to:',
+    'module.browser.copy.progress.many' => 'Copying marked: {count}',
+    'module.browser.move.progress.many' => 'Moving marked: {count}',
+    'module.browser.transfer.counting.many' => 'Counting the contents of marked: {count}',
     'module.browser.transfer.abandoned' => 'Counting stopped — the disk was left untouched.',
     'module.browser.transfer.counter' => '{done} of {total} · {entry}/{entries}',
     'module.browser.transfer.counter.size' => '{done} of {total}',

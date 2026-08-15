@@ -327,6 +327,7 @@ return [
     'bench.scenario.highlight' => 'list with highlighting',
     'bench.scenario.settings' => 'settings screen',
     'bench.scenario.tree' => 'directory tree',
+    'bench.scenario.marked' => 'list with marks',
 
     'bench.transfer.title' => 'Frame transfer to the terminal',
     'bench.transfer.blob' => '  frame size:         {kilobytes} kB',

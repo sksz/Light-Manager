@@ -250,6 +250,15 @@ final class StatusHintsFlowTest extends TestCase
             return [$test->app->browser, 'lista z filtrem'];
         }];
 
+        yield 'przeglądarka: zaznaczenie' => [static function (self $test): array {
+            // Miejsce dołożone w kroku 43: `Esc` znaczy tu „zdejmij zaznaczenie”,
+            // a spis mówi o tym dopiero wtedy, gdy jest co zdejmować.
+            $test->app = self::fixture();
+            $test->app->browser->handle(KeyPress::character(' '));
+
+            return [$test->app->browser, 'lista z zaznaczeniem'];
+        }];
+
         yield 'opis pliku: sekcje' => [static function (self $test): array {
             $test->app = self::fixture();
             $screen = $test->fileInfoOnText();

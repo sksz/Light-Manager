@@ -65,11 +65,19 @@ interface FileOperationsPort
     public function delete(string $path): void;
 
     /**
-     * Zaczyna usuwanie katalogu wraz z zawartością — od **liczenia**, nie od
-     * usuwania. Poprzednia praca, jeśli trwała, zostaje przerwana: port prowadzi
-     * jedną (reguła 11d).
+     * Zaczyna usuwanie wskazanych wpisów wraz z zawartością — od **liczenia**,
+     * nie od usuwania. Poprzednia praca, jeśli trwała, zostaje przerwana: port
+     * prowadzi jedną (reguła 11d).
+     *
+     * **Lista, a nie jeden wpis** (krok 43), i to jest ta sama zmiana, którą krok
+     * 42 wprowadził od razu w `FileTransferPort::begin()`: zaznaczenie wielokrotne
+     * jest mnożnikiem czynności, a praca policzona osobno dla każdego z dwunastu
+     * wpisów pokazałaby dwanaście okien postępu po kolei zamiast jednego. Lista
+     * o jednym elemencie jest zwykłym przypadkiem tej samej drogi, nie wyjątkiem.
+     *
+     * @param list<string> $paths ścieżki bezwzględne; pusta lista niczego nie zaczyna
      */
-    public function beginRemoval(string $path): RemovalState;
+    public function beginRemoval(array $paths): RemovalState;
 
     /**
      * Posuwa pracę o jeden kawałek i oddaje stan po nim. Wywołanie przy pracy,

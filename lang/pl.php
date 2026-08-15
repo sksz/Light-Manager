@@ -354,6 +354,7 @@ return [
     'bench.scenario.highlight' => 'lista z podświetleniem',
     'bench.scenario.settings' => 'ekran ustawień',
     'bench.scenario.tree' => 'drzewo katalogów',
+    'bench.scenario.marked' => 'lista z zaznaczeniem',
 
     'bench.transfer.title' => 'Przesył klatki do terminala',
     'bench.transfer.blob' => '  rozmiar klatki:     {kilobytes} kB',

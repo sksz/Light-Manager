@@ -6,6 +6,7 @@ namespace LightManager\Module\Browser\Presentation;
 
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Domain\ValueObject\Entry;
+use LightManager\Module\Browser\Domain\ValueObject\MarkedEntries;
 use LightManager\Presentation\Ui\ScrollWindow;
 use LightManager\Presentation\Ui\SplitState;
 
@@ -114,6 +115,46 @@ final class BrowserPanes
         $entry = $directory->selectedEntry();
 
         return $entry === null ? null : [$directory, $entry];
+    }
+
+    /**
+     * Zbiór zaznaczonych panelu czynnego — **pusty, gdy panel pokazuje drzewo**
+     * (krok 43, D80 rozstrzygnięcie 9).
+     *
+     * Zaznaczenie jest własnością listy: trzyma nazwy z jednego katalogu, a węzły
+     * drzewa leżą na różnych poziomach. Przełączenie widoku zbioru **nie kasuje** —
+     * powrót do listy zastaje go takim, jaki był — ale dopóki widać drzewo, zbiór
+     * nie istnieje dla nikogo: ani dla znacznika w wierszu, ani dla podsumowania
+     * w pasie ścieżki, ani dla czynności. Inaczej `F8` w drzewie usuwałoby dwanaście
+     * wpisów, których na ekranie nie widać.
+     */
+    public function focusedMarked(): MarkedEntries
+    {
+        return $this->focusShowsTree() ? MarkedEntries::none() : $this->focused()->marked();
+    }
+
+    /**
+     * Katalog i nazwy, na które ma zadziałać czynność zmieniająca dysk (krok 43).
+     *
+     * Jedno miejsce dla wszystkich czynności i dla obu widoków: w drzewie jest to
+     * węzeł pod kursorem, w liście — zbiór zaznaczonych, a gdy jest pusty, wpis
+     * pod kursorem (reguła pustego zbioru). `null` znaczy „nie ma na czym
+     * działać”.
+     *
+     * @return ?array{Directory, list<string>}
+     */
+    public function focusedOperands(): ?array
+    {
+        if ($this->focusShowsTree()) {
+            $selection = $this->focusedSelection();
+
+            return $selection === null ? null : [$selection[0], [$selection[1]->name]];
+        }
+
+        $pane = $this->focused();
+        $names = $pane->operands();
+
+        return $names === [] ? null : [$pane->directory(), $names];
     }
 
     /** @return array{BrowserState, ScrollWindow, bool} katalog, okno i czy panel jest czynny */

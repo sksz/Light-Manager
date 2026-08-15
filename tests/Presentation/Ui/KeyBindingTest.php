@@ -70,6 +70,19 @@ final class KeyBindingTest extends TestCase
         self::assertFalse(KeyBinding::character('z', 'help.key.hidden')->matches(KeyPress::alt('z')));
     }
 
+    /**
+     * Spacja ma **nazwę**, bo sama z siebie nic nie rysuje (krok 43).
+     *
+     * Usterka znaleziona na klatce z prawdziwego terminala, a nie testem: stopka
+     * pokazywała „·   zaznacz” — obietnicę klawisza, którego nie widać. Testy jej
+     * nie widziały, bo porównywały **klucz opisu**, a nie napis z nazwą klawisza.
+     */
+    public function testDisplaysSpaceByName(): void
+    {
+        self::assertSame('Space', KeyBinding::character(' ', 'whatever')->display());
+        self::assertStringNotContainsString('  ', KeyBinding::character(' ', 'whatever')->display());
+    }
+
     public function testDisplaysAltWithUppercaseLetter(): void
     {
         self::assertSame('Alt+Z', KeyBinding::alt('z', 'whatever')->display());

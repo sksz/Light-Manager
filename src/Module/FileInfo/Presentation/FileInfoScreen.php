@@ -144,14 +144,55 @@ final class FileInfoScreen implements
     }
 
     /**
-     * Górny pas: katalog, z którego pochodzi opisywany wpis.
+     * Górny pas: katalog, z którego pochodzi opisywany wpis — albo **zbiór
+     * zaznaczonych**, jeśli przeglądarka jakiś ogłosiła (krok 43).
      *
-     * Ta sama treść, którą do kroku 20 stawiał tam rdzeń — zmienił się wyłącznie
-     * ten, kto ją zamawia.
+     * Treść pasa jest ta sama, którą do kroku 20 stawiał tam rdzeń; zmienił się
+     * wyłącznie ten, kto ją zamawia. Krok 43 dokłada jeden warunek i to on jest
+     * **odbiorcą** zbioru w kontekście sesji (reguła 13): rdzeń urósł o pojęcie
+     * zaznaczenia wielokrotnego (D80, rozstrzygnięcie 1), więc coś musi z tego
+     * pojęcia korzystać — inaczej byłby to mechanizm na zapas.
+     *
+     * Zbiór **zastępuje** ścieżkę, a nie dopisuje się do niej: użytkownik, który
+     * zaznaczył dwanaście plików, patrzy na ten ekran po to, żeby dowiedzieć się
+     * o nich czegoś, a nie po to, żeby przeczytać ścieżkę, która stoi
+     * niezmieniona w przeglądarce piętro niżej. Sam opis pod spodem zostaje przy
+     * tym opisem **wpisu pod kursorem** — bo dwunastu plików naraz nie da się
+     * opisać jednym zestawem sekcji, a kursor gdzieś przecież stoi.
      */
     public function header(): ScreenZone
     {
-        return new ScreenZone('layout.zone.path', new Label($this->state->context()->path));
+        $context = $this->state->context();
+
+        if (!$context->hasMarked()) {
+            return new ScreenZone('layout.zone.path', new Label($context->path));
+        }
+
+        return new ScreenZone('layout.zone.path', new Label($this->markedSummary($context)));
+    }
+
+    /**
+     * Zdanie o zbiorze: ile wpisów i ile razem ważą.
+     *
+     * Suma pomija katalogi, bo ich rozmiaru nikt nie zna (zajętość liczy `du`,
+     * krok 26) — i napis mówi to wprost, gdy w zbiorze jakiś katalog jest. To ta
+     * sama reguła, którą kieruje się podsumowanie w pasie ścieżki przeglądarki:
+     * suma milcząca o pominięciu jest sumą nieprawdziwą.
+     */
+    private function markedSummary(ModuleContext $context): string
+    {
+        $parameters = [
+            'count' => $this->translator->number((float) $context->markedCount),
+            'size' => $this->sizes->format($context->markedBytes),
+        ];
+
+        if ($context->markedDirectories === 0) {
+            return $this->translator->plural('module.file-info.marked', $context->markedCount, $parameters);
+        }
+
+        $parameters['dirs'] = $this->translator->number((float) $context->markedDirectories);
+
+        return $this->translator->plural('module.file-info.marked.dirs', $context->markedCount, $parameters);
     }
 
     public function reset(): void

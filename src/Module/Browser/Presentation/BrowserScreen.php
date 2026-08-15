@@ -16,6 +16,7 @@ use LightManager\Module\Browser\Application\UseCase\NavigateIntoDirectoryUseCase
 use LightManager\Module\Browser\Application\UseCase\NavigateUpUseCase;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Presentation\Component\EntryList;
+use LightManager\Module\Browser\Presentation\Component\EntrySize;
 use LightManager\Module\Browser\Presentation\Component\EntryTree;
 use LightManager\Module\Browser\Presentation\Component\PathLine;
 use LightManager\Module\Browser\Presentation\Overlay\FilterOverlay;
@@ -69,6 +70,24 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
      * drzewo w ogóle wypisuje.
      */
     private const DEPTH_LIMIT_KEY = 'module.browser.tree.depth';
+
+    /** Podsumowanie zbioru w pasie ścieżki — wariant z katalogami i bez (krok 43). */
+    private const MARKED_SUMMARY_KEY = 'module.browser.marked.summary';
+
+    private const MARKED_SUMMARY_DIRS_KEY = 'module.browser.marked.summary.dirs';
+
+    /**
+     * Znaki zaznaczania: spacja przełącza wpis pod kursorem, gwiazdka odwraca
+     * zaznaczenie na liście widocznej (krok 43).
+     *
+     * Spacja przychodzi jako `Key::Character` z `raw === ' '` — osobnego
+     * `Key::Space` w słowniku wejścia nie ma i ten krok go nie wprowadza, bo
+     * spacja jest znakiem, a nie klawiszem sterującym: w polu tekstowym ma
+     * zostać spacją.
+     */
+    private const MARK_KEY = ' ';
+
+    private const INVERT_KEY = '*';
 
     /**
      * Litera przełączająca widok panelu na drzewo i z powrotem — **z `Ctrl`**,
@@ -157,7 +176,45 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
             );
         }
 
-        return $suffix;
+        return $suffix . $this->markedSummary($pane);
+    }
+
+    /**
+     * Podsumowanie zbioru w pasie ścieżki: „12 z 340 · 4,1 GB” (krok 43).
+     *
+     * Liczba całkowita jest liczbą wpisów **katalogu pełnego**, a nie widocznej
+     * listy, i to jest wprost skutek rozstrzygnięcia 4: zbiór przeżywa zawężenie
+     * filtrem, więc „12 z 340” przy widocznych trzydziestu wpisach mówi prawdę,
+     * a „12 z 30” mówiłoby, że dziewięć zaznaczonych wpisów nie istnieje.
+     *
+     * **Suma rozmiarów pomija katalogi i napis musi to powiedzieć** — inaczej
+     * kłamie (rozstrzygnięcie 7). Zajętość katalogu wraz z zawartością umie
+     * policzyć wyłącznie `du` z kroku 26, czyli praca tłowa, a pas ścieżki liczy
+     * się co klatkę.
+     */
+    private function markedSummary(BrowserState $pane): string
+    {
+        $marked = $this->panes->focusedMarked();
+
+        if ($marked->isEmpty()) {
+            return '';
+        }
+
+        $directories = $marked->directories();
+        $parameters = [
+            'count' => $this->translator->number((float) $marked->count()),
+            'total' => $this->translator->number((float) $pane->fullCount()),
+            'size' => EntrySize::of($this->translator, $marked->bytes()),
+        ];
+
+        if ($directories > 0) {
+            $parameters['dirs'] = $this->translator->number((float) $directories);
+        }
+
+        return '  ' . $this->translator->translate(
+            $directories > 0 ? self::MARKED_SUMMARY_DIRS_KEY : self::MARKED_SUMMARY_KEY,
+            $parameters,
+        );
     }
 
     /**
@@ -229,6 +286,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
             details: $this->details(),
             header: $this->columnHeader(),
             filter: $state->filter(),
+            marked: $state->marked(),
         );
     }
 
@@ -313,6 +371,20 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
                 'module.browser.help.up',
                 'module.browser.help.up.short',
             ),
+            // Zaznaczanie należy do **listy**, nie do ekranu, i to jest cała
+            // treść rozstrzygnięcia 9: w drzewie spacja nie robi nic, bo zbiór
+            // trzyma nazwy z jednego katalogu, a węzły leżą na różnych
+            // poziomach. Spis mówi więc o niej wyłącznie tam, gdzie działa.
+            KeyBinding::character(
+                self::MARK_KEY,
+                'module.browser.help.mark',
+                'module.browser.help.mark.short',
+            ),
+            KeyBinding::character(
+                self::INVERT_KEY,
+                'module.browser.help.invert',
+                'module.browser.help.invert.short',
+            ),
         ];
     }
 
@@ -353,11 +425,24 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
         // Tą samą regułą: zdjęcie filtra pokazujemy dopiero wtedy, gdy jest co
         // zdejmować. `Esc` na liście bez filtra nie robi nic i nie ma prawa
         // twierdzić, że robi.
-        if (!$this->panes->focused()->filter()->isEmpty()) {
+        //
+        // Od kroku 43 `Esc` ma **dwie warstwy do zdjęcia** i opis mówi o tej,
+        // która ustąpi teraz — najpierw filtr, potem zaznaczenie (rozstrzygnięcie
+        // 3). Jeden opis dla obu byłby kłamstwem w połowie przypadków, a dwie
+        // pozycje naraz obiecywałyby dwa różne skutki jednego naciśnięcia.
+        $pane = $this->panes->focused();
+
+        if (!$pane->filter()->isEmpty()) {
             $bindings[] = KeyBinding::of(
                 [Key::Escape],
                 'module.browser.help.filter.clear',
                 'module.browser.help.filter.clear.short',
+            );
+        } elseif (!$this->panes->focusedMarked()->isEmpty()) {
+            $bindings[] = KeyBinding::of(
+                [Key::Escape],
+                'module.browser.help.marked.clear',
+                'module.browser.help.marked.clear.short',
             );
         }
 
@@ -411,22 +496,63 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
             $key->key === Key::ArrowDown => $this->moved($directory, up: false),
             $key->key === Key::Enter, $key->key === Key::ArrowRight => $this->open($directory),
             $key->key === Key::Backspace, $key->key === Key::ArrowLeft => $this->goUp($directory),
-            $key->key === Key::Escape => $this->dropFilter(),
+            $key->key === Key::Escape => $this->stepBack(),
             // Litera z modyfikatorem nie jest treścią (reguła 11j): goła kropka
             // przełącza wpisy ukryte, `Ctrl`+`.` i `Alt`+`.` — nie. `Ctrl` odpadł
             // już wyżej, razem z klawiszem widoku, więc zostaje tu sam `Alt`.
-            $key->key === Key::Character && !$key->alt => $this->character($key->raw),
+            $key->key === Key::Character && !$key->alt => $this->character($key->raw, marks: true),
             default => ScreenOutcome::stay(),
         };
     }
 
-    private function character(string $raw): ScreenOutcome
+    /**
+     * Znaki wspólne obu widokom, a przy `$marks` — także te należące do listy.
+     *
+     * Podział wprowadził krok 43 wraz z rozstrzygnięciem 9: wpisy ukryte i filtr
+     * dotyczą katalogu, więc działają tak samo w liście i w drzewie, a spacja
+     * z gwiazdką dotyczą **zbioru zaznaczonych**, którego drzewo nie ma.
+     */
+    private function character(string $raw, bool $marks = false): ScreenOutcome
     {
-        return match ($raw) {
-            '.' => $this->toggleHidden(),
-            '/' => $this->openFilter(),
+        return match (true) {
+            $raw === '.' => $this->toggleHidden(),
+            $raw === '/' => $this->openFilter(),
+            $marks && $raw === self::MARK_KEY => $this->toggleMark(),
+            $marks && $raw === self::INVERT_KEY => $this->invertMarks(),
             default => ScreenOutcome::stay(),
         };
+    }
+
+    /**
+     * Spacja: przełącza zaznaczenie wpisu pod kursorem i **schodzi wiersz niżej**
+     * (rozstrzygnięcie 2).
+     *
+     * Przesunięcie jest klasyką menadżerów plików i nie jest ozdobą: zaznaczenie
+     * ciągu wpisów idzie jednym palcem, bez naprzemiennego sięgania po strzałkę.
+     * Na ostatnim wierszu kursor zostaje, bo `moveSelectionDown()` zatrzymuje się
+     * na krańcu listy zamiast zawijać — czyli spacja przyciśnięta na końcu
+     * przełącza ten sam wpis raz za razem, dokładnie jak w mc.
+     */
+    private function toggleMark(): ScreenOutcome
+    {
+        $pane = $this->panes->focused();
+
+        if (!$pane->toggleMark()) {
+            return ScreenOutcome::stay();
+        }
+
+        $this->moveSelection->down($pane->directory());
+        $pane->selectionChanged();
+
+        return ScreenOutcome::stay();
+    }
+
+    /** `*`: odwrócenie zaznaczenia na liście widocznej (rozstrzygnięcie 8). */
+    private function invertMarks(): ScreenOutcome
+    {
+        $this->panes->focused()->invertMarks();
+
+        return ScreenOutcome::stay();
     }
 
     /** Zamiana widoku panelu z ogniskiem: lista na drzewo i z powrotem (krok 31). */
@@ -458,7 +584,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
             $key->key === Key::ArrowLeft => $this->treeClosed($tree),
             $key->key === Key::Enter => $this->treeEntered($tree),
             $key->key === Key::Backspace => $this->goUp($this->panes->focused()->directory()),
-            $key->key === Key::Escape => $this->dropFilter(),
+            $key->key === Key::Escape => $this->stepBack(),
             $key->key === Key::Character && !$key->alt => $this->character($key->raw),
             default => ScreenOutcome::stay(),
         };
@@ -579,13 +705,29 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
      * filtr i to jest wpis, o który mu chodziło. Powrót do miejsca sprzed filtra
      * należy do `Esc` **w oknie**, i to jest cała różnica między tymi dwoma
      * `Esc`-ami.
+     *
+     * **Od kroku 43 warstwy są dwie i ustępują po kolei** (rozstrzygnięcie 3):
+     * najpierw zawężenie, potem zbiór zaznaczonych. Kolejność jest odwrotnością
+     * zakładania — filtr leży na wierzchu, bo zmienia to, co widać — a jedno
+     * naciśnięcie zdejmujące oba naraz odbierałoby użytkownikowi zawężenie,
+     * o które nie prosił. Przy obu pustych klawisz nie robi nic, jak przed tym
+     * krokiem: przeglądarka stoi na dnie stosu, więc nie ma dokąd wracać.
      */
-    private function dropFilter(): ScreenOutcome
+    private function stepBack(): ScreenOutcome
     {
         $pane = $this->panes->focused();
 
         if (!$pane->filter()->isEmpty()) {
             $pane->clearFilter();
+
+            return ScreenOutcome::stay();
+        }
+
+        // Zbiór zdejmuje się wyłącznie tam, gdzie go widać: w drzewie zaznaczenie
+        // nie istnieje (rozstrzygnięcie 9), więc `Esc` nie ma tam czego czyścić
+        // i zachowuje się jak przed tym krokiem.
+        if (!$this->panes->focusedMarked()->isEmpty()) {
+            $pane->clearMarks();
         }
 
         return ScreenOutcome::stay();

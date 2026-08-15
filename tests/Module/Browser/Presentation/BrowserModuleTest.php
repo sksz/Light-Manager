@@ -296,6 +296,12 @@ final class BrowserModuleTest extends TestCase
      * końcu, bo dotyczą wpisu, a nie widoku. Że są w spisie **jednym** wpisem na
      * czynność, ma znaczenie dla stopki: `F8` i `Delete` robią to samo, więc jedno
      * wiązanie o dwóch klawiszach.
+     *
+     * Krok 43 dokłada dwa klawisze zaznaczania i stawia je **pośrodku, tuż za
+     * ruchem kursora**, a nie na końcu — bo należą do **listy**, czyli do miejsca
+     * ogniska, a nie do ekranu. Widać to w spisie drzewa, w którym ich nie ma:
+     * zbiór trzyma nazwy z jednego katalogu, a węzły leżą na różnych poziomach
+     * (D80, rozstrzygnięcie 9).
      */
     public function testKeyBindingsGrewByTheFilterOnly(): void
     {
@@ -309,6 +315,8 @@ final class BrowserModuleTest extends TestCase
                 'help.key.move',
                 'module.browser.help.open',
                 'module.browser.help.up',
+                'module.browser.help.mark',
+                'module.browser.help.invert',
                 'module.browser.help.hidden',
                 'module.browser.help.filter',
                 'module.browser.help.tree',

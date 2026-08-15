@@ -188,11 +188,13 @@ final class EntryOperations
     }
 
     /**
-     * `F8` albo `Delete` — usunięcie wpisu pod kursorem.
+     * `F8` albo `Delete` — usunięcie **zaznaczonych wpisów**, a gdy zbiór jest
+     * pusty, wpisu pod kursorem (krok 43).
      *
-     * Plik idzie **krótszą drogą**: pytanie i jedno wywołanie. Katalog wymaga
-     * policzenia zawartości, bo pytanie ma podać liczbę wpisów, które znikną —
-     * a policzenie bywa dłuższe od klatki (D75, rozstrzygnięcia 4 i 10).
+     * Pojedynczy plik idzie **krótszą drogą**: pytanie i jedno wywołanie. Katalog
+     * i każdy zbiór wymagają policzenia zawartości, bo pytanie ma podać liczbę
+     * wpisów, które znikną — a policzenie bywa dłuższe od klatki (D75,
+     * rozstrzygnięcia 4 i 10).
      */
     public function deletePrompt(?string $name = null): ScreenOutcome
     {
@@ -202,42 +204,71 @@ final class EntryOperations
     /**
      * To samo dla komendy `browser.delete [nazwa]` (krok 47, D78).
      *
-     * Nazwa jest **opcjonalna**: bez niej idzie wpis pod kursorem, z nią —
-     * wskazany, po sprawdzeniu, że w katalogu panelu w ogóle jest. Sprawdzenie
-     * należy tutaj, a nie do komendy: to jest jedyne miejsce, które wie, na co
-     * patrzy panel czynny.
+     * Nazwa jest **opcjonalna**: bez niej idzie zbiór zaznaczonych albo wpis pod
+     * kursorem, z nią — wskazany wpis, po sprawdzeniu, że w katalogu panelu
+     * w ogóle jest. Sprawdzenie należy tutaj, a nie do komendy: to jest jedyne
+     * miejsce, które wie, na co patrzy panel czynny.
+     *
+     * **Nazwa podana wprost wyprzedza zaznaczenie** i nie jest to niedopatrzenie:
+     * `browser.delete raport.pdf` mówi, co usunąć, więc zbiór nie ma tu nic do
+     * powiedzenia — inaczej komenda z argumentem robiłaby co innego, niż w niej
+     * napisano.
      */
     public function deleteRequest(?string $name = null): OverlayOutcome
     {
-        $target = $name === null ? $this->selection() : $this->entryNamed($name);
+        if ($name !== null) {
+            $target = $this->entryNamed($name);
 
-        if ($target === null) {
-            return OverlayOutcome::close($name === null
-                ? $this->info('module.browser.problem.noSelection')
-                : Message::error($this->translator->translate(
+            return $target === null
+                ? OverlayOutcome::close(Message::error($this->translator->translate(
                     'module.browser.problem.noEntry',
                     ['name' => $name],
-                )));
+                )))
+                : $this->deleting($target[0], [$name]);
         }
 
-        [$directory, $entry] = $target;
-        $this->successor = self::successorOf($directory, $entry->name);
+        $operands = $this->panes->focusedOperands();
 
-        if (!$entry->isDirectory()) {
+        if ($operands === null) {
+            return OverlayOutcome::close($this->info('module.browser.problem.noSelection'));
+        }
+
+        [$directory, $names] = $operands;
+
+        return $this->deleting($directory, $names);
+    }
+
+    /**
+     * Wybór drogi: jeden plik znika krótszą, wszystko inne — pracą kawałkową.
+     *
+     * Warunek krótkiej drogi zwęził się w kroku 43 o jedno słowo („jeden”) i to
+     * jest cała zmiana, jakiej wymagał zbiór: dwanaście plików bez katalogu dałoby
+     * się wprawdzie usunąć dwunastoma wywołaniami w jednej klatce, ale wtedy
+     * pytanie musiałoby podać liczbę policzoną osobno, a przerwanie w połowie nie
+     * miałoby gdzie się zameldować.
+     *
+     * @param list<string> $names nazwy wpisów w tym katalogu; nigdy pusta
+     */
+    private function deleting(Directory $directory, array $names): OverlayOutcome
+    {
+        $this->successor = self::successorOf($directory, $names);
+        $single = count($names) === 1 ? self::entryIn($directory, $names[0]) : null;
+
+        if ($single !== null && !$single->isDirectory()) {
             if (!$this->asks()) {
-                return OverlayOutcome::close($this->deleteOne($directory, $entry->name));
+                return OverlayOutcome::close($this->deleteOne($directory, $single->name));
             }
 
             return OverlayOutcome::replace(new ConfirmOverlay(
                 'module.browser.delete.confirm.file',
-                ['name' => $entry->name],
-                fn (): OverlayOutcome => OverlayOutcome::close($this->deleteOne($directory, $entry->name)),
+                ['name' => $single->name],
+                fn (): OverlayOutcome => OverlayOutcome::close($this->deleteOne($directory, $single->name)),
                 $this->translator,
                 true,
             ));
         }
 
-        return $this->counted($directory, $entry->name);
+        return $this->counted($directory, $names);
     }
 
     /**
@@ -248,35 +279,45 @@ final class EntryOperations
      * Reguła wynika z rozstrzygnięcia nr 10 („plik i pusty katalog bez okien
      * pracy”) rozciągniętego na przypadek, którego z góry rozpoznać nie sposób.
      */
-    private function counted(Directory $directory, string $name): OverlayOutcome
+    /**
+     * @param list<string> $names
+     */
+    private function counted(Directory $directory, array $names): OverlayOutcome
     {
-        $state = $this->operations->beginRemoval($directory->path()->child($name)->value);
+        $state = $this->operations->beginRemoval($this->pathsIn($directory, $names));
 
         if ($state->stage === RemovalStage::Scanning) {
             $state = $this->operations->advanceRemoval(self::SCAN_PER_TICK);
         }
 
         if ($state->stage === RemovalStage::Scanning) {
-            return OverlayOutcome::replace($this->countingOverlay($directory, $name, $state));
+            return OverlayOutcome::replace($this->countingOverlay($directory, $names, $state));
         }
 
-        [$overlay, $message] = $this->afterCounting($directory, $name, $state);
+        [$overlay, $message] = $this->afterCounting($directory, $names, $state);
 
         return $overlay === null
             ? OverlayOutcome::close($message)
             : OverlayOutcome::replace($overlay, $message);
     }
 
-    /** Okno liczenia: sama nazwa wpisu dokładanego do listy, bez paska (nie ma z czego). */
-    private function countingOverlay(Directory $directory, string $name, RemovalState $state): ProgressOverlay
+    /**
+     * Okno liczenia: nazwa wpisu (albo ich liczba) dokładana do listy, bez paska
+     * — nie ma jeszcze z czego.
+     *
+     * @param list<string> $names
+     */
+    private function countingOverlay(Directory $directory, array $names, RemovalState $state): ProgressOverlay
     {
+        [$key, $parameters] = $this->titleOf('module.browser.delete.counting', $names);
+
         return new ProgressOverlay(
-            'module.browser.delete.counting',
-            ['name' => $name],
+            $key,
+            $parameters,
             $state->progress(),
             fn (): WorkProgress => $this->operations->advanceRemoval(self::SCAN_PER_TICK)->progress(),
-            function () use ($directory, $name): OverlayOutcome {
-                [$overlay, $message] = $this->afterCounting($directory, $name, $this->operations->removalState());
+            function () use ($directory, $names): OverlayOutcome {
+                [$overlay, $message] = $this->afterCounting($directory, $names, $this->operations->removalState());
 
                 return $overlay === null
                     ? OverlayOutcome::close($message)
@@ -294,12 +335,55 @@ final class EntryOperations
     }
 
     /**
+     * Tytuł okna pracy: nazwa wpisu przy jednym, ich liczba przy zbiorze.
+     *
+     * Przyrostek `.many` zamiast dopisywania liczby do tego samego napisu, bo
+     * „Usuwanie »raport.pdf«” i „Usuwanie 12 wpisów” to dwa różne zdania, a nie
+     * jedno z parametrem — i drugie z nich odmienia się przez przypadki.
+     *
+     * @param list<string> $names
+     *
+     * @return array{string, array<string, string>}
+     */
+    private function titleOf(string $key, array $names): array
+    {
+        if (count($names) === 1) {
+            return [$key, ['name' => $names[0]]];
+        }
+
+        return [
+            $key . '.many',
+            ['count' => $this->translator->number((float) count($names))],
+        ];
+    }
+
+    /**
+     * Ścieżki bezwzględne wpisów — jedyne, co port o nich wie (reguła 15b).
+     *
+     * @param list<string> $names
+     *
+     * @return list<string>
+     */
+    private function pathsIn(Directory $directory, array $names): array
+    {
+        $paths = [];
+
+        foreach ($names as $name) {
+            $paths[] = $directory->path()->child($name)->value;
+        }
+
+        return $paths;
+    }
+
+    /**
      * Co po policzeniu: pytanie z liczbą, od razu usuwanie (gdy pytać nie trzeba)
      * albo zdanie o niepowodzeniu.
      *
+     * @param list<string> $names
+     *
      * @return array{?OverlayInterface, ?Message} okno, które ma stanąć, albo samo zdanie
      */
-    private function afterCounting(Directory $directory, string $name, RemovalState $state): array
+    private function afterCounting(Directory $directory, array $names, RemovalState $state): array
     {
         if ($state->stage !== RemovalStage::Ready) {
             $failure = $state->stage === RemovalStage::Failed ? $this->reason($state) : null;
@@ -309,18 +393,16 @@ final class EntryOperations
         }
 
         if (!$this->asks()) {
-            return $this->started($directory, $name);
+            return $this->started($directory, $names);
         }
 
-        $total = $state->total ?? 1;
+        [$key, $parameters, $count] = $this->question($names, $state->total ?? 1);
 
         return [new ConfirmOverlay(
-            // Jeden wpis do usunięcia znaczy „sam katalog” — pusty albo dowiązanie.
-            // Pytanie o zawartość byłoby wtedy pytaniem o coś, czego nie ma.
-            $total > 1 ? 'module.browser.delete.confirm.tree' : 'module.browser.delete.confirm.file',
-            ['name' => $name, 'count' => $this->translator->number((float) $total)],
-            function () use ($directory, $name): OverlayOutcome {
-                [$overlay, $message] = $this->started($directory, $name);
+            $key,
+            $parameters,
+            function () use ($directory, $names): OverlayOutcome {
+                [$overlay, $message] = $this->started($directory, $names);
 
                 return $overlay === null
                     ? OverlayOutcome::close($message)
@@ -333,16 +415,71 @@ final class EntryOperations
                 // wpisów jest to megabajt pamięci trzymany bez powodu.
                 $this->operations->stopRemoval();
             },
+            $count,
         ), null];
+    }
+
+    /**
+     * Pytanie przed usunięciem — **liczbą, gdy wpisów jest wiele** (krok 43).
+     *
+     * Trzy zdania i każde odpowiada na inne pytanie użytkownika. Jeden wpis: „co
+     * znika” (nazwa). Jeden katalog z zawartością: „co znika i ile tego jest”.
+     * Zbiór: „**ile** znika” — nazwa pierwszego z dwunastu nie mówi o tamtych
+     * jedenastu nic, a użytkownik i tak patrzy na listę, na której widzi
+     * znaczniki.
+     *
+     * Liczba wpisów do usunięcia (`{total}`) jest **większa** od liczby
+     * zaznaczonych, gdy w zbiorze są katalogi — i wtedy właśnie zdanie ją podaje.
+     * Przy samych plikach obie liczby są równe, więc drugą pomijamy: „usunąć 12
+     * wpisów, do usunięcia 12” czyta się jak usterka.
+     *
+     * @param list<string> $names
+     *
+     * @return array{string, array<string, string>, ?int} klucz, parametry i liczba
+     *                                                    dla form mnogich
+     */
+    private function question(array $names, int $total): array
+    {
+        $count = count($names);
+
+        if ($count === 1) {
+            return [
+                // Jeden wpis do usunięcia znaczy „sam katalog” — pusty albo
+                // dowiązanie. Pytanie o zawartość byłoby wtedy pytaniem o coś,
+                // czego nie ma.
+                $total > 1 ? 'module.browser.delete.confirm.tree' : 'module.browser.delete.confirm.file',
+                ['name' => $names[0], 'count' => $this->translator->number((float) $total)],
+                null,
+            ];
+        }
+
+        if ($total > $count) {
+            return [
+                'module.browser.delete.confirm.manyTrees',
+                [
+                    'count' => $this->translator->number((float) $count),
+                    'total' => $this->translator->number((float) $total),
+                ],
+                $count,
+            ];
+        }
+
+        return [
+            'module.browser.delete.confirm.many',
+            ['count' => $this->translator->number((float) $count)],
+            $count,
+        ];
     }
 
     /**
      * Zgoda: praca przechodzi do usuwania — z oknem postępu albo bez, tą samą
      * regułą pierwszego kawałka, co liczenie.
      *
+     * @param list<string> $names
+     *
      * @return array{?OverlayInterface, ?Message}
      */
-    private function started(Directory $directory, string $name): array
+    private function started(Directory $directory, array $names): array
     {
         $state = $this->operations->confirmRemoval();
 
@@ -351,18 +488,25 @@ final class EntryOperations
         }
 
         if ($state->stage === RemovalStage::Deleting) {
-            return [$this->deletingOverlay($directory, $name, $state), null];
+            return [$this->deletingOverlay($directory, $names, $state), null];
         }
 
         return [null, $this->finished($directory, $state)];
     }
 
-    /** Okno usuwania: nazwa, licznik „N z M” w pasku i sam pasek. */
-    private function deletingOverlay(Directory $directory, string $name, RemovalState $state): ProgressOverlay
+    /**
+     * Okno usuwania: nazwa (albo liczba wpisów), licznik „N z M” w pasku i sam
+     * pasek.
+     *
+     * @param list<string> $names
+     */
+    private function deletingOverlay(Directory $directory, array $names, RemovalState $state): ProgressOverlay
     {
+        [$key, $parameters] = $this->titleOf('module.browser.delete.deleting', $names);
+
         return new ProgressOverlay(
-            'module.browser.delete.deleting',
-            ['name' => $name],
+            $key,
+            $parameters,
             $state->progress(),
             fn (): WorkProgress => $this->operations->advanceRemoval(self::DELETE_PER_TICK)->progress(),
             fn (): OverlayOutcome => OverlayOutcome::close(
@@ -444,19 +588,55 @@ final class EntryOperations
     }
 
     /**
-     * Wpis, na który ma spaść kursor po usunięciu wskazanego: następny na liście,
-     * a gdy usuwamy ostatni — poprzedni. `null` znaczy „lista zostanie pusta”.
+     * Wpis, na który ma spaść kursor po usunięciu wskazanych: pierwszy **nieusuwany**
+     * poniżej ostatniego z nich, a gdy takiego nie ma — pierwszy nieusuwany powyżej.
+     * `null` znaczy „nie zostanie nic”.
+     *
+     * Przy jednym wpisie rachunek daje dokładnie to, co przed krokiem 43 — następny
+     * na liście albo poprzedni. Przy zbiorze zmienia się jedno: kursor **przeskakuje
+     * resztę zaznaczonych**, bo one też znikną, a kursor postawiony na wpisie,
+     * którego za chwilę nie będzie, i tak spadłby na początek listy.
+     *
+     * @param list<string> $names
      */
-    private static function successorOf(Directory $directory, string $name): ?string
+    private static function successorOf(Directory $directory, array $names): ?string
     {
+        $removed = array_fill_keys($names, true);
         $entries = $directory->entries();
+        $last = null;
 
         foreach ($entries as $index => $entry) {
-            if ($entry->name !== $name) {
-                continue;
+            if (isset($removed[$entry->name])) {
+                $last = $index;
             }
+        }
 
-            return $entries[$index + 1]->name ?? $entries[$index - 1]->name ?? null;
+        if ($last === null) {
+            return null;
+        }
+
+        for ($index = $last + 1; $index < count($entries); ++$index) {
+            if (!isset($removed[$entries[$index]->name])) {
+                return $entries[$index]->name;
+            }
+        }
+
+        for ($index = $last - 1; $index >= 0; --$index) {
+            if (!isset($removed[$entries[$index]->name])) {
+                return $entries[$index]->name;
+            }
+        }
+
+        return null;
+    }
+
+    /** Wpis o tej nazwie w tym katalogu albo `null`, gdy go tam nie ma. */
+    private static function entryIn(Directory $directory, string $name): ?Entry
+    {
+        foreach ($directory->entries() as $entry) {
+            if ($entry->name === $name) {
+                return $entry;
+            }
         }
 
         return null;

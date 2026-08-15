@@ -513,6 +513,33 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     zamawia moduł. **Próba na przyszłość:** funkcja, która chce wejść do rdzenia
     tym samym argumentem, musi mieć **dwóch odbiorców** i powtórzenie o koszcie
     **nieodwracalnym**. Inaczej jest modułem, jak wszystko inne.
+    **Krok 43 zmienia w tej granicy jedno słowo:** czynności biorą **listę
+    ścieżek**, a nie jedną (`beginRemoval(list<string>)`, jak `begin()` w porcie
+    kopiowania od kroku 42). Skąd ta lista się wzięła — z zaznaczenia czy
+    z kursora — port nadal nie wie i wiedzieć nie ma prawa.
+15c. **Zaznaczenie wielokrotne jest własnością panelu, a operacje biorą je jako
+    listę nazw** (krok 43, D80). `MarkedEntries` mieszka w `Domain` modułu
+    przeglądarki, a jego właścicielem jest `BrowserState` — obok filtra i z tego
+    samego powodu, co on (dwa panele na tym samym katalogu mają prawo zaznaczać co
+    innego). Trzy reguły, których pilnuj przy każdej nowej czynności:
+    **pusty zbiór znaczy „wpis pod kursorem”**, a nie „nic” — i rachunek stoi
+    w jednym miejscu (`BrowserState::operands()`, `BrowserPanes::focusedOperands()`),
+    nie w każdej czynności z osobna; **zbiór trzyma nazwy, nie numery**, więc
+    przeżywa zawężenie filtrem, przycina się wyłącznie w `refresh()` i ginie
+    razem z katalogiem w `enter()`; **po operacji zaznaczone zostaje to, czego
+    nie dotknęła** (pominięte, nieudane) — jedyna droga, którą widać, co się nie
+    udało. Zaznaczenie należy do **listy**: panel pokazujący drzewo ani go nie
+    rysuje, ani na nim nie działa, choć zbiór przeżywa przełączenie widoku.
+    Rdzeń urósł przy tym o trzy liczby w `ModuleContext` (liczba, suma rozmiarów,
+    liczba katalogów) — **wbrew rekomendacji planu**, na rozstrzygnięcie
+    użytkownika, i wyłącznie dlatego, że odbiorca wszedł razem z mechanizmem
+    (moduł opisu pliku, reguła 13) — oraz o **dwunastą rolę motywu** (`Marked`,
+    zieleń w czterech paletach). Ta druga wyszła z **obejrzenia klatki**, a nie
+    z projektu: pierwsza wersja malowała wiersz rolą `Warning`, a ta jest
+    w Grafitcie tym samym kolorem, co akcent (D25), więc zaznaczony plik wyglądał
+    w domyślnym motywie jak katalog. Wniosek na przyszłość: **rola dobrana
+    „znaczeniowo” bez sprawdzenia palety bywa rolą bez koloru** — cztery motywy
+    trzeba przejrzeć, zanim uzna się sygnał za widoczny.
 16. **Dno stosu ekranów wskazuje konfiguracja, nie kod** (krok 21, D42). Klucz
     rdzenia `startupModule` bierze wartości **z rejestru modułów**, a wybór robi
     `Presentation\Cli\StartupScreen`. `Bootstrap` podaje mu identyfikator

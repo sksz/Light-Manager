@@ -92,6 +92,12 @@ final class ScenarioFactory
         'Lista: ↑ / ↓ zaznaczenie',
         'Enter / → katalog',
         'Backspace / ← wyżej',
+        // Dwie pozycje dołożone w kroku 43 i dołożone **z tego samego powodu**,
+        // dla którego krok 40 przepisał tę stałą w całości: stopka mierzona ma
+        // być stopką, którą aplikacja naprawdę rysuje. Obie należą do **miejsca**
+        // (listy), więc stoją zaraz za klawiszami kursora, a nie na końcu.
+        'Space zaznacz',
+        '* odwróć',
         '. ukryte',
         '/ filtr',
         'Ctrl+T drzewo',
@@ -124,6 +130,18 @@ final class ScenarioFactory
      * słabnie wraz z wysokością terminala, jest gorszy niż brak pomiaru.
      */
     private const HIGHLIGHT_CHARACTERS = 3;
+
+    /**
+     * Znak zaznaczenia w scenariuszu `marked` — **przepisany z katalogu napisów
+     * przeglądarki**, nie wzięty stamtąd.
+     *
+     * To ta sama zasada, co przy szerokościach kolumn kilka metod niżej: treść
+     * klatki pomiarowej jest nietłumaczona (D33), bo długość napisu w znakach
+     * wchodzi do wyniku, a wzorzec ma się zgadzać bajt w bajt niezależnie od
+     * ustawionego języka. Znak spoza ASCII jest tu przy tym częścią pomiaru:
+     * rasteryzuje się osobno i osobno ląduje w pamięci podręcznej wierszy.
+     */
+    private const MARK = '•';
 
     /**
      * Zakładki ekranu ustawień — dwie rdzenia, spis modułów i po jednej na
@@ -251,8 +269,9 @@ final class ScenarioFactory
             Scenario::Scrollbar => $this->list($list, selected: null, scroll: $this->scroll($list->rows)),
             Scenario::Sections => $this->sections($list),
             Scenario::Progress => $this->progress($list),
-            Scenario::Columns => $this->columns($list, marked: false),
-            Scenario::Highlight => $this->columns($list, marked: true),
+            Scenario::Columns => $this->columns($list),
+            Scenario::Highlight => $this->columns($list, highlighted: true),
+            Scenario::Marked => $this->columns($list, marked: true),
             Scenario::TextView => $this->textView($list),
             Scenario::Tree => $this->tree($list),
             Scenario::Split => $this->splitLists($layout),
@@ -633,35 +652,62 @@ final class ScenarioFactory
      * ta sama konfiguracja ma dawać bajt w bajt tę samą klatkę, a `date()` bez
      * podanego znacznika czasu robiłaby z pomiaru ruchomy cel.
      *
+     * Trzy scenariusze na jednym rachunku i to jest cała ich konstrukcja:
+     * `columns` bez niczego, `highlight` z dopasowaniem filtra, `marked`
+     * z zaznaczeniem wielokrotnym (krok 43). Rozliczają się parami z pierwszym,
+     * więc muszą różnić się **wyłącznie** tym, co mierzą — a jedyną gwarancją
+     * tego jest wspólny kod, nie wspólna intencja.
+     *
+     * @param bool $highlighted czy każdy wiersz niesie dopasowanie filtra
+     * @param bool $marked      czy lista ma kolumnę znacznika, a co trzeci wiersz
+     *                          — drugą rolę napisu
+     *
      * @return list<Primitive>
      */
-    private function columns(Rect $bounds, bool $marked): array
+    private function columns(Rect $bounds, bool $highlighted = false, bool $marked = false): array
     {
         $rows = [];
         $count = max(0, $bounds->rows);
+        $nameColumn = $marked ? 1 : 0;
 
         for ($index = 0; $index < $count; ++$index) {
             $directory = $index % 6 === 0;
             $name = sprintf('%s-%04d%s', $directory ? 'katalog' : 'plik', $index, $directory ? '/' : '.txt');
+            // Rytm zaznaczeń **nie może się pokrywać z rytmem katalogów** i to
+            // jest cała treść tej siódemki. Przy „co trzeciej” pozycji zaznaczony
+            // wypadał **każdy** katalog (bo 6 dzieli się przez 3), więc wzorzec
+            // nie pokazywał ani jednego katalogu niezaznaczonego — czyli nie dało
+            // się z niego odczytać, czy rola zaznaczenia odróżnia się od akcentu.
+            // Trzy z siedmiu trzyma udział blisko jednej trzeciej i daje w klatce
+            // wszystkie cztery kombinacje: plik i katalog, zaznaczony i nie.
+            $isMarked = $marked && $index % 7 < 3;
+            $cells = [
+                $name,
+                $directory ? '' : sprintf('%d,%d kB', 1 + $index % 900, $index % 10),
+                sprintf('2026-%02d-%02d %02d:%02d', 1 + $index % 12, 1 + $index % 28, $index % 24, $index % 60),
+                $index % 3 === 0 ? 'rwxr-xr-x' : 'rw-r--r--',
+            ];
+
             $rows[] = new TableRow(
-                [
-                    $name,
-                    $directory ? '' : sprintf('%d,%d kB', 1 + $index % 900, $index % 10),
-                    sprintf('2026-%02d-%02d %02d:%02d', 1 + $index % 12, 1 + $index % 28, $index % 24, $index % 60),
-                    $index % 3 === 0 ? 'rwxr-xr-x' : 'rw-r--r--',
-                ],
-                $directory ? Role::Accent : Role::Text,
-                $marked ? [0 => [new TextSpan(0, self::HIGHLIGHT_CHARACTERS)]] : [],
+                $marked ? [$isMarked ? self::MARK : '', ...$cells] : $cells,
+                match (true) {
+                    $isMarked => Role::Marked,
+                    $directory => Role::Accent,
+                    default => Role::Text,
+                },
+                $highlighted ? [$nameColumn => [new TextSpan(0, self::HIGHLIGHT_CHARACTERS)]] : [],
             );
         }
 
+        $columns = [
+            Column::flexible(20),
+            Column::fixed(9, yieldOrder: 3, align: Align::Right, role: Role::Muted),
+            Column::fixed(17, yieldOrder: 2, role: Role::Muted),
+            Column::fixed(9, yieldOrder: 1, role: Role::Muted),
+        ];
+
         return (new Table(
-            [
-                Column::flexible(20),
-                Column::fixed(9, yieldOrder: 3, align: Align::Right, role: Role::Muted),
-                Column::fixed(17, yieldOrder: 2, role: Role::Muted),
-                Column::fixed(9, yieldOrder: 1, role: Role::Muted),
-            ],
+            $marked ? [Column::fixed(2, yieldOrder: 4), ...$columns] : $columns,
             $rows,
             2,
             $this->scroll($bounds->rows),

@@ -137,7 +137,7 @@ final class FileOperationsServiceTest extends TestCase
     {
         $this->makeTree();
 
-        $state = $this->operations->beginRemoval($this->root . '/drzewo');
+        $state = $this->operations->beginRemoval([$this->root . '/drzewo']);
 
         self::assertSame(RemovalStage::Scanning, $state->stage);
         self::assertNull($state->total, 'przy liczeniu całości jeszcze nie znamy');
@@ -173,7 +173,7 @@ final class FileOperationsServiceTest extends TestCase
     {
         $this->makeTree();
 
-        $this->operations->beginRemoval($this->root . '/drzewo');
+        $this->operations->beginRemoval([$this->root . '/drzewo']);
 
         while ($this->operations->removalState()->stage === RemovalStage::Scanning) {
             $this->operations->advanceRemoval(64);
@@ -194,7 +194,7 @@ final class FileOperationsServiceTest extends TestCase
     {
         $this->makeTree();
 
-        $this->operations->beginRemoval($this->root . '/drzewo');
+        $this->operations->beginRemoval([$this->root . '/drzewo']);
 
         while ($this->operations->removalState()->stage === RemovalStage::Scanning) {
             $this->operations->advanceRemoval(64);
@@ -218,8 +218,8 @@ final class FileOperationsServiceTest extends TestCase
         $this->makeTree();
         mkdir($this->root . '/drugie');
 
-        $this->operations->beginRemoval($this->root . '/drzewo');
-        $state = $this->operations->beginRemoval($this->root . '/drugie');
+        $this->operations->beginRemoval([$this->root . '/drzewo']);
+        $state = $this->operations->beginRemoval([$this->root . '/drugie']);
 
         while ($state->stage === RemovalStage::Scanning) {
             $state = $this->operations->advanceRemoval(64);
@@ -241,7 +241,7 @@ final class FileOperationsServiceTest extends TestCase
         file_put_contents($this->root . '/cel/plik', 'x');
         symlink($this->root . '/cel', $this->root . '/skrót');
 
-        $state = $this->operations->beginRemoval($this->root . '/skrót');
+        $state = $this->operations->beginRemoval([$this->root . '/skrót']);
 
         self::assertSame(RemovalStage::Ready, $state->stage, 'nie ma czego liczyć');
         self::assertSame(1, $state->total);

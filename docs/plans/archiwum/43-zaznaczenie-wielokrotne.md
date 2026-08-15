@@ -4,11 +4,11 @@
 > „Zaznaczenie wielokrotne”, którą **krok 32 wyłączył ze swojego zakresu**
 > („zaznaczenie wielokrotne to osobna funkcja, której nie ma”) i która od tamtej
 > pory stoi w „Zakresie poza MVP”. Pełne uzasadnienie fazy:
-> [00-decyzje.md](00-decyzje.md), D66.
+> [00-decyzje.md](../00-decyzje.md), D66.
 
 ## Status
 
-**Nie rozpoczęty** (2026-08-13).
+**Ukończony** (2026-08-15).
 
 ## Cel
 
@@ -235,4 +235,182 @@ Reguła 17 obowiązuje przed pomiarem.
 
 ## Dziennik realizacji
 
-*(pusty — krok nierozpoczęty)*
+### 2026-08-15 — wykonanie
+
+Rozstrzygnięcia startowe: [00-decyzje.md](../00-decyzje.md), D80 (osiem pytań
+planu, jedno dodatkowe wynikłe ze stanu zastanego i jedno — nr 5a — podjęte
+w trakcie, po obejrzeniu wzorca PNG).
+
+**1. Jedno założenie planu było nieaktualne, i to na korzyść.** Pytanie nr 6
+opierało się na zdaniu „katalog napisów nie umie liczby mnogiej”. Umie od kroku
+15 (`TranslatorPort::plural()`, `PluralRule::Slavic`), a kroki 41 i 42 z tego
+korzystają. Bez drogi do form mnogich zostało **jedno miejsce**:
+`ConfirmOverlay`, który zawsze wołał `translate()`. Zapowiadana „jedyna zmiana
+w rdzeniu” zeszła przez to z przebudowy katalogu do **jednego opcjonalnego
+parametru okna** (`?int $count`). Reszta tabeli stanu zastanego zgadzała się co
+do wiersza.
+
+**2. Kontekst sesji urósł — wbrew rekomendacji planu.** Użytkownik wybrał wariant
+2 (D80 nr 1), więc `ModuleContext` niesie trzy liczby: liczbę zaznaczonych, sumę
+rozmiarów plików i liczbę katalogów, o które ta suma milczy. Warunek postawiono
+od razu i jest nim reguła 13: **odbiorca wszedł razem z mechanizmem** — moduł
+opisu pliku pokazuje przy niepustym zbiorze „Zaznaczono 12 wpisów · razem 4,1 GB”
+zamiast ścieżki. Punkt „Poza zakresem” („pokazywanie zaznaczenia w module opisu
+pliku”) został przez to **odwołany**: był konsekwencją wariantu, który odpadł.
+
+**3. Port usuwania bierze listę i to jest cała zmiana, jakiej wymagał od rdzenia
+zbiór.** `beginRemoval(list<string>)` — dokładnie tak, jak `FileTransferPort::begin()`
+od kroku 42, którego docblock zapowiadał „lista, nie jeden wpis (…) krok 43 doda
+resztę”. Zapowiedź sprawdziła się co do słowa: `EntryTransfer` **nie zmienił ani
+jednej linii pracy**, tylko wypełnił listę, którą tamten krok zostawił pustą.
+Kopiowanie zbioru działało od pierwszego uruchomienia.
+
+**4. Reguła pustego zbioru stanęła w jednym miejscu.** `BrowserState::operands()`
+i `BrowserPanes::focusedOperands()` odpowiadają na pytanie „na czym mam działać”;
+czynność nie wie, czy lista przyszła ze zbioru, czy z kursora. Bez tego każda
+z pięciu czynności zadawałaby sobie to samo pytanie osobno — a rozjechałyby się
+przy pierwszej poprawce, jak zawsze (precedens `HiddenEntries` z kroku 32).
+
+**5. Zaznaczenie jest własnością listy i to rozstrzygnięcie miało skutki
+w czterech miejscach.** Plan pisano przed sprawdzeniem, że panel ma od kroku 31
+dwa widoki; drzewo zaznaczenia nie zna (D80 nr 9), więc zbiór **przeżywa**
+przełączenie widoku, ale dopóki widać drzewo, nie istnieje dla nikogo: ani dla
+znacznika, ani dla podsumowania w pasie ścieżki, ani dla czynności, ani dla
+stopki. Inaczej `F8` w drzewie usuwałoby dwanaście wpisów, których nie widać.
+
+**6. Rola `Warning` okazała się rolą bez koloru — i złapał to dopiero wzorzec
+PNG.** Pierwsza wersja malowała wiersz zaznaczony `Warning`iem i przeszła
+**wszystkie testy**, bo testy patrzą na rolę, nie na kolor. Zrzut wzorcowy
+pokazał, czego w prymitywach nie widać: w motywie Grafit `warning` i `accent` to
+ten sam `#d9a441` (jeden nasycony kolor jest tam zasadą, D25), więc zaznaczony
+plik wyglądał w domyślnym motywie jak katalog. Rozstrzygnięcie użytkownika
+(D80 nr 5a): **dwunasta rola motywu**, `Role::Marked`, zieleń w czterech
+paletach — pierwsza rola dołożona od kroku 13. Cena: Grafit ma odtąd dwa
+nasycone kolory. Wniosek ogólny wart więcej niż sama decyzja: **rola dobrana
+znaczeniowo, bez przejrzenia czterech palet, bywa rolą bez koloru**.
+
+**7. Wzorzec pomiarowy też trzeba było obejrzeć, a nie tylko zapisać.** Przy
+zaznaczeniu „co trzeciej” pozycji **każdy katalog wypadał zaznaczony** (bo 6
+dzieli się przez 3), więc z klatki nie dało się odczytać, czy rola zaznaczenia
+odróżnia się od akcentu. Rytm zmieniony na trzy z siedmiu daje w jednym wzorcu
+wszystkie cztery kombinacje: plik i katalog, zaznaczony i nie. Rytmu **katalogów**
+ruszyć nie było wolno — dzielą go `columns` i `highlight`.
+
+**8. Prawdziwa klatka wypatrzyła dwie rzeczy, których nie widział żaden test.**
+Aplikacja uruchomiona pod XTermem (`bin/run.sh`), zaznaczone trzy wpisy, zrzut
+projektowym narzędziem (`core.dump`, krok 38) — i na obrazie od razu widać:
+
+- **stopka obiecywała klawisz, którego nie widać**: `·   zaznacz` zamiast
+  `· Space zaznacz`, bo `KeyBinding::display()` wypisywał spację jako spację.
+  Testy tego nie widziały, bo porównują **klucz opisu**, a nie napis z nazwą
+  klawisza. Poprawka: `KeyBinding::NAMED_CHARACTERS` — znak, który sam z siebie
+  nic nie rysuje, dostaje nazwę, tą samą drogą co `Esc` i `PgUp` (czyli **nie**
+  przez katalog napisów: to napis z klawiatury, nie zdanie interfejsu);
+- **stopka mierzona przestała być stopką aplikacji**: `ScenarioFactory::HINTS`
+  nie znała dwóch nowych pozycji. Krok 40 przepisał tę stałą dokładnie z tego
+  powodu, więc dopisanie ich tutaj jest wykonaniem tamtej reguły, a nie nową
+  decyzją.
+
+Trzecia rzecz, którą klatka **potwierdziła**: kolumna znacznika przeżywa
+ustępowanie kolumn. W panelu lewym (węższym po podziale) zniknęły „Prawa”,
+a znacznik został — czyli drabinka `MARK_YIELD_ORDER = 4` działa tak, jak ją
+opisano.
+
+### Pomiar
+
+Reguła 17 dopełniona: użytkownik zwolnił maszynę przed przebiegami. Wzorce:
+`2026-08-15-po-kroku-43{,-text,-window,-loop}.json`.
+
+| Tor | `columns` (lista bez zaznaczenia) | `marked` (43 % wierszy zaznaczonych) | Różnica |
+|---|---|---|---|
+| Sixel | 20,6 ms | 27,7 ms | **+7,1 ms (+34 %)** |
+| tekstowy | 1,1 ms | 1,2 ms | poniżej rozdzielczości |
+| okienkowy | 0,7 ms | 0,7 ms | brak |
+
+**Lista bez zaznaczenia nie zdrożała** — to jest główne kryterium kroku i jest
+spełnione: `columns` −0,1 % wobec wzorca po kroku 42, czyli w rozrzucie. Takt
+pętli (`--loop`) +0,2 %, tor tekstowy −6 % (całą kolumną, więc to środowisko,
+nie kod).
+
+**Zaznaczenie kosztuje natomiast w torze sixelowym — i to nie znacznik, tylko
+kolor.** Rozbicie nie pozostawia wątpliwości: rysowanie +0,5 ms (piąta kolumna,
+czyli tyle, ile powinna), **kwantyzacja +6,4 ms**. To jest cena **dwunastej roli
+motywu** (D80 nr 5a): druga barwa nasycona znaczy drugą rampę półcieni, którą
+kwantyzator musi zmieścić w palecie — dokładnie to, przed czym ostrzegał D25
+(„akcent jest jedynym nasyconym kolorem, a paleta Sixela idzie na półcienie liter
+zamiast na barwy”).
+
+Trzy pomiary, które tę cenę **obwarowują**, bo sama liczba brzmiałaby groźniej,
+niż jest:
+
+| Ile wierszy zaznaczonych | `columns` | `marked` | Różnica |
+|---|---|---|---|
+| 2 z 40 (tyle, ile zaznacza się ręką) | 20,9 ms | 21,9 ms | +1,0 ms |
+| 43 % (scenariusz, czyli sufit) | 20,6 ms | 27,7 ms | +7,1 ms |
+
+Koszt **rośnie z liczbą zielonych pikseli**, a nie z samą obecnością nowej barwy
+w palecie — realne zaznaczenie kilku plików kosztuje około milisekundy. Sufit
+(ekran zaznaczony gwiazdką) mieści się w budżecie klatki: 27,7 ms wobec 33 ms,
+czyli mniej więcej tyle, co klatka z miniaturą (28,1 ms), która jest
+najdroższa w projekcie od kroku 12.
+
+Sprawdzone ponadto, że **nie chodzi o ciasnotę palety**: przy 256 kolorach
+różnica zostaje (+6,8 ms), a przy 16 maleje do +2,1 ms razem z całą kwantyzacją.
+Podnoszenie `PALETTE_COLORS` nic by więc nie dało.
+
+Dwie liczby w torze okienkowym przekroczyły próg przy pierwszym przebiegu
+(`sections` +10,4 %, `text-view` +10,7 %) i **obie okazały się szumem**: to
+różnice rzędu 0,05 ms przy medianach 0,5–0,7 ms, a powtórzony przebieg dał
+−0,7 % i +2,5 %. Ta sama historia w torze sixelowym z `popup` (+20,6 % → +1,4 %).
+Wzorzec sixelowy odmówił zapisu **trzykrotnie** (rozrzut powyżej 1,35× w jednym
+wierszu za każdym razem, innym) — zapisał się za czwartym, dokładnie jak
+w kroku 22.
+
+**Kryterium „panel bez zaznaczenia wygląda co do znaku jak przed krokiem”
+sprawdzone wprost i spełnione.** `--png-compare` przed dopisaniem pozycji do
+`HINTS` dał **zero różniących się pikseli we wszystkich osiemnastu scenariuszach
+sprzed kroku** w obu torach obrazowych — łącznie z `columns`, `highlight`
+i `tree`, mimo dwunastej roli w motywie.
+
+Potem wzorce **zmieniły się w sześciu scenariuszach** i wyłącznie z powodu
+stopki: różnica to 785 pikseli (1,31 ‰) leżących w całości w dwóch wierszach
+paska stanu, co widać na obrazie różnicy i w złotych klatkach (jedna linijka na
+plik, `T28`). Scenariusze bez paska stanu — a więc wszystkie mierzące **listę** —
+zostały nietknięte co do bajtu. Rozdzielenie tych dwóch przebiegów jest tu
+istotne: gdyby wzorce przeliczyć raz, na końcu, nie dałoby się odróżnić „lista
+się nie zmieniła” od „lista się zmieniła, ale niewiele”.
+
+Uwaga praktyczna na przyszłość: **w torze okienkowym `--png-save` przepisuje
+wszystkie pliki**, także te, których treść się nie zmieniła — renderer OpenGL nie
+jest bajtowo powtarzalny (stąd próg 5 ‰ zamiast zera). Zapisując wzorce po
+zmianie dotyczącej części scenariuszy, trzeba podać `--scenarios=`, inaczej
+w repozytorium ląduje kilkanaście plików różniących się szumem.
+
+Toru **tekstowego wzorców PNG nie ma i mieć nie może** — renderer tekstowy
+oddaje ANSI, nie obraz. Zdanie planu o „PNG w trzech torach” opisuje stan, którego
+projekt nigdy nie miał: tory obrazowe są dwa (`sixel-*`, `window-*`).
+
+### Zmiany w rdzeniu, których plan nie przewidywał
+
+Krok miał sięgnąć do rdzenia **raz** (formy mnogie w katalogu napisów) i to
+jedno miejsce okazało się już zrobione. Sięgnął zamiast tego w cztery:
+
+| Miejsce | Powód |
+|---|---|
+| `Application/Module/ModuleContext` | rozstrzygnięcie użytkownika wbrew rekomendacji planu (D80 nr 1), wraz z odbiorcą w module opisu pliku |
+| `Presentation/Ui/Overlay/ConfirmOverlay` | jedyne miejsce bez drogi do form mnogich — jeden opcjonalny parametr |
+| `Application/Port/FileOperationsPort` | lista ścieżek zamiast jednej, wzorem portu kopiowania z kroku 42 |
+| `Application/Ui/Role` + `Infrastructure/Rendering/Theme` i trzy renderery | dwunasta rola motywu (D80 nr 5a), bo `Warning` okazał się w Grafitcie rolą bez własnego koloru |
+
+Piąte miejsce — `Presentation/Ui/KeyBinding` — jest **poprawką usterki starszej
+od kroku**, a nie zmianą na jego potrzeby: klawisz, którego znak nic nie rysuje,
+nie miał jak się przedstawić. Zaznaczanie spacją było pierwszym takim klawiszem
+w projekcie, więc usterka ujawniła się dopiero tutaj.
+
+### Czego krok nie dowiózł
+
+- **Zaznaczanie zakresem (`Shift`+strzałki)** — poza zakresem od początku, bo
+  `Shift` nie istnieje w słowniku wejścia; czeka na krok 44.
+- **Zaznaczenie w drzewie** — rozstrzygnięcie D80 nr 9, opisane wyżej.
+- **Zaznaczanie wzorcem (`+`/`-` z maską)** i **kolejka schowka** — poza zakresem
+  planu, bez zmian.

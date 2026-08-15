@@ -151,20 +151,22 @@ kosztuje w terminalu.
 | `Backspace` / `←` | katalog wyżej |
 | `.` | pokaż lub ukryj wpisy ukryte (ustawienie trwałe, dotyczy obu paneli) |
 | `/` | zawężenie listy fragmentem nazwy — pole filtra przy dolnej krawędzi |
+| `Spacja` | zaznaczenie wpisu pod kursorem i przejście wiersz niżej |
+| `*` | odwrócenie zaznaczenia na widocznej liście |
 | `Tab` | przejście do drugiego panelu — tylko przy włączonym podziale |
 | `Ctrl`+`T` | panel jako **drzewo** albo z powrotem jako lista |
 | `F4` | zmiana nazwy wpisu pod kursorem |
 | `F5` | skopiowanie wpisu do wskazanego katalogu |
 | `F6` | przeniesienie wpisu do wskazanego katalogu |
 | `F7` | nowy katalog w katalogu panelu czynnego |
-| `F8` albo `Delete` | usunięcie wpisu pod kursorem — **nieodwracalnie** |
+| `F8` albo `Delete` | usunięcie zaznaczonych wpisów — **nieodwracalnie** |
 | `F1` | ekran pomocy — pełna lista klawiszy |
 | `F2` | ekran ustawień |
 | `F9` | menu kontekstowe — co da się zrobić z zaznaczonym wpisem |
 | `F11` | pełny ekran — **tylko w trybie okienkowym** (`--window`) |
 | `F12` | okno komend |
 | `Ctrl`+litera | okno modułu — `Ctrl+B` przeglądarka plików, `Ctrl+D` opis zaznaczonego pliku |
-| `Esc` | powrót do modułu domyślnego z każdego ekranu; zamknięcie okna komend |
+| `Esc` | zdjęcie filtra, a potem zaznaczenia; powrót do modułu domyślnego z każdego ekranu |
 | `F10` | wyjście (działa na każdym ekranie) |
 
 `Enter` jest w całej aplikacji klawiszem **zatwierdzania**: na katalogu wchodzi
@@ -190,17 +192,46 @@ ale nigdy nie zasłania komunikatu i nigdy nie urywa pozycji w połowie słowa.
 Pełny spis mieszka dalej na ekranie pomocy (`F1`) i nie jest tam przepisany
 ręcznie: jedno i drugie powstaje z tych samych wiązań, które klawisze obsługują.
 
+### Zaznaczenie wielokrotne
+
+Spacja zaznacza wpis pod kursorem i schodzi wiersz niżej, więc ciąg plików
+zaznacza się jednym palcem; `*` odwraca zaznaczenie na tym, co widać. Zaznaczone
+wiersze mają własny znacznik w kolumnie przed nazwą **i** własny kolor napisu —
+widać je więc i wtedy, gdy kursor stoi gdzie indziej, i wtedy, gdy stoi na nich.
+Pas ścieżki podsumowuje zbiór: `• 12 z 340 · 4,1 GB`. Katalogi wolno zaznaczyć
+na równi z plikami, ale ich rozmiaru nikt nie zna — suma je pomija i mówi o tym
+wprost (`bez 2 kat.`).
+
+**Pusty zbiór znaczy „wpis pod kursorem”**, a nie „nic”: bez zaznaczenia każda
+czynność działa dokładnie tak, jak przed tą funkcją. Zbiór przeżywa zawężenie
+filtrem — wpis, którego filtr nie pokazuje, nadal do niego należy i nadal
+policzy się w podsumowaniu — a ginie razem z katalogiem, jak filtr. `Esc`
+zdejmuje warstwy po kolei: najpierw filtr, potem zaznaczenie.
+
+Zaznaczenie jest własnością **listy**: panel przełączony na drzewo (`Ctrl`+`T`)
+ani go nie pokazuje, ani na nim nie działa — a powrót do listy zastaje zbiór
+takim, jaki był. Każdy panel ma przy tym własny zbiór, bo dwa panele otwarte na
+tym samym katalogu mają prawo zaznaczać co innego.
+
+Moduł opisu pliku (`Ctrl`+`D`) czyta zbiór z kontekstu sesji i mówi o nim
+zamiast o ścieżce — `Zaznaczono 12 wpisów · razem 4,1 GB` — a opis pod spodem
+zostaje opisem wpisu pod kursorem.
+
 ### Operacje na plikach
 
-Pięć czynności zmienia zawartość dysku i wszystkie działają na wpisie pod
-kursorem — w liście i w drzewie. `F4` otwiera okno z **nazwą bieżącą** w polu,
+Pięć czynności zmienia zawartość dysku. Kopiowanie, przeniesienie i usunięcie
+działają na **zaznaczonych wpisach**, a przy pustym zbiorze na wpisie pod
+kursorem; zmiana nazwy i nowy katalog zostają jednowpisowe, bo nazwa jest jedna
+z definicji. W drzewie każda z nich dotyczy węzła pod kursorem. `F4` otwiera okno z **nazwą bieżącą** w polu,
 `F7` z pustym, a `Enter` zatwierdza; `Esc` odmawia i nie dotyka dysku. Nazwa jest
 nazwą, nie ścieżką: ukośnik w niej jest błędem, a nie zaproszeniem do utworzenia
 katalogu piętro niżej. Nazwa zajęta **nie zamyka okna** — jest co poprawić.
 
 `F8` (albo `Delete`) pyta, zanim usunie, i pyta w wariancie groźnym — czerwoną
-oprawą, z ogniskiem na odmowie, więc przytrzymany `Enter` trafia w „nie”. Pytanie
-można wyłączyć pozycją „Pytaj przed usunięciem” w ustawieniach modułu.
+oprawą, z ogniskiem na odmowie, więc przytrzymany `Enter` trafia w „nie”. Przy
+zaznaczeniu wielokrotnym pytanie mówi **liczbą** („Usunąć 12 zaznaczonych wpisów
+bezpowrotnie?”), a nie nazwą pierwszego z nich. Pytanie można wyłączyć pozycją
+„Pytaj przed usunięciem” w ustawieniach modułu.
 
 Katalog usuwa się **wraz z zawartością**, ale nie po cichu: aplikacja najpierw
 liczy, ile wpisów zniknie, i podaje tę liczbę w pytaniu. Przy dużym drzewie
@@ -208,6 +239,10 @@ liczenie i usuwanie **nie zatrzymują aplikacji** — idą po kawałku na klatk�
 a okno pokazuje nazwę, licznik „N z M” i pasek postępu. `Esc` przerywa i mówi
 uczciwie, ile już zniknęło: usunięcia połowy drzewa nie da się cofnąć. Kosz
 i cofanie przyniesie osobny krok planu.
+
+Po operacji zaznaczone zostaje **to, czego nie dotknęła**: wpisy, które zniknęły,
+wypadają ze zbioru, a pominięte przy kolizji i nieudane zostają zaznaczone — to
+jedyna droga, którą widać, co się nie udało.
 
 Skutek widać **w tej samej klatce w obu panelach**, jeśli oba patrzą na ten sam
 katalog — a panel, któremu usunięto katalog pod nogami, wchodzi do najbliższego

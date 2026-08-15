@@ -135,45 +135,62 @@ final class FileOperationsService extends AbstractSingleton implements FileOpera
         throw FileOperationException::failed($path, $detail);
     }
 
-    public function beginRemoval(string $path): RemovalState
+    public function beginRemoval(array $paths): RemovalState
     {
         $this->stopRemoval();
 
-        if (!file_exists($path) && !is_link($path)) {
-            return $this->removal = RemovalState::failed(
-                'problem.fileops.missing',
-                ['name' => basename($path)],
-                0,
-                null,
-            );
+        if ($paths === []) {
+            return $this->removal;
         }
 
-        if (!is_writable(dirname($path))) {
-            return $this->removal = RemovalState::failed(
-                'problem.fileops.denied',
-                ['name' => basename($path)],
-                0,
-                null,
-            );
+        foreach ($paths as $path) {
+            if (!file_exists($path) && !is_link($path)) {
+                return $this->removal = RemovalState::failed(
+                    'problem.fileops.missing',
+                    ['name' => basename($path)],
+                    0,
+                    null,
+                );
+            }
+
+            if (!is_writable(dirname($path))) {
+                return $this->removal = RemovalState::failed(
+                    'problem.fileops.denied',
+                    ['name' => basename($path)],
+                    0,
+                    null,
+                );
+            }
+
+            // Dowiązanie i plik znikają **jednym** wywołaniem, więc nie ma w nich
+            // czego liczyć — a `is_link()` idzie przed `is_dir()`, bo dowiązanie
+            // do katalogu jest dla `is_dir()` katalogiem, a usuwanie jego
+            // „zawartości” tknęłoby plików leżących gdzie indziej.
+            if (is_link($path) || !is_dir($path)) {
+                $this->files[] = $path;
+
+                continue;
+            }
+
+            // Katalog wskazany liczy się od razu jako jeden wpis do usunięcia: on
+            // też zniknie, a liczba w pytaniu ma być tą samą liczbą, co w pasku
+            // postępu.
+            $this->toScan[] = $path;
+            $this->dirs[] = $path;
         }
 
-        // Dowiązanie i plik znikają **jednym** wywołaniem, więc praca nie ma czego
-        // liczyć i staje od razu na przystanku. Droga zostaje przez to jedna dla
-        // wszystkiego, co usuwa się pracą kawałkową — a `is_link()` idzie przed
-        // `is_dir()`, bo dowiązanie do katalogu jest dla `is_dir()` katalogiem,
-        // a usuwanie jego „zawartości” tknęłoby plików leżących gdzie indziej.
-        if (is_link($path) || !is_dir($path)) {
-            $this->files = [$path];
-
-            return $this->removal = RemovalState::ready(1);
+        // Same pliki i dowiązania nie mają czego liczyć, więc praca staje od razu
+        // na przystanku. Droga zostaje przez to jedna dla wszystkiego, co usuwa
+        // się pracą kawałkową — także dla zbioru, w którym pliki sąsiadują
+        // z katalogami.
+        if ($this->toScan === []) {
+            return $this->removal = RemovalState::ready(count($this->files));
         }
 
-        $this->toScan = [$path];
-        $this->dirs = [$path];
-
-        // Katalog wskazany liczy się od razu jako jeden wpis do usunięcia: on też
-        // zniknie, a liczba w pytaniu ma być tą samą liczbą, co w pasku postępu.
-        return $this->removal = RemovalState::scanning(1, basename($path));
+        return $this->removal = RemovalState::scanning(
+            count($this->files) + count($this->dirs),
+            basename($paths[0]),
+        );
     }
 
     public function advanceRemoval(int $entries): RemovalState

@@ -197,6 +197,32 @@ enum Scenario: string
      */
     case Tree = 'tree';
 
+    /**
+     * Lista w kolumnach z **zaznaczeniem wielokrotnym** (krok 43).
+     *
+     * **Rozlicza się w parze z `columns`**, tą samą konstrukcją, co `highlight`:
+     * treść wierszy, kolumny i przewinięcie są co do znaku takie same, więc
+     * różnica między dwiema liczbami jest w całości ceną zaznaczenia. Różni je
+     * dokładnie to, co dokłada zbiór — **piąta kolumna** ze znakiem spoza ASCII
+     * i **druga rola napisu** w co trzecim wierszu.
+     *
+     * Osobny scenariusz jest tu potrzebny z powodu, który w tym narzędziu wraca
+     * od kroku 22: klucz pamięci podręcznej wierszy (D34) buduje się z treści
+     * **i roli**, więc ten sam wiersz zaznaczony i niezaznaczony to dwa różne
+     * wpisy. Zaznaczenie zmienia się przy tym przy każdym naciśnięciu spacji,
+     * czyli częściej niż cokolwiek innego na liście.
+     *
+     * Zaznaczone są **trzy pozycje z siedmiu**, a nie wszystkie: zbiór pełny
+     * mierzyłby listę o jednej roli — czyli to samo, co `columns`, tylko innym
+     * kolorem — a zbiór o jednym elemencie utopiłby różnicę w rozrzucie. Udział
+     * bliski jednej trzeciej daje obie role w pamięci podręcznej naraz, czyli
+     * stan, w którym lista naprawdę bywa; siódemka zamiast trójki bierze się
+     * stąd, że katalogi wypadają co szósty wiersz — przy „co trzeciej” pozycji
+     * **każdy** katalog byłby zaznaczony, a wzorzec nie pokazywałby, czym rola
+     * zaznaczenia różni się od akcentu.
+     */
+    case Marked = 'marked';
+
     /** @return list<self> kolejność wydruku: od najtańszego do najbogatszego */
     public static function all(): array
     {
@@ -239,7 +265,7 @@ enum Scenario: string
             self::Chrome, self::ChromeWithText, self::Thumbnail, self::Popup,
             self::Command, self::Sections, self::Progress, self::Split,
             self::Background, self::Columns, self::TextView, self::Highlight,
-            self::Settings, self::Tree => true,
+            self::Settings, self::Tree, self::Marked => true,
             default => false,
         };
     }

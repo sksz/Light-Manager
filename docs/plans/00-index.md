@@ -269,7 +269,7 @@ z powodem — nienazwana, otworzyłaby rdzeń na wszystko.
 |---|------|------|-----------|-------|---------|--------|
 | 41 | Fundament operacji: nazwa, nowy katalog, usunięcie | [41-operacje-fundament.md](archiwum/41-operacje-fundament.md) | 14, 15, 18, 19, 21, 24, 28, 38 | Opus | high | Ukończony z zastrzeżeniem |
 | 42 | Kopiowanie i przenoszenie po kawałku, z postępem | [42-kopiowanie-i-przenoszenie.md](archiwum/42-kopiowanie-i-przenoszenie.md) | 23, 24, 25, 38, 41, 47 | Fable | xhigh | Ukończony |
-| 43 | Zaznaczenie wielokrotne jako mnożnik operacji | [43-zaznaczenie-wielokrotne.md](43-zaznaczenie-wielokrotne.md) | 21, 27, 28, 30, 38, 41 | Opus | high | Nie rozpoczęty |
+| 43 | Zaznaczenie wielokrotne jako mnożnik operacji | [43-zaznaczenie-wielokrotne.md](archiwum/43-zaznaczenie-wielokrotne.md) | 21, 27, 28, 30, 38, 41 | Opus | high | Ukończony |
 | 44 | Kosz i cofnięcie ostatniej operacji | [44-kosz-i-cofanie.md](44-kosz-i-cofanie.md) | 6, 14, 15, 19, 29, 38, 41, 42 | Opus | high¹ | Nie rozpoczęty |
 
 ¹ **Fable / xhigh**, jeśli rozstrzygnięcie startowe nr 1 tamtego kroku wprowadzi
@@ -670,6 +670,26 @@ tej listy). Poza prostym
     zmieścić) i od **21** (`ModuleContext`, który zna **jeden** wpis — i to jest
     główne rozstrzygnięcie tamtego kroku). Z **42** dzieli zależność miękką
     w obie strony; zalecana kolejność to **42 przed 43**.
+
+    **Wykonany — a zalecana kolejność okazała się warta dokładnie tyle, ile
+    obiecywała.** Krok 42 poszedł pierwszy, więc `FileTransferPort::begin()`
+    brał listę źródeł od pierwszego dnia i kopiowanie zbioru zadziałało **bez
+    ani jednej zmiany w pracy** — ten krok wypełnił listę, którą tamten zostawił
+    pustą. Zależność od **21** wyszła za to **odwrotnie, niż zapowiadał plan**:
+    `ModuleContext` miał zostać jednowpisowy (taka była rekomendacja), a
+    rozstrzygnięcie użytkownika (D80 nr 1) kazało mu urosnąć o trzy liczby —
+    razem z odbiorcą w module opisu pliku, bo mechanizm rdzenia bez użytkownika
+    łamie regułę 13. Doszła ponadto zależność od **13**, której plan nie
+    wymieniał: wiersz zaznaczony potrzebował **dwunastej roli motywu**, bo
+    `Warning` jest w Grafitcie tym samym kolorem, co akcent (D80 nr 5a) — czyli
+    krok sięgnął do palety, a nie tylko do listy — i zapłacił za to **+6,4 ms
+    kwantyzacji** na klatce pełnej zaznaczeń, czyli dokładnie tyle, ile D25
+    przewidywał dla drugiej barwy nasyconej. Od **31** zależy nieoczywiście
+    i w jedną stronę: to tamten krok dał panelowi drugi widok, więc zaznaczenie
+    musiało rozstrzygnąć, czym jest w drzewie (odpowiedź: niczym). Od **40**
+    zależy wreszcie **przez usterkę, a nie przez mechanizm**: stopka nie umiała
+    nazwać klawisza, którego znak nic nie rysuje, bo do tego kroku żaden taki
+    klawisz nie istniał.
   - **44** (kosz i cofanie) zależy od **41** (druga droga usunięcia), od **42**
     (kosz na innym systemie plików to kopiowanie i usunięcie) oraz od **6, 19
     i 29** — słownika wejścia, który **nie zna `Shift`** w żadnym z trzech torów,
@@ -726,7 +746,7 @@ z tabel powyżej.
 
 Katalog `docs/plans/` trzyma **wyłącznie kroki, przed którymi jeszcze praca**:
 nierozpoczęte, w toku i zablokowane. Kroki ukończone przenoszą się do
-[archiwum/](archiwum/) — dziś jest ich 43 z 47, więc bez tego podziału lista
+[archiwum/](archiwum/) — dziś jest ich 44 z 47, więc bez tego podziału lista
 tego, co zostało do zrobienia, ginęła w historii projektu.
 
 Trzy rzeczy, które przy tym **nie** zmieniają miejsca, bo są dokumentami
@@ -784,7 +804,7 @@ zakończeniu pracy nad krokiem:
 - Kolorowanie składni w podglądzie tekstu — wyłączone z kroku 29
 - Sortowanie listy po kolumnie — wyłączone z kroku 27
 - ~~Zaznaczenie wielokrotne~~ — wyłączone z kroku 32, weszło do planu jako krok
-  **43** (D66)
+  **43** (D66) i **zostało wykonane**; pozycja jest zamknięta od 2026-08-15
 - Zaznaczanie zakresem (`Shift`+strzałki) — wyłączone z kroku 43, bo `Shift` nie
   istnieje w słowniku wejścia; wchodzi wraz z krokiem **44**, jeśli jego
   rozstrzygnięcie startowe nr 1 wybierze wariant z modyfikatorem

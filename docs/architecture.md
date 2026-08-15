@@ -104,7 +104,7 @@ Granica tej wiedzy jest **wąska i szersza być nie ma prawa**:
 |---|---|
 | ścieżka bezwzględna jako **napis** | czym jest wpis katalogu (`Entry`) |
 | nazwa jako **napis** — bez oceny, czy jest poprawna | czym jest katalog (`Directory`, `DirectoryPath`) i jego ścieżka jako pojęcie |
-| cztery czynności: zmiana nazwy, nowy katalog, usunięcie wpisu, usunięcie drzewa | sortowanie, ukrywanie, zaznaczenie, podgląd, filtr |
+| cztery czynności: zmiana nazwy, nowy katalog, usunięcie wpisu, usunięcie **listy** wpisów wraz z drzewami (krok 43) | sortowanie, ukrywanie, filtr, podgląd, **skąd wzięła się ta lista** |
 | dwie czynności dłuższe od klatki: kopiowanie i przeniesienie (krok 42) | po co ta czynność zachodzi i co ma się odświeżyć potem |
 | stan pracy (`RemovalState`, `TransferState`) i stan pracy do pokazania (`WorkProgress`) | który panel na to patrzy i gdzie ma stanąć kursor |
 
@@ -130,6 +130,27 @@ zostaje nietknięta co do treści: **wszystko, co pisze po dysku, idzie przez po
 rdzenia**, a poza tym katalogiem nie pisze nic poza `SettingsService`
 (własny plik konfiguracyjny) i `DesktopEntryInstaller` (wpis `.desktop`,
 uruchamiany wyłącznie z `bin/`).
+
+**Zbiór zaznaczonych jest własnością panelu, a nie katalogu** (krok 43, D80).
+Mieszka w `BrowserState`, obok filtra i z tego samego powodu, którym krok 30
+uzasadnił tamto miejsce: dwa panele otwarte na tym samym katalogu mają prawo
+zaznaczać co innego, a katalog na dysku jest jeden. Trzy reguły, które z tego
+wynikają i obowiązują każdą czynność:
+
+1. **Pusty zbiór znaczy „wpis pod kursorem”**, a nie „nic” — inaczej każda
+   operacja wymagałaby dwóch kroków tam, gdzie dziś wymaga jednego. Rachunek
+   stoi w **jednym** miejscu (`BrowserState::operands()`), a nie w każdej
+   czynności z osobna.
+2. **Zbiór trzyma nazwy, nie numery**, więc przeżywa zawężenie filtrem; przycina
+   się wyłącznie po **własnej** zmianie na dysku (`refresh()`), a ginie razem
+   z katalogiem (`enter()`), jak filtr.
+3. **Po operacji zaznaczone zostaje to, czego nie dotknęła** — wpisy pominięte
+   i nieudane. To jedyna droga, którą użytkownik dowie się, co się nie udało,
+   bez listy błędów, której aplikacja nie ma.
+
+Rdzeń o zbiorze wie dokładnie tyle, ile mówi `ModuleContext` (trzy liczby),
+i tyle, ile widzi port: **listę ścieżek**. Skąd ta lista się wzięła — z zaznaczeń
+czy z kursora — port nie wie i wiedzieć nie ma prawa.
 
 **Reguła zależności** — strzałki tylko „do środka”:
 
@@ -188,7 +209,9 @@ Domena **modułu przeglądarki** — słownik katalogu, od kroku 21 poza rdzenie
 | Ścieżka katalogu | `DirectoryPath` | Value Object | `Module/Browser/Domain/ValueObject` | Zwalidowana, bezwzględna ścieżka; rzuca `InvalidDirectoryPathException`. |
 | Wpis | `Entry` | Value Object | `Module/Browser/Domain/ValueObject` | Niemutowalny opis elementu katalogu (nazwa, `EntryType`, rozmiar). |
 | Rodzaj wpisu | `EntryType` | Value Object (`enum`) | `Module/Browser/Domain/ValueObject` | `Directory` \| `File`. |
-| Zaznaczenie | `Selection` | Value Object | `Module/Browser/Domain/ValueObject` | Nieujemny indeks zaznaczonego `Entry`. |
+| Zaznaczenie | `Selection` | Value Object | `Module/Browser/Domain/ValueObject` | Nieujemny indeks zaznaczonego `Entry` — **kursor**, jeden na panel. |
+| Zbiór zaznaczonych | `MarkedEntries` | Value Object | `Module/Browser/Domain/ValueObject` | Zaznaczenie **wielokrotne** (krok 43): nazwy wraz z rozmiarami, gdzie `null` znaczy „katalog, rozmiaru nie ma”. Trzyma **nazwy, nie numery**, więc przeżywa zawężenie filtrem; suma pomija katalogi i osobna liczba mówi, ilu. |
+| Fragment nazwy | `NameFilter` | Value Object | `Module/Browser/Domain/ValueObject` | Zawężenie listy podciągiem, bez rozróżniania wielkości liter (krok 30). |
 | Katalog | `Directory` | **Agregat, Encja** | `Module/Browser/Domain/Aggregate` | Tożsamość = `DirectoryPath`. Agreguje `Entry` i `Selection`; mutowalny w miejscu (encje ≠ Value Objects). |
 
 Od kroku 18 (D36) **`Domain` nie zna słownictwa rysowania**, a od kroku 21 — także
@@ -205,7 +228,7 @@ komunikat, podgląd, tryb renderowania i położenie okna listy.
 | Prymityw | `Primitive` | Application | `Application/Ui/Primitive` | Kształt gotowy do narysowania: `TextRun`, `TextMark`, `RoundRect`, `CornerBrackets`, `Bar`, `Bitmap`, `Scrollbar`. Słownik **zamknięty**; otwierany dotąd raz, w kroku 30. |
 | Podświetlenie | `TextMark` | Application | `Application/Ui/Primitive` | Napis postawiony **na własnym tle** — ósmy kształt, dołożony w kroku 30 dla dopasowania filtra (D59). Niesie sam fragment, rolę pisma i rolę tła; tło obejmuje tyle kolumn, ile fragment ma znaków. |
 | Zakres dopasowania | `TextSpan` | Presentation | `Presentation/Ui/Component` | Kawałek napisu — przesunięcie i długość **w znakach**. Wiersz niesie zakresy, a nie podzieloną treść: tylko komponent wie, od której kolumny zaczyna się napis i ile z niego zostanie po przycięciu. |
-| Rola koloru | `Role` | Application | `Application/Ui` | Rola motywu (tło, obwódka, akcent, …). Prymityw niesie rolę, nie kolor. |
+| Rola koloru | `Role` | Application | `Application/Ui` | Rola motywu (tło, obwódka, akcent, …). Prymityw niesie rolę, nie kolor. Ról jest **dwanaście**: jedenaście z kroku 13 plus `Marked` z kroku 43 — pierwsza dołożona od tamtego czasu i dołożona z konieczności, nie z wygody (D80 nr 5a): zaznaczenie potrzebowało koloru odróżnialnego naraz od tekstu, akcentu (katalogi) i czerwieni, a `Warning` jest w motywie Grafit **tym samym kolorem, co akcent** (jeden nasycony kolor, D25). |
 | Prostokąt | `Rect` | Application | `Application/Ui` | Obszar w **siatce znakowej**; piksele zaczynają się dopiero w rendererze. |
 | Komponent | `ComponentInterface` | Presentation | `Presentation/Ui` | Element interfejsu, który rysuje się w zadanym prostokącie: `Panel`, `Label`, `ListView`, `SectionList`, `ProgressBar`, `Tabs`, `Choice`, `Toggle`, `Button`, `Dialog`, `StatusBar`, `ImageBox`, `TextView`, `Spacer`. |
 | Zwijana sekcja | `Section`, `SectionList` | Presentation | `Presentation/Ui/Component` | Grupa wierszy z etykietą i znacznikiem `▼`/`▶`. `Section` jest **daną** (jak `ListRow`), `SectionList` — komponentem: spłaszcza sekcje do wierszy, wycina okno i oddaje rysowanie `ListView`owi. Sekcje przewijają się **jak jedna lista**, więc wycinanie okna musi widzieć je wszystkie naraz. |
@@ -222,9 +245,9 @@ komunikat, podgląd, tryb renderowania i położenie okna listy.
 | Podpowiedzi stopki | `StatusHints`, `Hint` | Presentation | `Presentation/Ui` | Trzy poziomy złożone w jeden ciąg: **miejsce z ogniskiem → ekran albo okno nakładane → klawisze globalne wraz ze skrótami modułów**. Ustępowanie idzie od końca, powtórzenia odsiewa zgodność klawiszy **i** klucza opisu, `F1` jest przypięty. Pozycja nie mieści się w całości — znika w całości. |
 | Ekran | `ScreenInterface` | Presentation | `Presentation/Ui` | Treść **dwóch stref** klatki wraz z obsługą klawiszy: górnego pasa (`header()`) i środkowego panelu (`draw()`). Rdzeniowi zostają oprawa stref i pasek stanu. **Pas podglądu wyszedł z kontraktu w kroku 47** (D78): po D76 nie zamawiał go ani jeden ekran, a mechanizm bez odbiorcy łamie regułę 13 — więc `preview()`, strefa w `HudLayout` i jej próg zniknęły razem. |
 | Strefa ekranu | `ScreenZone` | Presentation | `Presentation/Ui` | Zamówienie strefy skrajnej: klucz etykiety obwódki plus komponent z treścią. `null` znaczy „strefa nie powstaje, jej wiersze idą do środka”. |
-| Kontekst sesji | `ModuleContext` | Application | `Application/Module` | Gdzie użytkownik stoi i co ma zaznaczone — **dane pierwotne** (napis, napis, enum). Publikuje go ten, kto zna bieżące miejsce; czyta każdy ekran z `ReadsContext`. |
+| Kontekst sesji | `ModuleContext` | Application | `Application/Module` | Gdzie użytkownik stoi i co ma zaznaczone — **dane pierwotne** (napis, napis, enum, trzy liczby). Publikuje go ten, kto zna bieżące miejsce; czyta każdy ekran z `ReadsContext`. Od kroku 43 niesie także **zaznaczenie wielokrotne**: liczbę wpisów, sumę rozmiarów plików i liczbę katalogów, o które ta suma milczy (D80 nr 1). Odbiorcą jest moduł opisu pliku — mechanizm i użytkownik weszły jednym krokiem, jak każe reguła 13. |
 | Okno nakładane | `OverlayInterface` | Presentation | `Presentation/Ui` | Płaszczyzna **nad** ekranem, która sama mówi, gdzie stanąć, i **zużywa albo przepuszcza** klawisz. Przepuszczony trafia wyłącznie do klawiszy globalnych — nigdy do ekranu pod spodem. |
-| Okno pytające | `ConfirmOverlay` | Presentation | `Presentation/Ui/Overlay` | Okno nakładane, które **czegoś chce od wołającego** (krok 28). Decyzja wraca domknięciem podanym przy tworzeniu: po „tak” wykonuje się ono i oddaje **skutek okna** (`OverlayOutcome`, od kroku 41 — bo pytanie stoi w środku łańcucha okien). Ognisko startuje na „nie”, `Esc` znaczy to samo co „nie”, a drugie, opcjonalne domknięcie sprząta **po odmowie**. |
+| Okno pytające | `ConfirmOverlay` | Presentation | `Presentation/Ui/Overlay` | Okno nakładane, które **czegoś chce od wołającego** (krok 28). Decyzja wraca domknięciem podanym przy tworzeniu: po „tak” wykonuje się ono i oddaje **skutek okna** (`OverlayOutcome`, od kroku 41 — bo pytanie stoi w środku łańcucha okien). Ognisko startuje na „nie”, `Esc` znaczy to samo co „nie”, a drugie, opcjonalne domknięcie sprząta **po odmowie**. Od kroku 43 przyjmuje ponadto **liczbę do form mnogich**: pytanie o zbiór odmienia się przez nią w każdym języku słowiańskim, a `null` znaczy „pytanie bez liczby” i jest wartością domyślną. |
 | Okno o nazwę | `PromptOverlay` | Presentation | `Presentation/Ui/Overlay` | Jedno pole tekstowe w `Dialog`u (krok 41): `Enter` zatwierdza, `Esc` odmawia, `Enter` na pustym polu nie robi nic. Wpisanego napisu **nie ocenia** — o tym, co jest poprawną nazwą, wie ten, kto wie, czym jest nazwa (moduł). Domknięcie oddaje `OverlayOutcome` (od kroku 42, tą samą drogą co `ConfirmOverlay`): okno stoi w środku łańcucha, bo wpisana ścieżka zaczyna pracę pokazywaną oknem postępu. |
 | Okno wyboru | `ChoiceOverlay` | Presentation | `Presentation/Ui/Overlay` | Pytanie o **więcej niż dwie odpowiedzi** (krok 42): `Dialog` plus `ListView`, pozycje przychodzą kluczami katalogu, domknięcie dostaje identyfikator wybranej. `Esc` znaczy odpowiedź **ostatnią** — bo praca, która czeka na odpowiedź, nie może zostać z oknem zamkniętym milczkiem. Pierwszym pytaniem jest kolizja nazw przy kopiowaniu. |
 | Okno pracy | `ProgressOverlay` | Presentation | `Presentation/Ui/Overlay` | Okno pracy dłuższej od klatki (krok 41) i pierwsze, które **działa samo**: deklaruje `RunsWork`, więc pętla pyta je raz na takt. Karmione ogólną daną `WorkProgress` — o plikach nie wie nic. Pasek pokazuje się dopiero wtedy, gdy praca zna swoją całość, a licznik składa **wołający**, jeśli praca liczy w czymś innym niż sztuki (krok 42: bajty zapisane jako `12,3 MB z 700 MB`). |

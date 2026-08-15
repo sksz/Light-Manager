@@ -39,6 +39,19 @@ return [
     'module.browser.filter.key.accept' => 'zostaw listę zawężoną',
     'module.browser.filter.key.cancel' => 'zdejmij filtr i wróć do wpisu',
 
+    // Zaznaczenie wielokrotne (krok 43). Znacznik zajmuje jedną kolumnę przed
+    // nazwą i pojawia się dopiero wtedy, gdy zbiór nie jest pusty.
+    'module.browser.marked.marker' => '•',
+    // Podsumowanie stoi w pasie ścieżki obok numeru wpisu, więc jest krótkie:
+    // ile z ilu i ile to razem waży. Mianownik jest liczbą wpisów **katalogu**,
+    // a nie widocznej listy — zbiór przeżywa zawężenie filtrem.
+    'module.browser.marked.summary' => '• {count} z {total} · {size}',
+    // Wariant z katalogami mówi wprost, czego suma nie obejmuje: rozmiaru
+    // katalogu nie zna nikt poza `du`, więc suma milcząca o pominięciu kłamie.
+    // Skrót „kat.” zamiast odmienianego rzeczownika, bo pas ścieżki liczy się
+    // w kolumnach, a nie dlatego, że katalog form mnogich nie umie.
+    'module.browser.marked.summary.dirs' => '• {count} z {total} · {size} bez {dirs} kat.',
+
     // Pozycje zakładki ustawień modułu.
     'module.browser.setting.showHidden' => 'Pokazuj wpisy ukryte',
     'module.browser.setting.split' => 'Podział na dwa panele',
@@ -72,6 +85,11 @@ return [
     'module.browser.help.filter' => 'zawężenie listy fragmentem nazwy',
     'module.browser.help.filter.clear' => 'zdjęcie filtra',
 
+    // Zaznaczanie (krok 43) — klawisze **listy**, w drzewie ich nie ma.
+    'module.browser.help.mark' => 'zaznaczenie wpisu i przejście niżej',
+    'module.browser.help.invert' => 'odwrócenie zaznaczenia na widocznej liście',
+    'module.browser.help.marked.clear' => 'zdjęcie zaznaczenia',
+
     // Drzewo katalogów (krok 31). Opisy strzałek widać wyłącznie w panelu
     // pokazującym drzewo — w liście te same klawisze znaczą co innego.
     'module.browser.help.rename' => 'zmiana nazwy wpisu',
@@ -93,6 +111,9 @@ return [
     'module.browser.help.focus.short' => 'panel',
     'module.browser.help.filter.short' => 'filtr',
     'module.browser.help.filter.clear.short' => 'bez filtra',
+    'module.browser.help.mark.short' => 'zaznacz',
+    'module.browser.help.invert.short' => 'odwróć',
+    'module.browser.help.marked.clear.short' => 'bez zaznaczeń',
     'module.browser.help.rename.short' => 'nazwa',
     'module.browser.help.copy.short' => 'kopiuj',
     'module.browser.help.move.short' => 'przenieś',
@@ -144,12 +165,35 @@ return [
     'module.browser.mkdir.title' => 'Nazwa nowego katalogu',
     'module.browser.mkdir.done' => 'Katalog „{name}” utworzony.',
     'module.browser.delete.confirm.file' => 'Usunąć „{name}” bezpowrotnie?',
-    // Liczba stoi po dwukropku, a nie w odmienianym zdaniu, i to jest świadome:
-    // pytanie idzie przez okno potwierdzenia, które kluczy mnogich nie zna — a ta
-    // sama liczba pojawia się potem w pasku postępu, więc obie mówią to samo.
+    // Liczba stoi po dwukropku, a nie w odmienianym zdaniu: ta sama liczba
+    // pojawia się potem w pasku postępu, więc obie mówią to samo. (Do kroku 43
+    // powodem był ponadto brak form mnogich w oknie potwierdzenia — dziś okno
+    // je umie, ale to zdanie i tak ich nie potrzebuje.)
     'module.browser.delete.confirm.tree' => 'Usunąć „{name}” wraz z zawartością? Do usunięcia: {count}.',
+    // Zbiór pyta **liczbą**, a nie nazwą pierwszego z dwunastu (krok 43). Formy
+    // mnogie są tu naprawdę potrzebne: „2 wpisy” i „5 wpisów” to nie jest ten sam
+    // napis z podstawioną cyfrą. Pierwsza forma nie ma prawa się pojawić — zbiór
+    // liczący jeden wpis pyta zdaniem z nazwą — ale stoi, bo katalog wymaga
+    // kompletu trzech.
+    'module.browser.delete.confirm.many' => [
+        'Usunąć zaznaczony wpis bezpowrotnie?',
+        'Usunąć {count} zaznaczone wpisy bezpowrotnie?',
+        'Usunąć {count} zaznaczonych wpisów bezpowrotnie?',
+    ],
+    // Wariant dla zbioru z katalogami: wpisów do usunięcia jest więcej niż
+    // zaznaczonych, bo znika także ich zawartość — i to jest liczba, którą
+    // użytkownik ma zobaczyć przed „tak”.
+    'module.browser.delete.confirm.manyTrees' => [
+        'Usunąć zaznaczony wpis wraz z zawartością? Do usunięcia: {total}.',
+        'Usunąć {count} zaznaczone wpisy wraz z zawartością? Do usunięcia: {total}.',
+        'Usunąć {count} zaznaczonych wpisów wraz z zawartością? Do usunięcia: {total}.',
+    ],
     'module.browser.delete.counting' => 'Liczenie zawartości „{name}”',
     'module.browser.delete.deleting' => 'Usuwanie „{name}”',
+    // Tytuły okien pracy dla zbioru. Liczba stoi po dwukropku, więc zdanie nie
+    // odmienia się przez nią — okno postępu form mnogich nie zna i nie musi.
+    'module.browser.delete.counting.many' => 'Liczenie zawartości zaznaczonych: {count}',
+    'module.browser.delete.deleting.many' => 'Usuwanie zaznaczonych: {count}',
     'module.browser.delete.doneOne' => 'Usunięto „{name}”.',
     'module.browser.delete.needsOverlay' => 'Usunięcie wymaga potwierdzenia — użyj klawisza F8 albo menu F9.',
     'module.browser.delete.done' => [
@@ -171,6 +215,12 @@ return [
     'module.browser.copy.progress' => 'Kopiowanie „{name}”',
     'module.browser.move.progress' => 'Przenoszenie „{name}”',
     'module.browser.transfer.counting' => 'Liczenie zawartości „{name}”',
+    // Warianty dla zbioru (krok 43): liczba zamiast nazwy pierwszego wpisu.
+    'module.browser.copy.title.many' => 'Skopiuj zaznaczone ({count}) do:',
+    'module.browser.move.title.many' => 'Przenieś zaznaczone ({count}) do:',
+    'module.browser.copy.progress.many' => 'Kopiowanie zaznaczonych: {count}',
+    'module.browser.move.progress.many' => 'Przenoszenie zaznaczonych: {count}',
+    'module.browser.transfer.counting.many' => 'Liczenie zawartości zaznaczonych: {count}',
     'module.browser.transfer.abandoned' => 'Liczenie przerwane — dysk nietknięty.',
     // Licznik idzie w środek paska, więc jest krótki: rozmiar, a po kropce
     // wypunktowującej — który to wpis z ilu.

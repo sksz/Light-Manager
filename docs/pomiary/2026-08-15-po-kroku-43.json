@@ -1,0 +1,217 @@
+{
+    "signature": "1000x600px 166x46 theme=grafit palette=64 textAA=0 strokeAA=1 font=auto",
+    "environment": {
+        "php": "8.3.11",
+        "imageMagick": "ImageMagick 6.9.12-98 Q16 x86_64 18038 https://legacy.imagemagick.org",
+        "font": "DejaVu-Sans-Mono",
+        "recordedAt": "2026-08-15T09:31:07+00:00",
+        "loadPerCore": 0.12
+    },
+    "options": {
+        "widthPixels": 1000,
+        "heightPixels": 600,
+        "columns": 166,
+        "rows": 46,
+        "theme": "grafit",
+        "textAntialias": false,
+        "strokeAntialias": true,
+        "paletteColors": 64,
+        "font": null,
+        "iterations": 15,
+        "warmupIterations": 3,
+        "track": "sixel"
+    },
+    "scenarios": {
+        "empty": {
+            "draw": 0.026,
+            "quantize": 2.51,
+            "encode": 3.963,
+            "total": 6.512,
+            "bytes": 1469,
+            "unstable": false,
+            "cold": 14.265,
+            "peakBytes": 4194304
+        },
+        "text": {
+            "draw": 3.002,
+            "quantize": 3.521,
+            "encode": 4.151,
+            "total": 10.708,
+            "bytes": 19205,
+            "unstable": false,
+            "cold": 101.578,
+            "peakBytes": 4194304
+        },
+        "chrome": {
+            "draw": 0.032,
+            "quantize": 6.269,
+            "encode": 4.211,
+            "total": 10.525,
+            "bytes": 5298,
+            "unstable": false,
+            "cold": 46.612,
+            "peakBytes": 4194304
+        },
+        "chrome-text": {
+            "draw": 5.734,
+            "quantize": 7.738,
+            "encode": 4.419,
+            "total": 17.728,
+            "bytes": 26096,
+            "unstable": false,
+            "cold": 37.196,
+            "peakBytes": 4194304
+        },
+        "selection": {
+            "draw": 10.599,
+            "quantize": 3.919,
+            "encode": 4.397,
+            "total": 19.091,
+            "bytes": 22922,
+            "unstable": false,
+            "cold": 73.474,
+            "peakBytes": 4194304
+        },
+        "scrollbar": {
+            "draw": 5.863,
+            "quantize": 3.498,
+            "encode": 4.19,
+            "total": 13.32,
+            "bytes": 20378,
+            "unstable": false,
+            "cold": 15.543,
+            "peakBytes": 4194304
+        },
+        "thumbnail": {
+            "draw": 7.243,
+            "quantize": 5.763,
+            "encode": 15.379,
+            "total": 28.349,
+            "bytes": 43794,
+            "unstable": false,
+            "cold": 94.785,
+            "peakBytes": 4194304
+        },
+        "popup": {
+            "draw": 8.842,
+            "quantize": 8.012,
+            "encode": 4.441,
+            "total": 21.382,
+            "bytes": 31919,
+            "unstable": false,
+            "cold": 66.383,
+            "peakBytes": 4194304
+        },
+        "command": {
+            "draw": 14.317,
+            "quantize": 7.318,
+            "encode": 4.37,
+            "total": 26.08,
+            "bytes": 27270,
+            "unstable": false,
+            "cold": 38.767,
+            "peakBytes": 4194304
+        },
+        "sections": {
+            "draw": 5.544,
+            "quantize": 6.828,
+            "encode": 4.271,
+            "total": 16.7,
+            "bytes": 19067,
+            "unstable": false,
+            "cold": 41.934,
+            "peakBytes": 4194304
+        },
+        "progress": {
+            "draw": 11.128,
+            "quantize": 7.509,
+            "encode": 4.4,
+            "total": 23.18,
+            "bytes": 28492,
+            "unstable": false,
+            "cold": 62.228,
+            "peakBytes": 4194304
+        },
+        "split": {
+            "draw": 8.76,
+            "quantize": 11.19,
+            "encode": 4.472,
+            "total": 24.174,
+            "bytes": 41643,
+            "unstable": false,
+            "cold": 66.517,
+            "peakBytes": 4194304
+        },
+        "background": {
+            "draw": 5.666,
+            "quantize": 7.613,
+            "encode": 4.336,
+            "total": 17.63,
+            "bytes": 26096,
+            "unstable": false,
+            "cold": 49.097,
+            "peakBytes": 4194304
+        },
+        "columns": {
+            "draw": 7.948,
+            "quantize": 8.13,
+            "encode": 4.433,
+            "total": 20.517,
+            "bytes": 40145,
+            "unstable": false,
+            "cold": 70.219,
+            "peakBytes": 4194304
+        },
+        "text-view": {
+            "draw": 8.885,
+            "quantize": 9.984,
+            "encode": 4.636,
+            "total": 23.634,
+            "bytes": 79452,
+            "unstable": false,
+            "cold": 126.231,
+            "peakBytes": 4194304
+        },
+        "highlight": {
+            "draw": 8.319,
+            "quantize": 8.188,
+            "encode": 4.403,
+            "total": 21.027,
+            "bytes": 40492,
+            "unstable": false,
+            "cold": 24.252,
+            "peakBytes": 4194304
+        },
+        "settings": {
+            "draw": 3.961,
+            "quantize": 7.791,
+            "encode": 4.433,
+            "total": 16.195,
+            "bytes": 31077,
+            "unstable": false,
+            "cold": 63.265,
+            "peakBytes": 4194304
+        },
+        "tree": {
+            "draw": 4.963,
+            "quantize": 6.997,
+            "encode": 4.306,
+            "total": 16.236,
+            "bytes": 20625,
+            "unstable": false,
+            "cold": 56.997,
+            "peakBytes": 4194304
+        },
+        "marked": {
+            "draw": 8.804,
+            "quantize": 14.588,
+            "encode": 4.399,
+            "total": 27.702,
+            "bytes": 40529,
+            "unstable": false,
+            "cold": 40.162,
+            "peakBytes": 4194304
+        }
+    },
+    "transfer": null
+}

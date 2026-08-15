@@ -19,6 +19,22 @@ return [
     'module.file-info.description' => 'Pełny obraz stanu wpisu: czym jest, ile zajmuje, do kogo należy '
         . 'i kiedy był ruszany.',
 
+    // Zbiór zaznaczony w przeglądarce (krok 43). Zdanie zastępuje ścieżkę
+    // w górnym pasie, gdy kontekst sesji niesie niepuste zaznaczenie — to jest
+    // **odbiorca** pojęcia zbioru w rdzeniu (D80, rozstrzygnięcie 1), bez którego
+    // rdzeń urósłby o mechanizm bez użytkownika.
+    'module.file-info.marked' => [
+        'Zaznaczono {count} wpis · razem {size}',
+        'Zaznaczono {count} wpisy · razem {size}',
+        'Zaznaczono {count} wpisów · razem {size}',
+    ],
+    // Suma pomija katalogi, bo ich rozmiaru nikt nie zna — i mówi to wprost.
+    'module.file-info.marked.dirs' => [
+        'Zaznaczono {count} wpis · razem {size} bez {dirs} kat.',
+        'Zaznaczono {count} wpisy · razem {size} bez {dirs} kat.',
+        'Zaznaczono {count} wpisów · razem {size} bez {dirs} kat.',
+    ],
+
     // Pozycje zakładki ustawień modułu.
     'module.file-info.setting.timeout' => 'Limit czasu polecenia (s)',
     'module.file-info.setting.arguments' => 'Dodatkowe argumenty',

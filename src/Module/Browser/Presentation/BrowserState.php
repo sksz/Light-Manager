@@ -9,6 +9,7 @@ use LightManager\Application\Module\ModuleContext;
 use LightManager\Module\Browser\Application\BrowserSettings;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Domain\ValueObject\Entry;
+use LightManager\Module\Browser\Domain\ValueObject\MarkedEntries;
 use LightManager\Module\Browser\Domain\ValueObject\NameFilter;
 use LightManager\Presentation\Cli\LoopState;
 
@@ -35,6 +36,13 @@ use LightManager\Presentation\Cli\LoopState;
  * `Directory`, i jest to rozstrzygnięcie ze startu tamtego kroku: filtr jest
  * widokiem na katalog, a nie jego własnością — dwa panele otwarte na tym samym
  * katalogu mają prawo mieć różne filtry, a katalog na dysku jest jeden.
+ *
+ * **Od kroku 43 panel ma ponadto zbiór zaznaczonych** i stoi on tutaj z tego
+ * samego powodu, co filtr: dwa panele otwarte na tym samym katalogu mają prawo
+ * mieć różne zaznaczenia. Zbiór ginie razem z katalogiem (`enter()`), a przeżywa
+ * zawężenie i odświeżenie — nazwy zaznaczone tutaj w katalogu obok znaczą co
+ * innego albo nic, ale ten sam katalog odczytany na nowo jest tym samym
+ * katalogiem.
  */
 final class BrowserState
 {
@@ -51,12 +59,23 @@ final class BrowserState
 
     private NameFilter $filter;
 
+    /**
+     * Wpisy zaznaczone wielokrotnie — **nazwami**, nie numerami (krok 43).
+     *
+     * Zbiór odnosi się do katalogu pełnego (`$all`), a nie do widocznego: wpis
+     * wypchnięty poza widok przez filtr nadal do niego należy (rozstrzygnięcie 4),
+     * więc przycinanie zbioru dzieje się wyłącznie tam, gdzie zmienia się katalog
+     * na dysku — w `refresh()` — a nigdy przy zawężaniu listy.
+     */
+    private MarkedEntries $marked;
+
     public function __construct(
         private readonly LoopState $state,
         private Directory $directory,
     ) {
         $this->all = $directory;
         $this->filter = NameFilter::none();
+        $this->marked = MarkedEntries::none();
         $this->publish();
     }
 
@@ -79,6 +98,11 @@ final class BrowserState
         $this->all = $directory;
         $this->directory = $directory;
         $this->filter = NameFilter::none();
+        // Zbiór ginie razem z filtrem i z tego samego powodu (krok 43): nazwa
+        // zaznaczona tutaj w katalogu obok znaczy co innego albo nic, a operacja
+        // działająca na zbiorze odziedziczonym po poprzednim miejscu byłaby
+        // operacją na wpisach, których użytkownik nie widział.
+        $this->marked = MarkedEntries::none();
         $this->publish();
     }
 
@@ -98,6 +122,12 @@ final class BrowserState
     {
         $keep = $select ?? $directory->selectedEntry()?->name;
         $this->all = $directory;
+        // Zbiór przycina się **tutaj i tylko tutaj** (krok 43): wpisy, które
+        // zniknęły z dysku, znikają z niego, a te, których operacja nie dotknęła
+        // — pominięte przy kolizji, nieudane — zostają zaznaczone. To jedyna
+        // droga, którą użytkownik dowie się, co się nie udało, bez listy błędów,
+        // której aplikacja nie ma.
+        $this->marked = $this->marked->keptFrom(self::sizesOf($directory));
         $this->rebuild($keep);
     }
 
@@ -140,6 +170,102 @@ final class BrowserState
         $keep = $select ?? $this->directory->selectedEntry()?->name;
         $this->filter = NameFilter::none();
         $this->rebuild($keep);
+    }
+
+    public function marked(): MarkedEntries
+    {
+        return $this->marked;
+    }
+
+    /**
+     * Ile wpisów ma katalog **przed** zawężeniem filtrem.
+     *
+     * Pytanie zadaje podsumowanie zbioru w pasie ścieżki: zaznaczenie odnosi się
+     * do katalogu pełnego, więc mianownik też musi (krok 43).
+     */
+    public function fullCount(): int
+    {
+        return count($this->all->entries());
+    }
+
+    /**
+     * Spacja: przełącza zaznaczenie wpisu **pod kursorem**.
+     *
+     * Katalog wolno zaznaczyć na równi z plikiem (rozstrzygnięcie 7) i niesie
+     * wtedy `null` zamiast rozmiaru — bo rozmiaru katalogu nie znamy, a nie
+     * dlatego, że jest zerowy.
+     *
+     * Oddaje `true`, gdy coś się zmieniło; `false` znaczy „nie ma czego
+     * zaznaczyć” i pozwala wołającemu odróżnić pustą listę od zwykłego
+     * przełączenia.
+     */
+    public function toggleMark(): bool
+    {
+        $entry = $this->directory->selectedEntry();
+
+        if ($entry === null) {
+            return false;
+        }
+
+        $this->marked = $this->marked->toggled($entry->name, self::sizeOf($entry));
+        $this->publish();
+
+        return true;
+    }
+
+    /**
+     * `*`: odwraca zaznaczenie na liście **widocznej** (rozstrzygnięcie 8).
+     *
+     * Wpisy wypchnięte poza widok przez filtr zostają w swoim stanie: klawisz
+     * dotyczy tego, na co użytkownik patrzy, tą samą regułą, którą kieruje się
+     * spis klawiszy od kroku 30.
+     */
+    public function invertMarks(): void
+    {
+        $this->marked = $this->marked->invertedOn(self::sizesOf($this->directory));
+        $this->publish();
+    }
+
+    /**
+     * `Esc` po zdjęciu filtra: czyści zbiór.
+     *
+     * Oddaje `true`, gdy było co czyścić — kolejność ustępowania `Esc`
+     * (rozstrzygnięcie 3) rozstrzyga się bowiem po stronie ekranu, a ten musi
+     * wiedzieć, czy klawisz cokolwiek zrobił.
+     */
+    public function clearMarks(): bool
+    {
+        if ($this->marked->isEmpty()) {
+            return false;
+        }
+
+        $this->marked = MarkedEntries::none();
+        $this->publish();
+
+        return true;
+    }
+
+    /**
+     * Wpisy, na które ma zadziałać czynność: zbiór, a gdy jest pusty — wpis pod
+     * kursorem.
+     *
+     * **Reguła pustego zbioru mieszka tutaj**, w jednym miejscu dla wszystkich
+     * czynności (krok 43): „brak zaznaczenia znaczy wpis pod kursorem”, a nie
+     * „nic”. Inaczej każda operacja wymagałaby dwóch kroków tam, gdzie dziś
+     * wymaga jednego — i każda musiałaby to samo pytanie zadać sobie osobno.
+     *
+     * @return list<string> nazwy w kolejności zaznaczania; pusta lista znaczy
+     *                      „nie ma na czym działać”
+     */
+    public function operands(): array
+    {
+        if (!$this->marked->isEmpty()) {
+            return $this->marked->names();
+        }
+
+        $entry = $this->directory->selectedEntry();
+
+        return $entry === null ? [] : [$entry->name];
     }
 
     private function rebuild(?string $keep): void
@@ -186,7 +312,7 @@ final class BrowserState
      */
     public function publishNode(Directory $node): void
     {
-        $this->publishFrom($node);
+        $this->publishFrom($node, withMarked: false);
     }
 
     /**
@@ -203,14 +329,29 @@ final class BrowserState
         $this->publishFrom($this->directory);
     }
 
-    private function publishFrom(Directory $directory): void
+    /**
+     * Zbiór jedzie w kontekście razem z wpisem pod kursorem, a nie zamiast niego
+     * (krok 43, D80 rozstrzygnięcie 1): odbiorca ma prawo pokazać jedno, drugie
+     * albo oba, a kontekst bez wpisu pod kursorem odebrałby modułowi opisu pliku
+     * jedyne, co dziś czyta.
+     *
+     * Węzeł drzewa (`publishNode()`) idzie tą samą drogą i **zbioru nie niesie**,
+     * bo zaznaczenie jest własnością listy (D80, rozstrzygnięcie 9) — pole
+     * `$marked` należy wtedy do listy panelu, na którą użytkownik akurat nie
+     * patrzy.
+     */
+    private function publishFrom(Directory $directory, bool $withMarked = true): void
     {
         $entry = $directory->selectedEntry();
+        $marked = $withMarked ? $this->marked : MarkedEntries::none();
 
         $this->state->publishContext(new ModuleContext(
             $directory->path()->value,
             $entry?->name,
             self::kindOf($entry),
+            $marked->count(),
+            $marked->bytes(),
+            $marked->directories(),
         ));
     }
 
@@ -221,5 +362,27 @@ final class BrowserState
         }
 
         return $entry->isDirectory() ? ContextEntryKind::Directory : ContextEntryKind::File;
+    }
+
+    /**
+     * Nazwy wraz z rozmiarami — dana wejściowa zbioru, liczona z agregatu.
+     *
+     * @return array<string, ?int>
+     */
+    private static function sizesOf(Directory $directory): array
+    {
+        $sizes = [];
+
+        foreach ($directory->entries() as $entry) {
+            $sizes[$entry->name] = self::sizeOf($entry);
+        }
+
+        return $sizes;
+    }
+
+    /** Katalog nie ma rozmiaru; `null` mówi to wprost, a zero by skłamało. */
+    private static function sizeOf(Entry $entry): ?int
+    {
+        return $entry->isDirectory() ? null : $entry->sizeInBytes;
     }
 }

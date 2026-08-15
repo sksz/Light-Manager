@@ -65,14 +65,19 @@ final class StubFileOperations implements FileOperationsPort
         $this->fail();
     }
 
-    public function beginRemoval(string $path): RemovalState
+    /**
+     * Ścieżka zapamiętana jest **pierwsza**, bo to ona nazywa pracę w oknach;
+     * ślad `scan:` niesie za to wszystkie, rozdzielone przecinkiem — testy
+     * sprawdzają nim, że zbiór zaznaczonych doszedł do portu w całości (krok 43).
+     */
+    public function beginRemoval(array $paths): RemovalState
     {
-        $this->path = $path;
+        $this->path = $paths[0] ?? '';
         $this->step = 0;
-        $this->performed[] = 'scan:' . $path;
+        $this->performed[] = 'scan:' . implode(',', $paths);
 
         return $this->removal = $this->steps > 0
-            ? RemovalState::scanning(1, basename($path))
+            ? RemovalState::scanning(1, basename($this->path))
             : RemovalState::ready($this->entries);
     }
 

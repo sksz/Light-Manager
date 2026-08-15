@@ -39,6 +39,14 @@ use LightManager\Presentation\Ui\OverlayOutcome;
  * może stać po pracy, która już coś policzyła, a policzona lista wpisów do
  * usunięcia nie ma prawa przeżyć „nie” (krok 41).
  *
+ * **Krok 43 dokłada liczbę do form mnogich** i to jest cała zmiana, jakiej rdzeń
+ * wymagał od zaznaczenia wielokrotnego. Plan tamtego kroku spodziewał się roboty
+ * większej — „katalog napisów tego dziś nie umie” — ale umiał od kroku 15
+ * (`TranslatorPort::plural()`, `PluralRule::Slavic`); brakowało wyłącznie drogi,
+ * którą pytanie miało o formę poprosić. Pytanie o zbiór odmienia się bowiem przez
+ * liczbę w każdym języku słowiańskim: „usunąć 2 wpisy” i „usunąć 5 wpisów” to nie
+ * jest ten sam napis z podstawioną cyfrą.
+ *
  * **Domyślną odpowiedzią jest „nie”** i to nie jest kosmetyka: okno staje
  * przed rzeczą nieodwracalną, więc użytkownik przyzwyczajony do
  * przytrzymywania `Enter`a ma trafić w odmowę, nie w zgodę. Z tego samego
@@ -91,6 +99,8 @@ final class ConfirmOverlay implements OverlayInterface
      * @param bool                     $dangerous   czy czynność jest nieodwracalna — wtedy okno
      *                                              maluje się rolą `Danger` zamiast akcentu
      * @param ?Closure(): void         $onRefuse    sprzątanie po „nie” i po `Esc`
+     * @param ?int                     $count       liczba, dla której dobiera się forma
+     *                                              mnoga pytania; `null` — pytanie bez liczby
      */
     public function __construct(
         private readonly string $questionKey,
@@ -99,6 +109,7 @@ final class ConfirmOverlay implements OverlayInterface
         private readonly TranslatorPort $translator,
         private readonly bool $dangerous = false,
         private readonly ?Closure $onRefuse = null,
+        private readonly ?int $count = null,
     ) {
     }
 
@@ -295,8 +306,19 @@ final class ConfirmOverlay implements OverlayInterface
         return $this->translator->translate($this->dangerous ? 'confirm.title.dangerous' : 'confirm.title');
     }
 
+    /**
+     * Pytanie w formie odpowiedniej dla liczby, gdy wołający ją podał.
+     *
+     * Rozgałęzienie zamiast jednej drogi przez `plural()`, bo `plural()` wymaga
+     * liczby, a większość pytań jej nie ma i mieć nie musi — „Usunąć »raport.pdf«
+     * bezpowrotnie?” nie odmienia się przez nic.
+     */
     private function question(): string
     {
-        return $this->translator->translate($this->questionKey, $this->parameters);
+        if ($this->count === null) {
+            return $this->translator->translate($this->questionKey, $this->parameters);
+        }
+
+        return $this->translator->plural($this->questionKey, $this->count, $this->parameters);
     }
 }

@@ -24,6 +24,17 @@ enum Role
     case Accent;
     case Selection;
     case SelectionText;
+    /**
+     * Wpis zaznaczony wielokrotnie (krok 43, D80 rozstrzygnięcie 5a).
+     *
+     * Dwunasta rola i pierwsza dołożona od kroku 13 — a stanęła tu, bo
+     * wszystkie jedenaście były już **zajęte przez inne znaczenie**: kursor
+     * bierze `Selection`, katalogi `Accent`, wpisy ukryte `Muted`, a `Warning`
+     * jest w motywie Grafit **tym samym kolorem, co akcent** (jeden nasycony
+     * kolor, D25), więc zaznaczony plik wyglądał w domyślnym motywie jak
+     * katalog. Rola bez własnego koloru nie jest rolą.
+     */
+    case Marked;
     case Info;
     case Warning;
     case Danger;

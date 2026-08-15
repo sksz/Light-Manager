@@ -3712,7 +3712,7 @@ w osiemdziesięciu kolumnach nie ma o czym mówić.
 **Dotyczy:** kroków 41–44 (pełna treść:
 [41-operacje-fundament.md](archiwum/41-operacje-fundament.md),
 [42-kopiowanie-i-przenoszenie.md](archiwum/42-kopiowanie-i-przenoszenie.md),
-[43-zaznaczenie-wielokrotne.md](43-zaznaczenie-wielokrotne.md),
+[43-zaznaczenie-wielokrotne.md](archiwum/43-zaznaczenie-wielokrotne.md),
 [44-kosz-i-cofanie.md](44-kosz-i-cofanie.md)) i struktury planu
 ([00-index.md](00-index.md)).
 
@@ -5080,3 +5080,170 @@ z odpowiedzi:**
 `PromptOverlay` dostał po obejrzeniu okna w prawdziwym terminalu (dziennik kroku
 41). Pytania tego kroku niosą **nazwy plików**, więc granica wchodzi tu razem
 z nimi — D77 wskazał krok 42 jako właściciela tego długu.
+
+---
+
+### D80 — Rozstrzygnięcia startowe kroku 43: kontekst rośnie o zbiór wbrew rekomendacji, znacznik plus rola, `Esc` zdejmuje warstwy po kolei
+
+**Dotyczy:** kroku 43 (pełna treść:
+[43-zaznaczenie-wielokrotne.md](archiwum/43-zaznaczenie-wielokrotne.md)),
+`Application/Module` (`ModuleContext`), `Application/Port`
+(`FileOperationsPort`), `Infrastructure/FileSystem` (`FileOperationsService`),
+`Presentation/Ui/Overlay` (`ConfirmOverlay`), `Application/Ui` (`Role`),
+`Infrastructure/Rendering` (`Theme` i trzy renderery), modułu przeglądarki
+(`MarkedEntries`, `BrowserState`, `BrowserPanes`, `BrowserScreen`, `EntryList`,
+`EntryOperations`, `EntryTransfer`), modułu opisu pliku (`FileInfoScreen`),
+`Infrastructure/Diagnostics` (scenariusz `marked`), czterech katalogów napisów,
+[docs/architecture.md](../architecture.md),
+[SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md) i `README.md`.
+
+**Data:** 2026-08-15, przed pierwszą linią kodu — osiem pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku” (jedno z nich rozstrzygnięte przez sprawdzenie
+kodu, nie przez wybór) oraz jedno wynikłe ze stanu zastanego, którego plan nie
+przewidział.
+
+**Sprawdzenie stanu zastanego: tabela z planu zgadza się w każdym wierszu, ale
+jedno założenie kroku jest nieaktualne.** Pytanie nr 6 („liczba mnoga w napisach
+— trzy formy w katalogu, czyli zmiana w rdzeniu, czy napis omijający odmianę”)
+opierało się na zdaniu „katalog napisów tego dziś nie umie”. **Umie od kroku
+15**: `TranslatorPort::plural()` i `PluralRule::Slavic` dają trzy formy dla
+polskiego, a kroki 41 i 42 z nich korzystają (`module.browser.delete.done`).
+Zostało wyłącznie **jedno miejsce bez drogi do form mnogich** — `ConfirmOverlay`,
+który zawsze woła `translate()`. Zapowiadana „jedyna zmiana w rdzeniu” zeszła
+przez to z przebudowy katalogu do **jednego opcjonalnego parametru okna**.
+
+**Decyzje użytkownika (1–8 — pytania z planu; 9 — pytanie dodatkowe):**
+
+1. **Kontekst sesji rośnie o zbiór — wbrew rekomendacji planu.** `ModuleContext`
+   dostaje trzy liczby: `markedCount`, `markedBytes` i `markedDirectories`
+   (o które suma milczy). Plan rekomendował wariant przeciwny, powołując się na
+   regułę 15 („funkcja, której potrzebuje jeden moduł, jest modułem”); użytkownik
+   wybrał wzrost, żeby pojęcie zbioru istniało w rdzeniu **raz**, a nie osobno
+   w każdym module, który kiedyś zechce o nim mówić.
+   **Warunek, pod którym ten wybór nie jest długiem, postawiono od razu i jest
+   nim reguła 13:** mechanizm wchodzi **razem z odbiorcą**. Odbiorcą jest moduł
+   opisu pliku — przy niepustym zbiorze jego górny pas mówi „Zaznaczono 12 wpisów
+   · razem 4,1 GB” zamiast ścieżki. Punkt „Poza zakresem” planu („pokazywanie
+   zaznaczenia w module opisu pliku”) zostaje przez to **odwołany**: był
+   konsekwencją wariantu 1, który odpadł.
+   Zbiór jedzie w kontekście **razem** z wpisem pod kursorem, a nie zamiast
+   niego — odbiorca ma prawo pokazać jedno, drugie albo oba.
+2. **Spacja przesuwa kursor w dół.** Klasyka menadżerów (mc, Far, Total
+   Commander): zaznaczenie ciągu wpisów idzie jednym palcem. Na ostatnim wierszu
+   kursor zostaje, bo `moveSelectionDown()` zatrzymuje się na krańcu listy.
+3. **`Esc` zdejmuje warstwy po kolei: najpierw filtr, potem zaznaczenie.**
+   Kolejność jest odwrotnością zakładania — filtr leży na wierzchu, bo zmienia
+   to, co widać. Odrzucono kolejność odwrotną („zaznaczenie jest groźniejsze”)
+   i czyszczenie obu naraz: jedno naciśnięcie odbierałoby użytkownikowi
+   zawężenie, o które nie prosił. Przy obu pustych klawisz nie robi nic, jak
+   przed krokiem. Opis w stopce mówi o warstwie, **która ustąpi teraz** — jeden
+   opis dla obu byłby kłamstwem w połowie przypadków.
+4. **Wpis zaznaczony i odfiltrowany nadal należy do zbioru.** Zbiór trzyma nazwy
+   (reguła kroku 30), a filtr jest widokiem, nie własnością katalogu. Cena
+   zapisana wprost: operacja dotknie czegoś, czego nie widać — dlatego
+   podsumowanie w pasie ścieżki podaje liczbę **całego** zbioru i mianownik
+   **pełnego** katalogu, a nie widocznej listy. Odrzucono czyszczenie zbioru przy
+   zawężeniu (wpisanie fragmentu kasowałoby pracę zaznaczania) i wariant
+   pośredni, w którym czynność bierze przecięcie zbioru z widokiem — dwie liczby
+   znaczyłyby wtedy co innego i pytanie potwierdzenia musiałoby to tłumaczyć.
+5. **Wiersz zaznaczony niesie dwa sygnały naraz: znacznik w kolumnie i rolę
+   `Warning`.** Jeden sygnał mniej znaczyłby, że w torze tekstowym bez kolorów
+   zaznaczenia nie widać wcale (sama rola) albo że zaznaczony katalog jest
+   nieodróżnialny od niezaznaczonego (sam znacznik, bo `Accent` zostałby).
+   Kolumna znacznika **powstaje dopiero przy niepustym zbiorze** — panel bez
+   zaznaczenia wygląda co do znaku jak przed krokiem, czego dowodzą niezmienione
+   wzorce pozostałych scenariuszy. Wiersz zaznaczony **i** pod kursorem zachowuje
+   znacznik, a napis bierze rolę paska: bez znacznika byłby nieodróżnialny od
+   zwykłego wiersza pod kursorem.
+6. **Formy mnogie w katalogu — bez przebudowy rdzenia** (patrz sprawdzenie
+   wyżej). `ConfirmOverlay` dostaje opcjonalny parametr `?int $count`; podany
+   przełącza pytanie z `translate()` na `plural()`, a `null` (domyślny) zostawia
+   zachowanie sprzed kroku. Tytuły okien **pracy** form mnogich nie dostają —
+   ich zdania stawiają liczbę po dwukropku („Usuwanie zaznaczonych: 12”), więc
+   nie odmieniają się przez nią; ta sama sztuczka trzyma podsumowanie w pasie
+   ścieżki w kolumnach, na które je stać (`bez 2 kat.`).
+7. **Katalog wolno zaznaczyć na równi z plikiem, a suma mówi, że go pomija.**
+   Bez tego zaznaczenie przestawałoby być mnożnikiem najcięższych operacji —
+   dwunastu katalogów nie skopiowałoby się jednym klawiszem. Rozmiar katalogu
+   niesie w zbiorze `null`, a nie zero, i to jest różnica merytoryczna, nie
+   techniczna: zajętość katalogu wraz z zawartością umie policzyć wyłącznie `du`
+   z kroku 26, więc zero byłoby zmyśleniem.
+8. **`*` odwraca zaznaczenie na liście widocznej.** Klawisz dotyczy tego, na co
+   użytkownik patrzy — spójnie z regułą kroku 30 („spis pokazuje wyłącznie to, co
+   działa tu i teraz”). Wpisy poza widokiem zostają w swoim stanie.
+9. **Zaznaczenie jest własnością listy: drzewo ani nie zaznacza, ani zbioru nie
+   widzi.** Pytanie dodatkowe, którego plan nie zadał, bo pisano go przed
+   sprawdzeniem, że panel ma od kroku 31 **dwa widoki**. Precedens jest ten sam,
+   który w kroku 31 zabrał drzewu podświetlenie filtra: zbiór trzyma nazwy
+   z jednego katalogu, a węzły drzewa leżą na różnych poziomach — wspólny zbiór
+   musiałby trzymać ścieżki, podsumowanie przestałoby dotyczyć jednego katalogu,
+   a `TreeView` dostałby własny znacznik i własny wzorzec pomiarowy. Zbiór
+   **przeżywa** przełączenie widoku (`Ctrl`+`T` niczego nie kasuje), ale dopóki
+   widać drzewo, nie istnieje dla nikogo: ani dla znacznika, ani dla podsumowania,
+   ani dla czynności. Inaczej `F8` w drzewie usuwałoby dwanaście wpisów, których
+   nie widać.
+
+**5a. Zaznaczenie dostaje własną rolę motywu — rozstrzygnięcie podjęte
+w trakcie kroku, po obejrzeniu klatki.** Pierwsza wersja malowała wiersz
+zaznaczony rolą `Warning` i przeszła wszystkie testy, bo testy patrzą na rolę,
+a nie na kolor. Wzorzec PNG pokazał, czego nie widać w prymitywach: **w motywie
+Grafit `warning` i `accent` to ten sam `#d9a441`** — jeden nasycony kolor jest
+tam zasadą projektową (D25) — więc zaznaczony plik wyglądał w domyślnym motywie
+jak katalog i z dwóch sygnałów rozstrzygnięcia 5 zostawał jeden.
+
+Użytkownik wybrał **nową rolę** (`Role::Marked`, dwunastą, pierwszą dołożoną od
+kroku 13) zamiast dwóch tańszych wyjść: zostawienia `Warning` wraz z zapisanym
+ograniczeniem albo sięgnięcia po `Danger`, która znaczy dziś „nieodwracalne albo
+błąd”. Kolorem jest **zieleń** we wszystkich czterech paletach — jedyny kolor,
+którego projekt nie używał do niczego, więc niczemu nie odbiera znaczenia:
+`#7fb069` (Grafit, przygaszona, żeby nie konkurowała z akcentem), `#a3be8c`
+(Nordyk — kanoniczna zieleń Norda), `#4f7a2e` (Papier — ciemniejsza od tła,
+jedyny motyw jasny), `#81c995` (Indygo). Cena zapisana wprost: **Grafit ma odtąd
+dwa nasycone kolory**, a zdanie z jego docblocku o jednym traci ważność.
+
+**Cena zmierzona, nie oszacowana, i warta zapisania osobno:** druga barwa
+nasycona kosztuje w torze sixelowym **+6,4 ms kwantyzacji** na klatce, w której
+zaznaczona jest blisko połowa wierszy (27,7 ms wobec 20,6 ms dla tej samej listy
+bez zaznaczenia). Kwantyzator musi zmieścić w palecie drugą rampę półcieni —
+czyli dokładnie to, przed czym ostrzegał D25. Koszt **rośnie z liczbą pikseli
+nowej barwy**, a nie z samą jej obecnością: przy dwóch zaznaczonych wierszach
+wynosi 1,0 ms. Sufit mieści się w budżecie klatki (27,7 z 33 ms, tyle co klatka
+z miniaturą), a podniesienie palety go nie zdejmuje — przy 256 kolorach różnica
+zostaje. Tory tekstowy i okienkowy nie płacą nic, bo nie kwantyzują.
+
+**Wniosek ogólny, wart więcej niż sama decyzja:** rola dobrana „znaczeniowo”, bez
+przejrzenia czterech palet, bywa **rolą bez koloru**. Testy prymitywów tego nie
+złapią — złapało dopiero oko na wzorcu PNG, czyli narzędzie z kroku 38 użyte
+zgodnie z przeznaczeniem. A rola dołożona do palety **nie jest darmowa w torze
+sixelowym**, choć w dwóch pozostałych jest: następna niech przyjdzie
+z pomiarem.
+
+**Rozstrzygnięcia wynikłe z powyższych, zapisane przy pisaniu kodu:**
+
+- **Port usuwania bierze listę ścieżek** (`beginRemoval(list<string>)`) —
+  dokładnie tak, jak port kopiowania od kroku 42, którego docblock zapowiadał
+  „lista, nie jeden wpis, także wtedy, gdy ma jeden element (krok 43 doda
+  resztę)”. Zapowiedź spełniła się co do słowa: `EntryTransfer` nie zmienił ani
+  jednej linii pracy, tylko wypełnił listę, którą tamten krok zostawił pustą.
+  Granica wiedzy rdzenia zostaje nietknięta — **skąd ta lista się wzięła, port
+  nie wie**.
+- **Reguła pustego zbioru mieszka w jednym miejscu**
+  (`BrowserState::operands()` wraz z `BrowserPanes::focusedOperands()`), a nie
+  w każdej czynności z osobna. Czynność pyta „na czym mam działać” i dostaje
+  listę nazw; czy przyszła ze zbioru, czy z kursora, nie jest jej sprawą.
+- **Zmiana nazwy i nowy katalog zostają jednowpisowe** (nazwa jest jedna
+  z definicji), a `browser.delete <nazwa>` **wyprzedza zaznaczenie**: komenda
+  z argumentem mówi, co usunąć, więc zbiór nie ma tam nic do powiedzenia.
+- **Kursor po usunięciu zbioru przeskakuje resztę zaznaczonych** — spada na
+  pierwszy **nieusuwany** wpis poniżej ostatniego z nich, a gdy takiego nie ma,
+  powyżej pierwszego. Przy jednym wpisie rachunek daje to samo, co przed krokiem.
+- **Scenariusz `marked` rozlicza się w parze z `columns`**, tą samą konstrukcją,
+  co `highlight` z kroku 30: ta sama treść, te same kolumny, to samo przewinięcie
+  — różnicą jest wyłącznie to, co się mierzy. Zaznaczone **trzy pozycje
+  z siedmiu**, a nie co trzecia, i ta liczba też wyszła z obejrzenia wzorca:
+  katalogi wypadają co szósty wiersz, więc przy „co trzeciej” pozycji **każdy
+  katalog był zaznaczony** i z klatki nie dało się odczytać, czy rola zaznaczenia
+  odróżnia się od akcentu. Siódemka daje w jednym wzorcu wszystkie cztery
+  kombinacje: plik i katalog, zaznaczony i nie. Rytmu **katalogów** ruszyć nie
+  było wolno — dzielą go `columns` i `highlight`, których wzorce mają zostać
+  bajt w bajt.

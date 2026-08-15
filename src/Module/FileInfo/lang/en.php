@@ -14,6 +14,17 @@ return [
     'module.file-info.description' => 'The full picture of an entry: what it is, how much it takes, '
         . 'who owns it and when it was last touched.',
 
+    // The set marked in the browser (step 43) — the receiver of the core's new
+    // notion of a marked set.
+    'module.file-info.marked' => [
+        '{count} entry marked · {size} in total',
+        '{count} entries marked · {size} in total',
+    ],
+    'module.file-info.marked.dirs' => [
+        '{count} entry marked · {size} in total, excl. {dirs} dir.',
+        '{count} entries marked · {size} in total, excl. {dirs} dir.',
+    ],
+
     'module.file-info.setting.timeout' => 'Command timeout (s)',
     'module.file-info.setting.arguments' => 'Extra arguments',
     'module.file-info.setting.timeFormat' => 'Time format',

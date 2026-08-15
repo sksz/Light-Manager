@@ -32,6 +32,16 @@ use LightManager\Application\Dto\KeyPress;
 final class KeyBinding
 {
     /**
+     * Znaki, które trzeba **nazwać**, bo same z siebie nic nie rysują (krok 43).
+     *
+     * Nazwa idzie tą samą drogą, co `Esc`, `Tab` i `PgUp` — czyli **nie przez
+     * katalog napisów**: to napis z klawiatury, a nie zdanie interfejsu.
+     *
+     * @var array<string, string>
+     */
+    private const NAMED_CHARACTERS = [' ' => 'Space'];
+
+    /**
      * @param list<Key> $keys        klawisze uruchamiające czynność
      * @param ?string   $character   znak, gdy czynność wisi na literze albo znaku
      * @param string    $descriptionKey klucz katalogu napisów z opisem czynności
@@ -127,7 +137,11 @@ final class KeyBinding
             $names[] = match (true) {
                 $this->ctrl => 'Ctrl+' . mb_strtoupper($this->character),
                 $this->alt => 'Alt+' . mb_strtoupper($this->character),
-                default => $this->character,
+                // Klawisz, którego znak **nic nie rysuje**, musi mieć nazwę —
+                // inaczej stopka mówi „· ␣ zaznacz” i wygląda jak usterka.
+                // Znalezione w kroku 43 na klatce z prawdziwego terminala, bo
+                // testy porównywały klucz opisu, a nie to, co widać.
+                default => self::NAMED_CHARACTERS[$this->character] ?? $this->character,
             };
         }
 

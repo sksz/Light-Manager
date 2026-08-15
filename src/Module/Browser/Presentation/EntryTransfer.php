@@ -82,6 +82,15 @@ final class EntryTransfer
 
     private string $name = '';
 
+    /**
+     * Ile wpisów niesie ta praca — `1` albo liczność zbioru (krok 43).
+     *
+     * Pole obok nazwy, a nie zamiast niej: nazwa jedzie do okien przy jednym
+     * wpisie, liczba przy zbiorze, a kursor po pracy idzie **za pierwszym**
+     * przeniesionym niezależnie od tego, ilu ich było.
+     */
+    private int $count = 1;
+
     private bool $moves = false;
 
     public function __construct(
@@ -118,26 +127,49 @@ final class EntryTransfer
 
     private function request(bool $moves, ?string $path): OverlayOutcome
     {
-        $selection = $this->panes->focusedSelection();
+        $operands = $this->panes->focusedOperands();
 
-        if ($selection === null) {
+        if ($operands === null) {
             return OverlayOutcome::close($this->info('module.browser.problem.noSelection'));
         }
-
-        [, $entry] = $selection;
 
         if ($path !== null) {
             return $this->start($moves, $path);
         }
 
+        [, $names] = $operands;
+        [$key, $parameters] = $this->titleOf($moves ? 'module.browser.move.title' : 'module.browser.copy.title', $names);
+
         return OverlayOutcome::replace(new PromptOverlay(
-            $moves ? 'module.browser.move.title' : 'module.browser.copy.title',
-            ['name' => $entry->name],
+            $key,
+            $parameters,
             $this->otherDirectory()->value,
             fn (string $value): OverlayOutcome => $this->start($moves, $value),
             $this->translator,
             'prompt.path',
         ));
+    }
+
+    /**
+     * Tytuł okna: nazwa wpisu przy jednym, ich liczba przy zbiorze (krok 43).
+     *
+     * Bliźniak rachunku z `EntryOperations` i powtórzeniem **nie jest**: obie
+     * klasy mają własne zestawy kluczy („Skopiuj …”, „Usuń …”), a wspólnego jest
+     * tu wyłącznie zdanie „liczba zamiast nazwy, gdy wpisów jest wiele”, czyli
+     * jedna instrukcja `if`. Wyjęcie jej do trzeciej klasy kosztowałoby więcej,
+     * niż oszczędza.
+     *
+     * @param list<string> $names
+     *
+     * @return array{string, array<string, string>}
+     */
+    private function titleOf(string $key, array $names): array
+    {
+        if (count($names) === 1) {
+            return [$key, ['name' => $names[0]]];
+        }
+
+        return [$key . '.many', ['count' => $this->translator->number((float) count($names))]];
     }
 
     /**
@@ -154,25 +186,31 @@ final class EntryTransfer
      */
     private function start(bool $moves, string $value): OverlayOutcome
     {
-        $selection = $this->panes->focusedSelection();
+        $operands = $this->panes->focusedOperands();
 
-        if ($selection === null) {
+        if ($operands === null) {
             return OverlayOutcome::close($this->info('module.browser.problem.noSelection'));
         }
 
-        [$directory, $entry] = $selection;
+        [$directory, $names] = $operands;
         $target = DirectoryPath::resolvedFrom($value, $directory->path());
+        $sources = [];
+
+        foreach ($names as $name) {
+            $sources[] = $directory->path()->child($name)->value;
+        }
 
         $this->moves = $moves;
         $this->source = $directory->path();
         $this->target = $target;
-        $this->name = $entry->name;
+        $this->name = $names[0];
+        $this->count = count($names);
 
-        $state = $this->transfers->begin(
-            [$directory->path()->child($entry->name)->value],
-            $target->value,
-            $moves,
-        );
+        // Lista źródeł czekała na ten krok od kroku 42: port brał ją od pierwszego
+        // dnia („lista, nie jeden wpis, także wtedy, gdy ma jeden element — krok 43
+        // doda resztę”), więc zaznaczenie wielokrotne nie zmienia w pracy ani jednej
+        // linii — wypełnia wyłącznie to, co tamten krok zostawił puste.
+        $state = $this->transfers->begin($sources, $target->value, $moves);
 
         if ($state->stage === TransferStage::Scanning) {
             $state = $this->transfers->advance(self::SCAN_PER_TICK);
@@ -212,9 +250,11 @@ final class EntryTransfer
     /** Okno liczenia: sama nazwa wpisu dokładanego do listy, bez paska (nie ma z czego). */
     private function countingOverlay(TransferState $state): ProgressOverlay
     {
+        [$key, $parameters] = $this->workTitle('module.browser.transfer.counting');
+
         return new ProgressOverlay(
-            'module.browser.transfer.counting',
-            ['name' => $this->name],
+            $key,
+            $parameters,
             $this->progress($state),
             fn (): WorkProgress => $this->progress($this->transfers->advance(self::SCAN_PER_TICK)),
             fn (): OverlayOutcome => $this->afterStep($this->transfers->state()),
@@ -232,9 +272,13 @@ final class EntryTransfer
     /** Okno pracy: nazwa wpisu, licznik w bajtach i pasek. */
     private function workingOverlay(TransferState $state): ProgressOverlay
     {
-        return new ProgressOverlay(
+        [$key, $parameters] = $this->workTitle(
             $this->moves ? 'module.browser.move.progress' : 'module.browser.copy.progress',
-            ['name' => $this->name],
+        );
+
+        return new ProgressOverlay(
+            $key,
+            $parameters,
             $this->progress($state),
             fn (): WorkProgress => $this->progress($this->transfers->advance(self::BYTES_PER_TICK)),
             fn (): OverlayOutcome => $this->afterStep($this->transfers->state()),
@@ -335,6 +379,7 @@ final class EntryTransfer
         $this->target = null;
         $this->source = null;
         $this->name = '';
+        $this->count = 1;
 
         if ($target === null) {
             return;
@@ -397,6 +442,25 @@ final class EntryTransfer
             'entry' => $this->translator->number((float) $state->doneEntries),
             'entries' => $this->translator->number((float) $state->totalEntries),
         ]);
+    }
+
+    /**
+     * Tytuł okna **trwającej** pracy — z pamięci pracy, a nie z panelu.
+     *
+     * Osobno od `titleOf()`, bo tamten pyta o zbiór panelu **przed** rozpoczęciem
+     * pracy, a ten mówi o pracy, która już trwa: panel wolno w jej trakcie
+     * przewinąć, a nawet zmienić mu katalog komendą, i okno postępu ma dalej
+     * mówić o tym, co naprawdę się kopiuje.
+     *
+     * @return array{string, array<string, string>}
+     */
+    private function workTitle(string $key): array
+    {
+        if ($this->count === 1) {
+            return [$key, ['name' => $this->name]];
+        }
+
+        return [$key . '.many', ['count' => $this->translator->number((float) $this->count)]];
     }
 
     /** Katalog panelu **bez ogniska** — cel, którego użytkownik spodziewa się w oknie. */

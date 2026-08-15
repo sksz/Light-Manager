@@ -54,4 +54,4 @@ plane content rect=0,0 30x100 opaque=0 primitives=47
   T27,2,Info,-,· Pomiar wydajności potoku renderowania.
   T27,54,Muted,-,Lista: ↑ / ↓ zaznaczenie · Enter / → katalog
   B27,53,1,1,Border,Hairline
-  T28,5,Muted,-,Backspace / ← wyżej · . ukryte · / filtr · Ctrl+T drzewo · F1 pomoc · F2 ustawienia · F9 menu
+  T28,4,Muted,-,Backspace / ← wyżej · Space zaznacz · * odwróć · . ukryte · / filtr · Ctrl+T drzewo · F1 pomoc

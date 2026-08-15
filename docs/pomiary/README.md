@@ -35,6 +35,7 @@ z istniejącym — jak `highlight` z `columns`.
 | `Table`, `TableRow`, `Column` | `columns` | |
 | `TextView` | `text-view` | z zawijaniem |
 | `TextMark` — podświetlenie dopasowania | `highlight` | rozlicza się w parze z `columns` |
+| zaznaczenie wielokrotne — kolumna znacznika i druga rola wiersza | `marked` | krok 43; rozlicza się w parze z `columns`, tą samą konstrukcją, co `highlight`. Zaznaczone **trzy pozycje z siedmiu** — rytm nie może się pokrywać z rytmem katalogów (co szósty wiersz), bo wtedy każdy katalog byłby zaznaczony i z klatki nie dałoby się odczytać, czym rola zaznaczenia różni się od akcentu. **Scenariusz mierzy sufit, nie przypadek typowy**: przy zaznaczeniu blisko połowy wierszy różnica wobec `columns` wynosi +7,1 ms i leży w **kwantyzacji**, bo dwunasta rola motywu dołożyła paletę drugiej barwy nasyconej (D80 nr 5a); przy dwóch zaznaczonych wierszach jest to +1,0 ms |
 | `Tabs`, `Choice`, `Toggle`, `Button`, `Spacer`, `VStack` | `settings` | krok 38; rozlicza się w parze z `chrome-text` |
 | `TreeNode`, `TreeView` | `tree` | krok 31; wcięcie i prowadnice, znak spoza ASCII **na poziom**; rozlicza się w parze z `sections` — ten sam prostokąt, ten sam `ListView`, różnicą jest sam przedrostek |
 | proces potomny obok pętli | `background` | jedyny scenariusz sięgający poza PHP |
