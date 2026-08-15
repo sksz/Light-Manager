@@ -245,4 +245,53 @@ final class KeySequenceParserTest extends TestCase
         self::assertNull($this->parser->parse(''));
         self::assertNull($this->parser->parseAfterTimeout(''));
     }
+
+    /**
+     * `Shift` przy klawiszu nazwanym — trzeci modyfikator słownika (krok 44).
+     *
+     * Kodowanie XTerma: parametr modyfikatora to `1 + maska`, bit 1 = `Shift`.
+     *
+     * @return array<string, array{string, Key}>
+     */
+    public static function shiftedSequences(): array
+    {
+        return [
+            'Shift+Delete' => ["\e[3;2~", Key::Delete],
+            'Shift+F8' => ["\e[19;2~", Key::F8],
+            'Shift+strzałka w górę' => ["\e[1;2A", Key::ArrowUp],
+            'Shift+strzałka w dół' => ["\e[1;2B", Key::ArrowDown],
+            'Shift+F1 (CSI P)' => ["\e[1;2P", Key::F1],
+            // Ctrl+Shift niesie bit Shifta, a Ctrl przy nazwach dalej się pomija.
+            'Ctrl+Shift+Delete' => ["\e[3;6~", Key::Delete],
+        ];
+    }
+
+    #[DataProvider('shiftedSequences')]
+    public function testReadsShiftFromCsiModifier(string $buffer, Key $key): void
+    {
+        $parsed = $this->parser->parse($buffer);
+
+        self::assertNotNull($parsed);
+        self::assertSame($key, $parsed->keyPress->key);
+        self::assertTrue($parsed->keyPress->shift);
+        self::assertSame(strlen($buffer), $parsed->consumedBytes);
+    }
+
+    /** `Ctrl` i `Alt` przy klawiszach nazwanych pozostają odrzucane — bez znacznika. */
+    public function testCtrlModifierAloneDoesNotSetShift(): void
+    {
+        $parsed = $this->parser->parse("\e[3;5~");
+
+        self::assertNotNull($parsed);
+        self::assertSame(Key::Delete, $parsed->keyPress->key);
+        self::assertFalse($parsed->keyPress->shift);
+    }
+
+    public function testPlainSequenceDoesNotSetShift(): void
+    {
+        $parsed = $this->parser->parse("\e[3~");
+
+        self::assertNotNull($parsed);
+        self::assertFalse($parsed->keyPress->shift);
+    }
 }

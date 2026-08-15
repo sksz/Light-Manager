@@ -46,11 +46,14 @@ final class StubFileTransfers implements FileTransferPort
         $this->state = TransferState::idle();
     }
 
-    public function begin(array $sources, string $target, bool $move): TransferState
+    public function begin(array $sources, string $target, bool $move, array $targetNames = []): TransferState
     {
         $this->name = basename($sources[0] ?? '');
         $this->step = 0;
-        $this->performed[] = ($move ? 'move:' : 'copy:') . implode(',', $sources) . '→' . $target;
+        // Nazwy docelowe (krok 44) wchodzą do śladu tylko wtedy, gdy są — żeby
+        // dotychczasowe przebiegi porównujące ślad zostały bajt w bajt.
+        $renames = $targetNames === [] ? '' : ' jako ' . implode(',', $targetNames);
+        $this->performed[] = ($move ? 'move:' : 'copy:') . implode(',', $sources) . '→' . $target . $renames;
 
         return $this->state = $this->steps > 0
             ? TransferState::scanning(1, 0, $this->name)

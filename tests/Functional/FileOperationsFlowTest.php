@@ -131,11 +131,15 @@ final class FileOperationsFlowTest extends TestCase
         self::assertStringStartsWith('module.browser.rename.done', (string) $this->message());
     }
 
-    /** Usunięcie pliku: pytanie w wariancie groźnym, a po zgodzie wpis znika z listy. */
+    /**
+     * Usunięcie trwałe: pytanie w wariancie groźnym, a po zgodzie wpis znika
+     * z listy. Od kroku 44 droga trwała wisi na `Shift`+`F8` — goły `F8` wiezie
+     * do kosza (D81, nr 1 i 2), a jego przebieg mieszka w `TrashFlowTest`.
+     */
     public function testDeletingAFileAsksFirstAndThenRemovesIt(): void
     {
         $this->select('notatka.txt');
-        $this->press(Key::F8);
+        $this->pressShifted(Key::F8);
 
         self::assertSame('confirm', $this->app->state->overlays()->current()?->id());
         self::assertFileExists($this->root . '/notatka.txt', 'samo pytanie nie usuwa');
@@ -151,18 +155,18 @@ final class FileOperationsFlowTest extends TestCase
     public function testRefusingTheQuestionLeavesTheFileAlone(): void
     {
         $this->select('notatka.txt');
-        $this->press(Key::F8);
+        $this->pressShifted(Key::F8);
         $this->press(Key::Enter);
 
         self::assertFileExists($this->root . '/notatka.txt');
         self::assertNull($this->app->state->overlays()->current());
     }
 
-    /** `Delete` jest drugą drogą do tej samej czynności. */
+    /** `Shift`+`Delete` jest drugą drogą do tej samej czynności, co `Shift`+`F8`. */
     public function testTheDeleteKeyIsTheSameAction(): void
     {
         $this->select('notatka.txt');
-        $this->press(Key::Delete);
+        $this->pressShifted(Key::Delete);
 
         self::assertSame('confirm', $this->app->state->overlays()->current()?->id());
     }
@@ -175,7 +179,7 @@ final class FileOperationsFlowTest extends TestCase
     public function testDeletingADirectoryCountsItsContentsBeforeAsking(): void
     {
         $this->select('zdjęcia');
-        $this->press(Key::F8);
+        $this->pressShifted(Key::F8);
 
         $overlay = $this->app->state->overlays()->current();
 
@@ -196,7 +200,7 @@ final class FileOperationsFlowTest extends TestCase
     {
         $this->makeCrowdedDirectory();
         $this->select('tłum');
-        $this->press(Key::F8);
+        $this->pressShifted(Key::F8);
         $this->confirm();
 
         self::assertSame('progress', $this->app->state->overlays()->current()?->id());
@@ -226,7 +230,7 @@ final class FileOperationsFlowTest extends TestCase
     {
         $this->makeBranchyDirectory(600);
         $this->select('tłum');
-        $this->press(Key::F8);
+        $this->pressShifted(Key::F8);
 
         self::assertSame('progress', $this->app->state->overlays()->current()?->id(), 'okno liczenia');
         self::assertDirectoryExists($this->root . '/tłum', 'liczenie nie dotyka dysku');
@@ -255,7 +259,7 @@ final class FileOperationsFlowTest extends TestCase
     {
         $this->makeBranchyDirectory(600);
         $this->select('tłum');
-        $this->press(Key::F8);
+        $this->pressShifted(Key::F8);
         $this->press(Key::Escape);
 
         self::assertNull($this->app->state->overlays()->current());
@@ -269,7 +273,7 @@ final class FileOperationsFlowTest extends TestCase
     {
         $this->makeCrowdedDirectory();
         $this->select('tłum');
-        $this->press(Key::F8);
+        $this->pressShifted(Key::F8);
         $this->confirm();
 
         $this->press(Key::Escape);
@@ -301,10 +305,12 @@ final class FileOperationsFlowTest extends TestCase
     }
 
     /**
-     * Ustawienie „pytaj przed usunięciem” wyłączone: czynność dzieje się od razu,
-     * bez pytania — i to jest jedyna pozycja, którą krok dokłada.
+     * Usunięcie trwałe **pyta zawsze** (krok 44): ustawienie „pytaj przed
+     * usunięciem” rządzi odtąd czynnością odwracalną — koszem — a ta odwracalna
+     * nie jest. Do kroku 44 wyłączone pytanie znaczyło czynność od razu;
+     * przebieg kosza bez pytania mieszka w `TrashFlowTest`.
      */
-    public function testWithTheQuestionTurnedOffTheEntryGoesAtOnce(): void
+    public function testPermanentDeletionAsksEvenWithTheQuestionTurnedOff(): void
     {
         $settings = $this->app->state->settings()->withModuleValue(
             BrowserSettings::ID,
@@ -315,9 +321,13 @@ final class FileOperationsFlowTest extends TestCase
         $this->app = $this->fixture();
 
         $this->select('notatka.txt');
-        $this->press(Key::F8);
+        $this->pressShifted(Key::F8);
 
-        self::assertNull($this->app->state->overlays()->current(), 'pytania nie ma');
+        self::assertSame('confirm', $this->app->state->overlays()->current()?->id(), 'trwałe pyta zawsze');
+        self::assertFileExists($this->root . '/notatka.txt');
+
+        $this->confirm();
+
         self::assertFileDoesNotExist($this->root . '/notatka.txt');
     }
 
@@ -357,6 +367,9 @@ final class FileOperationsFlowTest extends TestCase
      */
     public function testDeleteFromTheContextMenuAsksBeforeItTouchesTheDisk(): void
     {
+        // Menu idzie drogą klawisza domyślnego; przestawiamy ją na trwałą, bo
+        // to jej pytanie i skutek ten przebieg sprawdza.
+        $this->usePermanentDefault();
         $this->select('notatka.txt');
 
         $this->press(Key::F9);
@@ -391,6 +404,7 @@ final class FileOperationsFlowTest extends TestCase
     /** `browser.delete <nazwa>` — argument wskazuje wpis, pytanie zostaje. */
     public function testDeleteCommandWithANameAsksAboutThatEntry(): void
     {
+        $this->usePermanentDefault();
         $this->command('browser.delete notatka.txt');
 
         self::assertSame('confirm', $this->app->state->overlays()->current()?->id());
@@ -533,6 +547,27 @@ final class FileOperationsFlowTest extends TestCase
     private function press(Key $key): void
     {
         $this->app->input->handle(KeyPress::special($key, "\e"), $this->app->state, self::NOW);
+    }
+
+    /** `Shift`+klawisz — od kroku 44 druga droga usunięcia (trwała przy domyślnych ustawieniach). */
+    private function pressShifted(Key $key): void
+    {
+        $this->app->input->handle(KeyPress::shifted($key, "\e"), $this->app->state, self::NOW);
+    }
+
+    /**
+     * Klawisz domyślny przestawiony na usuwanie trwałe (krok 44) — dla przebiegów
+     * menu i komendy, które idą drogą domyślną i mają tu sprawdzić drogę trwałą.
+     */
+    private function usePermanentDefault(): void
+    {
+        $settings = $this->app->state->settings()->withModuleValue(
+            BrowserSettings::ID,
+            BrowserSettings::DELETE_TO_TRASH,
+            false,
+        );
+        $this->app->settingsStore->save($settings);
+        $this->app = $this->fixture();
     }
 
     private function type(string $text): void

@@ -101,6 +101,15 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
      */
     private const TREE_KEY = 't';
 
+    /**
+     * Litera cofania — z `Alt`, bo `Ctrl`+litera należy w całości do skrótów
+     * modułów (krok 20), a `F9` od kroku 32 otwiera menu. `Alt`+litera jest
+     * w przeglądarce wolne w całości; `Alt`+`z` z modułu opisu pliku nie
+     * koliduje, bo skróty ekranów nie wychodzą poza własny ekran (krok 44,
+     * D81 nr 9).
+     */
+    private const UNDO_KEY = 'u';
+
     public function __construct(
         private readonly BrowserPanes $panes,
         private readonly LoopState $state,
@@ -111,6 +120,8 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
         private readonly TranslatorPort $translator,
         private readonly EntryOperations $entries,
         private readonly EntryTransfer $transfers,
+        private readonly EntryTrash $trash,
+        private readonly EntryUndo $undo,
     ) {
     }
 
@@ -380,6 +391,13 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
                 'module.browser.help.mark',
                 'module.browser.help.mark.short',
             ),
+            // Zaznaczanie zakresem — spacja bez podnoszenia palca (krok 44,
+            // D81 nr 12). Tą samą regułą, co spacja: wyłącznie w liście.
+            KeyBinding::shifted(
+                [Key::ArrowUp, Key::ArrowDown],
+                'module.browser.help.markRange',
+                'module.browser.help.markRange.short',
+            ),
             KeyBinding::character(
                 self::INVERT_KEY,
                 'module.browser.help.invert',
@@ -412,7 +430,23 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
             KeyBinding::of([Key::F5], 'module.browser.help.copy', 'module.browser.help.copy.short'),
             KeyBinding::of([Key::F6], 'module.browser.help.move', 'module.browser.help.move.short'),
             KeyBinding::of([Key::F7], 'module.browser.help.mkdir', 'module.browser.help.mkdir.short'),
-            KeyBinding::of([Key::F8, Key::Delete], 'module.browser.help.delete', 'module.browser.help.delete.short'),
+            // Dwie drogi usunięcia (krok 44): opisy idą **za ustawieniem**, bo
+            // spis pokazuje to, co klawisz naprawdę zrobi — goły klawisz wedle
+            // pozycji „usuwaj do kosza”, `Shift` zawsze to drugie (D81, nr 2).
+            KeyBinding::of(
+                [Key::F8, Key::Delete],
+                $this->deletesToTrash() ? 'module.browser.help.trash' : 'module.browser.help.delete',
+                $this->deletesToTrash() ? 'module.browser.help.trash.short' : 'module.browser.help.delete.short',
+            ),
+            KeyBinding::shifted(
+                [Key::F8, Key::Delete],
+                $this->deletesToTrash() ? 'module.browser.help.delete' : 'module.browser.help.trash',
+                $this->deletesToTrash() ? 'module.browser.help.delete.short' : 'module.browser.help.trash.short',
+            ),
+            // Cofanie (krok 44): klawisz bierze najnowszą operację odwracalną,
+            // widok pokazuje cały stos.
+            KeyBinding::alt(self::UNDO_KEY, 'module.browser.help.undo', 'module.browser.help.undo.short'),
+            KeyBinding::of([Key::F3], 'module.browser.help.undoView', 'module.browser.help.undoView.short'),
         ];
 
         // Klawisz ogniska pokazujemy dopiero wtedy, gdy podział jest włączony:
@@ -451,10 +485,23 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
 
     public function handle(KeyPress $key): ScreenOutcome
     {
+        // `Shift` rozstrzyga się pierwszy (krok 44): goły `F8` nie ma prawa
+        // złapać `Shift`+`F8`, bo od tego kroku znaczą dwie różne rzeczy —
+        // ta sama reguła, którą litera porównuje `Ctrl` i `Alt` (11j),
+        // rozciągnięta na klawisze nazwane.
+        if ($key->shift) {
+            return $this->shifted($key);
+        }
+
         // Litera z `Ctrl` nie jest treścią (reguła 11j) i nie jest też klawiszem
         // listy: albo przełącza widok panelu, albo nie znaczy w tym ekranie nic.
         if ($key->key === Key::Character && $key->ctrl) {
             return $key->raw === self::TREE_KEY ? $this->toggleTree() : ScreenOutcome::stay();
+        }
+
+        // Litera z `Alt` — cofnięcie ostatniej operacji odwracalnej (krok 44).
+        if ($key->key === Key::Character && $key->alt) {
+            return $key->raw === self::UNDO_KEY ? $this->undo->undoLatest() : ScreenOutcome::stay();
         }
 
         if ($key->key === Key::Tab) {
@@ -465,6 +512,10 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
         // (krok 41): zmiana nazwy i usunięcie dotyczą wpisu pod kursorem, a kursor
         // ma i lista, i drzewo. Klawisz znaczący w obu widokach to samo nie ma po
         // co trafiać do dwóch gałęzi.
+        if ($key->key === Key::F3) {
+            return $this->undo->viewPrompt();
+        }
+
         if ($key->key === Key::F4) {
             return $this->entries->renamePrompt();
         }
@@ -482,7 +533,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
         }
 
         if ($key->key === Key::F8 || $key->key === Key::Delete) {
-            return $this->entries->deletePrompt();
+            return $this->trash->deletePrompt();
         }
 
         if ($this->panes->focusShowsTree()) {
@@ -498,9 +549,10 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
             $key->key === Key::Backspace, $key->key === Key::ArrowLeft => $this->goUp($directory),
             $key->key === Key::Escape => $this->stepBack(),
             // Litera z modyfikatorem nie jest treścią (reguła 11j): goła kropka
-            // przełącza wpisy ukryte, `Ctrl`+`.` i `Alt`+`.` — nie. `Ctrl` odpadł
-            // już wyżej, razem z klawiszem widoku, więc zostaje tu sam `Alt`.
-            $key->key === Key::Character && !$key->alt => $this->character($key->raw, marks: true),
+            // przełącza wpisy ukryte, `Ctrl`+`.` i `Alt`+`.` — nie. Oba
+            // modyfikatory odpadły już wyżej — `Ctrl` z klawiszem widoku,
+            // `Alt` z cofaniem (krok 44) — więc dociera tu sama goła litera.
+            $key->key === Key::Character => $this->character($key->raw, marks: true),
             default => ScreenOutcome::stay(),
         };
     }
@@ -524,6 +576,33 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
     }
 
     /**
+     * `Shift`+klawisz nazwany — trzeci modyfikator słownika, w tym ekranie
+     * z dwiema czynnościami (krok 44).
+     *
+     * `Shift`+`F8`/`Shift`+`Delete` to **druga droga usunięcia**: zawsze ta,
+     * której nie robi klawisz goły (D81, nr 2). `Shift`+strzałki to zaznaczanie
+     * zakresem (D81, nr 12) — czyli spacja bez podnoszenia palca — i należy do
+     * **listy**, jak każde zaznaczanie: w drzewie nie robi nic (krok 43,
+     * rozstrzygnięcie 9).
+     */
+    private function shifted(KeyPress $key): ScreenOutcome
+    {
+        if ($key->key === Key::F8 || $key->key === Key::Delete) {
+            return $this->trash->deletePrompt(other: true);
+        }
+
+        if ($this->panes->focusShowsTree()) {
+            return ScreenOutcome::stay();
+        }
+
+        return match ($key->key) {
+            Key::ArrowUp => $this->markStep(up: true),
+            Key::ArrowDown => $this->markStep(up: false),
+            default => ScreenOutcome::stay(),
+        };
+    }
+
+    /**
      * Spacja: przełącza zaznaczenie wpisu pod kursorem i **schodzi wiersz niżej**
      * (rozstrzygnięcie 2).
      *
@@ -532,8 +611,18 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
      * Na ostatnim wierszu kursor zostaje, bo `moveSelectionDown()` zatrzymuje się
      * na krańcu listy zamiast zawijać — czyli spacja przyciśnięta na końcu
      * przełącza ten sam wpis raz za razem, dokładnie jak w mc.
+     *
+     * Od kroku 44 spacja jest szczególnym przypadkiem kroku zaznaczania:
+     * `Shift`+`↓` robi dokładnie to samo, a `Shift`+`↑` to samo w górę —
+     * dokładnie jak w Far i Total Commanderze.
      */
     private function toggleMark(): ScreenOutcome
+    {
+        return $this->markStep(up: false);
+    }
+
+    /** Krok zaznaczania: przełącz wpis pod kursorem i przesuń kursor. */
+    private function markStep(bool $up): ScreenOutcome
     {
         $pane = $this->panes->focused();
 
@@ -541,7 +630,12 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
             return ScreenOutcome::stay();
         }
 
-        $this->moveSelection->down($pane->directory());
+        if ($up) {
+            $this->moveSelection->up($pane->directory());
+        } else {
+            $this->moveSelection->down($pane->directory());
+        }
+
         $pane->selectionChanged();
 
         return ScreenOutcome::stay();
@@ -585,7 +679,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
             $key->key === Key::Enter => $this->treeEntered($tree),
             $key->key === Key::Backspace => $this->goUp($this->panes->focused()->directory()),
             $key->key === Key::Escape => $this->stepBack(),
-            $key->key === Key::Character && !$key->alt => $this->character($key->raw),
+            $key->key === Key::Character => $this->character($key->raw),
             default => ScreenOutcome::stay(),
         };
     }
@@ -758,6 +852,12 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
         $this->panes->useSplit($enabled);
 
         return $enabled;
+    }
+
+    /** Co robi goły klawisz usuwania — dla opisów w spisie klawiszy (krok 44). */
+    private function deletesToTrash(): bool
+    {
+        return BrowserSettings::deleteToTrash($this->state->settings());
     }
 
     /**

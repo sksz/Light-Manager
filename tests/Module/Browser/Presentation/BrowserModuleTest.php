@@ -100,6 +100,9 @@ final class BrowserModuleTest extends TestCase
                 BrowserSettings::COLUMN_HEADER,
                 BrowserSettings::TREE_DEPTH,
                 BrowserSettings::ASK_BEFORE_DELETE,
+                BrowserSettings::DELETE_TO_TRASH,
+                BrowserSettings::TRASH_DIRECTORY,
+                BrowserSettings::UNDO_DEPTH,
             ],
             $keys,
         );
@@ -316,6 +319,9 @@ final class BrowserModuleTest extends TestCase
                 'module.browser.help.open',
                 'module.browser.help.up',
                 'module.browser.help.mark',
+                // Zaznaczanie zakresem (krok 44) stoi przy spacji, bo jest tym
+                // samym krokiem zaznaczania — tylko bez podnoszenia palca.
+                'module.browser.help.markRange',
                 'module.browser.help.invert',
                 'module.browser.help.hidden',
                 'module.browser.help.filter',
@@ -324,7 +330,12 @@ final class BrowserModuleTest extends TestCase
                 'module.browser.help.copy',
                 'module.browser.help.move',
                 'module.browser.help.mkdir',
+                // Dwie drogi usunięcia (krok 44): goły klawisz wedle ustawienia
+                // (domyślnie kosz), `Shift` zawsze to drugie — stąd dwa wpisy.
+                'module.browser.help.trash',
                 'module.browser.help.delete',
+                'module.browser.help.undo',
+                'module.browser.help.undoView',
             ],
             $keys,
         );

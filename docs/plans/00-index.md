@@ -270,11 +270,14 @@ z powodem — nienazwana, otworzyłaby rdzeń na wszystko.
 | 41 | Fundament operacji: nazwa, nowy katalog, usunięcie | [41-operacje-fundament.md](archiwum/41-operacje-fundament.md) | 14, 15, 18, 19, 21, 24, 28, 38 | Opus | high | Ukończony z zastrzeżeniem |
 | 42 | Kopiowanie i przenoszenie po kawałku, z postępem | [42-kopiowanie-i-przenoszenie.md](archiwum/42-kopiowanie-i-przenoszenie.md) | 23, 24, 25, 38, 41, 47 | Fable | xhigh | Ukończony |
 | 43 | Zaznaczenie wielokrotne jako mnożnik operacji | [43-zaznaczenie-wielokrotne.md](archiwum/43-zaznaczenie-wielokrotne.md) | 21, 27, 28, 30, 38, 41 | Opus | high | Ukończony |
-| 44 | Kosz i cofnięcie ostatniej operacji | [44-kosz-i-cofanie.md](44-kosz-i-cofanie.md) | 6, 14, 15, 19, 29, 38, 41, 42 | Opus | high¹ | Nie rozpoczęty |
+| 44 | Kosz i cofnięcie ostatniej operacji | [44-kosz-i-cofanie.md](archiwum/44-kosz-i-cofanie.md) | 6, 14, 15, 19, 29, 38, 41, 42, 43 | Fable¹ | xhigh | Ukończony |
 
-¹ **Fable / xhigh**, jeśli rozstrzygnięcie startowe nr 1 tamtego kroku wprowadzi
-`Shift` do słownika wejścia — wtedy krok zmienia trzy tory wejścia naraz. Model
-wybiera się **po** tej odpowiedzi, nie przed nią.
+¹ Model **rozstrzygnięty 2026-08-15** ([00-decyzje.md](00-decyzje.md), D81,
+rozstrzygnięcie 1): `Shift` wchodzi do słownika wejścia, więc krok zmienia trzy
+tory wejścia naraz — czyli zachodzi warunek, dla którego przypis przewidywał
+`Fable / xhigh` zamiast `Opus / high`. Zaznaczanie zakresem (`Shift`+strzałki)
+weszło przy tym do zakresu kroku (D81, rozstrzygnięcie 12), a stos cofnięć
+dostał widok wbrew rekomendacji planu (D81, rozstrzygnięcie 6).
 
 **Między krokiem 41 a 42 wchodzi krok 47** (Faza XVI): spłaca dług, o który
 kroki 42 i 43 oprą swoje pozycje w menu i okna wywoływane komendą. Kolejność
@@ -695,6 +698,23 @@ tej listy). Poza prostym
     i 29** — słownika wejścia, który **nie zna `Shift`** w żadnym z trzech torów,
     a rozstrzygnięcie „droga zależna od skrótu” tego dotyka wprost.
 
+    **Wykonany 2026-08-15 — a rozstrzygnięcia startowe (D81) dołożyły dwie
+    zależności, których plan nie wymieniał.** Od **42** krok zależy **inaczej,
+    niż zakładano**: nie o samo kopiowanie chodzi, tylko o `ChoiceOverlay`
+    i o `FileTransferPort::begin(…, move: true)`, który rozpoznaje inny system
+    plików po numerze urządzenia — czyli o gotowe okno i gotową pracę, a nie
+    o pracę do napisania. Praca musiała za to nauczyć się **jednej** nowej
+    rzeczy: mapy nazw docelowych, bo kolizja katalogów jest w niej scaleniem,
+    a wpis kopiowany do kosza pod zajętą nazwą wtopiłby się w cudzy. Doszła
+    zależność od **43**: cofnięcie operacji na zbiorze przywraca zbiór, więc
+    zapis pamięta listę, a nie jeden wpis — zależność miękka z pliku kroku
+    stwardniała, bo tamten krok wykonał się pierwszy. Doszła też zależność od
+    **32 i 18** przez widok stosu, którego plan nie obejmował: okno jest
+    `Dialog`iem z `ListView`, jak menu. Stos cofnięć stanął przy tym
+    **w module, wbrew literze planu** — operacje zmaterializowały się w całości
+    po stronie przeglądarki, więc reguła 15 wygrała z zapisem „w rdzeniu”
+    (rachunek D70); w rdzeniu został wyłącznie port kosza, bo pisze po dysku.
+
 - **45–46** (Faza XV) tworzą **łańcuch**, druga po Fazie XIV: krok 46 dokłada
   panel do okna, które powstaje w 45, i mapę do pliku, który 45 zakłada. Obydwa
   zależą od **36** całkowicie (port audio i obie jego implementacje) oraz od
@@ -746,7 +766,7 @@ z tabel powyżej.
 
 Katalog `docs/plans/` trzyma **wyłącznie kroki, przed którymi jeszcze praca**:
 nierozpoczęte, w toku i zablokowane. Kroki ukończone przenoszą się do
-[archiwum/](archiwum/) — dziś jest ich 44 z 47, więc bez tego podziału lista
+[archiwum/](archiwum/) — dziś jest ich 45 z 47, więc bez tego podziału lista
 tego, co zostało do zrobienia, ginęła w historii projektu.
 
 Trzy rzeczy, które przy tym **nie** zmieniają miejsca, bo są dokumentami
@@ -805,9 +825,10 @@ zakończeniu pracy nad krokiem:
 - Sortowanie listy po kolumnie — wyłączone z kroku 27
 - ~~Zaznaczenie wielokrotne~~ — wyłączone z kroku 32, weszło do planu jako krok
   **43** (D66) i **zostało wykonane**; pozycja jest zamknięta od 2026-08-15
-- Zaznaczanie zakresem (`Shift`+strzałki) — wyłączone z kroku 43, bo `Shift` nie
-  istnieje w słowniku wejścia; wchodzi wraz z krokiem **44**, jeśli jego
-  rozstrzygnięcie startowe nr 1 wybierze wariant z modyfikatorem
+- ~~Zaznaczanie zakresem (`Shift`+strzałki)~~ — wyłączone z kroku 43, bo `Shift`
+  nie istniał w słowniku wejścia; wszedł wraz z krokiem **44** (D81,
+  rozstrzygnięcia 1 i 12) i **zostało wykonane**; pozycja jest zamknięta od
+  2026-08-15
 - Widok kosza i jego opróżnianie — wyłączone z kroku 44 (kosz jest katalogiem,
   więc `browser.jump` dowozi go za darmo)
 - Prawa dostępu i właściciel (`chmod`, `chown`) — wyłączone z kroku 41

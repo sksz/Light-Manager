@@ -35,8 +35,11 @@ final class GlfwKeyMapper
      *
      * Modyfikator nie zmienia klawisza bazowego (`Ctrl+Delete` to `Delete`) —
      * ta sama reguła, którą `KeySequenceParser` stosuje do parametrów
-     * sekwencji. Wyjątki są dwa i oba są parami, które zna słownik:
-     * `Ctrl`+litera od kroku 19 i `Alt`+litera od kroku 29.
+     * sekwencji. Wyjątki są trzy i wszystkie są postaciami, które zna słownik:
+     * `Ctrl`+litera od kroku 19, `Alt`+litera od kroku 29 i `Shift`+klawisz
+     * nazwany od kroku 44. `Shift`+litera **nie jest** czwartą: zdarzenie
+     * klawisza ją pomija, bo litera przyjdzie zdarzeniem znaku — już
+     * przetłumaczona przez układ klawiatury na wielką.
      *
      * `raw` klawiszy specjalnych niesie bajt, którym klawisz przychodzi
      * z terminala (`\r`, `\t`, …), a pusty string tam, gdzie terminalowym
@@ -52,6 +55,10 @@ final class GlfwKeyMapper
         $special = $this->specialKey($key);
 
         if ($special !== null) {
+            if (($mods & GLFW_MOD_SHIFT) !== 0) {
+                return KeyPress::shifted($special, $this->rawFor($special));
+            }
+
             return KeyPress::special($special, $this->rawFor($special));
         }
 

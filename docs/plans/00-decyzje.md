@@ -102,6 +102,7 @@ Kolumna **Stan** mówi, co się z decyzją stało w kodzie:
 | [D61](#d61--diagnostyka-benchmark-i-testy-funkcjonalne-wchodzą-do-planu-jako-faza-xi-z-krokiem-38) | Diagnostyka, benchmark i testy funkcjonalne wchodzą do planu jako Faza XI z krokiem 38 | krok 38 | 2026-08-13 | Czeka |
 | [D77](#d77--trzy-długi-bez-właściciela-wchodzą-do-planu-jako-faza-xvi-z-krokiem-47) | Trzy długi bez właściciela wchodzą do planu jako Faza XVI z krokiem 47 | krok 47 | 2026-08-14 | Wdrożona |
 | [D78](#d78--rozstrzygnięcia-startowe-kroku-47-zdolność-zamiast-rejestru-strefa-wychodzi-z-kontraktu-granica-menu-przerysowana) | Rozstrzygnięcia startowe kroku 47: zdolność zamiast rejestru, strefa wychodzi z kontraktu, granica menu przerysowana | krok 47 | 2026-08-14 | Wdrożona |
+| [D81](#d81--rozstrzygnięcia-startowe-kroku-44-shift-wchodzi-do-trzech-torów-wejścia-kosz-jest-katalogiem-konfigurowalnym-stos-cofnięć-dostaje-widok) | Rozstrzygnięcia startowe kroku 44: `Shift` wchodzi do trzech torów wejścia, kosz jest katalogiem konfigurowalnym, stos cofnięć dostaje widok | krok 44 | 2026-08-15 | Wdrożona |
 
 > **Indeks jest niekompletny od D62 wzwyż.** Wpisy **D62–D76** stoją w treści
 > dziennika, ale wiersza tutaj nie dostały — regułę „nowy wpis to dwie czynności”
@@ -3713,7 +3714,7 @@ w osiemdziesięciu kolumnach nie ma o czym mówić.
 [41-operacje-fundament.md](archiwum/41-operacje-fundament.md),
 [42-kopiowanie-i-przenoszenie.md](archiwum/42-kopiowanie-i-przenoszenie.md),
 [43-zaznaczenie-wielokrotne.md](archiwum/43-zaznaczenie-wielokrotne.md),
-[44-kosz-i-cofanie.md](44-kosz-i-cofanie.md)) i struktury planu
+[44-kosz-i-cofanie.md](archiwum/44-kosz-i-cofanie.md)) i struktury planu
 ([00-index.md](00-index.md)).
 
 **Data:** 2026-08-13.
@@ -5247,3 +5248,177 @@ z pomiarem.
   kombinacje: plik i katalog, zaznaczony i nie. Rytmu **katalogów** ruszyć nie
   było wolno — dzielą go `columns` i `highlight`, których wzorce mają zostać
   bajt w bajt.
+
+### D81 — Rozstrzygnięcia startowe kroku 44: `Shift` wchodzi do trzech torów wejścia, kosz jest katalogiem konfigurowalnym, stos cofnięć dostaje widok
+
+**Dotyczy:** kroku 44 (pełna treść:
+[44-kosz-i-cofanie.md](archiwum/44-kosz-i-cofanie.md)), `Application/Dto` (`KeyPress`),
+`Infrastructure/Terminal` (`KeySequenceParser`), `Infrastructure/Glfw`
+(`GlfwKeyMapper`), `Application/Port` (nowy port kosza), `Application`
+(zapis operacji), `Infrastructure/FileSystem` (kosz wedle freedesktop.org),
+`Presentation/Ui` (`KeyBinding`, widok stosu), modułu przeglądarki
+(`BrowserSettings`, `BrowserScreen`, `EntryOperations`), katalogów napisów,
+[docs/architecture.md](../architecture.md),
+[SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md) i `README.md`.
+
+**Data:** 2026-08-15, przed pierwszą linią kodu — osiem pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku” oraz cztery wynikłe z odpowiedzi na nie,
+bo trzy z nich przesunęły zakres kroku poza to, co plan przewidywał.
+
+**Sprawdzenie stanu zastanego: tabela z planu zgadza się co do wejścia, ale
+trzy jej wiersze i dwa zdania planu są nieaktualne** — plik kroku powstał
+2026-08-13, przed krokami 42, 43 i 47.
+
+- **Klawisze przeglądarki są dziś inne**: `F4` nazwa, `F5` kopiowanie, `F6`
+  przeniesienie, `F7` nowy katalog, `F8` i `Delete` usunięcie. Plan mówił jeszcze
+  o `F6`/`F7` z kroku 41 — krok 42 przesunął wszystko o dwa, żeby zgodzić się
+  z układem znanym z menadżerów dwupanelowych. Wolny w module został **`F3`**.
+- **`F9` odpada z kandydatów na klawisz cofania**: od kroku 32 otwiera menu
+  kontekstowe i jest klawiszem **globalnym**, nie modułowym.
+- **`FileOperationsPort::beginRemoval()` bierze już listę ścieżek** (krok 43),
+  a `PaneRefresh` odświeża oba panele (krok 42) — zapis operacji ma na czym stanąć
+  i nie musi tego dowozić.
+- **`ChoiceOverlay` istnieje od kroku 42** (sześć odpowiedzi na kolizję nazw),
+  więc pytanie o trzech odpowiedziach nie wymaga ani nowego okna, ani rozrostu
+  `ConfirmOverlay`.
+- **`ModuleSetting::text()` i `::number()` istnieją** (kroki 36 i 27), więc
+  katalog kosza i głębokość stosu mają gotową postać pozycji w zakładce modułu.
+- **`FileTransferPort::begin(…, move: true)` rozpoznaje inny system plików po
+  numerze urządzenia** i sam kopiuje — droga „do kosza mimo granicy wolumenu”
+  jest wywołaniem tego, co już stoi, a nie nową pracą kawałkową.
+
+**Decyzje użytkownika (1–8 — pytania z planu; 9–12 — wynikłe z odpowiedzi):**
+
+1. **`Shift` wchodzi do słownika wejścia — wariant 1, zgodnie z rekomendacją
+   planu i mimo najwyższego kosztu.** `KeyPress` dostaje trzecie pole, parser
+   terminalowy przestaje odrzucać modyfikatory CSI (`ESC [ 1 ; 2 P`), a
+   `GlfwKeyMapper` czyta `GLFW_MOD_SHIFT` — i wszystkie trzy tory muszą się
+   zgodzić. Odrzucono dwa tańsze wyjścia: rozejście się `F8` i `Delete` (dziś
+   synonimów), które nie kosztowałoby w wejściu nic, oraz trzecią odpowiedź
+   w oknie potwierdzenia. Powód wyboru jest ten sam, co w planie: obydwa tańsze
+   rozwiązują **problem skrótu**, a nie problem brakującego modyfikatora, który
+   wróci przy pierwszym zaznaczaniu zakresem.
+2. **Ustawienie modułu przestawia znaczenie klawisza domyślnego**, a nie wyłącza
+   drugą drogę. `F8` i `Delete` robią to, co mówi pozycja „usuwaj do kosza”
+   (domyślnie: kosz), `Shift`+`F8` i `Shift`+`Delete` — zawsze to drugie. Obie
+   drogi są przez to **zawsze osiągalne**, a ustawienie wybiera wyłącznie, która
+   jest tańsza w palcach.
+3. **Kosz jest katalogiem konfigurowalnym, ale jego układ — nie.** Wartość
+   domyślna to `$XDG_DATA_HOME/Trash`, a bez zmiennej `~/.local/share/Trash`,
+   czyli kosz środowiska graficznego. Ustawienie modułu wolno przestawić na
+   dowolny katalog i **wszędzie obowiązuje ten sam układ freedesktop.org**:
+   `files/`, `info/` i plik `.trashinfo` ze ścieżką powrotną, pisany **przed**
+   przeniesieniem. Odrzucono wariant „kosz własny bez układu”, w którym
+   przywracanie działałoby wyłącznie z aplikacji: ścieżka powrotna zapisana
+   w katalogu jest jedyną rzeczą, która przeżywa zamknięcie programu.
+4. **Do kosza przenosi się zmianą nazwy, nigdy kopiowaniem** — dopóki
+   `rename()` wystarcza. Rozstrzygnięcie użytkownika postawione wprost: kosz ma
+   być tani, a kopiowanie gigabajta w odpowiedzi na `Delete` tanie nie jest.
+5. **Wpis z innego systemu plików dostaje ostrzeżenie i pytanie o trzech
+   odpowiedziach**: skopiować do kosza, usunąć trwale, przerwać. Pytanie idzie
+   przez `ChoiceOverlay` z kroku 42, a kopiowanie — przez
+   `FileTransferPort::begin([wpis], kosz, move: true)`, czyli tę samą pracę
+   kawałkową z oknem postępu, którą tamten krok dowiózł. Plan przewidywał w tym
+   miejscu jedną z trzech dróg; użytkownik wybrał **wszystkie trzy naraz jako
+   odpowiedzi**, bo koszt każdej z nich zna wyłącznie ten, kto patrzy na plik.
+   Granica z planu zostaje przez to **zawężona, nie zniesiona**: `.Trash-$uid`
+   na wolumenie zewnętrznym nadal **nie powstaje** — wpis stamtąd wędruje do
+   kosza katalogu domowego albo nie wędruje wcale.
+6. **Cofanie dostaje stos wraz z widokiem — wbrew rekomendacji planu**
+   („jeden poziom, bo stos wymaga własnego widoku, a widok to osobna funkcja”).
+   Użytkownik przyjął tę cenę świadomie: widok **jest** częścią tego kroku.
+   Cofać wolno **dowolną pozycję z listy**, nie tylko wierzchołek — a że stan
+   dysku mógł się od tamtej pory zmienić, każde cofnięcie sprawdza wykonalność
+   tuż przed wykonaniem i przy odmowie **nie zdejmuje zapisu**.
+7. **Głębokość stosu jest pozycją w zakładce modułu**, a nie stałą w kodzie.
+   Zapis nadal **nie przeżywa zamknięcia aplikacji** — to zostaje z planu bez
+   zmian, bo cofanie po restarcie byłoby dziennikiem transakcji.
+8. **Widok pokazuje także operacje nieodwracalne — wyszarzone i niewybieralne.**
+   Lista odpowiada przez to na dwa pytania naraz: „co mogę cofnąć” i „co się
+   właściwie wydarzyło”. Warunek z planu („operacja nieodwracalna nie udaje, że
+   da się ją cofnąć”) zostaje spełniony **rolą motywu i odmową**, a nie
+   pominięciem w spisie.
+9. **`F3` otwiera widok stosu, `Alt`+`u` cofa.** `F3` jest jedynym wolnym
+   klawiszem funkcyjnym modułu, a `Alt`+litera jest w przeglądarce wolne
+   w całości (`Alt`+`z` zajmuje zawijanie wierszy, ale w module opisu pliku —
+   skróty modułowe nie kolidują między modułami). Odrzucono `Shift`+`F3` dla
+   widoku (para `F8`/`Shift`+`F8` znaczy „to samo, ale mocniej”, a widok nie jest
+   mocniejszym cofnięciem) oraz widok bez klawisza, wyłącznie komendą i pozycją
+   w menu.
+10. **Utworzenie katalogu jest odwracalne, dopóki katalog został pusty.**
+    Cofnięcie w katalogu, do którego coś przybyło, mówi dlaczego i nie zdejmuje
+    zapisu — ta sama reguła, co przy każdym nieudanym cofnięciu.
+11. **Kolizja nazw w koszu rozwiązuje się sufiksem liczbowym**
+    (`raport.pdf`, `raport.1.pdf`), czyli tak, jak rozwiązuje ją kosz środowiska
+    graficznego. Odrzucono znacznik czasu (niezgodny z tym, co użytkownik widzi
+    na pulpicie) i pytanie (dwanaście pytań przy usuwaniu dwunastu wpisów
+    o nazwach, które w koszu już są).
+12. **Zaznaczanie zakresem `Shift`+strzałki wchodzi w tym kroku.** Skoro
+    modyfikator i tak przechodzi przez trzy tory, czynność kosztuje już tylko
+    obsługę w ekranie przeglądarki — mechanizm zaznaczenia stoi od kroku 43.
+    Pozycja „zaznaczanie zakresem” w spisie „Zakres poza MVP” zamyka się razem
+    z tym krokiem, a zapowiedź z indeksu („wchodzi wraz z krokiem 44, jeśli
+    rozstrzygnięcie startowe nr 1 wybierze wariant z modyfikatorem”) spełnia się
+    co do słowa.
+
+**Model kroku: `Fable` / `xhigh`** — warunek z przypisu w
+[00-index.md](00-index.md) zaszedł, bo rozstrzygnięcie nr 1 wybrało wariant
+z modyfikatorem, czyli zmianę w trzech torach wejścia naraz. Rozstrzygnięcia
+startowe spisano na `Opus 5`; **kod pisze się po przełączeniu sesji**, i to jest
+cały powód, dla którego ten wpis powstał przed pierwszą linią kodu, a nie razem
+z nią.
+
+**Rozstrzygnięcia wynikłe z powyższych, zapisane przy pisaniu kodu:**
+
+- **`shift` istnieje wyłącznie przy klawiszach nazwanych** — i to nie jest
+  oszczędność, tylko uczciwość wobec źródła: litera z `Shift`em przychodzi z obu
+  torów jako **inna litera** (`Shift`+`a` to `A`), więc znacznik przy znaku
+  drukowalnym nie miałby czego nieść. `Ctrl` i `Alt` przy nazwach CSI pozostają
+  odrzucane (nie mają ani jednego użytkownika), a `Ctrl`+`Shift`+`Delete` niesie
+  bit `Shift`a i tym samym **jest** `Shift`+`Delete`. `KeyBinding::matches()`
+  porównuje `shift` przy nazwach tą samą regułą, którą litera porównuje `Ctrl`
+  i `Alt`: goły `F8` nie łapie `Shift`+`F8`, a w ekranie `Shift` rozstrzyga się
+  **przed** gałęziami klawiszy (`BrowserScreen::shifted()`).
+- **Stos cofnięć leży w module, wbrew literze planu kroku** („zapis w rdzeniu,
+  obok portów”). Plan pisano przed krokami 41–43; gdy operacje zmaterializowały
+  się w całości po stronie przeglądarki, dziennik został z jednym piszącym
+  i jednym czytającym — a wtedy reguła 15 wygrywa z zapisem w planie, tym samym
+  rachunkiem, którym krok 36 zaprowadził dźwięk do modułu. W rdzeniu stanął
+  wyłącznie **port kosza** (`TrashPort` + `XdgTrashService`), bo ten pisze po
+  dysku (15b). Z tego samego powodu `UndoOverlay` leży w `Presentation/Overlay`
+  **modułu** (wzorzec `FilterOverlay`), nie w rdzeniu, jak zapowiadała tabela
+  planu.
+- **`FileTransferPort::begin()` dostał czwarty, opcjonalny parametr** — mapę
+  „ścieżka źródła → nazwa w celu” — i jest to jedyne rozszerzenie kontraktu
+  rdzenia w tym kroku. Powód jest twardy: kolizja katalogów jest w tej pracy
+  **scaleniem**, więc wpis kopiowany do kosza pod zajętą nazwą wtopiłby się
+  w cudzy wpis; nazwa zarezerwowana plikiem informacyjnym **przed** pierwszym
+  bajtem musi być nazwą, pod którą praca naprawdę pisze. Zwykłe kopiowanie mapy
+  nie podaje i zachowuje się jak od kroku 42.
+- **Ustawienie „pytaj przed usunięciem” rządzi odtąd koszem**, a usunięcie
+  trwałe pyta **zawsze** — dokładnie wedle planu kroku (punkt 2): tamto
+  ustawienie dotyczy czynności odwracalnej. Dotychczasowe przebiegi trwałe
+  przeszły na `Shift`+`F8`, a „bez pytania — od razu” jest odtąd przebiegiem
+  kosza.
+- **`Shift`+strzałki są przełącznikiem na wpisie, z którego wychodzą** — jak
+  spacja i jak w Far: zmiana kierunku najpierw dociąga wpis pod kursorem,
+  a zdejmuje dopiero powrót po własnym śladzie. Spacja stała się szczególnym
+  przypadkiem tego samego kroku zaznaczania (`markStep()`).
+- **`releaseUnused()` oddaje nazwy, które w koszu zostały** — praca „skopiuj do
+  kosza” przerwana w połowie pyta dokładnie o to: co naprawdę dojechało i ma
+  prawo stanąć w zapisie cofnięcia. Wpis częściowo skopiowany zostaje w koszu
+  **z poprawnym plikiem informacyjnym**, więc da się go przywrócić w części,
+  którą ma.
+- **Zapis w stosie pada wyłącznie po pracy ukończonej w całości** (kopiowanie
+  i przeniesienie): praca przerwana zostawiła część wpisów tu, część tam,
+  a zapis obiecujący cofnięcie połowy kłamałby w drugiej połowie. Usunięcie
+  trwałe zapisuje się za to także po przerwaniu — jako historia z prawdziwą
+  liczbą — bo niczego nie obiecuje.
+
+**Pomiar (maszyna zwolniona przez użytkownika, obciążenie 0,14/rdzeń):** tor
+`--loop` wobec wzorca po kroku 43 — **−1,4%**, czyli szum: koszt czytania
+modyfikatora CSI (jedno `strpos()` na sekwencjach **z parametrami**) jest
+poniżej rozdzielczości taktu. Pełne porównanie sixelowe — bez regresji powyżej
+progu (wszystkie scenariusze w rozrzucie ±5%), wzorce PNG **zgodne co do
+piksela** (0 ‰ we wszystkich czterech), bo krok nie zmienia wyglądu żadnej
+klatki. Wzorce `po-kroku-44` zapisane dla czterech torów.

@@ -188,4 +188,38 @@ final class GlfwKeyMapperTest extends TestCase
         self::assertNull($this->mapper->mapCharacter(0x1B));
         self::assertNull($this->mapper->mapCharacter(0x7F));
     }
+
+    /** `Shift`+klawisz nazwany — trzeci modyfikator słownika (krok 44). */
+    public function testShiftWithSpecialKeySetsFlag(): void
+    {
+        $press = $this->mapper->mapKeyEvent(GLFW_KEY_DELETE, GLFW_PRESS, GLFW_MOD_SHIFT);
+
+        self::assertSame(Key::Delete, $press?->key);
+        self::assertTrue($press->shift);
+    }
+
+    public function testShiftWithArrowSetsFlag(): void
+    {
+        $press = $this->mapper->mapKeyEvent(GLFW_KEY_DOWN, GLFW_PRESS, GLFW_MOD_SHIFT);
+
+        self::assertSame(Key::ArrowDown, $press?->key);
+        self::assertTrue($press->shift);
+    }
+
+    public function testSpecialKeyWithoutShiftHasNoFlag(): void
+    {
+        $press = $this->mapper->mapKeyEvent(GLFW_KEY_F8, GLFW_PRESS, 0);
+
+        self::assertSame(Key::F8, $press?->key);
+        self::assertFalse($press->shift);
+    }
+
+    /**
+     * `Shift`+litera nie jest czwartą postacią słownika: zdarzenie klawisza ją
+     * pomija, bo litera przyjdzie zdarzeniem znaku — już jako wielka.
+     */
+    public function testShiftLetterKeyEventIsIgnored(): void
+    {
+        self::assertNull($this->mapper->mapKeyEvent(GLFW_KEY_D, GLFW_PRESS, GLFW_MOD_SHIFT));
+    }
 }

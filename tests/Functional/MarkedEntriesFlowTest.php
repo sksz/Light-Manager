@@ -105,6 +105,44 @@ final class MarkedEntriesFlowTest extends TestCase
     }
 
     /**
+     * `Shift`+strzałki — zaznaczanie zakresem (krok 44, D81 nr 12): spacja bez
+     * podnoszenia palca. `Shift`+`↓` robi dokładnie to, co spacja, `Shift`+`↑`
+     * to samo w górę — **przełącznik na wpisie, z którego wychodzi**, jak w Far:
+     * zmiana kierunku najpierw dociąga wpis pod kursorem, a zdejmuje dopiero
+     * drugie naciśnięcie, wracające po własnym śladzie.
+     */
+    public function testShiftArrowsMarkARange(): void
+    {
+        $first = $this->selected();
+
+        $this->pressShifted(Key::ArrowDown);
+        $this->pressShifted(Key::ArrowDown);
+        $this->pressShifted(Key::ArrowDown);
+
+        self::assertSame(3, $this->markedCount(), 'trzy wpisy jednym gestem');
+        self::assertNotSame($first, $this->selected(), 'kursor zszedł z zakresem');
+
+        // Zmiana kierunku: wpis pod kursorem (niezaznaczony) dołącza do zakresu…
+        $this->pressShifted(Key::ArrowUp);
+
+        self::assertSame(4, $this->markedCount());
+
+        // …a powrót po własnym śladzie zdejmuje to, co zaznaczone.
+        $this->pressShifted(Key::ArrowUp);
+
+        self::assertSame(3, $this->markedCount());
+    }
+
+    /** Goła strzałka nie zaznacza — zakres wisi wyłącznie na `Shift` (reguła 11j dla nazw). */
+    public function testAPlainArrowDoesNotMark(): void
+    {
+        $this->press(Key::ArrowDown);
+        $this->press(Key::ArrowDown);
+
+        self::assertSame(0, $this->markedCount());
+    }
+
+    /**
      * Zaznaczony wiersz niesie **dwa sygnały naraz** (rozstrzygnięcie 5): własną
      * kolumnę znacznika i rolę `Warning` na nazwie.
      *
@@ -255,15 +293,16 @@ final class MarkedEntriesFlowTest extends TestCase
 
     /**
      * **Miara powodzenia całego kroku.** Dwanaście zaznaczonych plików, jedno
-     * naciśnięcie `F8` — pytanie mówi liczbą, a po zgodzie znika dwanaście
-     * plików.
+     * naciśnięcie `Shift`+`F8` — pytanie mówi liczbą, a po zgodzie znika
+     * dwanaście plików. (Do kroku 44 wisiało to na gołym `F8`; goły klawisz
+     * wiezie odtąd do kosza, a zbiór w koszu sprawdza `TrashFlowTest`.)
      */
     public function testTwelveMarkedEntriesAreDeletedByOneKeyAndOneQuestion(): void
     {
         $this->select('plik-00.txt');
         $this->markMany(self::MARKED);
 
-        $this->press(Key::F8);
+        $this->pressShifted(Key::F8);
 
         self::assertSame('confirm', $this->app->state->overlays()->current()?->id());
         self::assertCount(16, (array) glob($this->root . '/*'), 'samo pytanie nie usuwa');
@@ -280,7 +319,7 @@ final class MarkedEntriesFlowTest extends TestCase
     {
         $this->select('plik-00.txt');
         $this->markMany(self::MARKED);
-        $this->press(Key::F8);
+        $this->pressShifted(Key::F8);
 
         $question = $this->overlayText();
 
@@ -295,7 +334,7 @@ final class MarkedEntriesFlowTest extends TestCase
     public function testWithNothingMarkedTheActionStillMeansTheEntryUnderTheCursor(): void
     {
         $this->select('plik-03.txt');
-        $this->press(Key::F8);
+        $this->pressShifted(Key::F8);
 
         self::assertStringContainsString('module.browser.delete.confirm.file', $this->overlayText());
 
@@ -318,7 +357,7 @@ final class MarkedEntriesFlowTest extends TestCase
 
         self::assertSame(3, $this->markedCount());
 
-        $this->press(Key::F8);
+        $this->pressShifted(Key::F8);
         $this->confirm();
         $this->settle();
 
@@ -350,7 +389,7 @@ final class MarkedEntriesFlowTest extends TestCase
     {
         $this->select('plik-00.txt');
         $this->markMany(3);
-        $this->press(Key::F8);
+        $this->pressShifted(Key::F8);
         $this->confirm();
         $this->settle();
 
@@ -551,6 +590,12 @@ final class MarkedEntriesFlowTest extends TestCase
             operations: FileOperationsService::getInstance(),
             transfers: FileTransferService::getInstance(),
         );
+    }
+
+    /** `Shift`+klawisz — od kroku 44 droga trwała przy domyślnych ustawieniach. */
+    private function pressShifted(Key $key): void
+    {
+        $this->app->input->handle(KeyPress::shifted($key, "\e"), $this->app->state, self::NOW);
     }
 
     private function press(Key $key, string $raw = "\e"): void

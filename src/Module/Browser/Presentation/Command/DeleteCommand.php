@@ -14,7 +14,7 @@ use LightManager\Application\Module\ModuleContext;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\Browser\Application\BrowserSettings;
-use LightManager\Module\Browser\Presentation\EntryOperations;
+use LightManager\Module\Browser\Presentation\EntryTrash;
 use LightManager\Presentation\Ui\Command\OpensOverlay;
 use LightManager\Presentation\Ui\OverlayOutcome;
 
@@ -31,6 +31,10 @@ use LightManager\Presentation\Ui\OverlayOutcome;
  * kursorem, z nią — wskazany, o ile jest w katalogu panelu czynnego. Nazwa jest
  * przy tym nazwą, nie ścieżką: usunąć wolno to, co widać na liście.
  *
+ * Od kroku 44 komenda idzie **drogą klawisza domyślnego** (`EntryTrash`):
+ * do kosza albo trwale, wedle ustawienia „usuwaj do kosza” — bo modyfikator,
+ * którym klawisz wybiera drugą drogę, nie ma w wierszu komend postaci.
+ *
  * **Pytania nie da się pominąć** i to jest jedyny powód, dla którego `execute()`
  * ma tu treść niepodobną do reszty: wołający, który nie umie otworzyć okna, nie
  * ma jak zapytać, więc nie dostaje usunięcia — dostaje zdanie. Dziś takiego
@@ -43,7 +47,7 @@ final class DeleteCommand implements CommandInterface, AppliesToSelection, Opens
     private const ARGUMENT = 'name';
 
     public function __construct(
-        private readonly EntryOperations $entries,
+        private readonly EntryTrash $entries,
         private readonly TranslatorPort $translator,
     ) {
     }

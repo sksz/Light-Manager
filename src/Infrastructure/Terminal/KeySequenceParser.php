@@ -22,7 +22,9 @@ final class KeySequenceParser
      *
      * `P`–`S` to F1–F4 w postaci SS3 (`ESC O P`), którą wysyła XTerm w trybie
      * domyślnym. Ta sama tablica obsługuje wariant z modyfikatorem
-     * (`ESC [ 1 ; 2 P` = Shift+F1), bo parametry i tak są odrzucane.
+     * (`ESC [ 1 ; 2 P` = Shift+F1) — od kroku 44 parametr modyfikatora nie
+     * jest już odrzucany w całości: `Shift` wraca znacznikiem (`hasShift()`),
+     * a klawisz bazowy zostaje ten sam.
      */
     private const FINAL_BYTE_KEYS = [
         'A' => Key::ArrowUp,
@@ -212,6 +214,10 @@ final class KeySequenceParser
             ? self::TILDE_KEYS[$this->firstParameter($parameters)] ?? Key::Unknown
             : self::FINAL_BYTE_KEYS[$finalByte] ?? Key::Unknown;
 
+        if ($this->hasShift($parameters)) {
+            return new ParsedKey(KeyPress::shifted($key, $raw), $consumed);
+        }
+
         return new ParsedKey(KeyPress::special($key, $raw), $consumed);
     }
 
@@ -220,12 +226,40 @@ final class KeySequenceParser
         return ($byte >= '0' && $byte <= '9') || $byte === ';' || $byte === '?';
     }
 
-    /** Modyfikatory (`ESC [ 3 ; 5 ~` = Ctrl+Delete) nie zmieniają klawisza bazowego. */
+    /**
+     * Modyfikatory (`ESC [ 3 ; 5 ~` = Ctrl+Delete) nie zmieniają klawisza
+     * bazowego — z jednym wyjątkiem od kroku 44: **`Shift` jest czytany**
+     * i wraca znacznikiem w słowniku. `Ctrl` i `Alt` przy klawiszach nazwanych
+     * pozostają odrzucane, bo nie mają w aplikacji ani jednego użytkownika,
+     * a para znaczników bez odbiorcy to dokładnie ten dług, przed którym
+     * przestrzega docblock `KeyPress::alt()`.
+     */
     private function firstParameter(string $parameters): string
     {
         $separator = strpos($parameters, ';');
 
         return $separator === false ? $parameters : substr($parameters, 0, $separator);
+    }
+
+    /**
+     * Czy drugi parametr sekwencji niesie `Shift`.
+     *
+     * Kodowanie XTerma: parametr modyfikatora to `1 + maska`, gdzie bit 1 znaczy
+     * `Shift`, 2 — `Alt`, 4 — `Ctrl`. Stąd `ESC [ 3 ; 2 ~` to `Shift`+`Delete`,
+     * a `ESC [ 1 ; 2 A` — `Shift`+strzałka w górę. Wartość `0` i `1` znaczą
+     * „bez modyfikatorów”; brak drugiego parametru — tym bardziej.
+     */
+    private function hasShift(string $parameters): bool
+    {
+        $separator = strpos($parameters, ';');
+
+        if ($separator === false) {
+            return false;
+        }
+
+        $modifier = (int) substr($parameters, $separator + 1);
+
+        return $modifier >= 2 && (($modifier - 1) & 1) === 1;
     }
 
     private function loneEscape(): ParsedKey

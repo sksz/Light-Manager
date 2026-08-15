@@ -14,9 +14,11 @@ use LightManager\Application\Port\FileOperationsPort;
 use LightManager\Application\Port\FileTransferPort;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
+use LightManager\Application\Port\TrashPort;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\Browser\Application\BrowserSettings;
+use LightManager\Module\Browser\Application\Undo\UndoJournal;
 use LightManager\Module\Browser\Application\UseCase\ExpandBranchUseCase;
 use LightManager\Module\Browser\Application\UseCase\MoveSelectionUseCase;
 use LightManager\Module\Browser\Application\UseCase\NavigateIntoDirectoryUseCase;
@@ -93,6 +95,7 @@ final class BrowserModule implements
         private readonly SettingsPort $settings,
         private readonly FileOperationsPort $operations,
         private readonly FileTransferPort $transfers,
+        private readonly TrashPort $trash,
         private readonly ?DirectoryRepositoryInterface $directories = null,
         private readonly ?DirectoryPath $startingPath = null,
     ) {
@@ -167,12 +170,43 @@ final class BrowserModule implements
         // czytelnego wyżej — czyli tam, gdzie prowadzi otwieranie katalogu
         // startowego.
         $refresh = new PaneRefresh($panes, $reload, new OpenStartingDirectoryUseCase($directories));
-        $entries = new EntryOperations($panes, $this->operations, $refresh, $this->state, $this->translator);
+
+        // Stos cofnięć (krok 44) — pamięć modułu, nie rdzenia, wbrew literze
+        // planu kroku: operacje zmaterializowały się w całości po tej stronie,
+        // więc dziennik ma jednego piszącego i jednego czytającego (reguła 15).
+        // Głębokość pyta ustawień przy każdym zapisie, więc zmiana pozycji
+        // działa od następnej operacji.
+        $journal = new UndoJournal(fn (): int => BrowserSettings::undoDepth($this->state->settings()));
+        $entries = new EntryOperations($panes, $this->operations, $refresh, $this->translator, $journal);
 
         // Dwie czynności dłuższe od klatki (krok 42) — osobno od tamtych trzech,
         // bo prowadzą pracę kawałkową z własnym stanem i własnym łańcuchem okien.
         // Odświeżenie paneli mają wspólne: dysk jest jeden, a panele te same.
-        $transfers = new EntryTransfer($panes, $this->transfers, $refresh, $this->translator);
+        $transfers = new EntryTransfer($panes, $this->transfers, $refresh, $this->translator, $journal);
+
+        // Rozdroże usunięcia i wykonawca cofnięć (krok 44). `EntryTrash` dostaje
+        // `EntryOperations`, bo odpowiedź „usuń trwale” na pytanie o wpis spoza
+        // systemu plików kosza prowadzi w drogę z kroku 41 — wraz z jej groźnym
+        // pytaniem. `EntryUndo` dostaje `EntryTransfer`, bo cofnięcie
+        // przeniesienia jest tą samą pracą kawałkową w drugą stronę.
+        $trash = new EntryTrash(
+            $panes,
+            $entries,
+            $this->trash,
+            $this->transfers,
+            $refresh,
+            $this->state,
+            $this->translator,
+            $journal,
+        );
+        $undo = new EntryUndo(
+            $this->operations,
+            $this->trash,
+            $transfers,
+            $refresh,
+            $this->translator,
+            $journal,
+        );
 
         return [
             new BrowserScreen(
@@ -185,6 +219,8 @@ final class BrowserModule implements
                 $this->translator,
                 $entries,
                 $transfers,
+                $trash,
+                $undo,
             ),
             [
                 new JumpCommand($panes, $directories, $this->translator),
@@ -193,7 +229,7 @@ final class BrowserModule implements
                 new TreeCommand($panes),
                 new RenameCommand($entries, $this->translator),
                 new MakeDirectoryCommand($entries, $this->translator),
-                new DeleteCommand($entries, $this->translator),
+                new DeleteCommand($trash, $this->translator),
                 new CopyCommand($transfers, $this->translator),
                 new MoveCommand($transfers, $this->translator),
             ],

@@ -114,7 +114,7 @@ final class FileTransferService extends AbstractSingleton implements FileTransfe
         $this->state = TransferState::idle();
     }
 
-    public function begin(array $sources, string $target, bool $move): TransferState
+    public function begin(array $sources, string $target, bool $move, array $targetNames = []): TransferState
     {
         $this->stop();
         $this->move = $move;
@@ -138,7 +138,7 @@ final class FileTransferService extends AbstractSingleton implements FileTransfe
         }
 
         foreach ($sources as $source) {
-            $this->seed($source, self::child($root, basename($source)));
+            $this->seed($source, self::child($root, $targetNames[$source] ?? basename($source)));
         }
 
         return $this->state = $this->toScan === []

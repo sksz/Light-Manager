@@ -102,6 +102,42 @@ final class BrowserSettings
 
     public const DEFAULT_ASK_BEFORE_DELETE = true;
 
+    /**
+     * Czy klawisz domyślny usuwa do kosza (krok 44, D81 nr 2 i 9).
+     *
+     * Ustawienie **przestawia znaczenie klawisza**, a nie wyłącza drugą drogę:
+     * `F8` i `Delete` robią to, co tu stoi, a `Shift`+`F8` i `Shift`+`Delete` —
+     * zawsze to drugie. Domyślnie kosz, bo krok 41 zostawił usuwanie
+     * nieodwracalne i to jest właśnie ta zmiana.
+     */
+    public const DELETE_TO_TRASH = 'deleteToTrash';
+
+    public const DEFAULT_DELETE_TO_TRASH = true;
+
+    /**
+     * Katalog kosza; **pusty znaczy „kosz środowiska graficznego”** (D81, nr 3).
+     *
+     * Pozycja tekstowa, nie wybór: katalog jest ścieżką, a nie osią o kilku
+     * wartościach. Wartości domyślnej nie wpisujemy w deklarację, bo zależy od
+     * zmiennych środowiska (`$XDG_DATA_HOME`), których warstwa ustawień nie
+     * czyta — rozwiązuje ją port kosza, a pusty napis jest tu jego zamówieniem.
+     */
+    public const TRASH_DIRECTORY = 'trashDirectory';
+
+    public const DEFAULT_TRASH_DIRECTORY = '';
+
+    /**
+     * Głębokość stosu cofnięć (D81, nr 7) — z listy przystanków, jak głośność
+     * w module dźwięku: `ModuleSetting::valueFrom()` sprowadza wartość spoza
+     * listy do domyślnej, więc oś ma skończony zbiór wartości z definicji.
+     */
+    public const UNDO_DEPTH = 'undoDepth';
+
+    /** @var list<int> */
+    public const UNDO_DEPTH_CHOICES = [5, 10, 20, 50, 100];
+
+    public const DEFAULT_UNDO_DEPTH = 20;
+
     /** @return list<ModuleSetting> */
     public static function declarations(): array
     {
@@ -144,6 +180,23 @@ final class BrowserSettings
                 self::ASK_BEFORE_DELETE,
                 'module.' . self::ID . '.setting.' . self::ASK_BEFORE_DELETE,
                 self::DEFAULT_ASK_BEFORE_DELETE,
+            ),
+            // Trzy pozycje kroku 44 — tą samą regułą: wyłącznie na koniec.
+            ModuleSetting::toggle(
+                self::DELETE_TO_TRASH,
+                'module.' . self::ID . '.setting.' . self::DELETE_TO_TRASH,
+                self::DEFAULT_DELETE_TO_TRASH,
+            ),
+            ModuleSetting::text(
+                self::TRASH_DIRECTORY,
+                'module.' . self::ID . '.setting.' . self::TRASH_DIRECTORY,
+                self::DEFAULT_TRASH_DIRECTORY,
+            ),
+            ModuleSetting::number(
+                self::UNDO_DEPTH,
+                'module.' . self::ID . '.setting.' . self::UNDO_DEPTH,
+                self::UNDO_DEPTH_CHOICES,
+                self::DEFAULT_UNDO_DEPTH,
             ),
         ];
     }
@@ -194,10 +247,41 @@ final class BrowserSettings
         return (int) $value;
     }
 
-    /** Czy `F8` pyta, zanim usunie (krok 41). */
+    /**
+     * Czy przed przeniesieniem do kosza pada pytanie.
+     *
+     * Do kroku 44 pozycja dotyczyła usunięcia trwałego — jedynego, jakie było.
+     * Odkąd klawisz domyślny usuwa do kosza, ustawienie rządzi **czynnością
+     * odwracalną**: trwałe pyta zawsze, niezależnie od niego, bo tam kosz nie
+     * pomoże (plan kroku, punkt 2).
+     */
     public static function asksBeforeDelete(Settings $settings): bool
     {
         return self::flag($settings, self::declarations()[6], self::DEFAULT_ASK_BEFORE_DELETE);
+    }
+
+    /** Czy `F8`/`Delete` usuwa do kosza; `Shift` robi zawsze to drugie (krok 44). */
+    public static function deleteToTrash(Settings $settings): bool
+    {
+        return self::flag($settings, self::declarations()[7], self::DEFAULT_DELETE_TO_TRASH);
+    }
+
+    /** Katalog kosza; pusty napis znaczy „kosz środowiska graficznego”. */
+    public static function trashDirectory(Settings $settings): string
+    {
+        $setting = self::declarations()[8];
+        $value = $setting->valueFrom($settings->moduleValue(self::ID, $setting->key));
+
+        return is_string($value) ? trim($value) : self::DEFAULT_TRASH_DIRECTORY;
+    }
+
+    /** Ile operacji pamięta stos cofnięć (D81, nr 7). */
+    public static function undoDepth(Settings $settings): int
+    {
+        $setting = self::declarations()[9];
+        $value = $setting->valueFrom($settings->moduleValue(self::ID, $setting->key));
+
+        return is_int($value) ? $value : self::DEFAULT_UNDO_DEPTH;
     }
 
     private static function flag(Settings $settings, ModuleSetting $setting, bool $default): bool

@@ -64,6 +64,11 @@ return [
     // niesie znak nieskończoności — czytelny bez tłumaczenia.
     'module.browser.setting.treeDepth' => 'Poziomy drzewa (Ctrl+T)',
     'module.browser.setting.askBeforeDelete' => 'Pytaj przed usunięciem',
+    // Krok 44: dwie drogi usunięcia i stos cofnięć. Katalog kosza pusty znaczy
+    // „kosz środowiska graficznego” — rozwiązuje go port, nie ta pozycja.
+    'module.browser.setting.deleteToTrash' => 'Usuwaj do kosza (F8, Delete)',
+    'module.browser.setting.trashDirectory' => 'Katalog kosza (pusty: systemowy)',
+    'module.browser.setting.undoDepth' => 'Głębokość stosu cofnięć (F3)',
 
     // Nagłówki kolumn listy (krok 27). Widać je wyłącznie po włączeniu
     // przełącznika „Nazwy kolumn nad listą” — sama treść kolumn mówi za siebie.
@@ -96,7 +101,13 @@ return [
     'module.browser.help.copy' => 'kopiowanie wpisu',
     'module.browser.help.move' => 'przeniesienie wpisu',
     'module.browser.help.mkdir' => 'nowy katalog',
-    'module.browser.help.delete' => 'usunięcie wpisu',
+    'module.browser.help.delete' => 'usunięcie trwałe wpisu',
+    // Druga droga usunięcia (krok 44): opisy klawisza gołego i z Shiftem
+    // wybiera ekran wedle ustawienia, więc oba klucze muszą stać w katalogu.
+    'module.browser.help.trash' => 'przeniesienie wpisu do kosza',
+    'module.browser.help.markRange' => 'zaznaczanie zakresem',
+    'module.browser.help.undo' => 'cofnięcie ostatniej operacji',
+    'module.browser.help.undoView' => 'stos cofnięć',
     'module.browser.help.tree' => 'panel jako drzewo albo lista',
     'module.browser.help.tree.expand' => 'rozwinięcie gałęzi',
     'module.browser.help.tree.collapse' => 'zwinięcie gałęzi lub poziom wyżej',
@@ -119,6 +130,10 @@ return [
     'module.browser.help.move.short' => 'przenieś',
     'module.browser.help.mkdir.short' => 'katalog',
     'module.browser.help.delete.short' => 'usuń',
+    'module.browser.help.trash.short' => 'kosz',
+    'module.browser.help.markRange.short' => 'zakres',
+    'module.browser.help.undo.short' => 'cofnij',
+    'module.browser.help.undoView.short' => 'cofnięcia',
     'module.browser.help.tree.short' => 'drzewo',
     'module.browser.help.tree.expand.short' => 'rozwiń',
     'module.browser.help.tree.collapse.short' => 'zwiń',
@@ -257,6 +272,90 @@ return [
         'Przerwano — przeniesiono {count} wpis z {total}.',
         'Przerwano — przeniesiono {count} wpisy z {total}.',
         'Przerwano — przeniesiono {count} wpisów z {total}.',
+    ],
+
+    // Kosz (krok 44, D81): pytania, skutki i droga przez inny system plików.
+    // Pytanie przed koszem jest zwykłe, nie groźne — czynność jest odwracalna.
+    'module.browser.trash.confirm.file' => 'Przenieść „{name}” do kosza?',
+    'module.browser.trash.confirm.many' => [
+        'Przenieść zaznaczony wpis do kosza?',
+        'Przenieść {count} zaznaczone wpisy do kosza?',
+        'Przenieść {count} zaznaczonych wpisów do kosza?',
+    ],
+    'module.browser.trash.doneOne' => 'Przeniesiono „{name}” do kosza.',
+    'module.browser.trash.done' => [
+        'Przeniesiono {count} wpis do kosza.',
+        'Przeniesiono {count} wpisy do kosza.',
+        'Przeniesiono {count} wpisów do kosza.',
+    ],
+    'module.browser.trash.stopped' => [
+        'Przerwano — w koszu stanął {count} wpis z {total}.',
+        'Przerwano — w koszu stanęły {count} wpisy z {total}.',
+        'Przerwano — w koszu stanęło {count} wpisów z {total}.',
+    ],
+    'module.browser.trash.abandoned' => 'Nic nie zostało przeniesione — dysk nietknięty.',
+    // Wpis spoza systemu plików kosza: ostrzeżenie i trzy odpowiedzi (D81, nr 5).
+    // „Przerwij” stoi ostatnie, bo Esc znaczy w oknie wyboru odpowiedź ostatnią.
+    'module.browser.trash.foreign' => '„{name}” leży na innym systemie plików niż kosz',
+    'module.browser.trash.foreign.many' => 'Wpisy na innym systemie plików niż kosz: {count}',
+    'module.browser.trash.foreign.copy' => 'Skopiuj do kosza',
+    'module.browser.trash.foreign.delete' => 'Usuń trwale',
+    'module.browser.trash.foreign.abort' => 'Przerwij',
+    // Tytuły okien pracy przy kopiowaniu do kosza — jak przy przenoszeniu.
+    'module.browser.trash.counting' => 'Liczenie zawartości „{name}”',
+    'module.browser.trash.counting.many' => 'Liczenie zawartości zaznaczonych: {count}',
+    'module.browser.trash.progress' => 'Przenoszenie „{name}” do kosza',
+    'module.browser.trash.progress.many' => 'Przenoszenie do kosza: {count}',
+
+    // Stos cofnięć (krok 44, D81 nr 6–8): widok, skutki i odmowy.
+    'module.browser.undo.title' => 'Stos cofnięć',
+    'module.browser.undo.empty' => 'Nie ma czego cofnąć.',
+    'module.browser.undo.irreversible' => 'Tej operacji nie da się cofnąć.',
+    'module.browser.undo.key.run' => 'cofnięcie wybranej operacji',
+    'module.browser.undo.key.pick' => 'wybór operacji',
+    'module.browser.undo.key.close' => 'zamknięcie okna',
+    // Zdanie o skutku mówi **co** cofnięto, nie „cofnięto” — kursor staje na
+    // wpisie przywróconym, a zdanie nazywa go po imieniu.
+    'module.browser.undo.done.rename' => 'Przywrócono nazwę „{name}”.',
+    'module.browser.undo.done.mkdir' => 'Usunięto pusty katalog „{name}”.',
+    'module.browser.undo.done.trashOne' => 'Przywrócono „{name}” z kosza.',
+    'module.browser.undo.done.trash' => [
+        'Przywrócono {count} wpis z kosza.',
+        'Przywrócono {count} wpisy z kosza.',
+        'Przywrócono {count} wpisów z kosza.',
+    ],
+    'module.browser.undo.done.move' => [
+        'Przywrócono {count} wpis na poprzednie miejsce.',
+        'Przywrócono {count} wpisy na poprzednie miejsce.',
+        'Przywrócono {count} wpisów na poprzednie miejsce.',
+    ],
+    // Wiersze widoku: operacja i jej przedmiot. Nieodwracalne stoją wyszarzone,
+    // ale stoją — lista mówi też, co się właściwie wydarzyło (D81, nr 8).
+    'module.browser.undo.entry.rename' => 'Zmiana nazwy: {from} → {to}',
+    'module.browser.undo.entry.mkdir' => 'Nowy katalog: {name}',
+    'module.browser.undo.entry.trash' => 'Do kosza: {name}',
+    'module.browser.undo.entry.trash.many' => [
+        'Do kosza: {count} wpis',
+        'Do kosza: {count} wpisy',
+        'Do kosza: {count} wpisów',
+    ],
+    'module.browser.undo.entry.move' => 'Przeniesienie: {name}',
+    'module.browser.undo.entry.move.many' => [
+        'Przeniesienie: {count} wpis',
+        'Przeniesienie: {count} wpisy',
+        'Przeniesienie: {count} wpisów',
+    ],
+    'module.browser.undo.entry.copy' => 'Kopiowanie: {name}',
+    'module.browser.undo.entry.copy.many' => [
+        'Kopiowanie: {count} wpis',
+        'Kopiowanie: {count} wpisy',
+        'Kopiowanie: {count} wpisów',
+    ],
+    'module.browser.undo.entry.delete' => 'Usunięcie trwałe: {name}',
+    'module.browser.undo.entry.delete.many' => [
+        'Usunięcie trwałe: {count} wpis',
+        'Usunięcie trwałe: {count} wpisy',
+        'Usunięcie trwałe: {count} wpisów',
     ],
 
     // Nazwa wpisana przez użytkownika — każdy powód odmowy ma własne zdanie.

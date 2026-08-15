@@ -12,13 +12,13 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Domain\Exception\DescribesProblem;
 use LightManager\Domain\Exception\FileOperationException;
 use LightManager\Domain\ValueObject\Message;
-use LightManager\Module\Browser\Application\BrowserSettings;
+use LightManager\Module\Browser\Application\Undo\UndoEntry;
+use LightManager\Module\Browser\Application\Undo\UndoJournal;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Domain\Exception\DirectoryNotReadableException;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
 use LightManager\Module\Browser\Domain\ValueObject\Entry;
 use LightManager\Module\Browser\Domain\ValueObject\EntryName;
-use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Overlay\ConfirmOverlay;
 use LightManager\Presentation\Ui\Overlay\ProgressOverlay;
 use LightManager\Presentation\Ui\Overlay\PromptOverlay;
@@ -36,8 +36,10 @@ use LightManager\Presentation\Ui\ScreenOutcome;
  * a dwie implementacje rozjechałyby się przy pierwszej poprawce — tym razem
  * z ceną wyższą niż rozjechany komunikat, bo po drugiej stronie jest `unlink()`.
  *
- * Leży w warstwie `Presentation` modułu, bo składa okna nakładane i zna
- * `LoopState` — ta sama zasada, która postawiła tu komendy modułu (D41).
+ * Leży w warstwie `Presentation` modułu, bo składa okna nakładane — ta sama
+ * zasada, która postawiła tu komendy modułu (D41). `LoopState` przestała tu
+ * być potrzebna w kroku 44: pytanie przed usunięciem trwałym pada **zawsze**,
+ * więc jedyny odczyt ustawień wyprowadził się do drogi kosza.
  *
  * **Trzy różne drogi niepowodzenia** i każda ma powód:
  *
@@ -74,12 +76,20 @@ final class EntryOperations
      */
     private ?string $successor = null;
 
+    /**
+     * Nazwy wpisów prowadzonej pracy kawałkowej — dla zapisu w stosie cofnięć
+     * (krok 44). Pole z tego samego powodu, co `successor`: praca jest jedna.
+     *
+     * @var list<string>
+     */
+    private array $removalNames = [];
+
     public function __construct(
         private readonly BrowserPanes $panes,
         private readonly FileOperationsPort $operations,
         private readonly PaneRefresh $refreshPanes,
-        private readonly LoopState $state,
         private readonly TranslatorPort $translator,
+        private readonly UndoJournal $journal,
     ) {
     }
 
@@ -164,6 +174,7 @@ final class EntryOperations
         }
 
         $this->operations->rename($directory->path()->child($entry->name)->value, $name->value);
+        $this->journal->record(UndoEntry::renamed($directory->path()->value, $entry->name, $name->value));
         $this->refresh($directory->path(), $name->value);
 
         return $this->info('module.browser.rename.done', ['name' => $name->value]);
@@ -182,6 +193,7 @@ final class EntryOperations
         $path = $this->panes->focused()->directory()->path();
 
         $this->operations->createDirectory($path->child($name->value)->value);
+        $this->journal->record(UndoEntry::directoryCreated($path->value, $name->value));
         $this->refresh($path, $name->value);
 
         return $this->info('module.browser.mkdir.done', ['name' => $name->value]);
@@ -239,6 +251,21 @@ final class EntryOperations
     }
 
     /**
+     * Usunięcie trwałe wskazanych wpisów — wejście dla drogi z kosza (krok 44).
+     *
+     * Publiczne, bo pytanie o wpis spoza systemu plików kosza ma odpowiedź
+     * „usuń trwale” i ta odpowiedź musi trafić dokładnie w tę samą drogę,
+     * którą idzie `Shift`+`F8` — wraz z pytaniem groźnym, bo zgoda na kosz
+     * nie jest zgodą na czynność nieodwracalną.
+     *
+     * @param list<string> $names nazwy wpisów w tym katalogu; nigdy pusta
+     */
+    public function deleteNamed(Directory $directory, array $names): OverlayOutcome
+    {
+        return $this->deleting($directory, $names);
+    }
+
+    /**
      * Wybór drogi: jeden plik znika krótszą, wszystko inne — pracą kawałkową.
      *
      * Warunek krótkiej drogi zwęził się w kroku 43 o jedno słowo („jeden”) i to
@@ -247,18 +274,19 @@ final class EntryOperations
      * pytanie musiałoby podać liczbę policzoną osobno, a przerwanie w połowie nie
      * miałoby gdzie się zameldować.
      *
+     * **Pytanie pada zawsze** — od kroku 44 ustawienie „pytaj przed usunięciem”
+     * rządzi drogą odwracalną (koszem), a ta droga odwracalna nie jest i okno
+     * w wariancie groźnym mówi to wprost (plan kroku, punkt 2).
+     *
      * @param list<string> $names nazwy wpisów w tym katalogu; nigdy pusta
      */
     private function deleting(Directory $directory, array $names): OverlayOutcome
     {
         $this->successor = self::successorOf($directory, $names);
+        $this->removalNames = $names;
         $single = count($names) === 1 ? self::entryIn($directory, $names[0]) : null;
 
         if ($single !== null && !$single->isDirectory()) {
-            if (!$this->asks()) {
-                return OverlayOutcome::close($this->deleteOne($directory, $single->name));
-            }
-
             return OverlayOutcome::replace(new ConfirmOverlay(
                 'module.browser.delete.confirm.file',
                 ['name' => $single->name],
@@ -376,8 +404,7 @@ final class EntryOperations
     }
 
     /**
-     * Co po policzeniu: pytanie z liczbą, od razu usuwanie (gdy pytać nie trzeba)
-     * albo zdanie o niepowodzeniu.
+     * Co po policzeniu: pytanie z liczbą albo zdanie o niepowodzeniu.
      *
      * @param list<string> $names
      *
@@ -390,10 +417,6 @@ final class EntryOperations
             $this->operations->stopRemoval();
 
             return [null, $failure];
-        }
-
-        if (!$this->asks()) {
-            return $this->started($directory, $names);
         }
 
         [$key, $parameters, $count] = $this->question($names, $state->total ?? 1);
@@ -525,9 +548,30 @@ final class EntryOperations
             : Message::info($this->translator->plural('module.browser.delete.done', $state->done));
 
         $this->operations->stopRemoval();
+        $this->recordRemoval($directory, $state->done);
         $this->refreshAfterRemoval($directory);
 
         return $message;
+    }
+
+    /**
+     * Zapis usunięcia trwałego w stosie cofnięć — jako operacji **nieodwracalnej**
+     * (krok 44). Widok pokaże go wyszarzonego: lista odpowiada też na pytanie
+     * „co się właściwie wydarzyło”, a nieodwracalność mówi rola, nie brak wpisu.
+     *
+     * Zapis pada wyłącznie wtedy, gdy coś naprawdę zniknęło: praca przerwana
+     * przed pierwszym wpisem niczego nie zmieniła, więc nie ma o czym pamiętać.
+     */
+    private function recordRemoval(Directory $directory, int $done): void
+    {
+        $names = $this->removalNames;
+        $this->removalNames = [];
+
+        if ($done < 1 || $names === []) {
+            return;
+        }
+
+        $this->journal->record(UndoEntry::deletedPermanently($directory->path()->value, $names, $done));
     }
 
     /**
@@ -542,6 +586,7 @@ final class EntryOperations
     {
         $state = $this->operations->removalState();
         $this->operations->stopRemoval();
+        $this->recordRemoval($directory, $state->done);
         $this->refreshAfterRemoval($directory);
 
         return Message::info($this->translator->plural(
@@ -564,6 +609,7 @@ final class EntryOperations
     {
         $successor = $this->successor;
         $this->successor = null;
+        $this->removalNames = [];
 
         try {
             $this->operations->delete($directory->path()->child($name)->value);
@@ -571,6 +617,7 @@ final class EntryOperations
             return $this->problem($problem);
         }
 
+        $this->journal->record(UndoEntry::deletedPermanently($directory->path()->value, [$name], 1));
         $this->refresh($directory->path(), $successor);
 
         return $this->info('module.browser.delete.doneOne', ['name' => $name]);
@@ -597,9 +644,12 @@ final class EntryOperations
      * resztę zaznaczonych**, bo one też znikną, a kursor postawiony na wpisie,
      * którego za chwilę nie będzie, i tak spadłby na początek listy.
      *
+     * Publiczna i statyczna od kroku 44: ten sam rachunek robi droga kosza
+     * (`EntryTrash`), a kursor po obu drogach ma spadać identycznie.
+     *
      * @param list<string> $names
      */
-    private static function successorOf(Directory $directory, array $names): ?string
+    public static function successorOf(Directory $directory, array $names): ?string
     {
         $removed = array_fill_keys($names, true);
         $entries = $directory->entries();
@@ -689,11 +739,6 @@ final class EntryOperations
         return $outcome->next === null
             ? ScreenOutcome::stay($outcome->message)
             : ScreenOutcome::opens($outcome->next);
-    }
-
-    private function asks(): bool
-    {
-        return BrowserSettings::asksBeforeDelete($this->state->settings());
     }
 
     /** @param array<string, string> $parameters */

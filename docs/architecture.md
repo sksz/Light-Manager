@@ -106,6 +106,7 @@ Granica tej wiedzy jest **wąska i szersza być nie ma prawa**:
 | nazwa jako **napis** — bez oceny, czy jest poprawna | czym jest katalog (`Directory`, `DirectoryPath`) i jego ścieżka jako pojęcie |
 | cztery czynności: zmiana nazwy, nowy katalog, usunięcie wpisu, usunięcie **listy** wpisów wraz z drzewami (krok 43) | sortowanie, ukrywanie, filtr, podgląd, **skąd wzięła się ta lista** |
 | dwie czynności dłuższe od klatki: kopiowanie i przeniesienie (krok 42) | po co ta czynność zachodzi i co ma się odświeżyć potem |
+| kosz: przeniesienie do niego, rezerwacja nazwy i przywrócenie (krok 44) | co robi klawisz domyślny i gdzie kosz leży — to pozycje ustawień **modułu** |
 | stan pracy (`RemovalState`, `TransferState`) i stan pracy do pokazania (`WorkProgress`) | który panel na to patrzy i gdzie ma stanąć kursor |
 
 Praktyczne skutki, których pilnuje test: `Entry`, `Directory`, `DirectoryPath`
@@ -115,11 +116,11 @@ i `EntryType` **nie mają prawa** pojawić się w sygnaturze niczego w
 nazwa wpisu; rdzeń **nie rysuje** niczego z powodu operacji — okna, klawisze
 i komunikaty zamawia moduł.
 
-Kod: `Application/Port/FileOperationsPort` i `Application/Port/FileTransferPort`
-(kontrakty), `Infrastructure/FileSystem/FileOperationsService`
-i `Infrastructure/FileSystem/FileTransferService` (Singletony),
-`Domain/Exception/FileOperationException` (niepowodzenie, które samo podaje zdanie
-dla użytkownika).
+Kod: `Application/Port/FileOperationsPort`, `Application/Port/FileTransferPort`
+i `Application/Port/TrashPort` (kontrakty),
+`Infrastructure/FileSystem/FileOperationsService`, `FileTransferService`
+i `XdgTrashService` (Singletony), `Domain/Exception/FileOperationException`
+(niepowodzenie, które samo podaje zdanie dla użytkownika).
 
 **Granicą wyjątku jest katalog `Infrastructure/FileSystem`, a nie jedna klasa**
 (krok 42, D79 nr 1). Do kroku 42 usług było tam dwie razem z `SettingsService`
@@ -837,6 +838,61 @@ bloki i-węzła z `lstat`, bez uruchamiania czegokolwiek) i **na żądanie klawi
 `d`**, jak suma kontrolna. Postępu `du` nie zna, więc pasek chodzi w trybie
 „nieznany” — pierwsze prawdziwe użycie tego trybu od kroku 23.
 
+#### Kosz i cofnięcie ostatniej operacji (od kroku 44)
+
+Usunięcie przestało być końcem: klawisz domyślny (`F8`, `Delete`) robi to, co
+mówi pozycja modułu „usuwaj do kosza” (domyślnie: kosz), a `Shift`+`F8`
+i `Shift`+`Delete` — **zawsze to drugie** (D81, nr 1–2). Ustawienie przestawia
+znaczenie klawisza, a nie wyłącza drugą drogę, więc obie są zawsze osiągalne.
+Usunięcie trwałe **pyta zawsze**, oknem w wariancie groźnym — ustawienie „pytaj
+przed usunięciem” z kroku 41 rządzi odtąd czynnością odwracalną, czyli koszem.
+
+Kosz jest **katalogiem konfigurowalnym o stałym układzie** (D81, nr 3):
+domyślnie `$XDG_DATA_HOME/Trash` (bez zmiennej — `~/.local/share/Trash`), czyli
+kosz środowiska graficznego, a pozycja tekstowa modułu wolno wskazać dowolny
+inny. Układ freedesktop.org obowiązuje wszędzie: wpis ląduje w `files/`,
+a w `info/` staje `nazwa.trashinfo` ze ścieżką powrotną (kodowaną jak adres URL)
+i datą usunięcia — **pisany przed przeniesieniem**, bo wpis w koszu bez niego
+jest wpisem, którego nie da się przywrócić. Plik informacyjny tworzony trybem
+`x` jest zarazem rezerwacją nazwy; kolizję rozwiązuje sufiks liczbowy przed
+rozszerzeniem (`raport.pdf`, `raport.1.pdf`), jak w koszu środowiska.
+
+Do kosza przenosi się **zmianą nazwy, nigdy kopiowaniem** (D81, nr 4) — dlatego
+katalog z zawartością jedzie w całości, bez liczenia i bez okien pracy, i to
+jest główny zysk kosza nad usuwaniem. Wpis z **innego systemu plików** dostaje
+ostrzeżenie i pytanie o trzech odpowiedziach (D81, nr 5): skopiować do kosza
+(pracą kawałkową z kroku 42 — nazwy rezerwuje się w koszu przed pierwszym
+bajtem, a praca dostaje je mapą `targetNames` w `begin()`), usunąć trwale albo
+przerwać. Kosza na wolumenie (`.Trash-$uid`) aplikacja **nie zakłada**.
+
+**Stos cofnięć jest pamięcią modułu, nie rdzenia** — wbrew literze planu kroku
+i zgodnie z regułą 15: operacje zmaterializowały się w całości po stronie
+przeglądarki, więc dziennik (`Module/Browser/Application/Undo/UndoJournal`) ma
+jednego piszącego i jednego czytającego. `Alt`+`u` cofa najnowszą operację
+odwracalną; `F3` otwiera widok stosu, w którym cofnąć wolno **dowolną pozycję**
+(D81, nr 6) — pozycje nieodwracalne stoją wyszarzone i niewybieralne (nr 8),
+bo lista odpowiada też na pytanie „co się właściwie wydarzyło”. Głębokość stosu
+jest pozycją ustawień (nr 7); zapis **nie przeżywa zamknięcia aplikacji** —
+cofanie po restarcie byłoby dziennikiem transakcji, a nie wygodą.
+
+**Spis operacji odwracalnych mieszka w kodzie** (`UndoEntry::reversible()`),
+nie w napisie — wraz z powodami, dla których pozostałe nimi nie są:
+
+| Operacja | Cofnięcie |
+|---|---|
+| zmiana nazwy | zmiana nazwy z powrotem |
+| nowy katalog | usunięcie — **dopóki pozostał pusty** (D81, nr 10) |
+| do kosza | przywrócenie z kosza (ścieżka z pliku informacyjnego) |
+| przeniesienie | przeniesienie z powrotem, tą samą pracą kawałkową |
+| kopiowanie | **nie** — cofnięciem byłoby usunięcie kopii, czyli operacja nieodwracalna udająca powrót |
+| usunięcie trwałe | **nie** — nie ma skąd wrócić |
+
+Cofnięcie nieudane (wpis zniknął, miejsce zajęte, katalog przestał być pusty)
+**mówi dlaczego i nie zdejmuje zapisu** — inaczej użytkownik traci jedyną
+informację o tym, co się stało; przywrócenie zbioru przerwane w połowie wymienia
+zapis na pomniejszony o to, co już wróciło. Kursor po cofnięciu staje na wpisie
+przywróconym, bo to on jest odpowiedzią na pytanie „czy się udało”.
+
 ## 3. Wzorzec Singleton, porty i bootstrap
 
 Każda usługa spoza `Domain` to osobny, klasyczny Singleton (nie centralny
@@ -1128,16 +1184,22 @@ Zasady, których nie wolno cicho odwrócić:
 - **DTO portów**: obiekty wejścia/wyjścia portów aplikacyjnych żyją w
   `Application/Dto` (np. `KeyPress` i enum `Key` z kroku 06). Pojęcie
   techniczne warstwy dostarczania nie trafia do `Domain/ValueObject`, nawet
-  gdy formalnie jest niemutowalną wartością. `KeyPress` niesie **dwa
+  gdy formalnie jest niemutowalną wartością. `KeyPress` niesie **trzy
   modyfikatory, rozłącznie**: `ctrl` od kroku 19 (skróty modułów) i `alt` od
-  kroku 29 (zawijanie wierszy w podglądzie). Kombinacji `Ctrl`+`Alt` słownik
-  **nie zna** i nie ma jej po co znać, dopóki nie pojawi się użytkownik — w torze
-  okienkowym `Ctrl` wygrywa, w terminalowym taka para w ogóle nie powstaje.
-  Cena `Alt` w terminalu jest znana i zapisana przy parserze: `ESC`+litera to
-  te same dwa bajty co `Esc` naciśnięty tuż przed literą, więc rozstrzyga o nich
-  czas — jak we wszystkich emulatorach terminala od czasów VT100. Wiązanie
-  klawisza porównuje **oba** znaczniki, więc wiązanie na gołą literę nie łapie
-  skrótu z modyfikatorem.
+  kroku 29 (zawijanie wierszy w podglądzie) — oba wyłącznie przy literach —
+  oraz `shift` od kroku 44 (druga droga usunięcia, zaznaczanie zakresem),
+  wyłącznie przy **klawiszach nazwanych**: litera z `Shift`em przychodzi z obu
+  torów jako inna litera, więc znacznik przy znaku nie miałby czego nieść.
+  Kombinacji modyfikatorów słownik **nie zna** i nie ma ich po co znać, dopóki
+  nie pojawi się użytkownik — w torze okienkowym `Ctrl` wygrywa, w terminalowym
+  taka para w ogóle nie powstaje, a `Ctrl`+`Shift`+`Delete` niesie w CSI bit
+  `Shift`a i tym samym jest `Shift`+`Delete`. Cena `Alt` w terminalu jest znana
+  i zapisana przy parserze: `ESC`+litera to te same dwa bajty co `Esc`
+  naciśnięty tuż przed literą, więc rozstrzyga o nich czas — jak we wszystkich
+  emulatorach terminala od czasów VT100. Wiązanie klawisza porównuje
+  **wszystkie** znaczniki, więc wiązanie na gołą literę nie łapie skrótu
+  z modyfikatorem, a goły `F8` nie łapie `Shift`+`F8` — od kroku 44 znaczą
+  dwie różne rzeczy, z których jedna jest nieodwracalna.
 - **Moduły** (krok 20): klasa modułu ma sufiks `Module` (`FileInfoModule`) i leży
   w warstwie `Presentation` swojego katalogu, bo implementuje zdolności
   wymieniające typy z `Presentation/Ui`. Zdolności nazywają się od tego, co

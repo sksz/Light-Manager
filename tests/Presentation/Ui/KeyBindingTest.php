@@ -87,4 +87,35 @@ final class KeyBindingTest extends TestCase
     {
         self::assertSame('Alt+Z', KeyBinding::alt('z', 'whatever')->display());
     }
+
+    /** `Shift`+klawisz nazwany — trzeci modyfikator, od kroku 44. */
+    public function testShiftedBindingMatchesOnlyWithShift(): void
+    {
+        $binding = KeyBinding::shifted([Key::F8, Key::Delete], 'module.browser.help.deleteOther');
+
+        self::assertTrue($binding->matches(KeyPress::shifted(Key::F8, '')));
+        self::assertTrue($binding->matches(KeyPress::shifted(Key::Delete, "\e[3;2~")));
+        self::assertFalse($binding->matches(KeyPress::special(Key::F8, '')));
+        self::assertFalse($binding->matches(KeyPress::special(Key::Delete, "\e[3~")));
+    }
+
+    /**
+     * Goły `F8` nie ma prawa złapać `Shift`+`F8` — od kroku 44 znaczą dwie
+     * różne rzeczy, a jedna z nich jest nieodwracalna.
+     */
+    public function testPlainNamedBindingDoesNotMatchShifted(): void
+    {
+        $binding = KeyBinding::of([Key::F8, Key::Delete], 'module.browser.help.delete');
+
+        self::assertFalse($binding->matches(KeyPress::shifted(Key::F8, '')));
+        self::assertFalse($binding->matches(KeyPress::shifted(Key::Delete, "\e[3;2~")));
+    }
+
+    public function testDisplaysShiftWithKeyName(): void
+    {
+        self::assertSame(
+            'Shift+F8 / Shift+Del',
+            KeyBinding::shifted([Key::F8, Key::Delete], 'whatever')->display(),
+        );
+    }
 }

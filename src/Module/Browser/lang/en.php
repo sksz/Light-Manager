@@ -48,6 +48,11 @@ return [
     // infinity sign — readable without a translation.
     'module.browser.setting.treeDepth' => 'Tree levels (Ctrl+T)',
     'module.browser.setting.askBeforeDelete' => 'Ask before deleting',
+    // Step 44: two deletion roads and the undo stack. An empty trash directory
+    // means "the desktop environment's trash" — the port resolves it.
+    'module.browser.setting.deleteToTrash' => 'Delete to trash (F8, Delete)',
+    'module.browser.setting.trashDirectory' => 'Trash directory (empty: system)',
+    'module.browser.setting.undoDepth' => 'Undo stack depth (F3)',
 
     // Column headings (step 27), shown only when the toggle above is on.
     'module.browser.column.name' => 'Name',
@@ -79,7 +84,11 @@ return [
     'module.browser.help.copy' => 'copy the entry',
     'module.browser.help.move' => 'move the entry',
     'module.browser.help.mkdir' => 'new directory',
-    'module.browser.help.delete' => 'delete the entry',
+    'module.browser.help.delete' => 'delete the entry permanently',
+    'module.browser.help.trash' => 'move the entry to trash',
+    'module.browser.help.markRange' => 'mark a range',
+    'module.browser.help.undo' => 'undo the last operation',
+    'module.browser.help.undoView' => 'undo stack',
     'module.browser.help.tree' => 'pane as a tree or a list',
     'module.browser.help.tree.expand' => 'expand the branch',
     'module.browser.help.tree.collapse' => 'collapse the branch or go one level up',
@@ -99,6 +108,10 @@ return [
     'module.browser.help.move.short' => 'move',
     'module.browser.help.mkdir.short' => 'mkdir',
     'module.browser.help.delete.short' => 'delete',
+    'module.browser.help.trash.short' => 'trash',
+    'module.browser.help.markRange.short' => 'range',
+    'module.browser.help.undo.short' => 'undo',
+    'module.browser.help.undoView.short' => 'undo list',
     'module.browser.help.tree.short' => 'tree',
     'module.browser.help.tree.expand.short' => 'expand',
     'module.browser.help.tree.collapse.short' => 'collapse',
@@ -212,6 +225,73 @@ return [
     'module.browser.move.stopped' => [
         'Stopped — moved {count} of {total} entry.',
         'Stopped — moved {count} of {total} entries.',
+    ],
+
+    // Trash (step 44, D81): questions, outcomes and the other-filesystem road.
+    'module.browser.trash.confirm.file' => 'Move "{name}" to trash?',
+    'module.browser.trash.confirm.many' => [
+        'Move {count} marked entry to trash?',
+        'Move {count} marked entries to trash?',
+    ],
+    'module.browser.trash.doneOne' => 'Moved "{name}" to trash.',
+    'module.browser.trash.done' => [
+        'Moved {count} entry to trash.',
+        'Moved {count} entries to trash.',
+    ],
+    'module.browser.trash.stopped' => [
+        'Stopped — {count} of {total} entry reached the trash.',
+        'Stopped — {count} of {total} entries reached the trash.',
+    ],
+    'module.browser.trash.abandoned' => 'Nothing was moved — the disk is untouched.',
+    'module.browser.trash.foreign' => '"{name}" lives on a different filesystem than the trash',
+    'module.browser.trash.foreign.many' => 'Entries on a different filesystem than the trash: {count}',
+    'module.browser.trash.foreign.copy' => 'Copy to trash',
+    'module.browser.trash.foreign.delete' => 'Delete permanently',
+    'module.browser.trash.foreign.abort' => 'Abort',
+    'module.browser.trash.counting' => 'Counting the contents of "{name}"',
+    'module.browser.trash.counting.many' => 'Counting the contents of marked entries: {count}',
+    'module.browser.trash.progress' => 'Moving "{name}" to trash',
+    'module.browser.trash.progress.many' => 'Moving to trash: {count}',
+
+    // The undo stack (step 44, D81 no. 6-8): the view, outcomes and refusals.
+    'module.browser.undo.title' => 'Undo stack',
+    'module.browser.undo.empty' => 'Nothing to undo.',
+    'module.browser.undo.irreversible' => 'This operation cannot be undone.',
+    'module.browser.undo.key.run' => 'undo the chosen operation',
+    'module.browser.undo.key.pick' => 'choose an operation',
+    'module.browser.undo.key.close' => 'close the window',
+    'module.browser.undo.done.rename' => 'Restored the name "{name}".',
+    'module.browser.undo.done.mkdir' => 'Removed the empty directory "{name}".',
+    'module.browser.undo.done.trashOne' => 'Restored "{name}" from trash.',
+    'module.browser.undo.done.trash' => [
+        'Restored {count} entry from trash.',
+        'Restored {count} entries from trash.',
+    ],
+    'module.browser.undo.done.move' => [
+        'Moved {count} entry back to its previous place.',
+        'Moved {count} entries back to their previous place.',
+    ],
+    'module.browser.undo.entry.rename' => 'Rename: {from} → {to}',
+    'module.browser.undo.entry.mkdir' => 'New directory: {name}',
+    'module.browser.undo.entry.trash' => 'To trash: {name}',
+    'module.browser.undo.entry.trash.many' => [
+        'To trash: {count} entry',
+        'To trash: {count} entries',
+    ],
+    'module.browser.undo.entry.move' => 'Move: {name}',
+    'module.browser.undo.entry.move.many' => [
+        'Move: {count} entry',
+        'Move: {count} entries',
+    ],
+    'module.browser.undo.entry.copy' => 'Copy: {name}',
+    'module.browser.undo.entry.copy.many' => [
+        'Copy: {count} entry',
+        'Copy: {count} entries',
+    ],
+    'module.browser.undo.entry.delete' => 'Permanent deletion: {name}',
+    'module.browser.undo.entry.delete.many' => [
+        'Permanent deletion: {count} entry',
+        'Permanent deletion: {count} entries',
     ],
 
     // A name typed by the user — every reason for refusing it has its own sentence.

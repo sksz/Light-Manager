@@ -15,6 +15,7 @@ use LightManager\Application\Module\ProvidesCommands;
 use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Port\FileOperationsPort;
 use LightManager\Application\Port\FileTransferPort;
+use LightManager\Application\Port\TrashPort;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Application\UseCase\ChangeSettingUseCase;
@@ -107,6 +108,7 @@ final class ScreenFixture
         public readonly StubBackgroundProcess $processes = new StubBackgroundProcess(),
         public readonly FileOperationsPort $operations = new StubFileOperations(),
         public readonly FileTransferPort $transfers = new StubFileTransfers(),
+        public readonly TrashPort $trash = new StubTrash(),
     ) {
         $translator = new StubTranslator();
         $themes = new FixedThemes();
@@ -142,6 +144,7 @@ final class ScreenFixture
             $settingsStore,
             $operations,
             $transfers,
+            $trash,
             $directories,
             $directory->path(),
         );

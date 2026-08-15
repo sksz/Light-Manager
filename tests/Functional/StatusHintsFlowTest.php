@@ -168,9 +168,11 @@ final class StatusHintsFlowTest extends TestCase
     /** Pasek rośnie do dwóch wierszy dopiero z potrzeby — i wtedy naprawdę rośnie. */
     public function testTheBarTakesASecondRowOnlyWhenTheHintsDoNotFitInOne(): void
     {
-        // Osiemset kolumn, bo w teście tłumacz oddaje **klucze**, a te są dłuższe od
-        // napisów: pełna stopka przeglądarki ma tu ponad czterysta znaków.
-        $wide = self::rowsOf($this->statusRuns($this->app->browser, 800, self::ROWS));
+        // Tysiąc dwieście kolumn, bo w teście tłumacz oddaje **klucze**, a te są
+        // dłuższe od napisów: pełna stopka przeglądarki miała tu ponad czterysta
+        // znaków, a krok 44 dołożył cztery wiązania (dwie drogi usunięcia,
+        // cofanie, widok stosu) i zakres na `Shift`+strzałkach.
+        $wide = self::rowsOf($this->statusRuns($this->app->browser, 1200, self::ROWS));
         $narrow = self::rowsOf($this->statusRuns($this->app->browser, 120, self::ROWS));
 
         self::assertCount(1, $wide, 'w szerokim oknie wszystko mieści się w wierszu');

@@ -152,6 +152,7 @@ kosztuje w terminalu.
 | `.` | pokaż lub ukryj wpisy ukryte (ustawienie trwałe, dotyczy obu paneli) |
 | `/` | zawężenie listy fragmentem nazwy — pole filtra przy dolnej krawędzi |
 | `Spacja` | zaznaczenie wpisu pod kursorem i przejście wiersz niżej |
+| `Shift`+`↑` / `Shift`+`↓` | zaznaczanie zakresem — spacja bez podnoszenia palca |
 | `*` | odwrócenie zaznaczenia na widocznej liście |
 | `Tab` | przejście do drugiego panelu — tylko przy włączonym podziale |
 | `Ctrl`+`T` | panel jako **drzewo** albo z powrotem jako lista |
@@ -159,7 +160,10 @@ kosztuje w terminalu.
 | `F5` | skopiowanie wpisu do wskazanego katalogu |
 | `F6` | przeniesienie wpisu do wskazanego katalogu |
 | `F7` | nowy katalog w katalogu panelu czynnego |
-| `F8` albo `Delete` | usunięcie zaznaczonych wpisów — **nieodwracalnie** |
+| `F8` albo `Delete` | usunięcie zaznaczonych wpisów — domyślnie **do kosza** |
+| `Shift`+`F8` / `Shift`+`Delete` | druga droga: zawsze to, czego nie robi klawisz goły (domyślnie: trwale) |
+| `Alt`+`U` | cofnięcie ostatniej operacji odwracalnej |
+| `F3` | stos cofnięć — cofnąć wolno dowolną pozycję |
 | `F1` | ekran pomocy — pełna lista klawiszy |
 | `F2` | ekran ustawień |
 | `F9` | menu kontekstowe — co da się zrobić z zaznaczonym wpisem |
@@ -227,18 +231,32 @@ z definicji. W drzewie każda z nich dotyczy węzła pod kursorem. `F4` otwiera 
 nazwą, nie ścieżką: ukośnik w niej jest błędem, a nie zaproszeniem do utworzenia
 katalogu piętro niżej. Nazwa zajęta **nie zamyka okna** — jest co poprawić.
 
-`F8` (albo `Delete`) pyta, zanim usunie, i pyta w wariancie groźnym — czerwoną
-oprawą, z ogniskiem na odmowie, więc przytrzymany `Enter` trafia w „nie”. Przy
-zaznaczeniu wielokrotnym pytanie mówi **liczbą** („Usunąć 12 zaznaczonych wpisów
-bezpowrotnie?”), a nie nazwą pierwszego z nich. Pytanie można wyłączyć pozycją
-„Pytaj przed usunięciem” w ustawieniach modułu.
+`F8` (albo `Delete`) robi to, co mówi pozycja „Usuwaj do kosza” w ustawieniach
+modułu — domyślnie **przenosi do kosza środowiska graficznego**, wraz z plikiem
+informacyjnym wedle freedesktop.org, więc wpis widać i da się go przywrócić
+także z pulpitu. `Shift`+`F8` (albo `Shift`+`Delete`) robi zawsze **to drugie**.
+Usunięcie trwałe pyta **zawsze**, w wariancie groźnym — czerwoną oprawą,
+z ogniskiem na odmowie, więc przytrzymany `Enter` trafia w „nie”; pytanie przed
+koszem podlega pozycji „Pytaj przed usunięciem”, bo kosz jest odwracalny. Przy
+zaznaczeniu wielokrotnym pytanie mówi **liczbą**, a nie nazwą pierwszego z nich.
+Katalog kosza można przestawić w ustawieniach (pusty znaczy: systemowy); wpis
+z innego systemu plików niż kosz dostaje pytanie — skopiować do kosza, usunąć
+trwale, czy przerwać.
 
-Katalog usuwa się **wraz z zawartością**, ale nie po cichu: aplikacja najpierw
-liczy, ile wpisów zniknie, i podaje tę liczbę w pytaniu. Przy dużym drzewie
-liczenie i usuwanie **nie zatrzymują aplikacji** — idą po kawałku na klatkę,
-a okno pokazuje nazwę, licznik „N z M” i pasek postępu. `Esc` przerywa i mówi
-uczciwie, ile już zniknęło: usunięcia połowy drzewa nie da się cofnąć. Kosz
-i cofanie przyniesie osobny krok planu.
+Katalog usuwa się trwale **wraz z zawartością**, ale nie po cichu: aplikacja
+najpierw liczy, ile wpisów zniknie, i podaje tę liczbę w pytaniu. Przy dużym
+drzewie liczenie i usuwanie **nie zatrzymują aplikacji** — idą po kawałku na
+klatkę, a okno pokazuje nazwę, licznik „N z M” i pasek postępu. `Esc` przerywa
+i mówi uczciwie, ile już zniknęło: usunięcia połowy drzewa nie da się cofnąć.
+Do kosza katalog jedzie za to **w całości i od razu** — jedną zmianą nazwy, bez
+liczenia i bez okien.
+
+`Alt`+`U` cofa ostatnią operację odwracalną, a `F3` otwiera **stos cofnięć**:
+listę wykonanych operacji, z której wolno cofnąć dowolną pozycję. Odwracalne są
+zmiana nazwy, przeniesienie, kosz i nowy katalog (dopóki pozostał pusty);
+kopiowanie i usunięcie trwałe stoją na liście wyszarzone — cofnięciem
+kopiowania byłoby usunięcie kopii, więc go nie ma. Cofnięcie nieudane mówi
+dlaczego i nie zdejmuje zapisu; stos nie przeżywa zamknięcia aplikacji.
 
 Po operacji zaznaczone zostaje **to, czego nie dotknęła**: wpisy, które zniknęły,
 wypadają ze zbioru, a pominięte przy kolizji i nieudane zostają zaznaczone — to

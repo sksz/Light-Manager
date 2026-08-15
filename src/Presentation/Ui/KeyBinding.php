@@ -48,6 +48,7 @@ final class KeyBinding
      * @param bool      $ctrl        czy znak wymaga wciśniętego `Ctrl`
      * @param bool      $alt         czy znak wymaga wciśniętego `Alt`
      * @param ?string   $shortDescriptionKey klucz krótkiego opisu — dla paska stanu
+     * @param bool      $shift       czy klawisze nazwane wymagają wciśniętego `Shift`
      */
     public function __construct(
         public readonly array $keys,
@@ -56,6 +57,7 @@ final class KeyBinding
         public readonly bool $ctrl = false,
         public readonly bool $alt = false,
         public readonly ?string $shortDescriptionKey = null,
+        public readonly bool $shift = false,
     ) {
     }
 
@@ -63,6 +65,19 @@ final class KeyBinding
     public static function of(array $keys, string $descriptionKey, ?string $shortKey = null): self
     {
         return new self($keys, null, $descriptionKey, false, false, $shortKey);
+    }
+
+    /**
+     * Czynność na `Shift`+klawisz nazwany — od kroku 44, gdzie wisi na nim
+     * usunięcie drugą drogą i zaznaczanie zakresem. Wiązanie bez `Shift`
+     * **nie łapie** naciśnięcia z nim i odwrotnie — ta sama reguła, którą
+     * `Ctrl` i `Alt` mają przy literach od kroków 19 i 29.
+     *
+     * @param list<Key> $keys
+     */
+    public static function shifted(array $keys, string $descriptionKey, ?string $shortKey = null): self
+    {
+        return new self($keys, null, $descriptionKey, false, false, $shortKey, true);
     }
 
     public static function character(string $character, string $descriptionKey, ?string $shortKey = null): self
@@ -105,6 +120,7 @@ final class KeyBinding
             && $this->character === $other->character
             && $this->ctrl === $other->ctrl
             && $this->alt === $other->alt
+            && $this->shift === $other->shift
             && $this->descriptionKey === $other->descriptionKey;
     }
 
@@ -125,13 +141,21 @@ final class KeyBinding
             return true;
         }
 
-        return in_array($key->key, $this->keys, true);
+        // `Shift` porównuje się przy klawiszach nazwanych tą samą regułą, którą
+        // litera porównuje `Ctrl` i `Alt`: goły `F8` nie ma prawa złapać
+        // `Shift`+`F8`, bo od kroku 44 znaczą dwie różne rzeczy.
+        return $key->shift === $this->shift
+            && in_array($key->key, $this->keys, true);
     }
 
     /** Napis dla użytkownika: nazwy klawiszy rozdzielone ukośnikiem. */
     public function display(): string
     {
-        $names = array_map(self::nameOf(...), $this->keys);
+        $prefix = $this->shift ? 'Shift+' : '';
+        $names = array_map(
+            fn (Key $key): string => $prefix . self::nameOf($key),
+            $this->keys,
+        );
 
         if ($this->character !== null) {
             $names[] = match (true) {

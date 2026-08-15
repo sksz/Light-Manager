@@ -304,13 +304,22 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     szerokim **bajt to nie znak**: znaku nowej linii szukaj w kodowaniu źródła
     i wyłącznie na granicy jednostki kodowej, bo `0A 00` wypada w UTF-16LE także
     w środku pary innych znaków, a kotwica przesunięta o bajt to pół znaku.
-11j. **Słownik wejścia zna dwa modyfikatory, rozłącznie** (krok 29): `ctrl`
-    (skróty modułów, krok 19) i `alt` (zawijanie w podglądzie). Kombinacji
-    `Ctrl`+`Alt` nie ma i nie wprowadzaj jej bez użytkownika. W terminalu `Alt`
-    przychodzi jako `ESC`+litera, więc **jest nieodróżnialny od `Esc` naciśniętego
-    tuż przed literą** — to znana cena, nie usterka. Każde miejsce porównujące
-    literę musi porównać **oba** znaczniki (`KeyBinding::matches()` robi to samo);
-    goła litera nie ma prawa łapać skrótu z modyfikatorem.
+11j. **Słownik wejścia zna trzy modyfikatory, rozłącznie** (kroki 29 i 44):
+    `ctrl` (skróty modułów, krok 19) i `alt` (zawijanie w podglądzie, cofanie) —
+    oba **wyłącznie przy literach** — oraz `shift` (druga droga usunięcia,
+    zaznaczanie zakresem) **wyłącznie przy klawiszach nazwanych**: litera
+    z `Shift`em przychodzi z obu torów jako inna litera, więc znacznik przy
+    znaku nie miałby czego nieść. Kombinacji modyfikatorów nie ma i nie
+    wprowadzaj ich bez użytkownika; `Ctrl`/`Alt` przy klawiszach nazwanych CSI
+    pozostają odrzucane, a bit `Shift`a parser czyta z drugiego parametru
+    (`ESC [ 3 ; 2 ~` = `Shift`+`Delete`). W terminalu `Alt` przychodzi jako
+    `ESC`+litera, więc **jest nieodróżnialny od `Esc` naciśniętego tuż przed
+    literą** — to znana cena, nie usterka. Każde miejsce porównujące literę
+    musi porównać znaczniki (`KeyBinding::matches()` robi to samo); goła litera
+    nie ma prawa łapać skrótu z modyfikatorem, a **goły klawisz nazwany nie ma
+    prawa złapać `Shift`a** — `F8` i `Shift`+`F8` znaczą od kroku 44 dwie różne
+    rzeczy, z których jedna jest nieodwracalna. W ekranie rozstrzygaj `Shift`
+    **przed** gałęziami klawiszy (wzorzec `BrowserScreen::shifted()`).
 11k. **Słownik prymitywów otwarto raz i ma osiem kształtów** (krok 30, D59).
     Ósmy to `TextMark` — **napis na własnym tle**, dla dopasowania filtra. Zgoda
     użytkownika (D48) dotyczyła otwarcia, nie kształtu, a kształt rozstrzygnął
@@ -498,13 +507,18 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     kosztował dziesięć linii bez skutków ubocznych.
     **Granicą jest katalog `Infrastructure/FileSystem`, a nie jedna klasa**
     (krok 42, D79 nr 1): kopiowanie dostało własny port i własną usługę, bo jego
-    stan nie ma nic wspólnego ze stanem usuwania. Zasada zostaje ta sama —
-    wszystko, co pisze po dysku, idzie **przez port rdzenia**.
+    stan nie ma nic wspólnego ze stanem usuwania; kosz (krok 44, `TrashPort`
+    + `XdgTrashService`) — trzecią parę z tego samego powodu. Zasada zostaje ta
+    sama — wszystko, co pisze po dysku, idzie **przez port rdzenia**.
     **Granica wyjątku, poza którą nie wolno wyjść:** rdzeń zna *ścieżkę
     bezwzględną jako napis*, *nazwę jako napis* (bez oceny, czy jest poprawna),
-    *sześć czynności* (zmiana nazwy, nowy katalog, usunięcie wpisu, usunięcie
-    drzewa, kopiowanie i przeniesienie — trzy ostatnie pracą kawałkową) i *stan tej
-    pracy*. Nie zna wpisu, katalogu,
+    *dziewięć czynności* (zmiana nazwy, nowy katalog, usunięcie wpisu, usunięcie
+    drzewa, kopiowanie i przeniesienie — trzy ostatnie pracą kawałkową — oraz
+    przeniesienie do kosza, rezerwacja w nim nazwy i przywrócenie z niego)
+    i *stan tej pracy*. Kosz jest przy tym **katalogiem podawanym w każdym
+    wywołaniu**, bo jego wybór to pozycja ustawień modułu, a układ w środku —
+    zawsze freedesktop.org, z plikiem informacyjnym **przed** przeniesieniem.
+    Nie zna wpisu, katalogu,
     sortowania, ukrywania, zaznaczenia ani podglądu — `Entry`, `Directory`,
     `DirectoryPath` i `EntryType` nie mają prawa trafić do sygnatury niczego
     w `src/Application` ani `src/Domain` (pilnuje `CoreKnowsNothingAboutFilesTest`).
@@ -540,6 +554,20 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     w domyślnym motywie jak katalog. Wniosek na przyszłość: **rola dobrana
     „znaczeniowo” bez sprawdzenia palety bywa rolą bez koloru** — cztery motywy
     trzeba przejrzeć, zanim uzna się sygnał za widoczny.
+15d. **Usunięcie ma dwie drogi, a kosz ma drogę powrotną** (krok 44, D81).
+    Klawisz domyślny (`F8`/`Delete`) robi to, co mówi pozycja modułu „usuwaj do
+    kosza” (domyślnie: kosz), `Shift`+klawisz — zawsze to drugie; usunięcie
+    trwałe **pyta zawsze**, oknem groźnym, a ustawienie „pytaj przed usunięciem”
+    rządzi odtąd koszem. Kosz przenosi **zmianą nazwy, nigdy kopiowaniem**;
+    wpis z innego systemu plików dostaje pytanie o trzech odpowiedziach
+    (skopiuj pracą kawałkową pod nazwą zarezerwowaną mapą `targetNames` /
+    usuń trwale / przerwij), a `.Trash-$uid` na wolumenie nie powstaje.
+    **Stos cofnięć leży w module** (`Module/Browser/Application/Undo/`), nie
+    w rdzeniu — jeden piszący, jeden czytający, reguła 15 — a spis operacji
+    odwracalnych mieszka w `UndoEntry::reversible()`, nie w napisie. Cofnięcie
+    nieudane mówi dlaczego i **nie zdejmuje zapisu**; zapis nie przeżywa
+    zamknięcia aplikacji. `Alt`+`u` cofa najnowsze odwracalne, `F3` otwiera
+    widok stosu (pozycje nieodwracalne wyszarzone, kursor je przeskakuje).
 16. **Dno stosu ekranów wskazuje konfiguracja, nie kod** (krok 21, D42). Klucz
     rdzenia `startupModule` bierze wartości **z rejestru modułów**, a wybór robi
     `Presentation\Cli\StartupScreen`. `Bootstrap` podaje mu identyfikator

@@ -44,11 +44,20 @@ interface FileTransferPort
      * dla zwykłych plików sam, kopiując je **w środku wywołania**, czyli
      * dokładnie tak, jak tej pracy kopiować nie wolno.
      *
-     * @param list<string> $sources ścieżki bezwzględne; lista, nie jeden wpis, także wtedy, gdy ma jeden element (krok 43 doda resztę)
-     * @param string       $target  katalog docelowy, ścieżka bezwzględna
-     * @param bool         $move    czy źródło ma zniknąć po **potwierdzonym** zapisaniu celu
+     * **Nazwy w celu wolno wskazać z góry** (krok 44): mapa „ścieżka źródła →
+     * nazwa docelowa” istnieje dla jednego wołającego — drogi „skopiuj do
+     * kosza”, w której nazwę rezerwuje plik informacyjny **przed** kopiowaniem,
+     * a wpis musi wylądować dokładnie pod nią. Zwykłe kopiowanie mapy nie
+     * podaje i wpisy lądują pod własnymi nazwami, jak od kroku 42. Bez tej mapy
+     * kosz nie miałby jak przyjąć wpisu o zajętej nazwie: kolizja katalogów
+     * jest w tej pracy scaleniem, więc wpis wtopiłby się w cudzy.
+     *
+     * @param list<string>          $sources ścieżki bezwzględne; lista, nie jeden wpis, także wtedy, gdy ma jeden element (krok 43 doda resztę)
+     * @param string                $target  katalog docelowy, ścieżka bezwzględna
+     * @param bool                  $move    czy źródło ma zniknąć po **potwierdzonym** zapisaniu celu
+     * @param array<string, string> $targetNames ścieżka źródła → nazwa w celu; nieobecna znaczy „własna”
      */
-    public function begin(array $sources, string $target, bool $move): TransferState;
+    public function begin(array $sources, string $target, bool $move, array $targetNames = []): TransferState;
 
     /**
      * Posuwa pracę o jeden kawałek i oddaje stan po nim. Wywołanie przy pracy,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Browser\Presentation;
 
+use Closure;
 use LightManager\Application\Dto\TransferChoice;
 use LightManager\Application\Dto\TransferStage;
 use LightManager\Application\Dto\TransferState;
@@ -11,6 +12,8 @@ use LightManager\Application\Dto\WorkProgress;
 use LightManager\Application\Port\FileTransferPort;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Domain\ValueObject\Message;
+use LightManager\Module\Browser\Application\Undo\UndoEntry;
+use LightManager\Module\Browser\Application\Undo\UndoJournal;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
 use LightManager\Module\Browser\Presentation\Component\EntrySize;
 use LightManager\Presentation\Ui\Overlay\ChoiceOverlay;
@@ -93,11 +96,30 @@ final class EntryTransfer
 
     private bool $moves = false;
 
+    /**
+     * Pełna lista nazw prowadzonej pracy — dla zapisu w stosie cofnięć
+     * (krok 44). `name` i `count` nie wystarczą: cofnięcie przeniesienia musi
+     * wiedzieć, **co** przenieść z powrotem, a nie tylko ile tego było.
+     *
+     * @var list<string>
+     */
+    private array $names = [];
+
+    /**
+     * Czy trwająca praca jest **cofnięciem** przeniesienia — wtedy nie zapisuje
+     * się w stosie (cofnięcie cofnięcia to `redo`, a tego krok nie ma) i melduje
+     * się po pełnym ukończeniu domknięciem poniżej.
+     */
+    private bool $undoing = false;
+
+    private ?Closure $undoCompletion = null;
+
     public function __construct(
         private readonly BrowserPanes $panes,
         private readonly FileTransferPort $transfers,
         private readonly PaneRefresh $refresh,
         private readonly TranslatorPort $translator,
+        private readonly UndoJournal $journal,
     ) {
     }
 
@@ -205,13 +227,50 @@ final class EntryTransfer
         $this->target = $target;
         $this->name = $names[0];
         $this->count = count($names);
+        $this->names = $names;
 
         // Lista źródeł czekała na ten krok od kroku 42: port brał ją od pierwszego
         // dnia („lista, nie jeden wpis, także wtedy, gdy ma jeden element — krok 43
         // doda resztę”), więc zaznaczenie wielokrotne nie zmienia w pracy ani jednej
         // linii — wypełnia wyłącznie to, co tamten krok zostawił puste.
-        $state = $this->transfers->begin($sources, $target->value, $moves);
+        return $this->launched($this->transfers->begin($sources, $target->value, $moves));
+    }
 
+    /**
+     * Cofnięcie przeniesienia: ta sama praca w drugą stronę (krok 44, D81 nr 6).
+     *
+     * Wpisy stoją w `$from` (dokąd je przeniesiono), wracają do `$to` (skąd
+     * przyszły) — wraz z liczeniem, oknem postępu i pytaniem o kolizję, bo
+     * katalog źródłowy mógł w międzyczasie dostać nowe wpisy o tych nazwach.
+     * Domknięcie `$onComplete` pada wyłącznie po pracy ukończonej **w całości**:
+     * cofnięcie połowiczne nie zdejmuje zapisu, a zdanie mówi, ile wróciło.
+     *
+     * @param list<string>   $names
+     * @param Closure(): void $onComplete zdjęcie zapisu ze stosu — robi wołający
+     */
+    public function beginRestore(DirectoryPath $from, DirectoryPath $to, array $names, Closure $onComplete): OverlayOutcome
+    {
+        $sources = [];
+
+        foreach ($names as $name) {
+            $sources[] = $from->child($name)->value;
+        }
+
+        $this->moves = true;
+        $this->source = $from;
+        $this->target = $to;
+        $this->name = $names[0];
+        $this->count = count($names);
+        $this->names = $names;
+        $this->undoing = true;
+        $this->undoCompletion = $onComplete;
+
+        return $this->launched($this->transfers->begin($sources, $to->value, true));
+    }
+
+    /** Wspólny ogon obu początków: pierwszy kawałek liczenia i wybór okna. */
+    private function launched(TransferState $state): OverlayOutcome
+    {
         if ($state->stage === TransferStage::Scanning) {
             $state = $this->transfers->advance(self::SCAN_PER_TICK);
         }
@@ -341,6 +400,8 @@ final class EntryTransfer
      */
     private function finished(TransferState $state): Message
     {
+        $full = $state->stage !== TransferStage::Failed && !$state->wasStoppedEarly();
+
         $message = match (true) {
             $state->stage === TransferStage::Failed => $this->reason($state),
             $state->wasStoppedEarly() => Message::info($this->translator->plural(
@@ -348,16 +409,48 @@ final class EntryTransfer
                 $state->doneEntries,
                 ['total' => $this->translator->number((float) $state->totalEntries)],
             )),
+            $this->undoing => Message::info($this->translator->plural(
+                'module.browser.undo.done.move',
+                $state->doneEntries,
+            )),
             default => Message::info($this->translator->plural(
                 $this->moves ? 'module.browser.move.done' : 'module.browser.copy.done',
                 $state->doneEntries,
             )),
         };
 
+        $this->record($full);
         $this->transfers->stop();
         $this->refreshPanes();
 
         return $message;
+    }
+
+    /**
+     * Zapis w stosie cofnięć (krok 44) — wyłącznie po pracy ukończonej
+     * **w całości**. Praca przerwana zostawiła część wpisów tu, część tam,
+     * a zapis, który obiecuje cofnięcie połowy, kłamałby w drugiej połowie.
+     * Kopiowanie zapisuje się jako **nieodwracalne** — jego cofnięciem byłoby
+     * usunięcie kopii — a cofnięcie przeniesienia melduje się domknięciem
+     * i samo się nie zapisuje (`redo` jest poza zakresem).
+     */
+    private function record(bool $full): void
+    {
+        if (!$full || $this->source === null || $this->target === null || $this->names === []) {
+            return;
+        }
+
+        if ($this->undoing) {
+            if ($this->undoCompletion !== null) {
+                ($this->undoCompletion)();
+            }
+
+            return;
+        }
+
+        $this->journal->record($this->moves
+            ? UndoEntry::moved($this->source->value, $this->target->value, $this->names)
+            : UndoEntry::copied($this->target->value, $this->names));
     }
 
     /** `Esc` w trakcie pracy: staje na najbliższym kawałku i mówi, ile zdążyło. */
@@ -380,6 +473,9 @@ final class EntryTransfer
         $this->source = null;
         $this->name = '';
         $this->count = 1;
+        $this->names = [];
+        $this->undoing = false;
+        $this->undoCompletion = null;
 
         if ($target === null) {
             return;
