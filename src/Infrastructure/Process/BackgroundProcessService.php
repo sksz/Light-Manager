@@ -7,6 +7,7 @@ namespace LightManager\Infrastructure\Process;
 use LightManager\Application\Dto\BackgroundHandle;
 use LightManager\Application\Dto\BackgroundState;
 use LightManager\Application\Port\BackgroundProcessPort;
+use LightManager\Infrastructure\Config\SettingsService;
 use LightManager\Infrastructure\Support\AbstractSingleton;
 
 /**
@@ -41,15 +42,22 @@ use LightManager\Infrastructure\Support\AbstractSingleton;
 final class BackgroundProcessService extends AbstractSingleton implements BackgroundProcessPort
 {
     /**
-     * Ile najwyżej bajtów wyjścia pamiętamy.
+     * Ile najwyżej bajtów wyjścia pamiętamy, gdy konfiguracja milczy.
      *
-     * Polecenie zamówione przez moduł ma podać wynik, a nie zapełnić pamięć:
-     * `du -s` wypisuje jeden wiersz, `file -b` jeden wiersz. Sześćdziesiąt cztery
-     * kibibajty to zapas o trzy rzędy wielkości i zarazem twarda granica dla
-     * polecenia, które zaczęłoby sypać bez końca. Nadmiar jest **czytany
-     * i wyrzucany**, bo przestać czytać znaczyłoby zatrzymać potomka.
+     * **Do kroku 49 była to stała wpisana w kod** (64 KiB) dobrana pod polecenia
+     * oddające jeden wiersz: `du -s` wypisuje jeden, `file -b` jeden. Zdalny
+     * katalog jest pierwszym odbiorcą, dla którego wyjściem jest **treść** —
+     * wypis `sftp ls -l` kosztuje około 84 bajtów na wpis, więc dawna stała
+     * urywała listę na siedmiuset wpisach, i to **po cichu**.
+     *
+     * Wartość obowiązującą podaje odtąd konfiguracja
+     * (`Settings::backgroundOutputBytes()`, domyślnie 1 MiB); ta stała zostaje
+     * jako ostatnia deska ratunku dla przebiegów bez wczytanych ustawień —
+     * testów, narzędzi diagnostycznych i awaryjnego odczytu konfiguracji.
+     * Nadmiar jest **czytany i wyrzucany**, bo przestać czytać znaczyłoby
+     * zatrzymać potomka.
      */
-    private const MAX_OUTPUT_BYTES = 64 * 1024;
+    private const FALLBACK_OUTPUT_BYTES = 64 * 1024;
 
     private const KILL_SIGNAL = 9;
 
@@ -67,6 +75,20 @@ final class BackgroundProcessService extends AbstractSingleton implements Backgr
     private int $timeoutSeconds = 0;
 
     private string $output = '';
+
+    /**
+     * Strumień błędów bieżącej pracy — od kroku 49 **pamiętany, a nie
+     * wyrzucany**.
+     *
+     * Zmiana wyszła z odczytu zdalnego katalogu: polecenie, którego wyjściem
+     * jest treść, nie ma prawa scalać z nią diagnostyki w wierszu polecenia
+     * (`2>&1`) — a mimo to musi mieć jak powiedzieć, co poszło nie tak. Powód,
+     * dla którego scalanie jest tam zakazane, stoi przy `BackgroundState`.
+     */
+    private string $errorOutput = '';
+
+    /** Ile bajtów wyjścia wolno zapamiętać bieżącej pracy (krok 49). */
+    private int $outputLimit = self::FALLBACK_OUTPUT_BYTES;
 
     private int $lastId = 0;
 
@@ -86,6 +108,7 @@ final class BackgroundProcessService extends AbstractSingleton implements Backgr
         $handle = new BackgroundHandle(++$this->lastId);
         $this->current = $handle;
         $this->timeoutSeconds = max(1, $timeoutSeconds);
+        $this->outputLimit = self::limitFromSettings();
 
         if (!function_exists('proc_open')) {
             $this->state = BackgroundState::failed('process.unavailable');
@@ -113,6 +136,7 @@ final class BackgroundProcessService extends AbstractSingleton implements Backgr
         $this->pipes = $pipes;
         $this->deadline = microtime(true) + $this->timeoutSeconds;
         $this->output = '';
+        $this->errorOutput = '';
         $this->state = BackgroundState::running();
 
         $this->registerShutdownHandler();
@@ -155,10 +179,11 @@ final class BackgroundProcessService extends AbstractSingleton implements Backgr
         // bo `proc_close()` po pochowaniu potomka oddaje już tylko −1.
         $this->drain();
         $output = $this->output;
+        $errorOutput = $this->errorOutput;
         $exitCode = $status['exitcode'];
         $this->release();
 
-        return $this->state = BackgroundState::done(trim($output), $exitCode);
+        return $this->state = BackgroundState::done(trim($output), $exitCode, trim($errorOutput));
     }
 
     public function stop(BackgroundHandle $handle): void
@@ -210,16 +235,42 @@ final class BackgroundProcessService extends AbstractSingleton implements Backgr
 
             $chunk = stream_get_contents($pipe);
 
-            if ($chunk === false || $chunk === '' || $descriptor !== 1) {
+            if ($chunk === false || $chunk === '') {
                 continue;
             }
 
-            $room = self::MAX_OUTPUT_BYTES - strlen($this->output);
+            // **Oba strumienie idą do granicy z osobna**, każdy z własnym
+            // limitem: `du` na katalogu domowym potrafi wypisać na strumieniu
+            // błędów więcej, niż wynosi jego wynik, a wspólny licznik kazałby
+            // wynikowi ustąpić narzekaniu.
+            if ($descriptor === 1) {
+                $this->output .= $this->fitting($chunk, $this->output);
 
-            if ($room > 0) {
-                $this->output .= substr($chunk, 0, $room);
+                continue;
             }
+
+            $this->errorOutput .= $this->fitting($chunk, $this->errorOutput);
         }
+    }
+
+    /** Tyle kawałka, ile mieści się w limicie; pusty napis, gdy nie mieści się nic. */
+    private function fitting(string $chunk, string $collected): string
+    {
+        $room = $this->outputLimit - strlen($collected);
+
+        return $room > 0 ? substr($chunk, 0, $room) : '';
+    }
+
+    /**
+     * Limit obowiązujący **tę** pracę — brany raz, przy jej uruchomieniu.
+     *
+     * Raz, a nie co odczyt, i to jest cała reguła tego miejsca: praca, której
+     * limit zmieniłby się w trakcie, zbierałaby wyjście wedle dwóch różnych
+     * miar i nikt nie umiałby powiedzieć, ile jej w końcu wolno.
+     */
+    private static function limitFromSettings(): int
+    {
+        return SettingsService::getInstance()->current()->backgroundOutputBytes();
     }
 
     /**

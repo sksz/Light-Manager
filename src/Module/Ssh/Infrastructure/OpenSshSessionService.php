@@ -49,15 +49,6 @@ use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
  */
 final class OpenSshSessionService extends AbstractSingleton implements SshSessionPort
 {
-    private const DIRECTORY = '.light-manager';
-
-    /** Znak wodny w nazwie gniazda — żeby dało się je poznać w katalogu. */
-    private const SOCKET_PREFIX = 'ssh-';
-
-    private const SOCKET_SUFFIX = '.sock';
-
-    private const DIRECTORY_MODE = 0o700;
-
     /**
      * Ile sekund ponad limit połączenia dać potomkowi, zanim port go ubije.
      *
@@ -284,7 +275,12 @@ final class OpenSshSessionService extends AbstractSingleton implements SshSessio
 
             $socket = $this->socketFor($master);
 
-            if (is_file($socket)) {
+            // `file_exists()`, a nie `is_file()`: gniazdo uniksowe **nie jest
+            // zwykłym plikiem**, więc tamto pytanie odpowiadało „nie ma go"
+            // zawsze i sprzątanie nigdy się nie wykonywało. Usterka z kroku 48
+            // widoczna dopiero wtedy, gdy ktoś w kroku 49 zapytał o to samo
+            // z zewnątrz i zobaczył „BRAK" przy stojącej sesji.
+            if (file_exists($socket)) {
                 @unlink($socket);
             }
 
@@ -537,37 +533,17 @@ final class OpenSshSessionService extends AbstractSingleton implements SshSessio
     }
 
     /**
-     * Ścieżka gniazda mistrza.
+     * Ścieżka gniazda mistrza — **liczona w jednym miejscu dla całego modułu**.
      *
-     * Nazwa jest **skrótem z celu**, a nie celem: gniazdo uniksowe ma twardy
-     * limit długości ścieżki (108 bajtów na Linuksie), a `użytkownik@host:port`
-     * w katalogu domowym potrafi go przekroczyć. Skrót jest przy tym stały
-     * między uruchomieniami, więc mistrz zostawiony przez poprzedni proces
-     * daje się odnaleźć.
+     * Rachunek zszedł w kroku 49 do `ControlSocket`, bo doszedł drugi
+     * użytkownik: odczyt zdalnego katalogu wchodzi przez to samo gniazdo.
+     * Powtórzony po obu stronach rozjechałby się przy pierwszej poprawce,
+     * a rozjazd byłby niewidoczny — wszystko dalej działa, tylko z drugim
+     * uściskiem dłoni.
      */
     private function socketFor(HostProfile $profile): string
     {
-        $digest = substr(hash('sha256', $profile->target() . ':' . $profile->port), 0, 16);
-
-        return $this->directory() . DIRECTORY_SEPARATOR . self::SOCKET_PREFIX . $digest . self::SOCKET_SUFFIX;
-    }
-
-    private function directory(): string
-    {
-        $home = getenv('HOME');
-
-        if (!is_string($home) || $home === '') {
-            $working = getcwd();
-            $home = $working === false ? '.' : $working;
-        }
-
-        $directory = rtrim($home, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::DIRECTORY;
-
-        if (!is_dir($directory)) {
-            @mkdir($directory, self::DIRECTORY_MODE, true);
-        }
-
-        return $directory;
+        return ControlSocket::pathFor($profile);
     }
 
     /**

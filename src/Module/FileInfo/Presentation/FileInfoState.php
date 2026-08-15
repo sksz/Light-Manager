@@ -76,8 +76,21 @@ final class FileInfoState
      */
     private const TAIL_CHARACTERS = 256 * 1024;
 
-    /** Ścieżka, dla której policzono opis; `null` — jeszcze niczego nie liczono. */
+    /**
+     * Ścieżka **lokalna**, dla której policzono opis; `null` — jeszcze niczego
+     * nie liczono albo wpis leży na innej maszynie (krok 49).
+     */
     private ?string $path = null;
+
+    /**
+     * Ścieżka zdalna, dla której policzono opis; `null` — wpis jest lokalny.
+     *
+     * Pole jest osobne, a nie wspólne z `$path`, i to jest jego cały powód:
+     * gdyby ścieżki dzieliły jedno pole, pytanie „czy to nadal ten sam wpis”
+     * odpowiadałoby **twierdząco** na przejście z lokalnego `/etc` na zdalne
+     * `/etc` — a to są dwa różne miejsca o tym samym napisie.
+     */
+    private ?string $remotePath = null;
 
     private ?EntryDescription $description = null;
 
@@ -656,11 +669,24 @@ final class FileInfoState
     public function useContext(ModuleContext $context): void
     {
         $this->context = $context;
-        $path = $context->selectionPath();
+
+        // **Wpis zdalny nie ma ścieżki lokalnej** (krok 49) i to jest jedyna
+        // rzecz, którą trzeba tu zrobić, żeby żadne wywołanie systemowe nie
+        // trafiło w cudzy plik: suma kontrolna, zajętość, miniatura i podgląd
+        // tekstu pytają wszystkie o `$this->path`, a `null` zatrzymuje każde
+        // z nich u siebie. Opis powstaje mimo to — z kontekstu.
+        $path = $context->isRemote() ? null : $context->selectionPath();
+        $remotePath = $context->isRemote() ? $context->selectionPath() : null;
 
         if ($path === $this->path && $this->path !== null) {
             return;
         }
+
+        if ($remotePath !== null && $remotePath === $this->remotePath) {
+            return;
+        }
+
+        $this->remotePath = $remotePath;
 
         // Zmiana zaznaczenia przerywa obie prace nad poprzednim wpisem. Bez tego
         // przewinięcie listy zostawiałoby za sobą otwarte uchwyty do plików,
@@ -708,6 +734,14 @@ final class FileInfoState
         $settings = $this->settings->current();
         $description = $this->description;
 
+        // Odmowa „wpis zdalny" idzie **przed** wszystkimi innymi i mówi wprost,
+        // czego brakuje (krok 49). Bez niej użytkownik dostałby „to nie jest
+        // plik" o pliku, na który patrzy — odpowiedź prawdziwą po stronie tego
+        // procesu i niezrozumiałą po stronie tego, kto zadał pytanie.
+        if ($this->context->isRemote()) {
+            return 'module.file-info.remote.refused';
+        }
+
         if (!FileInfoSettings::checksum($settings)) {
             return 'module.file-info.checksum.disabled';
         }
@@ -751,6 +785,10 @@ final class FileInfoState
         $description = $this->description;
         $path = $this->path;
 
+        if ($this->context->isRemote()) {
+            return 'module.file-info.remote.refused';
+        }
+
         if (!FileInfoSettings::diskUsage($this->settings->current())) {
             return 'module.file-info.diskUsage.disabled';
         }
@@ -783,6 +821,7 @@ final class FileInfoState
         $this->stopDiskUsage();
         $this->rewindTextPreview();
         $this->path = null;
+        $this->remotePath = null;
         $this->description = null;
     }
 

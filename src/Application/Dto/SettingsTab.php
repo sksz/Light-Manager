@@ -23,7 +23,12 @@ use LightManager\Application\Module\ModuleSettingsTab;
  *
  * Podział zakładek rdzenia jest tematyczny, nie alfabetyczny: „Wygląd” zbiera
  * to, co widać od razu, „Grafika” — przełączniki potoku Sixela, których skutek
- * widać dopiero po przyjrzeniu się klatce.
+ * widać dopiero po przyjrzeniu się klatce, a „Zasoby” (krok 49) — granice, na
+ * które aplikacja natrafia dopiero przy dużych danych.
+ *
+ * Trzecia zakładka powstała z jedną pozycją i jest to świadome: limit wyjścia
+ * pracy tłowej nie jest ani wyglądem, ani grafiką, a dopisany do którejkolwiek
+ * z tamtych zakładek byłby wierszem, którego nikt tam nie szuka.
  */
 final class SettingsTab
 {
@@ -77,7 +82,7 @@ final class SettingsTab
     }
 
     /**
-     * Zakładki rdzenia — dwie, w kolejności, w jakiej stały od kroku 14.
+     * Zakładki rdzenia — dwie od kroku 14, trzecia („Zasoby”) od kroku 49.
      *
      * @return list<self>
      */
@@ -94,6 +99,9 @@ final class SettingsTab
                 SettingKey::TextAntialias,
                 SettingKey::StrokeAntialias,
                 SettingKey::PaletteColors,
+            ]),
+            self::core('settings.tab.resources', [
+                SettingKey::BackgroundOutputKib,
             ]),
         ];
     }

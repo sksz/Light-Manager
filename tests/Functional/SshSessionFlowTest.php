@@ -66,7 +66,11 @@ final class SshSessionFlowTest extends TestCase
     {
         $this->openHosts();
 
-        self::assertSame('ssh-hosts', $this->app->screens->current()->id());
+        // Tożsamość ekranu zmieniła się w kroku 49 z `ssh-hosts` na `ssh`:
+        // moduł wnosi **jeden ekran w dwóch postaciach**, a `ScreenStack` liczy
+        // po tożsamości, więc dwie znaczyłyby dwa wpisy na stosie dla czegoś,
+        // co użytkownik widzi jako jedno miejsce.
+        self::assertSame('ssh', $this->app->screens->current()->id());
 
         $this->press(KeyPress::ctrl('s'));
 
@@ -102,6 +106,15 @@ final class SshSessionFlowTest extends TestCase
 
         self::assertNull($this->app->state->overlays()->current(), 'okno zamknęło się samo');
         self::assertTrue($this->sessions->state()->isConnected());
+
+        // **Od kroku 49 ekran ma dwie postacie**: po połączeniu spis hostów
+        // ustępuje zdalnemu katalogowi, więc górny pas mówi o katalogu, a nie
+        // o etapie sesji. `F2` zagląda z powrotem do spisu — i tam zdanie „z kim
+        // stoi sesja", będące miarą kroku 48, jest nadal na swoim miejscu.
+        self::assertStringContainsString('module.ssh.remote.header', implode(' ', $this->headerTexts()));
+
+        $this->press(KeyPress::special(Key::F3, "\e[13~"));
+
         self::assertStringContainsString('module.ssh.stage.connected', implode(' ', $this->headerTexts()));
     }
 
@@ -195,13 +208,20 @@ final class SshSessionFlowTest extends TestCase
         self::assertSame('progress', $this->app->state->overlays()->current()?->id());
     }
 
-    /** `Enter` na wpisie, z którym stoi sesja, **rozłącza** zamiast łączyć drugi raz. */
+    /**
+     * `Enter` na wpisie, z którym stoi sesja, **rozłącza** zamiast łączyć drugi
+     * raz.
+     *
+     * Od kroku 49 droga do tego wpisu wiedzie przez `F2`: po połączeniu widać
+     * zdalny katalog, a spis hostów jest tym, do czego się **zagląda**.
+     */
     public function testEnterOnTheConnectedHostDisconnects(): void
     {
         $this->openHosts();
         $this->press(KeyPress::special(Key::Enter, "\r"));
         $this->sessions->settleConnected($this->profile('biuro'));
         $this->advanceWork();
+        $this->press(KeyPress::special(Key::F3, "\e[13~"));
 
         $this->press(KeyPress::special(Key::Enter, "\r"));
 

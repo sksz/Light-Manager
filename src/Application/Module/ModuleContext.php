@@ -34,6 +34,19 @@ namespace LightManager\Application\Module;
  * danej, nie jej odbiorcy: zajętość katalogu wraz z zawartością umie policzyć
  * wyłącznie `du` z kroku 26, więc każdy, kto by ją tu doliczył, musiałby ją
  * najpierw zmyślić.
+ *
+ * **Od kroku 49 kontekst mówi ponadto, czyja jest ścieżka** (`origin`) i niesie
+ * to, co wydawca wie o zaznaczeniu: rozmiar, czas zmiany i prawa. Jedno wynika
+ * z drugiego i oba są rozstrzygnięciem użytkownika podjętym wbrew rekomendacji
+ * planu. Powód pierwszego pola stoi przy `ContextOrigin`: bez niego ekran
+ * zdalny publikujący `/var/log` kazałby modułowi opisu pliku pokazać **lokalny**
+ * `/var/log`. Powód trzech następnych jest jego konsekwencją — odbiorcy odjęto
+ * `lstat`, więc trzeba mu dać czym opisać wpis, którego nie wolno mu dotknąć.
+ *
+ * Atrybuty są **`null`-owalne i to jest ich treść**, a nie ostrożność: wydawca,
+ * który ich nie zna, ma powiedzieć „nie wiem”, a nie podać zero. Zero jest
+ * poprawnym rozmiarem pustego pliku i odbiorca nie ma jak odróżnić go od braku
+ * odpowiedzi.
  */
 final class ModuleContext
 {
@@ -49,7 +62,32 @@ final class ModuleContext
         public readonly int $markedBytes = 0,
         /** Ile spośród zaznaczonych jest katalogami — o tyle suma powyżej milczy. */
         public readonly int $markedDirectories = 0,
+        /** Czyja jest ścieżka: tej maszyny czy cudzej (krok 49). */
+        public readonly ContextOrigin $origin = ContextOrigin::Local,
+        /**
+         * Podpis miejsca do pokazania użytkownikowi — `użytkownik@host` dla
+         * zdalnego, pusty napis dla lokalnego.
+         *
+         * Napis, a nie profil hosta: kontekst nie ma prawa wymienić z odbiorcą
+         * typu należącego do modułu, który go publikuje (D40, P5).
+         */
+        public readonly string $originLabel = '',
+        /** Rozmiar zaznaczenia w bajtach; `null` — wydawca go nie zna. */
+        public readonly ?int $selectionBytes = null,
+        /** Czas ostatniej zmiany zaznaczenia; `null` — wydawca go nie zna. */
+        public readonly ?int $selectionModifiedAt = null,
+        /** Same bity uprawnień zaznaczenia, bez rodzaju; `null` — wydawca ich nie zna. */
+        public readonly ?int $selectionPermissions = null,
     ) {
+    }
+
+    /**
+     * Czy wpis leży poza tą maszyną — pytanie zadawane przez każdego, kto
+     * chciałby go dotknąć wywołaniem systemowym.
+     */
+    public function isRemote(): bool
+    {
+        return $this->origin === ContextOrigin::Remote;
     }
 
     /** Czy zaznaczono więcej niż wpis pod kursorem — pytanie zadawane przez odbiorców. */

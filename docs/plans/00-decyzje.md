@@ -107,6 +107,7 @@ Kolumna **Stan** mówi, co się z decyzją stało w kodzie:
 | [D85](#d85--kontenery-wchodzą-jako-faza-xviii-dwa-moduły-droga-mieszana-a-współpracę-niosą-komendy-i-nowe-kwerendy) | Kontenery wchodzą jako Faza XVIII: dwa moduły, droga mieszana, a współpracę niosą komendy i nowe kwerendy | kroki 51, 52, 53 | 2026-08-15 | Czeka |
 | [D86](#d86--kwerendy-dostają-wszystkie-moduły-a-odbiorcą-tych-bez-konsumenta-w-kodzie-zostaje-użytkownik) | Kwerendy dostają wszystkie moduły, a odbiorcą tych bez konsumenta w kodzie zostaje użytkownik | krok 53 | 2026-08-15 | Czeka |
 | [D87](#d87--rozstrzygnięcia-startowe-kroku-48-cała-sesja-w-procesie-potomnym-przez-controlmaster-known_hosts-prowadzi-ssh-rdzeń-rośnie-o-dwie-rzeczy-zamiast-jednej-linii) | Rozstrzygnięcia startowe kroku 48: cała sesja w procesie potomnym przez `ControlMaster`, `known_hosts` prowadzi `ssh`, rdzeń rośnie o dwie rzeczy zamiast jednej linii | krok 48 (i przez nr 1 — Faza XVII w całości) | 2026-08-15 | Wdrożona |
+| [D88](#d88--rozstrzygnięcia-startowe-kroku-49-jeden-ekran-w-dwóch-postaciach-kontekst-dostaje-pochodzenie-a-polecenie-którego-wyjściem-jest-treść-nie-scala-strumieni) | Rozstrzygnięcia startowe kroku 49: jeden ekran w dwóch postaciach, kontekst dostaje pochodzenie, a polecenie, którego wyjściem jest treść, nie scala strumieni | krok 49 (i przez nr 11 — rdzeniowy port pracy tłowej) | 2026-08-15 | Wdrożona |
 
 > **Indeks jest niekompletny od D62 wzwyż.** Wpisy **D62–D76** stoją w treści
 > dziennika, ale wiersza tutaj nie dostały — regułę „nowy wpis to dwie czynności”
@@ -6174,3 +6175,132 @@ procesu w module** (`SshProcessService`) — legalna wobec reguły 15, bo moduł
 prawo do własnej warstwy `Infrastructure`, ale byłaby drugim w projekcie
 miejscem robiącym `proc_open`, z własnym sprzątaniem i własnym limitem czasu,
 czyli powtórzeniem kroku 26 w module.
+
+### D88 — Rozstrzygnięcia startowe kroku 49: jeden ekran w dwóch postaciach, kontekst dostaje pochodzenie, a polecenie, którego wyjściem jest treść, nie scala strumieni
+
+**Dotyczy:** kroku 49 ([49-zdalny-katalog.md](49-zdalny-katalog.md)),
+`src/Module/Ssh/` (własna domena plikowa, odczyt, drugi ekran),
+`Application/Module/ContextOrigin` i `ModuleContext` (pochodzenie),
+`Application/Dto/BackgroundState` oraz
+`Infrastructure/Process/BackgroundProcessService` (strumień błędów i limit
+z konfiguracji), `Application/Dto/{Settings,SettingKey,SettingsTab}` (trzecia
+zakładka rdzenia), modułu `FileInfo` (odbiorca pochodzenia), katalogów napisów,
+[docs/architecture.md](../architecture.md),
+[SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md)
+i [docs/pomiary/README.md](../pomiary/README.md).
+
+**Data:** 2026-08-15, przed pierwszą linią kodu — osiem pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku”, dwa wynikłe z odpowiedzi na nie oraz jedno
+zadane **w trakcie**, po tym jak próba z żywym serwerem wykryła cichą utratę
+danych.
+
+**Sprawdzenie stanu zastanego: tabela z planu rozminęła się z rzeczywistością
+w jednym miejscu, za to zasadniczym.** `ext-ssh2` nie jest już drogą tej fazy
+(D87 nr 1 i 2), więc pytanie „czy `opendir()` na opakowaniu oddaje atrybuty”
+straciło adresata. Zadano je na nowo `sftp`-owi, na żywym serwerze SFTP
+(kontener `atmoz/sftp:alpine`, OpenSSH 9.6), **przed pierwszą linią kodu** — i to
+ten pomiar, a nie wybór między wariantami, przesądził o kształcie kroku:
+
+| Fakt | Liczba |
+|---|---|
+| `sftp ls -l` przez stojącego mistrza | **jeden obieg** oddaje nazwę, rodzaj, prawa, rozmiar i datę |
+| koszt wywołania | ~0,93 s — koszt **otwarcia kanału** (to samo kosztuje `ssh … true`), nie listowania |
+| pięć tysięcy wpisów ponad to | +0,1 s, 419 KB wypisu |
+| rozczytanie tych wpisów w PHP | **3,2 ms** |
+| postać wypisu | składa go **klient**, nie serwer, i nie zależy od ustawień językowych |
+
+**Decyzje użytkownika (1–8 — pytania z planu; 9 i 10 — wynikłe; 11 — zadane
+w trakcie):**
+
+1. **Jeden ekran w dwóch postaciach.** Spis hostów ustępuje zdalnemu katalogowi
+   po połączeniu i wraca po rozłączeniu; `F3` zagląda do spisu przy żywej sesji
+   (`F2` należy do rdzenia — pomyłkę złapał przebieg funkcjonalny, który zamiast
+   spisu otworzył ustawienia). Odrzucono podział ekranu (`Split` dałby tabeli
+   o czterech kolumnach połowę szerokości) i kontrakt oddający wiele ekranów
+   (zmiana rdzenia). **Postać zmienia takt, a nie klawisz**: połączenie kończy
+   się w procesie potomnym, więc chwili „jest sesja” nie zna żaden klawisz.
+2. **Granica powtarzania domeny plikowej jest podwójna.** *Jakościowa:* wolno
+   powtórzyć **pojęcia** (ścieżka, wpis, rodzaj, filtr, porządek), nie wolno
+   powtórzyć **mechanizmu rdzenia** (praca kawałkowa, komponenty, zdarzenia,
+   proces tłowy, zakresy dopasowania). *Ilościowa:* **trzeci** moduł z własną
+   domeną plikową uruchamia przegląd „czy to nadal powtórzenie”. Zapisane
+   w `SKILL.md` jako reguła 15e.
+3. **Atrybuty przychodzą jednym obiegiem** — wbrew rekomendacji planu, bo
+   rekomendacja (`stat` kawałkowo dla widocznego okna) chroniła przed kosztem,
+   którego przy tej drodze nie ma. **Praca kawałkowa została jednostopniowa,
+   a budżet mierzony zegarem — zapowiadany jako główna trudność kroku — nie
+   powstał w ogóle.** Z wzorca D46 zostaje to, co się liczy: praca jest daną
+   oglądaną co klatkę.
+4. **Wpisy ukryte: pozycja ustawień i klawisz `Ctrl`+`H`**, jak w przeglądarce —
+   z ceną, której tamta nie ma: przełączenie znaczy **nowy obieg do serwera**, bo
+   `sftp ls` bez `-a` wpisów zaczynających się kropką w ogóle nie przysyła.
+5. **Filtr nazwy wchodzi wraz z podświetleniem dopasowania** — wbrew
+   rekomendacji planu, który proponował odłożyć go w całości. Powtórzone jest
+   **zachowanie**, nie mechanizm: zakresy liczy rdzeniowy `TextSpan` z kroku 30.
+6. **Kontekst dostaje pochodzenie** (`ContextOrigin`) — wbrew rekomendacji
+   planu, która brzmiała „ekran zdalny nie publikuje kontekstu”. Powód wyboru
+   jest ten sam, co powód, dla którego plan się wahał: kontekst niósł ścieżkę
+   jako napis, więc ekran zdalny publikujący `/var/log` kazałby modułowi opisu
+   pliku pokazać **lokalny** `/var/log` — kłamstwo ciche, bo obie ścieżki
+   istnieją i obie się czytają.
+7. **Po rozłączeniu wraca spis hostów** — także po zerwaniu niechcianym. Powód
+   zerwania mówi pasek stanu; lista zostawiona na ekranie nie miałaby czego
+   dodać poza wrażeniem, że wciąż działa.
+8. **Dowiązania pokazujemy tak, jak widzi je `lstat`, a `Enter` po prostu
+   próbuje wejść.** Rozstrzygnięcie, dokąd prowadzą, kosztowałoby **obieg na
+   każde dowiązanie w katalogu** — czyli dokładnie to, czego zastrzeżenie
+   startowe kazało unikać.
+9. **Limit wyjścia pracy tłowej wchodzi do konfiguracji** (`backgroundOutputKib`,
+   domyślnie 1 MiB, trzecia zakładka rdzenia „Zasoby”). Pytania tego plan nie
+   miał: dawna stała 64 KiB była dobrana pod polecenia oddające jeden wiersz
+   (`du -s`, `file -b`) i urywała listę katalogu **po cichu** na siedmiuset
+   wpisach. Odrzucono plik roboczy i przyjęcie obcięcia ze znakiem.
+10. **Moduł opisu pliku pokazuje wpis zdalny z tego, co już wiadomo** — nazwa,
+    host, rozmiar, data i prawa, wszystko z kontekstu, bez ani jednego dotknięcia
+    dysku i sieci. To jest odbiorca, bez którego pochodzenie byłoby mechanizmem
+    bez użytkownika (reguła 13). Cena: kontekst niesie trzy atrybuty zaznaczenia
+    więcej, a suma kontrolna i zajętość odmawiają pracy zdaniem mówiącym dlaczego.
+11. **Port pracy tłowej niesie strumień błędów osobnym polem.** Pytanie padło
+    **w trakcie**, po tym jak próba z żywym serwerem wykryła, że katalog o pięciu
+    tysiącach wpisów przychodzi jako 1551 — z kodem wyjścia zero. Użytkownik
+    odrzucił obejście przez plik roboczy i polecił **znaleźć przyczynę**; ta
+    okazała się leżeć w naszym własnym `2>&1` (patrz niżej). Naprawą jest zakaz
+    scalania, a osobne pole jest tym, co pozwala go dotrzymać bez utraty powodu
+    niepowodzenia.
+
+**Przyczyna cichej utraty danych — bo to ona jest najtrwalszym wynikiem tego
+kroku.** Polecenie kończyło się na `2>&1`, więc strumień błędów potomka i potok
+z listą to **ten sam opis pliku**. `sftp` uruchamia `ssh`, a ten przy
+`ControlPath` jest **klientem multipleksera**: przekazuje swoje deskryptory
+mistrzowi połączenia, który obsługuje wiele sesji w jednej pętli i dlatego
+ustawia im tryb nieblokujący. Tryb jest własnością **opisu pliku**, więc wracał
+tym samym potokiem na wyjście `sftp`; odkąd potok się zapełnił (pętla klatek
+opróżnia go raz na 33 ms), `write()` zwracał `EAGAIN`, a OpenSSH porzucał porcję
+wypisu i kończył się kodem zero. Dowód A/B: flagi deskryptora wyjścia potomka to
+`04001` z `2>&1` (130 KB z 419 KB) i `01` bez niego (419 KB z 419 KB). Rdzeń
+i PHP są niewinne — port przeczytał 400 KB od równie wolno piszącego polecenia,
+a stratę odtworzono **bez PHP**, samą powłoką z pauzami.
+
+**Co z tych decyzji wynika dla kroku:**
+
+- **Kryterium „rdzeń kosztuje jedną linię” jest odwołane, i to jawnie.** Rdzeń
+  rośnie o **pięć** rzeczy: pozycję w `Bootstrapie` (stała tam od kroku 48),
+  limit wyjścia w konfiguracji wraz z trzecią zakładką ustawień (nr 9),
+  pochodzenie w `ModuleContext` (nr 6), odbiorcę pochodzenia w module opisu pliku
+  (nr 10) i strumień błędów w `BackgroundState` (nr 11). Wszystkie są
+  rozstrzygnięciami użytkownika podjętymi z ceną wypisaną **przed** wyborem,
+  a nie długiem przeoczonym w trakcie.
+- **Zasada z kroku 26 zostaje w mocy i zyskuje mocniejsze uzasadnienie.**
+  „Strumieni się nie skleja” było dotąd argumentem o czytelności (`du` zasypuje
+  strumień błędów); od tego kroku wiadomo, że sklejanie potrafi **zepsuć dane**.
+  Pola są rozdzielone właśnie po to, żeby nikt niczego nie sklejał.
+- **Kroki 50 i 51 dostają to za darmo.** Przesył plików pójdzie tą samą drogą
+  (i tym samym zakazem), a moduł `docker` — pierwszy odbiorca limitu z konfiguracji
+  poza tym krokiem, bo `docker logs` jest poleceniem, którego wyjściem jest treść.
+
+**Odrzucone alternatywy** (poza wymienionymi przy decyzjach): **plik roboczy jako
+droga wypisu** — sprawdzony i działający (komplet 419 KB), odrzucony przez
+użytkownika, bo leczyłby objaw zamiast przyczyny; **`| cat` w potoku** — zmniejszał
+stratę (211 KB zamiast 130 KB), więc był obejściem gorszym od tamtego;
+**wykrywanie obcięcia po liczbie wpisów** — `sftp` nie mówi, ile miało być, więc
+nie da się tego wykryć pewnie.

@@ -388,6 +388,24 @@ Rdzeń faza kosztuje **jedną linię w `Bootstrapie`** (reguła 15) — z jednym
 możliwym wyjątkiem, nazwanym z góry i wymagającym zgody: zapis pobranego pliku
 na dysk lokalny dotyka wyjątku 15b (krok 50, zastrzeżenie startowe).
 
+**Krok 49 wykonany — i to pomiar, a nie wybór między wariantami, przesądził
+o jego kształcie.** Zastrzeżenie startowe („jeden obieg sieci na wpis”) okazało
+się bezprzedmiotowe: `sftp ls -l` oddaje **nazwę razem z atrybutami w jednym
+obiegu**, a koszt siedzi w **wywołaniu** (~0,93 s otwarcia kanału na pętli
+zwrotnej), nie we wpisie (pięć tysięcy wpisów to +0,1 s, a ich rozczytanie w PHP
+— 3,2 ms). Praca kawałkowa została przez to **jednostopniowa**, a budżet kawałka
+mierzony zegarem — zapowiadany jako główna trudność kroku — nie powstał w ogóle.
+
+**Rdzeń urósł o pięć rzeczy zamiast zapowiadanej jednej linii** (D88), a jedna
+z nich wyszła dopiero z próby na żywym serwerze i jest najtrwalszym wynikiem
+kroku: **polecenie, którego wyjściem jest treść, nie ma prawa scalać strumieni**
+(`2>&1`). Scalanie przenosiło na wyjście `sftp` tryb nieblokujący, który mistrz
+połączenia nakłada deskryptorom klienta multipleksera — i z 419 KB listy
+dochodziło 130 KB, **z kodem wyjścia zero**. Rdzeń i PHP były niewinne;
+przyczynę potwierdzono A/B na flagach deskryptora i odtworzono bez PHP. Zakaz
+scalania wraz z osobnym polem strumienia błędów w `BackgroundState` stoi odtąd
+w `SKILL.md` jako reguła 15f.
+
 > **Droga techniczna fazy odwrócona 2026-08-15, na starcie kroku 48**
 > ([00-decyzje.md](00-decyzje.md), D87 nr 1 i 2). `ext-ssh2` **wypada z fazy
 > w całości**: sesja nie żyje w procesie aplikacji, tylko w procesie potomnym —
@@ -407,7 +425,7 @@ na dysk lokalny dotyka wyjątku 15b (krok 50, zastrzeżenie startowe).
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
 | 48 | Moduł `Ssh`: sesja, uwierzytelnienie i książka hostów | [48-ssh-sesja-i-hosty.md](archiwum/48-ssh-sesja-i-hosty.md) | 18, 19, 20, 26, 40, 45, 46, 47 | Opus | high | Ukończony z zastrzeżeniem |
-| 49 | Zdalny katalog: panel modułu czyta przez SFTP | [49-zdalny-katalog.md](49-zdalny-katalog.md) | 18, 21, 25, 27, 30, 33, 48 | Opus | xhigh | Nie rozpoczęty |
+| 49 | Zdalny katalog: panel modułu czyta przez SFTP | [49-zdalny-katalog.md](49-zdalny-katalog.md) | 18, 21, 25, 27, 30, 33, 48 | Opus | xhigh | Ukończony z zastrzeżeniem |
 | 50 | Przesył plików: pobranie i wysłanie pracą kawałkową | [50-przesyl-plikow.md](50-przesyl-plikow.md) | 21, 23, 41, 42, 43, 46, 47, 48, 49 | Opus | xhigh | Nie rozpoczęty |
 
 ### Faza XVIII — Kontenery: Docker, Kubernetes i współpraca modułów

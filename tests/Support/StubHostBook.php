@@ -21,6 +21,16 @@ final class StubHostBook implements HostBookPort
 {
     public int $saves = 0;
 
+    /**
+     * Zapamiętane katalogi zdalne (krok 49) — po jednym na wpis książki.
+     *
+     * Publiczne, bo test o nie pyta wprost: „ostatni katalog przeżywa ponowne
+     * uruchomienie" sprawdza się tym, co atrapa dostała do zapamiętania.
+     *
+     * @var array<string, string>
+     */
+    public array $directories = [];
+
     public function __construct(
         private HostBook $book = new HostBook(),
         private readonly ?string $problemKey = null,
@@ -41,5 +51,15 @@ final class StubHostBook implements HostBookPort
     public function location(): string
     {
         return '/tmp/light-manager-test/ssh.json';
+    }
+
+    public function lastDirectory(string $hostName): ?string
+    {
+        return $this->directories[$hostName] ?? null;
+    }
+
+    public function rememberDirectory(string $hostName, string $path): void
+    {
+        $this->directories[$hostName] = $path;
     }
 }

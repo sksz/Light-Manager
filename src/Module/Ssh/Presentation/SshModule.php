@@ -15,12 +15,16 @@ use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Module\RequiresEnvironment;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
+use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Module\Ssh\Application\Port\HostBookPort;
+use LightManager\Module\Ssh\Application\Port\RemoteDirectoryPort;
 use LightManager\Module\Ssh\Application\Port\SshSessionPort;
+use LightManager\Module\Ssh\Application\RemoteBrowser;
 use LightManager\Module\Ssh\Application\SshEvent;
 use LightManager\Module\Ssh\Application\SshSession;
 use LightManager\Module\Ssh\Application\SshSettings;
 use LightManager\Module\Ssh\Infrastructure\OpenSshSessionService;
+use LightManager\Module\Ssh\Infrastructure\SftpDirectoryService;
 use LightManager\Module\Ssh\Infrastructure\SshStateService;
 use LightManager\Module\Ssh\Presentation\Command\ConnectCommand;
 use LightManager\Module\Ssh\Presentation\Command\DisconnectCommand;
@@ -28,7 +32,6 @@ use LightManager\Module\Ssh\Presentation\Command\HostsCommand;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
-use LightManager\Presentation\Ui\ScreenInterface;
 
 /**
  * Sesja zdalna jako moduł (krok 48) — **czwarty sprawdzian kontraktu z kroku 20**.
@@ -83,7 +86,9 @@ final class SshModule implements
 
     private ?SshSession $session = null;
 
-    private ?HostsScreen $screen = null;
+    private ?SshScreen $screen = null;
+
+    private ?RemoteBrowser $browser = null;
 
     private ?ConnectFlow $flow = null;
 
@@ -92,7 +97,9 @@ final class SshModule implements
      *                                  prawa otworzyć połączenia — tak samo, jak testy
      *                                  dźwięku nie mają prawa uruchomić silnika.
      *                                  `null` znaczy „weź usługę na kliencie OpenSSH"
-     * @param ?HostBookPort   $storage  jw. — test nie ma prawa dotknąć pliku w katalogu domowym
+     * @param ?HostBookPort        $storage     jw. — test nie ma prawa dotknąć pliku w katalogu domowym
+     * @param ?RemoteDirectoryPort  $directories jw. — odczyt katalogu uruchamia proces potomny,
+     *                                           więc test dostaje atrapę (krok 49)
      */
     public function __construct(
         private readonly LoopState $state,
@@ -100,6 +107,7 @@ final class SshModule implements
         private readonly SettingsPort $settings,
         private readonly ?SshSessionPort $sessions = null,
         private readonly ?HostBookPort $storage = null,
+        private readonly ?RemoteDirectoryPort $directories = null,
     ) {
     }
 
@@ -165,9 +173,36 @@ final class SshModule implements
         return $this->commands ??= $this->assemble();
     }
 
-    public function screen(): ScreenInterface
+    public function screen(): SshScreen
     {
-        return $this->screen ??= new HostsScreen($this->session(), $this->flow(), $this->translator);
+        return $this->screen ??= new SshScreen(
+            $this->session(),
+            $this->browser(),
+            new HostsScreen($this->session(), $this->flow(), $this->translator),
+            new RemoteScreen(
+                $this->browser(),
+                $this->translator,
+                new ChangeModuleSettingUseCase($this->settings, $this->translator),
+                $this->state,
+            ),
+            $this->state,
+        );
+    }
+
+    /**
+     * Chodzenie po zdalnym katalogu — **jedno na moduł**, jak sesja (krok 49).
+     *
+     * Wpisy ukryte biorą wartość początkową z ustawień modułu, a `Ctrl`+`H`
+     * zmienia ją w trakcie i zapisuje z powrotem — czyli pozycja i klawisz
+     * opisują jedną rzecz, a nie dwie.
+     */
+    public function browser(): RemoteBrowser
+    {
+        return $this->browser ??= new RemoteBrowser(
+            $this->directories ?? SftpDirectoryService::getInstance(),
+            $this->storage ?? SshStateService::getInstance(),
+            SshSettings::showsHiddenFrom($this->settings->current()),
+        );
     }
 
     /**
@@ -184,7 +219,11 @@ final class SshModule implements
      */
     public function tick(float $now): void
     {
-        $this->session()->tick();
+        // Takt idzie przez **ekran**, a nie wprost do sesji, bo od kroku 49 są
+        // dwie prace i jedna decyzja: sesja, odczyt katalogu i rozstrzygnięcie,
+        // którą postać widać. Rozdzielone znaczyłyby dwa miejsca, które muszą
+        // się zgadzać co klatkę.
+        $this->screen()->tick();
     }
 
     /**
@@ -201,6 +240,8 @@ final class SshModule implements
             'module.' . SshSettings::ID . '.help.hosts',
             'module.' . SshSettings::ID . '.help.auth',
             'module.' . SshSettings::ID . '.help.fingerprint',
+            'module.' . SshSettings::ID . '.help.remote',
+            'module.' . SshSettings::ID . '.help.hidden',
             'module.' . SshSettings::ID . '.help.refresh',
         ];
     }

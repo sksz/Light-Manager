@@ -669,6 +669,35 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     nieudane mówi dlaczego i **nie zdejmuje zapisu**; zapis nie przeżywa
     zamknięcia aplikacji. `Alt`+`u` cofa najnowsze odwracalne, `F3` otwiera
     widok stosu (pozycje nieodwracalne wyszarzone, kursor je przeskakuje).
+15e. **Dwa moduły mogą mieć własne pojęcie pliku — mechanizmu rdzenia nie wolno
+    powtórzyć nigdy** (krok 49, D88). Moduł sesji zdalnej dostał własne
+    `RemotePath`, `RemoteEntry`, `RemoteEntryType`, `RemoteNameFilter`
+    i komparator — świadome powtórzenie wobec przeglądarki, bo reguła 15 zabrania
+    sięgania do cudzego modułu, a wyniesienie ścieżki do rdzenia byłoby
+    odwróceniem D42 („rdzeń nie wie, czym jest katalog ani wpis”).
+    **Granica jest podwójna i obie jej połowy obowiązują naraz.**
+    *Jakościowa:* wolno powtórzyć **pojęcia dziedziny** (ścieżka, wpis, rodzaj,
+    filtr, porządek) — każde tanie, bez skutków ubocznych i o regule należącej do
+    tego, kto pokazuje. Nie wolno powtórzyć **mechanizmu rdzenia**: praca
+    kawałkowa, komponenty, zdarzenia, proces tłowy, zakresy dopasowania
+    (`TextSpan`) i ustawienia biorą się **z rdzenia** albo nie biorą się wcale.
+    *Ilościowa:* **trzeci** moduł z własną domeną plikową uruchamia przegląd
+    „czy to nadal powtórzenie, czy już wspólne miejsce” — nie automatyczną
+    przeprowadzkę do rdzenia, tylko obowiązek postawienia pytania.
+15f. **Polecenie, którego wyjściem jest treść, nie scala strumieni** (krok 49,
+    D88). `2>&1` w wierszu polecenia uruchamianego przez `BackgroundProcessPort`
+    wolno dopisać wtedy i tylko wtedy, gdy wypis jest **krótki i diagnostyczny**
+    (mistrz `ssh -M -N`, `ssh -O check`). Przy wypisie będącym daną jest to
+    **błąd psujący dane, nie kwestia porządku**: `ssh` przy `ControlPath` jest
+    klientem multipleksera i przekazuje swoje deskryptory mistrzowi połączenia,
+    a ten ustawia im tryb nieblokujący (obsługuje wiele sesji w jednej pętli).
+    Tryb jest własnością **opisu pliku**, więc scalony strumień błędów przenosi
+    go na wyjście potomka — i odkąd potok się zapełni (pętla klatek opróżnia go
+    raz na 33 ms), `write()` zwraca `EAGAIN`, a OpenSSH **porzuca porcję wypisu
+    i kończy się kodem zero**. Zmierzone: 130 KB ze 419 KB, bez śladu w kodzie
+    wyjścia. Powód niepowodzenia bierze się odtąd z osobnego pola
+    `BackgroundState::$errorOutput`; zasada z kroku 26 („strumieni się nie
+    skleja”) zostaje w mocy — pola są rozdzielone właśnie po to.
 16. **Dno stosu ekranów wskazuje konfiguracja, nie kod** (krok 21, D42). Klucz
     rdzenia `startupModule` bierze wartości **z rejestru modułów**, a wybór robi
     `Presentation\Cli\StartupScreen`. `Bootstrap` podaje mu identyfikator

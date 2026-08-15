@@ -53,9 +53,15 @@ return [
     'module.file-info.section.size' => 'ROZMIAR',
     'module.file-info.section.permissions' => 'UPRAWNIENIA',
     'module.file-info.section.times' => 'CZASY',
+    // Sekcja wpisu zdalnego (krok 49) — stoi pierwsza, bo odpowiada na pytanie
+    // zadawane przed wszystkimi innymi: na co ja właściwie patrzę.
+    'module.file-info.section.remote' => 'MIEJSCE',
 
     // Etykiety wierszy.
     'module.file-info.row.name' => 'Nazwa',
+    'module.file-info.row.host' => 'Host',
+    'module.file-info.row.remotePath' => 'Katalog zdalny',
+    'module.file-info.row.limits' => 'Uwaga',
     'module.file-info.row.kind' => 'Rodzaj',
     'module.file-info.row.content' => 'Zawartość',
     'module.file-info.row.target' => 'Prowadzi do',
@@ -100,6 +106,10 @@ return [
     'module.file-info.checksum.idle' => '(klawisz s liczy)',
     'module.file-info.checksum.working' => 'liczę sha256',
     'module.file-info.checksum.disabled' => 'Suma kontrolna jest wyłączona w ustawieniach modułu.',
+    // Wpis zdalny (krok 49): opis powstaje z kontekstu, bo wpis leży na innej
+    // maszynie — a sieć nie pada w rysowaniu klatki.
+    'module.file-info.remote.limits' => 'wpis leży na zdalnym hoście — opis pochodzi z listy katalogu',
+    'module.file-info.remote.refused' => 'Wpis leży na zdalnym hoście — tej pracy nie da się na nim wykonać.',
     'module.file-info.checksum.notAFile' => 'Sumę kontrolną liczymy tylko dla zwykłych plików.',
     'module.file-info.checksum.tooLarge' => 'Plik przekracza ustawiony limit rozmiaru sumy kontrolnej.',
     'module.file-info.checksum.unreadable' => 'Nie udało się odczytać pliku.',

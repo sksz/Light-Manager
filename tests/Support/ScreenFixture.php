@@ -127,6 +127,7 @@ final class ScreenFixture
         public readonly StubEffectStorage $effects = new StubEffectStorage(),
         public readonly StubSshSession $sessions = new StubSshSession(),
         public readonly StubHostBook $hosts = new StubHostBook(),
+        public readonly StubRemoteDirectory $remote = new StubRemoteDirectory(),
     ) {
         $translator = new StubTranslator();
         $themes = new FixedThemes();
@@ -183,12 +184,18 @@ final class ScreenFixture
         );
         $this->audioScreen = $audioModule->screen();
 
-        // Moduł sesji zdalnej wchodzi z atrapami obu portów — sesji (bo test nie
-        // ma prawa wyjść do sieci) i książki hostów (bo nie ma prawa dotknąć
-        // katalogu domowego). Podstawiony port jest zarazem odpowiedzią na
-        // `RequiresEnvironment`: bez niego zestaw modułów zależałby od tego, czy
-        // maszyna uruchamiająca testy ma zainstalowanego klienta OpenSSH (krok 48).
-        $sshModule = new SshModule($this->state, $translator, $settingsStore, $sessions, $hosts);
+        // Moduł sesji zdalnej wchodzi z atrapami **wszystkich trzech** portów —
+        // sesji i odczytu katalogu (bo test nie ma prawa wyjść do sieci) oraz
+        // książki hostów (bo nie ma prawa dotknąć katalogu domowego). Podstawiony
+        // port sesji jest zarazem odpowiedzią na `RequiresEnvironment`: bez niego
+        // zestaw modułów zależałby od tego, czy maszyna uruchamiająca testy ma
+        // zainstalowanego klienta OpenSSH (krok 48).
+        //
+        // **Trzeci port doszedł w kroku 49 po tym, jak jego brak wypuścił z testu
+        // prawdziwe procesy `sftp`** do hosta z przykładowego wpisu książki.
+        // Podstawiona sesja mówiła „połączono", więc ekran zamawiał odczyt
+        // katalogu — a odczyt bez atrapy szedł prawdziwą usługą.
+        $sshModule = new SshModule($this->state, $translator, $settingsStore, $sessions, $hosts, $remote);
         $this->sshScreen = $sshModule->screen();
 
         $this->modules = new ModuleRegistry(

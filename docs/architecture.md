@@ -179,7 +179,7 @@ typ z `Presentation`:
 
 | Warstwa | Co tam leży |
 |---|---|
-| `Application/Module` | `ModuleInterface`, `ModuleShortcut`, `ModuleContext`, `ContextEntryKind`, `ModuleSettingsTab`, `ModuleSetting`, `ModuleSettingKind`, `ProvidesSettingsTab`, `ProvidesCommands`, `NeedsTick`, `ListensToEvents`, `DeclaresEvents`, `ModuleRegistry`, `ModuleRejection` |
+| `Application/Module` | `ModuleInterface`, `ModuleShortcut`, `ModuleContext`, `ContextEntryKind`, `ContextOrigin`, `ModuleSettingsTab`, `ModuleSetting`, `ModuleSettingKind`, `ProvidesSettingsTab`, `ProvidesCommands`, `NeedsTick`, `RequiresEnvironment`, `ListensToEvents`, `DeclaresEvents`, `ModuleRegistry`, `ModuleRejection` |
 | `Presentation/Ui/Module` | `ProvidesScreen`, `ProvidesHelpTab`, `ReadsContext` |
 
 **Kontrakt modułu nie zyskał w kroku 21 ani jednej metody.** Przeglądarka plików
@@ -259,7 +259,7 @@ komunikat, podgląd, tryb renderowania i położenie okna listy.
 | Podpowiedzi stopki | `StatusHints`, `Hint` | Presentation | `Presentation/Ui` | Trzy poziomy złożone w jeden ciąg: **miejsce z ogniskiem → ekran albo okno nakładane → klawisze globalne wraz ze skrótami modułów**. Ustępowanie idzie od końca, powtórzenia odsiewa zgodność klawiszy **i** klucza opisu, `F1` jest przypięty. Pozycja nie mieści się w całości — znika w całości. |
 | Ekran | `ScreenInterface` | Presentation | `Presentation/Ui` | Treść **dwóch stref** klatki wraz z obsługą klawiszy: górnego pasa (`header()`) i środkowego panelu (`draw()`). Rdzeniowi zostają oprawa stref i pasek stanu. **Pas podglądu wyszedł z kontraktu w kroku 47** (D78): po D76 nie zamawiał go ani jeden ekran, a mechanizm bez odbiorcy łamie regułę 13 — więc `preview()`, strefa w `HudLayout` i jej próg zniknęły razem. |
 | Strefa ekranu | `ScreenZone` | Presentation | `Presentation/Ui` | Zamówienie strefy skrajnej: klucz etykiety obwódki plus komponent z treścią. `null` znaczy „strefa nie powstaje, jej wiersze idą do środka”. |
-| Kontekst sesji | `ModuleContext` | Application | `Application/Module` | Gdzie użytkownik stoi i co ma zaznaczone — **dane pierwotne** (napis, napis, enum, trzy liczby). Publikuje go ten, kto zna bieżące miejsce; czyta każdy ekran z `ReadsContext`. Od kroku 43 niesie także **zaznaczenie wielokrotne**: liczbę wpisów, sumę rozmiarów plików i liczbę katalogów, o które ta suma milczy (D80 nr 1). Odbiorcą jest moduł opisu pliku — mechanizm i użytkownik weszły jednym krokiem, jak każe reguła 13. |
+| Kontekst sesji | `ModuleContext` | Application | `Application/Module` | Gdzie użytkownik stoi i co ma zaznaczone — **dane pierwotne** (napis, napis, enum, trzy liczby). Publikuje go ten, kto zna bieżące miejsce; czyta każdy ekran z `ReadsContext`. Od kroku 43 niesie także **zaznaczenie wielokrotne**: liczbę wpisów, sumę rozmiarów plików i liczbę katalogów, o które ta suma milczy (D80 nr 1). Odbiorcą jest moduł opisu pliku — mechanizm i użytkownik weszły jednym krokiem, jak każe reguła 13. **Od kroku 49 mówi ponadto, czyja jest ścieżka** (`ContextOrigin`: `Local` albo `Remote`), niesie podpis miejsca i trzy atrybuty zaznaczenia (rozmiar, czas zmiany, prawa) — bo odbiorca wpisu zdalnego nie ma jak dobrać ich sam: `lstat` opisałby lokalny plik o tej samej nazwie, a sieć nie pada w rysowaniu klatki (D88 nr 3). Atrybuty są `null`-owalne i to jest ich treść: wydawca, który ich nie zna, mówi „nie wiem”, a nie „zero”. |
 | Okno nakładane | `OverlayInterface` | Presentation | `Presentation/Ui` | Płaszczyzna **nad** ekranem, która sama mówi, gdzie stanąć, i **zużywa albo przepuszcza** klawisz. Przepuszczony trafia wyłącznie do klawiszy globalnych — nigdy do ekranu pod spodem. |
 | Okno pytające | `ConfirmOverlay` | Presentation | `Presentation/Ui/Overlay` | Okno nakładane, które **czegoś chce od wołającego** (krok 28). Decyzja wraca domknięciem podanym przy tworzeniu: po „tak” wykonuje się ono i oddaje **skutek okna** (`OverlayOutcome`, od kroku 41 — bo pytanie stoi w środku łańcucha okien). Ognisko startuje na „nie”, `Esc` znaczy to samo co „nie”, a drugie, opcjonalne domknięcie sprząta **po odmowie**. Od kroku 43 przyjmuje ponadto **liczbę do form mnogich**: pytanie o zbiór odmienia się przez nią w każdym języku słowiańskim, a `null` znaczy „pytanie bez liczby” i jest wartością domyślną. |
 | Okno o nazwę | `PromptOverlay` | Presentation | `Presentation/Ui/Overlay` | Jedno pole tekstowe w `Dialog`u (krok 41): `Enter` zatwierdza, `Esc` odmawia, `Enter` na pustym polu nie robi nic. Wpisanego napisu **nie ocenia** — o tym, co jest poprawną nazwą, wie ten, kto wie, czym jest nazwa (moduł). Domknięcie oddaje `OverlayOutcome` (od kroku 42, tą samą drogą co `ConfirmOverlay`): okno stoi w środku łańcucha, bo wpisana ścieżka zaczyna pracę pokazywaną oknem postępu. |
@@ -989,6 +989,20 @@ przerwanie) i `Infrastructure\Process\BackgroundProcessService` za nim. Moduł
 sięga po niego tak samo, jak po `ImagePreviewPort`, a `Bootstrap` podaje go
 w jednej linii.
 
+**Stan pracy niesie oba strumienie — osobno** (od kroku 49). Do tamtego kroku
+strumień błędów był czytany i wyrzucany, bo `du` zasypuje go wierszami „brak
+dostępu”, a sklejenie zamieniłoby liczbę do odczytania w stertę do przeszukania.
+Ta zasada **zostaje w mocy** i pola są rozdzielone właśnie po to; zmieniło się
+co innego: polecenie, którego wyjściem jest **treść**, nie ma prawa scalać
+strumieni w wierszu polecenia (`2>&1`), bo scalanie potrafi **zepsuć dane**
+(reguła 15f w `SKILL.md`) — a mimo to musi mieć jak powiedzieć, co poszło nie tak.
+**Ile wyjścia pamiętamy, mówi odtąd konfiguracja** (`backgroundOutputKib`,
+domyślnie 1 MiB, zakładka „Zasoby”): dawna stała 64 KiB była dobrana pod
+polecenia oddające jeden wiersz i urywała listę katalogu **po cichu**. Limit
+obowiązuje każdy strumień z osobna i bierze się **raz, przy uruchomieniu
+pracy** — praca mierzona w trakcie dwiema różnymi miarami nie miałaby miary
+w ogóle.
+
 Czwarta reguła brzmi: **potomek nie ma prawa przeżyć procesu, który go
 uruchomił**, a ponieważ dróg wyjścia z aplikacji jest więcej niż jedna, drogi
 sprzątania są dwie i obie obowiązują:
@@ -1072,10 +1086,11 @@ do zapisu ani razu. Klucz niezgodny z zapamiętanym to nie pytanie, tylko odmowa
 i tej odmowy też nie piszemy sami.
 
 Dwie rzeczy, o które łatwo się potknąć przy ruszaniu tego kodu. **Diagnostyka
-klienta idzie na strumieniu błędów**, którego `BackgroundState` świadomie nie
-niesie (krok 26), więc polecenia modułu kończą się na `2>&1` — i **wolno im**, bo
-mistrz z `-N` na standardowym wyjściu nie pisze nic; to jest różnica wobec `du`,
-nie odstępstwo od tamtej reguły. **Hasło nie może iść wejściem**: `ssh` czyta je
+klienta idzie na strumieniu błędów**, więc polecenia **sesji** kończą się na
+`2>&1` — i wolno im, bo mistrz z `-N` na standardowym wyjściu nie pisze nic,
+a cały ich wypis to kilkadziesiąt bajtów. **Poleceniu odczytu katalogu (krok 49)
+wolno tego nie robić i nie wolno tego robić** — powód stoi niżej, przy zdalnym
+katalogu, i jest zmierzony, nie teoretyczny. **Hasło nie może iść wejściem**: `ssh` czyta je
 z terminala sterującego, a port tłowy potomkowi wejścia nie podaje — więc idzie
 przez `SSH_ASKPASS` (`bin/ssh-askpass`) i zmienną środowiskową, nigdy przez
 wiersz polecenia, który widzi w systemie każdy.
@@ -1099,6 +1114,60 @@ ucięty w połowie nie jest odciskiem.
 dźwięku, który bez rozszerzenia zostaje na pustym obiekcie. Różnica jest
 zamierzona: cisza jest sensowną postacią muzyki, a spis hostów, z którymi nie da
 się połączyć, nie jest sensowną postacią sesji zdalnej — obiecywałby.
+
+#### Zdalny katalog: lista przychodząca później (od kroku 49)
+
+Ten sam moduł pokazuje **zawartość katalogu na połączonym hoście**, a ekran ma
+odtąd **dwie postacie**: spis hostów przed połączeniem i zdalny katalog po nim,
+z `F3` zaglądającym z powrotem do spisu (`F2` należy do rdzenia). Postać zmienia
+**takt, a nie klawisz** — połączenie kończy się w procesie potomnym, więc chwili,
+w której „jest sesja”, nie zna żaden klawisz; zna ją dopiero `poll()`.
+
+**Jedno wywołanie na katalog, nie jedno na wpis.** Odczyt idzie poleceniem
+`printf 'ls -lf "…"' | sftp -b - -o ControlPath=…`, które wchodzi przez gniazdo
+stojącego mistrza. Wypis `sftp ls -l` niesie **nazwę razem z atrybutami**
+(rodzaj, prawa, rozmiar, czas) i składa go **klient**, a nie serwer — pole liczby
+dowiązań pokazuje `?`, bo protokół jej nie niesie, właściciel jest zawsze liczbą,
+a nazwa miesiąca nie zależy od ustawień językowych. Postać wiersza nie zależy więc
+od tego, co stoi po drugiej stronie; `ssh ls -l` zależałoby, bo zakłada powłokę
+POSIX, której serwer SFTP mieć nie musi. Czas formatuje **potomek**, dlatego
+polecenie narzuca mu `TZ=UTC` — inaczej daty zdalne rozjeżdżałyby się z lokalnymi
+o różnicę stref.
+
+**Praca kawałkowa została jednostopniowa** i to jest zmiana wobec planu kroku,
+podyktowana pomiarem: koszt siedzi w **wywołaniu** (~0,93 s otwarcia kanału na
+pętli zwrotnej), a nie we wpisie (pięć tysięcy wpisów to +0,1 s, a ich rozczytanie
+w PHP — 3,2 ms). Plan przewidywał drugi stopień („atrybuty widocznego okna po
+jednym obiegu na wpis”) i budżet kawałka mierzony zegarem; jedno i drugie
+chroniłoby przed kosztem, którego nie ma. Z wzorca D46 zostaje to, co się liczy:
+**praca jest daną oglądaną co klatkę, nie procesem**.
+
+**Strumieni tego polecenia nie wolno scalać** (reguła 15f w `SKILL.md`) i jest to
+najdroższa lekcja tego kroku. `2>&1` przenosiło na wyjście `sftp` tryb
+nieblokujący, który mistrz połączenia nakłada deskryptorom przekazanym mu przez
+klienta multipleksera — a wtedy zapis do zapełnionego potoku zwracał `EAGAIN`,
+OpenSSH porzucał porcję wypisu i kończył się **kodem zero**. Z 419 KB listy
+dochodziło 130 KB, bez śladu w kodzie wyjścia. Stąd czwarta zmiana rdzenia kroku:
+`BackgroundState` niesie odtąd **strumień błędów osobnym polem**, a zasada z kroku
+26 („strumieni się nie skleja”) zostaje w mocy — pola są rozdzielone właśnie po to.
+
+**Moduł ma własną domenę plikową i jest to świadome powtórzenie** (`RemotePath`,
+`RemoteEntry`, `RemoteEntryType`, `RemoteNameFilter`, `RemoteEntryComparator`):
+reguła 15 zabrania sięgania do przeglądarki, a wyniesienie ścieżki do rdzenia
+byłoby odwróceniem D42. Granica tego powtarzania — pojęcia wolno, mechanizmy nie,
+a trzeci taki moduł uruchamia przegląd — stoi w `SKILL.md` jako reguła 15e.
+Ścieżka zdalna porządkuje się **tekstowo**, bo systemu plików po drugiej stronie
+nie ma o co zapytać bez obiegu; dowiązanie w środku ścieżki zostaje przez to
+nierozwinięte, a rozwinięcie należy do serwera (`pwd` przy katalogu startowym).
+
+**Kontekst sesji mówi odtąd, czyja jest ścieżka** (`ContextOrigin`, piąta zmiana
+rdzenia). Bez tego ekran zdalny publikujący `/var/log` kazałby modułowi opisu
+pliku pokazać **lokalny** `/var/log` — kłamstwo ciche, bo obie ścieżki istnieją
+i obie się czytają. Odbiorca wszedł razem z mechanizmem (reguła 13): moduł opisu
+pliku rozpoznaje wpis zdalny i opisuje go **wyłącznie z kontekstu**, nie dotykając
+ani dysku, ani sieci. Kontekst niesie po to trzy atrybuty zaznaczenia (rozmiar,
+czas, prawa), a suma kontrolna i zajętość odmawiają pracy zdaniem, które mówi
+dlaczego.
 
 #### Kosz i cofnięcie ostatniej operacji (od kroku 44)
 

@@ -46,6 +46,8 @@ final class StubBackgroundProcess implements BackgroundProcessPort
         private readonly int $exitCode = 0,
         /** Klucz powodu; ustawiony — praca nie rusza w ogóle. */
         private readonly ?string $problemKey = null,
+        /** Strumień błędów polecenia — od kroku 49 port niesie go osobno. */
+        private readonly string $errorOutput = '',
     ) {
         $this->state = BackgroundState::idle();
     }
@@ -76,7 +78,7 @@ final class StubBackgroundProcess implements BackgroundProcessPort
         ++$this->polls;
 
         return $this->state = $this->polls >= $this->pollsUntilDone
-            ? BackgroundState::done($this->output, $this->exitCode)
+            ? BackgroundState::done($this->output, $this->exitCode, $this->errorOutput)
             : BackgroundState::running();
     }
 

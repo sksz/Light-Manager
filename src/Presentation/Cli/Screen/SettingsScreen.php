@@ -743,6 +743,14 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
             SettingKey::StrokeAntialias => new Toggle($label, $settings->strokeAntialias, $yes, $no, $selected),
             SettingKey::WindowColumns => new Choice($label, (string) $settings->windowColumns, $selected),
             SettingKey::WindowRows => new Choice($label, (string) $settings->windowRows, $selected),
+            // Jednostkę dopisujemy do wartości, a nie do etykiety: „1024" bez
+            // niej jest liczbą bez znaczenia, a etykieta z jednostką w nawiasie
+            // rosłaby o cztery znaki w każdym języku.
+            SettingKey::BackgroundOutputKib => new Choice(
+                $label,
+                $this->translator->translate('settings.value.kib', ['value' => $settings->backgroundOutputKib]),
+                $selected,
+            ),
         };
     }
 

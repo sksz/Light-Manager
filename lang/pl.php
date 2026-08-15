@@ -42,6 +42,7 @@ return [
     // Ekran ustawień.
     'settings.tab.appearance' => 'WYGLĄD',
     'settings.tab.graphics' => 'GRAFIKA',
+    'settings.tab.resources' => 'ZASOBY',
     'settings.tab.modules' => 'MODUŁY',
     'settings.modules.empty' => '(żaden moduł nie jest zadeklarowany)',
     'settings.modules.essential' => 'zawsze włączony',
@@ -54,6 +55,7 @@ return [
     'settings.key.paletteColors' => 'Kolory palety Sixela',
     'settings.key.windowColumns' => 'Kolumny okna (tryb okienkowy)',
     'settings.key.windowRows' => 'Wiersze okna (tryb okienkowy)',
+    'settings.key.backgroundOutputKib' => 'Pamięć na wynik pracy w tle',
     'settings.language.auto' => 'Automatyczny',
     'settings.language.pl' => 'Polski',
     'settings.language.en' => 'English',
@@ -63,6 +65,7 @@ return [
     'settings.restore.unchanged' => 'Ustawienia są już domyślne.',
     'settings.value.yes' => 'tak',
     'settings.value.no' => 'nie',
+    'settings.value.kib' => '{value} KiB',
     'settings.value.empty' => '(puste)',
     'settings.value.unknown' => 'nieznana wartość: {value}',
     'settings.palette.warning' => 'Poniżej {colors} kolorów obwódki paneli znikają z klatki.',

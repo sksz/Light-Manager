@@ -123,6 +123,48 @@ final class SshStateServiceTest extends TestCase
         self::assertCount(1, $document['hosts']);
     }
 
+    /**
+     * **Zapowiedź kroku 48 rozliczona w kroku 49**: ostatni katalog dopisał się
+     * do tego samego dokumentu, obok książki, bez migracji.
+     */
+    public function testTheRememberedDirectoryLivesBesideTheBook(): void
+    {
+        $service = SshStateService::getInstance();
+        $service->save(new HostBook([new HostProfile('biuro', 'example.com')]));
+        $service->rememberDirectory('biuro', '/home/anna/dokumenty');
+
+        $this->resetSingleton(SshStateService::class);
+        $reloaded = SshStateService::getInstance();
+
+        self::assertSame('/home/anna/dokumenty', $reloaded->lastDirectory('biuro'));
+        self::assertCount(1, $reloaded->load()->book->all(), 'książka przeżyła dopisanie katalogu');
+    }
+
+    /** Katalog pamięta się **osobno dla każdego wpisu** — nazwa jest tożsamością hosta. */
+    public function testEachHostRemembersItsOwnDirectory(): void
+    {
+        $service = SshStateService::getInstance();
+        $service->rememberDirectory('biuro', '/srv/www');
+        $service->rememberDirectory('dom', '/home/jan');
+
+        self::assertSame('/srv/www', $service->lastDirectory('biuro'));
+        self::assertSame('/home/jan', $service->lastDirectory('dom'));
+        self::assertNull($service->lastDirectory('nieznany'));
+    }
+
+    /** Zapis, który niczego nie zmienia, nie dotyka dysku — `F5` przepisywałby plik bez końca. */
+    public function testRememberingTheSameDirectoryTwiceDoesNotRewriteTheFile(): void
+    {
+        $service = SshStateService::getInstance();
+        $service->rememberDirectory('biuro', '/srv/www');
+        $stamp = filemtime($service->location());
+        clearstatcache();
+
+        $service->rememberDirectory('biuro', '/srv/www');
+
+        self::assertSame($stamp, filemtime($service->location()));
+    }
+
     /** Dokument bez sensu znaczy „nie wiem, co tu jest” — i mówi to zamiast wywracać start. */
     public function testAnUnreadableFileGivesAnEmptyBookWithAReason(): void
     {

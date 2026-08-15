@@ -21,6 +21,14 @@ use LightManager\Module\Ssh\Application\HostBook;
  *
  * **Żadna ścieżka nie rzuca** (zasada portu): plik ruszony ręcznie daje pustą
  * książkę wraz z powodem do pokazania, a nieudany zapis ginie po cichu.
+ *
+ * **Krok 49 dopisał zapowiedziane** — ostatni katalog zdalny, i to jest chwila,
+ * w której zapowiedź z kroku 48 się rozliczyła: dokument uniósł nowy klucz bez
+ * migracji, a plik zapisany starszą wersją modułu nie stracił niczego. Port
+ * nazywa się nadal „książką hostów”, choć niesie już dwie rzeczy, i **nie jest
+ * to przeoczenie**: obie są stanem tego samego modułu w tym samym dokumencie,
+ * a drugi port oznaczałby dwa niezależne zapisy tego samego pliku, czyli
+ * wyścig przy pierwszym zapisie z dwóch miejsc naraz.
  */
 interface HostBookPort
 {
@@ -30,4 +38,21 @@ interface HostBookPort
 
     /** Gdzie ten plik leży — do pokazania w górnym pasie ekranu. */
     public function location(): string;
+
+    /**
+     * Katalog, na którym skończyło się poprzednie oglądanie tego hosta; `null` —
+     * hosta jeszcze nie otwierano albo zapis nie przetrwał.
+     *
+     * Klucz jest **nazwą wpisu książki**, bo to ona jest tożsamością hosta
+     * (krok 48): dwa wpisy o tym samym adresie i różnych loginach są dwoma
+     * miejscami i mają prawo pamiętać różne katalogi.
+     */
+    public function lastDirectory(string $hostName): ?string;
+
+    /**
+     * Zapamiętuje katalog. Wołane **przy każdej zmianie katalogu**, więc zapis
+     * musi być tani i nie ma prawa rzucić — chodzenie po drzewie nie może się
+     * zatrzymać dlatego, że katalog domowy stał się niezapisywalny.
+     */
+    public function rememberDirectory(string $hostName, string $path): void;
 }

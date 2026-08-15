@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Module\FileInfo\Application\UseCase;
 
+use LightManager\Application\Module\ContextEntryKind;
 use LightManager\Application\Module\ModuleContext;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
@@ -37,6 +38,13 @@ use LightManager\Module\FileInfo\Application\SizeText;
  * od 26. Przypadek użycia wykonuje się raz na zaznaczenie i wszystko, co w nim
  * stoi, musi być gotowe w tej jednej chwili; praca trwająca cztery sekundy nie
  * jest gotowa w żadnej.
+ *
+ * **Krok 49 dokłada drugą drogę** — wpis, którego ten proces nie może dotknąć.
+ * Kontekst mówi odtąd, czyja jest ścieżka (`ContextOrigin`), a wpis zdalny idzie
+ * przez `remote()`: opis powstaje **wyłącznie z kontekstu**, bez `lstat`, bez
+ * `file` i bez sieci. Rozdział jest tu ostry z jednego powodu: obie ścieżki
+ * istnieją i obie się czytają, więc pomyłka nie skończyłaby się błędem, tylko
+ * opisem cudzego pliku pokazanym jako opis tego, na który użytkownik patrzy.
  */
 final class InspectSelectedEntryUseCase
 {
@@ -66,6 +74,10 @@ final class InspectSelectedEntryUseCase
             return null;
         }
 
+        if ($context->isRemote()) {
+            return $this->remote($context);
+        }
+
         $stat = $this->stats->stat($path);
 
         if ($stat === null) {
@@ -88,6 +100,144 @@ final class InspectSelectedEntryUseCase
             $stat->sizeInBytes,
             $content,
         );
+    }
+
+    /**
+     * Opis wpisu leżącego **na innej maszynie** (krok 49) — z tego, co niesie
+     * kontekst, i **z niczego więcej**.
+     *
+     * Metoda nie dotyka dysku ani sieci ani razu i to jest jej cała treść.
+     * `lstat` powiedziałby o **lokalnym** pliku o tej samej ścieżce, a sieć nie
+     * pada w rysowaniu klatki (reguła nadrzędna Fazy XVII) — więc pytanie
+     * o cokolwiek ponad kontekst jest tu nie „drogie”, tylko niemożliwe.
+     *
+     * Sekcji są przez to trzy zamiast czterech, a w każdej stoi mniej wierszy:
+     * nie ma właściciela ani grupy (protokół SFTP niesie je liczbami, a nazw po
+     * drugiej stronie nikt nie rozwiąże), nie ma i-węzła, nie ma czasu dostępu
+     * ani zmiany i-węzła — `sftp ls -l` pokazuje **jeden** czas. Pustych wierszy
+     * z napisem „nie wiadomo” w ich miejsce nie ma: brak wiersza mówi to samo
+     * i nie zajmuje ekranu.
+     *
+     * **Sekcja „Miejsce" jest pierwsza**, bo odpowiada na pytanie, które przy
+     * zdalnym wpisie pada przed wszystkimi innymi: na czym ja właściwie patrzę.
+     */
+    private function remote(ModuleContext $context): EntryDescription
+    {
+        $name = $context->selection ?? '';
+        $kind = self::remoteKind($context);
+        $settings = $this->settings->current();
+        $sections = [
+            new DescriptionSection('remote', 'module.file-info.section.remote', [
+                new DescriptionRow('module.file-info.row.host', $context->originLabel),
+                new DescriptionRow('module.file-info.row.remotePath', $context->path),
+            ]),
+            $this->identityOfRemote($name, $kind),
+        ];
+
+        $bytes = $context->selectionBytes;
+
+        if ($bytes !== null && $kind !== EntryKind::Directory) {
+            $sections[] = new DescriptionSection('size', 'module.file-info.section.size', [
+                new DescriptionRow('module.file-info.row.size', $this->formatSize($bytes)),
+                new DescriptionRow(
+                    'module.file-info.row.sizeExact',
+                    $this->translator->plural('module.file-info.bytes', $bytes),
+                ),
+            ]);
+        }
+
+        $rows = $this->remoteFacts($context);
+
+        if ($rows !== []) {
+            $sections[] = new DescriptionSection('permissions', 'module.file-info.section.permissions', $rows);
+        }
+
+        $modifiedAt = $context->selectionModifiedAt;
+
+        if ($modifiedAt !== null) {
+            $sections[] = new DescriptionSection('times', 'module.file-info.section.times', [
+                new DescriptionRow(
+                    'module.file-info.row.modified',
+                    $this->formatTime($modifiedAt, FileInfoSettings::relativeTime($settings), $this->now()),
+                ),
+            ]);
+        }
+
+        return new EntryDescription($name, $sections, $kind, $bytes ?? 0);
+    }
+
+    /** @return list<DescriptionRow> */
+    private function remoteFacts(ModuleContext $context): array
+    {
+        $permissions = $context->selectionPermissions;
+
+        if ($permissions === null) {
+            return [];
+        }
+
+        return [
+            new DescriptionRow(
+                'module.file-info.row.mode',
+                self::permissionsAsText($permissions) . '  ' . sprintf('%04o', $permissions),
+            ),
+        ];
+    }
+
+    /**
+     * Wiersz „czym to jest" wraz ze zdaniem, dlaczego opis jest krótszy.
+     *
+     * Zdanie stoi w sekcji tożsamości, a nie w pasku stanu, bo dotyczy **tego
+     * wpisu**, a nie tego, co użytkownik przed chwilą zrobił.
+     */
+    private function identityOfRemote(string $name, EntryKind $kind): DescriptionSection
+    {
+        return new DescriptionSection('identity', 'module.file-info.section.identity', [
+            new DescriptionRow('module.file-info.row.name', $name),
+            new DescriptionRow('module.file-info.row.kind', $this->translator->translate($kind->labelKey())),
+            new DescriptionRow(
+                'module.file-info.row.limits',
+                $this->translator->translate('module.file-info.remote.limits'),
+            ),
+        ]);
+    }
+
+    /**
+     * Rodzaj z kontekstu — z trzech przypadków, jakie zna rdzeń, na osiem, jakie
+     * zna ten moduł.
+     *
+     * Dowiązanie zdalne dochodzi tu jako `Unknown`, a nie `Symlink`, i jest to
+     * uczciwe: kontekst niesie `ContextEntryKind`, który dowiązania nie zna,
+     * bo rdzeń ma o cudzym zaznaczeniu wiedzieć tyle, co nic (D40, P5).
+     */
+    private static function remoteKind(ModuleContext $context): EntryKind
+    {
+        return match ($context->kind) {
+            ContextEntryKind::Directory => EntryKind::Directory,
+            ContextEntryKind::File => EntryKind::File,
+            ContextEntryKind::None => EntryKind::Unknown,
+        };
+    }
+
+    /**
+     * Prawa w postaci `rwxr-xr-x`.
+     *
+     * Rachunek powtarza `FileStat::permissionsAsText()` i **powtarza go
+     * świadomie**: tamten liczy z `lstat`, ten z liczby przyniesionej
+     * z kontekstu, a wyniesienie ich do wspólnego miejsca znaczyłoby wspólne
+     * miejsce w rdzeniu — czyli rdzeń wiedzący, czym są prawa pliku (D42).
+     */
+    private static function permissionsAsText(int $permissions): string
+    {
+        $text = '';
+
+        foreach ([6, 3, 0] as $shift) {
+            $bits = ($permissions >> $shift) & 7;
+            $text .= ($bits & 4) === 4 ? 'r' : '-';
+            $text .= ($bits & 2) === 2 ? 'w' : '-';
+            $text .= ($bits & 1) === 1 ? 'x' : '-';
+        }
+
+        return $text;
     }
 
     /**

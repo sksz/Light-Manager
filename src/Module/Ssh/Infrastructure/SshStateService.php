@@ -38,8 +38,11 @@ final class SshStateService extends AbstractSingleton implements HostBookPort
 
     private const TEMPORARY_PREFIX = '.ssh-';
 
-    /** Klucz książki w dokumencie; obok niego staną klucze kroków 49 i 50. */
+    /** Klucz książki w dokumencie; obok niego stoi klucz kroku 49, a stanie klucz kroku 50. */
     private const HOSTS_KEY = 'hosts';
+
+    /** Ostatni oglądany katalog, po jednym na wpis książki (krok 49). */
+    private const DIRECTORIES_KEY = 'directories';
 
     private const NAME_KEY = 'name';
 
@@ -100,6 +103,49 @@ final class SshStateService extends AbstractSingleton implements HostBookPort
     public function location(): string
     {
         return $this->directory() . DIRECTORY_SEPARATOR . self::FILE;
+    }
+
+    public function lastDirectory(string $hostName): ?string
+    {
+        // Dokument nieczytelny (`null`) traktujemy jak pusty: brak zapamiętanego
+        // katalogu jest tu stanem zwykłym, a powód nieczytelności pokazuje już
+        // odczyt książki i drugi raz nie ma po co go powtarzać.
+        $stored = ($this->document() ?? [])[self::DIRECTORIES_KEY] ?? null;
+
+        if (!is_array($stored)) {
+            return null;
+        }
+
+        $path = $stored[$hostName] ?? null;
+
+        return is_string($path) && $path !== '' ? $path : null;
+    }
+
+    /**
+     * Zapis idzie **całym dokumentem**, jak przy książce — plik jest mały,
+     * a `rename()` niepodzielny.
+     *
+     * Zapis, który niczego nie zmienia, **nie dotyka dysku** i to nie jest
+     * mikrooptymalizacja: metoda woła się przy każdym przyjęciu listy, więc bez
+     * tego warunku odświeżenie katalogu klawiszem `F5` przepisywałoby plik za
+     * każdym razem.
+     */
+    public function rememberDirectory(string $hostName, string $path): void
+    {
+        $stored = ($this->document() ?? [])[self::DIRECTORIES_KEY] ?? [];
+
+        if (!is_array($stored)) {
+            $stored = [];
+        }
+
+        if (($stored[$hostName] ?? null) === $path) {
+            return;
+        }
+
+        /** @var array<string, mixed> $stored */
+        $stored[$hostName] = $path;
+        $this->document[self::DIRECTORIES_KEY] = $stored;
+        $this->write();
     }
 
     /**

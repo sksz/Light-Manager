@@ -30,6 +30,7 @@ return [
 
     'settings.tab.appearance' => 'APPEARANCE',
     'settings.tab.graphics' => 'GRAPHICS',
+    'settings.tab.resources' => 'RESOURCES',
     'settings.tab.modules' => 'MODULES',
     'settings.modules.empty' => '(no module is declared)',
     'settings.modules.essential' => 'always enabled',
@@ -42,6 +43,7 @@ return [
     'settings.key.paletteColors' => 'Sixel palette colours',
     'settings.key.windowColumns' => 'Window columns (windowed mode)',
     'settings.key.windowRows' => 'Window rows (windowed mode)',
+    'settings.key.backgroundOutputKib' => 'Memory for background job output',
     'settings.language.auto' => 'Automatic',
     'settings.language.pl' => 'Polski',
     'settings.language.en' => 'English',
@@ -51,6 +53,7 @@ return [
     'settings.restore.unchanged' => 'Settings are already at their defaults.',
     'settings.value.yes' => 'yes',
     'settings.value.no' => 'no',
+    'settings.value.kib' => '{value} KiB',
     'settings.value.empty' => '(empty)',
     'settings.value.unknown' => 'unknown value: {value}',
     'settings.palette.warning' => 'Below {colors} colours the panel borders vanish from the frame.',

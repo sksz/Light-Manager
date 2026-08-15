@@ -122,6 +122,61 @@ final class BackgroundProcessServiceTest extends TestCase
         self::assertSame('wynik', $state->output);
     }
 
+    /**
+     * **Od kroku 49 strumień błędów nie ginie — jedzie osobnym polem.**
+     *
+     * Zmiana wyszła z odczytu zdalnego katalogu: polecenie, którego wyjściem
+     * jest treść, nie ma prawa scalać z nią diagnostyki w wierszu polecenia
+     * (`2>&1` przenosiło tam tryb nieblokujący z deskryptorów multipleksera
+     * i psuło dane), a mimo to musi mieć jak powiedzieć, co poszło nie tak.
+     * Rozdzielenie pól utrzymuje przy tym zasadę z kroku 26 w mocy: nikt niczego
+     * nie skleja, a `du` swojego narzekania po prostu nie czyta.
+     */
+    public function testErrorStreamArrivesInItsOwnField(): void
+    {
+        $service = BackgroundProcessService::getInstance();
+        $state = $this->await($service->start('echo wynik; echo halas >&2', 30));
+
+        self::assertSame('wynik', $state->output);
+        self::assertSame('halas', $state->errorOutput);
+    }
+
+    /** Polecenie, które nie narzekało, oddaje pusty napis — a nie „nie wiem". */
+    public function testASilentCommandLeavesTheErrorFieldEmpty(): void
+    {
+        $service = BackgroundProcessService::getInstance();
+        $state = $this->await($service->start('echo wynik', 30));
+
+        self::assertSame('', $state->errorOutput);
+    }
+
+    /**
+     * **Wypis, którego nikt nie odbiera dostatecznie szybko, nie ma prawa się
+     * zgubić** — regresja z kroku 49.
+     *
+     * Polecenie wypisuje ćwierć mebibajta w porcjach rozłożonych na sekundę,
+     * a test dogląda pracy raz na klatkę, czyli dokładnie tak, jak robi to pętla
+     * główna. Potok mieści 64 KiB, więc bez prawidłowego opróżniania i bez
+     * blokującego zapisu po stronie potomka zostałaby z tego jedna trzecia.
+     */
+    public function testLargeOutputSurvivesFrameRateDraining(): void
+    {
+        $service = BackgroundProcessService::getInstance();
+        $handle = $service->start('for i in $(seq 1 16); do head -c 16384 /dev/zero | tr "\\0" "X"; done', 30);
+
+        while (true) {
+            $state = $service->poll($handle);
+
+            if (!$state->isRunning()) {
+                break;
+            }
+
+            usleep(33_000);
+        }
+
+        self::assertSame(16 * 16_384, strlen($state->output));
+    }
+
     public function testTimeoutStopsTheChildAndSaysSo(): void
     {
         $service = BackgroundProcessService::getInstance();

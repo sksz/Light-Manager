@@ -15,8 +15,8 @@ use PHPUnit\Framework\TestCase;
  * Kursor ekranu ustawień po otwarciu zakładek na moduły (krok 20).
  *
  * Zakładki nie są już przypadkami enuma, więc kursor dostaje ich listę
- * z zewnątrz. Test buduje ją tak, jak robi to `Bootstrap`: dwie rdzeniowe, spis
- * modułów, na końcu zakładka modułu.
+ * z zewnątrz. Test buduje ją tak, jak robi to `Bootstrap`: **trzy** rdzeniowe
+ * (od kroku 49 doszły „Zasoby”), spis modułów, na końcu zakładka modułu.
  */
 final class SettingsCursorTest extends TestCase
 {
@@ -82,7 +82,7 @@ final class SettingsCursorTest extends TestCase
      */
     public function testModuleTabHasNoActionRow(): void
     {
-        $cursor = self::cursor(3, 0);
+        $cursor = self::cursor(4, 0);
 
         self::assertFalse($cursor->isOnAction());
         self::assertSame(0, $cursor->movedBy(1)->item, 'jedyna pozycja jest zarazem ostatnim miejscem');
@@ -96,9 +96,13 @@ final class SettingsCursorTest extends TestCase
 
         self::assertSame(1, $cursor->tab);
         self::assertTrue($cursor->isOnTabBar());
-        self::assertSame(2, $cursor->switchedTab(1)->tab, 'spis modułów stoi po zakładkach rdzenia');
-        self::assertSame(3, $cursor->switchedTab(1)->switchedTab(1)->tab);
-        self::assertSame(0, $cursor->switchedTab(1)->switchedTab(1)->switchedTab(1)->tab, 'lista się zawija');
+        self::assertSame(3, $cursor->switchedTab(1)->switchedTab(1)->tab, 'spis modułów stoi po zakładkach rdzenia');
+        self::assertSame(4, $cursor->switchedTab(1)->switchedTab(1)->switchedTab(1)->tab);
+        self::assertSame(
+            0,
+            $cursor->switchedTab(1)->switchedTab(1)->switchedTab(1)->switchedTab(1)->tab,
+            'lista się zawija',
+        );
         self::assertSame(0, $cursor->switchedTab(-1)->tab);
     }
 
@@ -112,7 +116,7 @@ final class SettingsCursorTest extends TestCase
 
     public function testEveryCorePositionResolvesToASetting(): void
     {
-        foreach ([0, 1] as $tab) {
+        foreach ([0, 1, 2] as $tab) {
             $count = self::tabs()[$tab]->itemCount();
 
             for ($item = 0; $item < $count; ++$item) {

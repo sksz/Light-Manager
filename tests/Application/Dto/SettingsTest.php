@@ -123,6 +123,36 @@ final class SettingsTest extends TestCase
         );
     }
 
+    /**
+     * Limit wyjścia pracy tłowej (krok 49) — pierwszy klucz rdzenia opisujący
+     * **granicę mechanizmu**, a nie wygląd.
+     */
+    public function testBackgroundOutputLimitWalksThroughItsChoices(): void
+    {
+        $settings = new Settings();
+
+        self::assertSame(1024, $settings->backgroundOutputKib, 'domyślnie mebibajt');
+        self::assertSame(
+            4096,
+            $settings->shifted(SettingKey::BackgroundOutputKib, 1, self::THEMES)->backgroundOutputKib,
+        );
+        self::assertSame(
+            256,
+            $settings->shifted(SettingKey::BackgroundOutputKib, -1, self::THEMES)->backgroundOutputKib,
+        );
+    }
+
+    /**
+     * Wartość w bajtach ma **dolną granicę**, bo plik konfiguracji ruszony
+     * ręcznie jest jedyną drogą do zera — a limit zerowy znaczyłby „każde
+     * polecenie oddaje pustkę", czyli awarię wyglądającą jak cisza.
+     */
+    public function testTheOutputLimitInBytesNeverFallsBelowTheSmallestChoice(): void
+    {
+        self::assertSame(1024 * 1024, (new Settings())->backgroundOutputBytes());
+        self::assertSame(64 * 1024, (new Settings())->withBackgroundOutputKib(0)->backgroundOutputBytes());
+    }
+
     public function testWindowSizeWalksThroughItsStops(): void
     {
         $settings = new Settings();

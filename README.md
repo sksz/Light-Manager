@@ -16,10 +16,10 @@ rozszerzenie [PHP-GLFW](https://phpgl.net), bez dotykania terminala.
   bez niego
 - Zewnętrzne polecenie `stty` — stąd założenie **Linux/macOS**; Windows nie
   jest wspierany
-- Opcjonalnie klient OpenSSH (`ssh`, `ssh-keyscan`, `ssh-keygen`; weryfikowane:
-  9.6p1) — wyłącznie dla modułu **sesji zdalnej** (`Ctrl`+`S`, krok 48). Bez
-  niego moduł **znika ze spisu wraz z powodem**, a reszta aplikacji działa jak
-  dotąd; rozszerzenia PHP do SSH nie potrzeba żadnego
+- Opcjonalnie klient OpenSSH (`ssh`, `ssh-keyscan`, `ssh-keygen`, `sftp`;
+  weryfikowane: 9.6p1) — wyłącznie dla modułu **sesji zdalnej** (`Ctrl`+`S`,
+  kroki 48–49). Bez niego moduł **znika ze spisu wraz z powodem**, a reszta
+  aplikacji działa jak dotąd; rozszerzenia PHP do SSH nie potrzeba żadnego
 - Interaktywny terminal na standardowym wejściu — uruchomienie z potoku lub
   przekierowania z pliku kończy się czytelnym błędem
 - ImageMagick z wkompilowanym koderem `SIXEL` — bez niego aplikacja startuje,
@@ -727,6 +727,22 @@ Wbudowane są dziś trzy:
   z ustawienia, a nie zawieszeniem. Stan sesji **nie odświeża się sam**: kosztuje
   osobny proces, a ten kolidowałby z pracą tłową innych modułów — od tego jest
   `F5`. Bez klienta OpenSSH moduł **znika ze spisu wraz z powodem**.
+
+  **Po połączeniu ekran pokazuje zdalny katalog** — z nazwami, rozmiarami, datami
+  i prawami, w tych samych kolumnach, co lista lokalna. `Enter` wchodzi do
+  katalogu, `Backspace` wraca wyżej, `F5` czyta na nowo, `/` zawęża listę nazwą
+  (z podświetleniem dopasowania), `Ctrl`+`H` przełącza wpisy ukryte, a `F3`
+  zagląda z powrotem do spisu hostów. Ostatni katalog pamięta się **osobno dla
+  każdego wpisu spisu** i przeżywa ponowne uruchomienie.
+
+  Katalog czyta się **jednym wywołaniem `sftp` na katalog**, wchodzącym przez
+  gniazdo stojącego połączenia — także wtedy, gdy wpisów są tysiące. Odczyt
+  dzieje się poza rysowaniem klatki, więc lista pojawia się po chwili, a aplikacja
+  przez ten czas odpowiada normalnie. Wpisy ukryte kosztują przy tym **nowy
+  odczyt**, a nie przefiltrowanie tego, co już przyszło: serwer bez wyraźnej
+  prośby po prostu ich nie przysyła. Ile wyjścia takiej pracy aplikacja pamięta,
+  mówi pozycja **„Pamięć na wynik pracy w tle”** na zakładce „Zasoby”
+  (domyślnie 1 MiB, czyli około dwunastu tysięcy wpisów).
 
 #### Moduł domyślny
 

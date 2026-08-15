@@ -463,9 +463,16 @@ final class InputHandlerTest extends TestCase
         // narysował: ekran ustawień składa się z `Slot::fixed()`, więc przy
         // braku miejsca pozycje **znikają** zamiast się przewijać (reguła 11e),
         // a zakładka file-info ma od kroku 29 dziesięć pozycji.
+        //
+        // Szerokość urosła w kroku 49 ze 120 na 160 kolumn i powód jest
+        // testowy, nie interfejsowy: **w teście zakładki nazywają się swoimi
+        // kluczami** (`settings.tab.resources` to 23 znaki, przetłumaczone
+        // „ZASOBY" — sześć), a `Tabs` ucina to, co nie mieści się w wierszu.
+        // Czwarta zakładka rdzenia przelała ten rachunek na kluczach, nie na
+        // napisach.
         self::assertContains(
             'module.file-info.name',
-            $this->drawCurrentScreen(20, 120),
+            $this->drawCurrentScreen(20, 160),
             'zakładka się nie zmieniła',
         );
     }
@@ -492,21 +499,22 @@ final class InputHandlerTest extends TestCase
     }
 
     /** Spis modułów: trzecia zakładka, za dwiema rdzeniowymi. */
+    /** Spis modułów stoi za **trzema** zakładkami rdzenia — trzecią („Zasoby") dołożył krok 49. */
     private function openModulesTab(): void
     {
-        $this->openTab(2);
+        $this->openTab(3);
     }
 
     /** Zakładka przeglądarki — pierwsza modułowa, bo taka jest kolejność deklaracji. */
     private function openBrowserTab(): void
     {
-        $this->openTab(3);
+        $this->openTab(4);
     }
 
     /** Zakładka modułu `FileInfo` — druga modułowa. */
     private function openModuleTab(): void
     {
-        $this->openTab(4);
+        $this->openTab(5);
     }
 
     private function openTab(int $index): void

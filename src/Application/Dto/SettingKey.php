@@ -32,6 +32,12 @@ namespace LightManager\Application\Dto;
  * nie rozmiar nadany przeciągnięciem rogu albo maksymalizacją, więc te dwa
  * klucze są zarazem jedynym miejscem, w którym pamięta się ustawione okno.
  * Stąd ich wartości sprawdza zakres, a nie lista przystanków strzałek.
+ *
+ * `BackgroundOutputKib` (krok 49) jest pierwszym kluczem rdzenia, który nie
+ * opisuje **wyglądu ani zachowania widocznego wprost**, tylko granicę
+ * mechanizmu: ile wyjścia polecenia tłowego aplikacja pamięta. Wszedł, bo
+ * zdalny katalog jest pierwszym poleceniem, którego wyjściem jest treść, a nie
+ * jedna liczba — i dawna stała urywała je po cichu.
  */
 enum SettingKey: string
 {
@@ -43,6 +49,7 @@ enum SettingKey: string
     case PaletteColors = 'paletteColors';
     case WindowColumns = 'windowColumns';
     case WindowRows = 'windowRows';
+    case BackgroundOutputKib = 'backgroundOutputKib';
 
     public function labelKey(): string
     {

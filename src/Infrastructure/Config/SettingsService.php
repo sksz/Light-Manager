@@ -322,6 +322,10 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
             SettingKey::WindowRows => is_int($value) && Settings::allowsWindowRows($value)
                 ? $settings->withWindowRows($value)
                 : null,
+            SettingKey::BackgroundOutputKib => is_int($value)
+                && in_array($value, Settings::BACKGROUND_OUTPUT_CHOICES, true)
+                ? $settings->withBackgroundOutputKib($value)
+                : null,
         };
     }
 
@@ -373,6 +377,7 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
             SettingKey::PaletteColors->value => $settings->paletteColors,
             SettingKey::WindowColumns->value => $settings->windowColumns,
             SettingKey::WindowRows->value => $settings->windowRows,
+            SettingKey::BackgroundOutputKib->value => $settings->backgroundOutputKib,
         ];
 
         if ($settings->modules !== []) {

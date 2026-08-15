@@ -6,7 +6,18 @@
 
 ## Status
 
-**Nie rozpoczęty.** Zablokowany przez krok 48 (bez sesji nie ma czego czytać).
+**Ukończony z zastrzeżeniem** (2026-08-15).
+
+> **Zastrzeżenie:** klatki pod XTermem nikt jeszcze nie oglądał, a próba
+> z żywym serwerem szła po **pętli zwrotnej** (kontener), nie przez prawdziwą
+> sieć — jak w kroku 48. Szczegóły w dzienniku realizacji na końcu pliku.
+
+> **Droga techniczna kroku jest inna, niż zakładał ten plan** — odwróciło ją
+> rozstrzygnięcie D87 nr 1 podjęte na starcie kroku 48: `ext-ssh2` wypadło
+> z fazy w całości, a katalog czyta `sftp -b -` wchodzący przez gniazdo mistrza
+> połączenia. Sekcje „Zastrzeżenie", „Zakres" nr 2 i „Do rozstrzygnięcia" są
+> poniżej **przepisane**; cel, kryteria ukończenia i granice zakresu zostały te
+> same.
 
 ## Cel
 
@@ -18,29 +29,31 @@ z nazwami, rozmiarami i datami, `Enter` wchodzi w podkatalog, `Backspace` wraca
 wyżej, a katalog o dziesięciu tysiącach wpisów nie zatrzymuje pętli ani na jedną
 klatkę dłużej niż lokalny.**
 
-## Zastrzeżenie do rozstrzygnięcia na starcie — jeden obieg sieci na wpis
+## Zastrzeżenie — rozstrzygnięte pomiarem, nie wyborem
 
-`opendir()` na opakowaniu `ssh2.sftp://` oddaje **same nazwy**. Rozmiar, data,
-prawa i rodzaj wpisu wymagają `stat()`, a każde takie pytanie to **osobny obieg
-do serwera**: przy łączu o czasie odpowiedzi 20 ms katalog o pięciuset wpisach
-kosztuje **dziesięć sekund**, w których aplikacja nie robi nic innego.
+**Postawienie problemu było słuszne, a odpowiedź wyszła inna niż wszystkie trzy
+przewidziane warianty.** Plan pytał, czy atrybuty wpisu wymagają osobnego obiegu
+na wpis (`opendir()` na opakowaniu `ssh2.sftp://` oddaje same nazwy) i polecał
+wariant (b) — `stat` kawałkowo dla widocznego okna. Rozszerzenie wypadło z fazy
+razem z D87, więc pytanie zmieniło adresata: **co oddaje `sftp ls -l`**.
 
-To jest główna trudność kroku i **pierwsza rzecz do sprawdzenia empirycznie**
-(protokół SFTP niesie atrybuty razem z nazwą w odpowiedzi `READDIR`; pytanie
-brzmi, czy rozszerzenie PHP je przekazuje, czy odrzuca — dokumentacja milczy,
-a maszyna projektu nie ma serwera, na którym dałoby się to sprawdzić przy
-planowaniu).
+Sprawdzone na żywym serwerze przed pierwszą linią kodu:
 
-Trzy warianty, jeśli okaże się, że atrybuty trzeba dobierać osobno:
-
-| Wariant | Cena |
+| Fakt | Liczba |
 |---|---|
-| **(a)** same nazwy, kolumny puste | tanie i szczere, ale lista traci to, co krok 27 dał liście lokalnej |
-| **(b) `stat` tylko dla widocznego okna, kawałkowo** (D46) | trzydzieści obiegów na ekran zamiast tysiąca; kolumny wypełniają się przez kilka klatek. **Rekomendacja** — wzorzec, który projekt ma i stosuje od kroku 25 |
-| **(c)** jeden `ssh2_exec('ls -l …')` i parsowanie | jeden obieg na katalog, ale zakłada powłokę POSIX po drugiej stronie i łamie się na nazwach z odstępami i znakami nowej linii |
+| `sftp ls -l` przez stojącego mistrza | **jeden obieg** daje nazwę, rodzaj, prawa, rozmiar i datę |
+| koszt wywołania | ~0,93 s — i jest to koszt **otwarcia kanału** w kontenerze, nie listowania (`ssh … true` kosztuje tyle samo) |
+| pięć tysięcy wpisów ponad to | +0,1 s, 419 KB wypisu |
+| rozczytanie tych wpisów w PHP | **3,2 ms** |
 
-Wariant **(b)** jest rekomendowany także dlatego, że jest jedynym, który nie
-zakłada niczego o zdalnym systemie — a serwer SFTP nie musi mieć powłoki.
+Wniosek przesądził o kształcie kroku: **koszt siedzi w wywołaniu, a nie we
+wpisie**, więc praca kawałkowa została **jednostopniowa**, a budżet mierzony
+zegarem — zapowiadany jako główna trudność kroku — okazał się chronić przed
+kosztem, którego nie ma. Zarzut planu wobec wariantu (c) („łamie się na nazwach
+z odstępami") **nie dotyczy tej drogi**: wypis `sftp` składa **klient**, a nie
+powłoka po drugiej stronie, i nazwa stoi w wierszu ostatnia. Sprawdzone nazwami
+z odstępem, cudzysłowem, apostrofem i znakami spoza ASCII; granicą pozostaje
+nazwa ze **znakiem nowej linii** — zapisana w dzienniku.
 
 ## Zależności
 
@@ -214,26 +227,31 @@ ma prawa urosnąć**.
 | `docs/architecture.md`, `SKILL.md` | Dokumentacja | Druga domena plikowa i jej granica; kawałek mierzony czasem |
 | testy | Testy | Atrapa portu odczytu (bez sieci), komparator, `RemotePath`, praca kawałkowa na dublerze, przebieg funkcjonalny przez `ScreenFixture` |
 
-## Do rozstrzygnięcia na starcie kroku
+## Rozstrzygnięte na starcie kroku (2026-08-15)
 
-1. **Drugi ekran modułu czy podział jednego** — moduł wnosi dziś **jeden** ekran
-   (`ProvidesScreen` oddaje jeden), więc lista hostów i lista plików albo dzielą
-   ekran (`Split`, krok 24), albo jedna zastępuje drugą po połączeniu. Trzecia
-   droga — kontrakt oddający wiele ekranów — jest zmianą rdzenia i wymaga zgody.
-2. **Granica powtarzania domeny plikowej** — ile wolno powtórzyć z przeglądarki,
-   zanim właściwym rozwiązaniem stanie się wspólne miejsce. Odpowiedź ma trafić
-   do `SKILL.md` razem z powodem, jak granica wyjątku 15b.
-3. **Skąd biorą się atrybuty** — wariant (a), (b) czy (c) z zastrzeżenia,
-   po sprawdzeniu, co naprawdę oddaje `readdir` rozszerzenia.
-4. **Wpisy ukryte** — pozycja ustawień modułu, klawisz, czy jedno i drugie
-   (przeglądarka ma jedno i drugie: `Ctrl`+`H` i ustawienie).
-5. **Filtr nazwy** — wchodzi w tym kroku (powielając `NameFilter`) czy nie
-   wchodzi wcale.
-6. **Kontekst sesji** — wariant (a), (b) czy (c) z zakresu nr 4.
-7. **Co widać przed połączeniem** — pusty panel z zaproszeniem, ostatnia lista
-   zapamiętana z poprzedniej sesji, czy ekran hostów.
-8. **Dowiązania symboliczne** — `stat` (jak przeglądarka: dowiązanie do katalogu
-   zachowuje się jak katalog) czy `lstat` (widać, że to dowiązanie).
+Pełne uzasadnienia i odrzucone alternatywy: [00-decyzje.md](00-decyzje.md), D88.
+**Cztery odpowiedzi poszły wbrew rekomendacji planu** — nr 3, 5, 6 i 9.
+
+| # | Pytanie | Rozstrzygnięcie | Wobec rekomendacji |
+|---|---|---|---|
+| 1 | Drugi ekran czy podział jednego | **Jeden ekran w dwóch postaciach** — spis hostów ustępuje katalogowi po połączeniu, `F3` zagląda z powrotem | zgodnie (bez zmiany rdzenia) |
+| 2 | Granica powtarzania domeny plikowej | **Jakościowa i ilościowa naraz** — pojęcia wolno, mechanizmy nie; trzeci moduł uruchamia przegląd (`SKILL.md`, 15e) | — |
+| 3 | Skąd biorą się atrybuty | **Jeden obieg na katalog** (`sftp ls -l`), praca kawałkowa jednostopniowa | wbrew — wariant (b) stał się bezprzedmiotowy |
+| 4 | Wpisy ukryte | **Ustawienie modułu i klawisz `Ctrl`+`H`**, jak w przeglądarce; przełączenie kosztuje nowy obieg | zgodnie |
+| 5 | Filtr nazwy | **Wchodzi, wraz z podświetleniem dopasowania** | wbrew |
+| 6 | Kontekst sesji | **Kontekst dostaje pochodzenie** (`ContextOrigin`) wraz z odbiorcą w module opisu pliku | wbrew — plan polecał „ekran zdalny nie publikuje" |
+| 7 | Co widać przed połączeniem i po rozłączeniu | **Spis hostów** w obu przypadkach, także przy zerwaniu | zgodnie |
+| 8 | Dowiązania symboliczne | **Pokazujemy jak `lstat`, `Enter` próbuje wejść** — zero dodatkowych obiegów | zgodnie |
+| 9 | Duży katalog wobec limitu wyjścia | **Limit wyjścia pracy tłowej wchodzi do konfiguracji** (`backgroundOutputKib`, domyślnie 1 MiB) | wbrew — plan nie znał tego pytania |
+| 10 | Co robi `FileInfo` z wpisem zdalnym | **Pokazuje to, co już wiadomo** — z kontekstu, bez sieci i bez dysku | pytanie wynikłe z nr 6 |
+| 11 | Skąd powód niepowodzenia po zakazie scalania | **Port niesie strumień błędów osobnym polem** | pytanie wynikłe z próby na żywym serwerze |
+
+**Kryterium „rdzeń kosztuje jedną linię" jest tym samym odwołane.** Rdzeń rośnie
+o **pięć** rzeczy i wszystkie są rozstrzygnięciami użytkownika podjętymi z ceną
+wypisaną przed wyborem: limit wyjścia w konfiguracji wraz z trzecią zakładką
+ustawień (nr 9), pochodzenie w `ModuleContext` (nr 6), odbiorca tego pochodzenia
+w module opisu pliku (nr 10), strumień błędów w `BackgroundState` (nr 11) —
+a pozycja w `Bootstrapie` stała tam od kroku 48.
 
 ## Kryteria ukończenia
 
@@ -254,4 +272,161 @@ ma prawa urosnąć**.
 
 ## Dziennik realizacji
 
-_(pusty — krok nie rozpoczęty)_
+### 2026-08-15 — rozpoznanie i rozstrzygnięcia startowe
+
+Stan zastany sprawdzony przed pytaniami i **rozminął się z tabelą planu w jednym
+miejscu, za to zasadniczym**: `ext-ssh2` nie jest już drogą tej fazy (D87), więc
+pytanie „czy `readdir` rozszerzenia niesie atrybuty" straciło adresata. Zadano je
+na nowo `sftp`-owi — na żywym serwerze, przed pierwszą linią kodu — i odpowiedź
+przesądziła o kształcie kroku (tabela w sekcji „Zastrzeżenie").
+
+Jedenaście rozstrzygnięć (osiem z planu, trzy wynikłe) w [00-decyzje.md](00-decyzje.md),
+D88. Cztery poszły wbrew rekomendacji planu.
+
+### 2026-08-15 — wykonanie
+
+**Rdzeń urósł o pięć rzeczy zamiast zapowiadanej jednej linii** i każda ma swój
+numer w D88. Dwie z nich to mechanizmy z odbiorcą wchodzącym w tym samym kroku
+(pochodzenie kontekstu → moduł opisu pliku; strumień błędów → odczyt katalogu),
+jedna to pozycja konfiguracji wraz z trzecią zakładką ustawień („Zasoby"), a piąta
+stała w `Bootstrapie` od kroku 48.
+
+**Warstwy `UseCase` moduł znowu nie dostał** — powód ten sam, co w kroku 48:
+`EnterRemoteDirectoryUseCase` byłby przepuszczeniem wywołania do portu. Jego
+miejsce zajął koordynator `Application\RemoteBrowser` (wzorem `SshSession`
+i `PlaylistPlayer`). **Repozytorium w `Domain` też nie powstało, choć plan je
+przewidywał**, i tu powód jest mocniejszy niż oszczędność: repozytorium oddaje
+agregat *w chwili wywołania*, czyli obiecuje odpowiedź natychmiast — a to jest
+dokładnie ta obietnica, której cała Faza XVII złożyć nie może.
+
+**Znacznika „atrybutów jeszcze nie znam" w `RemoteEntry` nie ma**, choć plan
+zapowiadał go jako rzecz odróżniającą wpis zdalny od lokalnego. Był własnością
+odrzuconej drogi dwuetapowej; przy jednym obiegu wpis bez atrybutów nie ma jak
+powstać, a pole o zawsze tej samej wartości byłoby pytaniem bez treści.
+
+**Ekran dostał klawisz, którego plan nie przewidywał** (`F3`, zajrzenie do spisu
+hostów przy żywej sesji) — i **nie `F2`, bo ten należy do rdzenia**. Pomyłkę
+złapał przebieg funkcjonalny, który zamiast spisu hostów otworzył ekran ustawień.
+
+#### Próba z żywym serwerem — i jedna usterka, której nie złapałby żaden test
+
+Sprawdzenie ręczne poszło na kontenerze `atmoz/sftp:alpine` (port 2223),
+**prawdziwym kodem modułu**, nie skrótem przez powłokę: dziewięć scenariuszy od
+uścisku dłoni po sprzątanie. Wykryło **cichą utratę danych**, i to nie w module,
+tylko w sposobie, w jaki cała faza rozmawia z procesem potomnym.
+
+**Objaw:** katalog o pięciu tysiącach wpisów przychodził jako **1551 wpisów**,
+z kodem wyjścia **0**. Nie było błędu, ostrzeżenia ani śladu w kodzie wyjścia —
+lista po prostu się kończyła.
+
+**Droga do przyczyny** (skrypty w katalogu roboczym, nie w repozytorium):
+
+1. Port pracy tłowej **przeczytał 400 KB** od polecenia piszącego równie wolno —
+   czyli rdzeń jest niewinny.
+2. To samo `sftp` zapisane **do pliku** oddawało komplet 418 922 B; przez potok
+   czytany co 33 ms — jedną trzecią.
+3. Stratę odtworzono **bez PHP**, samą powłoką z pauzami — czyli język też jest
+   niewinny.
+4. Flagi deskryptora wyjścia potomka w przebiegu, który gubił: **`04001`**,
+   czyli `O_WRONLY|O_NONBLOCK`.
+5. Przebieg bez `2>&1`: flagi **`01`**, wypis **kompletny**.
+
+**Przyczyna:** polecenie kończyło się na `2>&1`, więc strumień błędów potomka
+i potok z listą to **ten sam opis pliku**. `sftp` uruchamia `ssh`, a ten przy
+`ControlPath` jest **klientem multipleksera** — przekazuje swoje deskryptory
+mistrzowi połączenia, który obsługuje wiele sesji w jednej pętli i dlatego
+ustawia im tryb nieblokujący. Tryb jest własnością **opisu pliku**, więc wracał
+tym samym potokiem na wyjście `sftp`; odkąd potok się zapełnił, `write()`
+zwracał `EAGAIN`, a OpenSSH porzucał porcję wypisu i kończył się kodem zero.
+
+**Naprawa** (rozstrzygnięcie użytkownika nr 11, po odrzuceniu drogi przez plik
+roboczy): przestać scalać. Lista idzie wyjściem, powód niepowodzenia — strumieniem
+błędów, który port rdzenia niesie odtąd **osobnym polem**. Zasada z kroku 26
+(„strumieni się nie skleja") zostaje w mocy; pola są rozdzielone właśnie po to.
+Regresji pilnują dwa testy: `SftpCommandTest::testStreamsAreNeverMerged`
+i `BackgroundProcessServiceTest::testLargeOutputSurvivesFrameRateDraining`.
+
+Przy okazji wyszły **trzy drobniejsze rzeczy**, wszystkie z prawdziwych danych:
+
+1. **`preg_split('/\R/')` rozcinało nazwy w środku znaku** — poza trybem UTF-8
+   bajt `0x85` jest dla `\R` znakiem nowej linii, a to **drugi bajt litery `ą`**.
+   Nazwa „zażółć gęślą jaźń.txt" rozpadała się na pół. Podział idzie odtąd
+   wypisanym wprost wzorcem, a trybu UTF-8 **nie wolno tu włączyć**: nazwa pliku
+   na cudzej maszynie nie musi być poprawnym UTF-8, a `preg_*` oddaje wtedy
+   `false` — czyli jeden zepsuty bajt kasowałby cały katalog.
+2. **Katalog bez prawa wejścia mówił „sesja zerwana"** — `sftp` narzeka tam
+   „remote readdir(…): Permission denied", a nie „Can't ls", więc wpadał pod
+   ogólny wzorzec odmowy uwierzytelnienia.
+3. **Usterka z kroku 48**: sprzątanie gniazda mistrza pytało `is_file()`, a gniazdo
+   uniksowe **nie jest zwykłym plikiem** — warunek nie był spełniony nigdy.
+
+#### Liczby z próby (kontener na pętli zwrotnej, maszyna projektu)
+
+| Czynność | Czas | Klatek po 33 ms |
+|---|---|---|
+| uścisk dłoni (host znany) | **166 ms** | 6 |
+| katalog startowy: `pwd` + `ls` jednym wywołaniem | **929 ms** | 29 |
+| katalog o 14 wpisach | **927 ms** | 29 |
+| katalog o **5000 wpisów** (419 KB wypisu) | **1236 ms** | 37 |
+| katalog nieistniejący → `listing.missing` | 928 ms | — |
+| katalog o prawach 000 → `listing.denied` | 961 ms | — |
+| odczyt po zerwanej sesji → `listing.dropped` | **100 ms** | 3 |
+
+**To jest liczba, od której zależy odpowiedź na zastrzeżenie startowe:** pięć
+tysięcy wpisów kosztuje **jeden obieg** i 1,2 s, z czego 0,93 s to otwarcie
+kanału w tym kontenerze (`ssh … true` kosztuje tyle samo), a rozczytanie wypisu
+w PHP — **3,2 ms**. Wariant „stat na wpis" kosztowałby przy tym łączu **pięć
+tysięcy obiegów**.
+
+Sprawdzone przy okazji i zgodne z oczekiwaniem: nazwy z odstępem, cudzysłowem,
+apostrofem i znakami spoza ASCII przechodzą nietknięte; `Ctrl`+`H` zamawia nowy
+obieg i pokazuje o jeden wpis więcej; dowiązania widać jako dowiązania (`lstat`),
+a nie jako cele; plik starszy niż pół roku dostaje rok zamiast godziny; sprzątanie
+zostawia zero procesów i zero gniazd, a `~/.ssh/known_hosts` użytkownika jest po
+próbie **bajt w bajt** taki sam jak przed nią (23 wiersze, ta sama suma MD5).
+
+#### Pomiar
+
+`bin/render-bench --loop` „przed i po" wobec wzorca po kroku 48: dwa przebiegi,
+**+1,3%** i **+2,4%**, przy obciążeniu maszyny 0,12 i 0,17 na rdzeń wobec 0,11 we
+wzorcu — czyli szum, i to szum, w którym drugi przebieg miał **wyższe obciążenie
+niż wzorzec**. Narzędzie nie zgłosiło regresji w żadnym z nich. Wzorzec zapisany
+jako `2026-08-15-po-kroku-49-loop.json`.
+
+**Granica tej liczby jest ta sama, co w krokach 45, 46 i 48**: `--loop` nie woła
+taktu modułów, więc mówi ona, że *reszta* taktu się nie zmieniła. O koszcie
+samego taktu tego modułu świadczy to, na co się on składa: jedno `poll()`, które
+z definicji nie blokuje, plus — raz na odczyt — rozczytanie wypisu, zmierzone na
+**3,2 ms dla pięciu tysięcy wpisów**.
+
+Scenariusza klatki krok **nie dokłada**; dwa powody pominięcia (panel i odczyt)
+stoją w [docs/pomiary/README.md](../pomiary/README.md).
+
+#### Czego krok nie dowiózł
+
+- **Klatki pod XTermem nikt nie oglądał** — jak w krokach 46 i 48. Kolumny,
+  podświetlenie filtra i pole zawężania sprawdzono prymitywami w testach
+  i przebiegiem funkcjonalnym, ale nie okiem w prawdziwym terminalu.
+- **Prawdziwej sieci nie było** — próba szła po pętli zwrotnej, więc czasy są
+  dolną granicą, a zachowanie przy łączu wolnym albo zrywającym w środku odczytu
+  pozostaje niesprawdzone.
+- **Nazwa ze znakiem nowej linii** pokazuje się jako pierwsza linia swojej nazwy;
+  wejść w nią się nie da. Granica znana, zapisana w parserze i w teście.
+- **`SftpDirectoryService` nie ma testu jednostkowego** — sięga po singleton portu
+  tłowego, którego nie da się podstawić. Sprawdzają go klasy czyste, na które
+  został rozłożony (`SftpCommand`, `SftpListingParser`, `SftpFailureReader`),
+  atrapa portu w `RemoteBrowserTest` i próba na żywym serwerze.
+
+#### Rachunek końcowy
+
+Testów **1918** (przybyło 69), PHPStan `max` bez błędów, PHP-CS-Fixer bez uwag,
+`make qa` zielone. **Żaden test nie otwiera połączenia sieciowego** — i jest to
+zdanie, które ten krok musiał wywalczyć: pierwsza wersja oprzyrządowania **nie
+podstawiała portu odczytu**, więc przebieg funkcjonalny z podstawioną sesją wziął
+prawdziwą usługę i wypuścił procesy `sftp` do hosta z przykładowego wpisu książki.
+Procesy ubito, przyczynę usunięto (`StubRemoteDirectory` w `ScreenFixture`),
+a zdanie w tym miejscu znaczy odtąd to, co mówi.
+
+Wejścia testów pochodzą z **prawdziwego przebiegu**, nie z ręcznego rachunku:
+wypis w `SftpListingParserTest` skopiowano bajt w bajt z żywego serwera razem
+z nazwami, które miały parser wywrócić — i dwie z nich go wywróciły.

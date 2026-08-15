@@ -73,6 +73,25 @@ final class Settings
 
     public const WINDOW_ROWS_MAX = 400;
 
+    /**
+     * Ile najwyżej pamiętać wyjścia polecenia tłowego, w kibibajtach (krok 49).
+     *
+     * Klucz powstał, bo do kroku 49 limit był **stałą wpisaną w kod**
+     * (64 KiB w `BackgroundProcessService`) dobraną pod polecenia oddające jeden
+     * wiersz — `du -s`, `file -b`. Zdalny katalog jest pierwszym odbiorcą, dla
+     * którego wyjściem jest **treść**, a nie liczba: wypis `sftp ls -l` kosztuje
+     * około 84 bajtów na wpis, więc dawna stała urywała listę na siedmiuset
+     * wpisach i robiła to **po cichu**.
+     *
+     * Wartość jest **sufitem, nie rezerwacją** — pamięć rośnie dopiero wtedy, gdy
+     * polecenie naprawdę tyle wypisze. Domyślne 1024 KiB mieści katalog o około
+     * dwunastu tysiącach wpisów i zarazem zostaje granicą dla polecenia, które
+     * zaczęłoby sypać bez końca.
+     */
+    public const BACKGROUND_OUTPUT_CHOICES = [64, 256, 1024, 4096, 16384];
+
+    public const DEFAULT_BACKGROUND_OUTPUT_KIB = 1024;
+
     /** @param array<string, array<string, bool|int|string>> $modules `id modułu` → klucz → wartość */
     public function __construct(
         public readonly string $language = Language::Auto->value,
@@ -84,6 +103,7 @@ final class Settings
         public readonly array $modules = [],
         public readonly int $windowColumns = self::DEFAULT_WINDOW_COLUMNS,
         public readonly int $windowRows = self::DEFAULT_WINDOW_ROWS,
+        public readonly int $backgroundOutputKib = self::DEFAULT_BACKGROUND_OUTPUT_KIB,
     ) {
     }
 
@@ -119,6 +139,9 @@ final class Settings
             ),
             SettingKey::WindowRows => $this->withWindowRows(
                 self::nextStop(self::WINDOW_ROWS_CHOICES, $this->windowRows, $direction),
+            ),
+            SettingKey::BackgroundOutputKib => $this->withBackgroundOutputKib(
+                self::next(self::BACKGROUND_OUTPUT_CHOICES, $this->backgroundOutputKib, $direction),
             ),
         };
     }
@@ -161,6 +184,23 @@ final class Settings
     public function withWindowRows(int $windowRows): self
     {
         return $this->copy(windowRows: $windowRows);
+    }
+
+    public function withBackgroundOutputKib(int $backgroundOutputKib): self
+    {
+        return $this->copy(backgroundOutputKib: $backgroundOutputKib);
+    }
+
+    /**
+     * Limit wyjścia w bajtach — postać, w której pyta o niego usługa procesu.
+     *
+     * Dolna granica jest tu, a nie w usłudze, bo plik konfiguracji ruszony ręcznie
+     * jest jedynym sposobem, żeby wpisać tam zero — a limit zerowy znaczyłby
+     * „każde polecenie oddaje pustkę”, czyli awarię wyglądającą jak cisza.
+     */
+    public function backgroundOutputBytes(): int
+    {
+        return max(self::BACKGROUND_OUTPUT_CHOICES[0], $this->backgroundOutputKib) * 1024;
     }
 
     /** Czy liczba kolumn nadaje się na rozmiar okna — granica pliku ruszonego ręcznie (krok 37). */
@@ -211,7 +251,8 @@ final class Settings
             && $this->paletteColors === $other->paletteColors
             && $this->modules === $other->modules
             && $this->windowColumns === $other->windowColumns
-            && $this->windowRows === $other->windowRows;
+            && $this->windowRows === $other->windowRows
+            && $this->backgroundOutputKib === $other->backgroundOutputKib;
     }
 
     /**
@@ -234,6 +275,7 @@ final class Settings
         ?array $modules = null,
         ?int $windowColumns = null,
         ?int $windowRows = null,
+        ?int $backgroundOutputKib = null,
     ): self {
         return new self(
             $language ?? $this->language,
@@ -245,6 +287,7 @@ final class Settings
             $modules ?? $this->modules,
             $windowColumns ?? $this->windowColumns,
             $windowRows ?? $this->windowRows,
+            $backgroundOutputKib ?? $this->backgroundOutputKib,
         );
     }
 
