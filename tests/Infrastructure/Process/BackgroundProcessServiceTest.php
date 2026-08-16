@@ -8,6 +8,7 @@ use LightManager\Application\Dto\BackgroundHandle;
 use LightManager\Application\Dto\BackgroundStage;
 use LightManager\Application\Dto\BackgroundState;
 use LightManager\Application\Dto\Language;
+use LightManager\Application\Dto\OutputShape;
 use LightManager\Application\Dto\Settings;
 use LightManager\Infrastructure\Config\SettingsService;
 use LightManager\Infrastructure\Process\BackgroundProcessService;
@@ -200,6 +201,68 @@ final class BackgroundProcessServiceTest extends TestCase
         }
 
         self::assertSame(16 * 16_384, strlen($state->output));
+    }
+
+    /**
+     * **Praca trwająca oddaje to, co zdążyła wypisać** — miara powodzenia
+     * rozbudowy z kroku 52 (D91 nr 12).
+     *
+     * Bez tego zdania `kubectl logs -f` nie miałby jak powiedzieć ani słowa:
+     * wypisuje wiersze i nie kończy się nigdy, a port oddawał treść wyłącznie
+     * przy `Done`. Polecenie tutaj robi dokładnie to samo w miniaturze — mówi
+     * jedno zdanie i zasypia.
+     */
+    public function testRunningWorkHandsOverWhatItHasWrittenSoFar(): void
+    {
+        $service = BackgroundProcessService::getInstance();
+        $handle = $service->start("printf 'pierwszy wiersz\\n'; sleep 5", 30, OutputShape::Stream);
+
+        $state = $this->awaitOutput($handle);
+
+        self::assertSame(BackgroundStage::Running, $state->stage, 'praca miała jeszcze trwać');
+        self::assertSame("pierwszy wiersz\n", $state->output);
+        self::assertSame(0, $state->droppedBytes);
+
+        $service->stop($handle);
+    }
+
+    /**
+     * **Strumień zapomina najstarsze zamiast zamilknąć** — druga połowa tej samej
+     * rozbudowy i ta, bez której pierwsza jest bezużyteczna.
+     *
+     * Do kroku 52 bufor odrzucał nadmiar, więc log dobijający do granicy
+     * przestawał dochodzić **na zawsze**: potomek pisałby dalej, a aplikacja nie
+     * dostawałaby ani jednego nowego wiersza. Polecenie wypisuje 96 KiB przy
+     * granicy 64 KiB i kończy znacznikiem — znacznik ma dojść, a początek ma
+     * wypaść i **powiedzieć o sobie liczbą**.
+     */
+    public function testStreamForgetsTheOldestInsteadOfGoingSilent(): void
+    {
+        $service = $this->serviceWithOutputLimit(64);
+        $state = $this->await($service->start($this->outputOf(96) . "; printf 'KONIEC'", 30, OutputShape::Stream));
+
+        self::assertSame(64 * 1024, strlen($state->output), 'bufor strumienia ma trzymać granicę');
+        self::assertStringEndsWith('KONIEC', $state->output, 'najnowszy wiersz nie doszedł');
+        self::assertSame(96 * 1024 + 6 - 64 * 1024, $state->droppedBytes);
+    }
+
+    /**
+     * **Wynik zachowuje się dokładnie tak, jak przed krokiem 52** — to jest
+     * kryterium „starszy odbiorca nie ma prawa ucierpieć”.
+     *
+     * To samo polecenie i ta sama granica, co wyżej, ale zamówione bez kształtu:
+     * nadmiar ma zostać odrzucony, znacznik z końca **nie ma prawa dojść**,
+     * a licznik zapomnianych bajtów ma zostać zerem, bo wynik niczego nie
+     * zapomina.
+     */
+    public function testResultStillDiscardsTheExcessAndForgetsNothing(): void
+    {
+        $service = $this->serviceWithOutputLimit(64);
+        $state = $this->await($service->start($this->outputOf(96) . "; printf 'KONIEC'", 30));
+
+        self::assertSame(64 * 1024, strlen($state->output));
+        self::assertStringEndsNotWith('KONIEC', $state->output, 'wynik nie ma prawa przesuwać bufora');
+        self::assertSame(0, $state->droppedBytes);
     }
 
     public function testTimeoutStopsTheChildAndSaysSo(): void
@@ -462,6 +525,48 @@ final class BackgroundProcessServiceTest extends TestCase
         } while (microtime(true) < $deadline);
 
         self::fail('praca nie skończyła się w wyznaczonym czasie');
+    }
+
+    /**
+     * Usługa z zadaną granicą wypisu (krok 52).
+     *
+     * Tą samą drogą, co granica liczby prac: przez prawdziwe ustawienia, bo
+     * właśnie ta droga jest tu sprawdzana. `64` to najmniejszy przystanek — mniej
+     * ustawić się nie da, więc polecenie musi wypisać odpowiednio więcej.
+     */
+    private function serviceWithOutputLimit(int $kib): BackgroundProcessService
+    {
+        $this->pinLanguage(Language::Polish);
+        $this->resetSingleton(SettingsService::class);
+        SettingsService::getInstance()->save((new Settings())->withBackgroundOutputKib($kib));
+
+        return BackgroundProcessService::getInstance();
+    }
+
+    /** Polecenie wypisujące zadaną liczbę kibibajtów, porcjami po 16 KiB. */
+    private function outputOf(int $kib): string
+    {
+        return sprintf('for i in $(seq 1 %d); do head -c 16384 /dev/zero | tr "\\0" "A"; done', intdiv($kib, 16));
+    }
+
+    /** Czeka na **pierwszy wypis**, a nie na koniec pracy — strumień się nie kończy. */
+    private function awaitOutput(BackgroundHandle $handle): BackgroundState
+    {
+        $service = BackgroundProcessService::getInstance();
+        $deadline = microtime(true) + self::PATIENCE_SECONDS;
+
+        do {
+            $service->pump();
+            $state = $service->poll($handle);
+
+            if ($state->output !== '') {
+                return $state;
+            }
+
+            usleep(5000);
+        } while (microtime(true) < $deadline);
+
+        self::fail('praca nie wypisała niczego w wyznaczonym czasie');
     }
 
     /** Czeka, aż potomek zdąży podać swój numer. */

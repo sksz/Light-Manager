@@ -6,6 +6,7 @@ namespace LightManager\Infrastructure\Process;
 
 use LightManager\Application\Dto\BackgroundHandle;
 use LightManager\Application\Dto\BackgroundState;
+use LightManager\Application\Dto\OutputShape;
 use LightManager\Application\Port\BackgroundProcessPort;
 use LightManager\Application\Port\BackgroundPumpPort;
 use LightManager\Infrastructure\Config\SettingsService;
@@ -75,11 +76,14 @@ final class BackgroundProcessService extends AbstractSingleton implements Backgr
 
     private bool $shutdownRegistered = false;
 
-    public function start(string $command, int $timeoutSeconds): BackgroundHandle
-    {
+    public function start(
+        string $command,
+        int $timeoutSeconds,
+        OutputShape $shape = OutputShape::Result,
+    ): BackgroundHandle {
         $handle = new BackgroundHandle(++$this->lastId);
         $limit = self::jobLimitFromSettings();
-        $job = new BackgroundJob(max(1, $timeoutSeconds), self::outputLimitFromSettings());
+        $job = new BackgroundJob(max(1, $timeoutSeconds), self::outputLimitFromSettings(), $shape);
 
         // Granica pilnuje **prac trwających**, a nie wpisów w tablicy: praca
         // skończona, której stanu nikt jeszcze nie zdjął, nie zajmuje ani

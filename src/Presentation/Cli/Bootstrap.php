@@ -50,6 +50,7 @@ use LightManager\Module\Audio\Presentation\AudioModule;
 use LightManager\Module\Browser\Presentation\BrowserModule;
 use LightManager\Module\Docker\Presentation\DockerModule;
 use LightManager\Module\FileInfo\Presentation\FileInfoModule;
+use LightManager\Module\Kubernetes\Presentation\KubernetesModule;
 use LightManager\Module\Ssh\Presentation\SshModule;
 use LightManager\Presentation\Cli\Command\DumpFrameCommand;
 use LightManager\Presentation\Cli\Command\FullscreenCommand;
@@ -411,6 +412,15 @@ final class Bootstrap
             // gniazda demona rejestr go odrzuca (`RequiresEnvironment`, D90 nr 6),
             // a ta linia zostaje ta sama.
             new DockerModule($state, $translator, $settings),
+            // Szósta pozycja i **cały koszt modułu klastra w rdzeniu** (krok 52)
+            // ponad rozbudowę portu pracy tłowej o wypis pracy trwającej
+            // (D91 nr 12) — tamta ma własnego odbiorcę w logach `kubectl -f`
+            // i własne testy. Rdzeń nie wie o tym module nic ponad tę linię:
+            // ani że rodzaje zasobów pochodzą z klastra, ani że jedno z jego
+            // wywołań rozczytuje tekst. Bez klienta `kubectl` rejestr go
+            // odrzuca (`RequiresEnvironment`, reguła 11s), a ta linia zostaje
+            // ta sama.
+            new KubernetesModule($state, $translator, $settings),
         ];
     }
 

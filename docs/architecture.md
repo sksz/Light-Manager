@@ -1042,7 +1042,24 @@ Trzy rzeczy ponadto, każda niosąca własną klasę błędów:
 - **kod wyjścia różny od zera nie jest sam z siebie niepowodzeniem** — `du`
   kończy się jedynką za każdy nieprzeczytany katalog, a mimo to podaje sumę tego,
   co przeczytać zdołało. Co z kodu wynika, rozstrzyga zamawiający; rdzeń go tylko
-  podaje.
+  podaje;
+- **praca trwająca oddaje swój wypis, a zamawiający mówi, czym ten wypis jest**
+  (od kroku 52, D91 nr 12). Do tamtego kroku `Running` znaczyło „nic ci jeszcze
+  nie powiem”, co zamykało drogę każdemu poleceniu **niekończącemu się nigdy**:
+  `kubectl logs -f` pisał wiersze do potoku, port je zbierał, a pierwszy raz
+  oddałby je po śmierci potomka, czyli nigdy. Rozbudowa ma dwie części i druga
+  jest ważniejsza od pierwszej. Samo oddawanie wypisu nie wystarcza, bo bufor
+  **odrzucał nadmiar** po przekroczeniu granicy — log dobiłby do niej
+  w kilkanaście sekund i zamilkł na zawsze. Wynik i strumień mają wobec granicy
+  wymagania przeciwne, więc doszło `Application\Dto\OutputShape`: `Result`
+  (domyślny, zachowanie sprzed kroku 52 co do bajtu) zbiera do granicy i odrzuca
+  nadmiar, `Stream` **zapomina najstarsze**, a ile bajtów wypadło, mówi
+  `BackgroundState::$droppedBytes`. Kształt podaje się przy `start()`, bo jest
+  własnością **zamówienia, nie polecenia**: to samo `kubectl logs` bywa jednym
+  i drugim, zależnie od `-f`. Dwie rzeczy zostają nietknięte i są warunkiem
+  przyjęcia zmiany: **`poll()` pozostaje czystym odczytem** (stan powstaje
+  w `pump()`) i **treść nadal odbiera się przy `Done`** — wypis w trakcie jest
+  urwany w połowie wiersza, a pół JSON-a nie jest JSON-em.
 
 Pierwszym odbiorcą jest wiersz „zajęte na dysku” w module `FileInfo` — liczony
 poleceniem `du` **tylko dla katalogów** (dla zwykłego pliku tę samą liczbę podają
@@ -1288,6 +1305,69 @@ ekranie, a nie powodem nieobecności.
 ekranie**; zawężenie do projektu compose nie kosztuje ani jednego pytania więcej,
 bo kontener zna swój projekt z etykiety `com.docker.compose.project`
 przychodzącej razem z listą.
+
+#### Kubernetes: moduł, który nie wie z góry, co pokaże (od kroku 52)
+
+Moduł `src/Module/Kubernetes/` (`Ctrl`+`K`) pokazuje zasoby klastra wskazanego
+przez `kubeconfig`, opisuje wybrany zasób, puszcza logi poda na żywo, stosuje
+manifesty i pozwala zmienić wartość w sekrecie. Jest **szóstym sprawdzianem
+kontraktu modułu** i różni się od pięciu poprzednich jedną rzeczą: **nie zna
+z góry swojej treści**. Rodzaje zasobów przychodzą z klastra, więc drzewo jednego
+wygląda inaczej niż drugiego, a operator zainstalowany w międzyczasie zmienia je
+bez ani jednej linii dopisanej do aplikacji (D91 nr 2).
+
+**Wszystko idzie procesem potomnym** — `kubectl` uruchamiany rdzeniowym portem
+pracy tłowej — więc reguła nadrzędna z kroku 48 jest spełniona w najmocniejszej
+postaci: żadne wywołanie sieciowe nie pada w rysowaniu klatki, bo żadne nie pada
+w procesie aplikacji. **Limit czasu jest częścią każdego wywołania i jest
+podwójny**: `--request-timeout` (klient przestaje czekać na serwer) plus limit
+procesu (rdzeń ubija potomka, który zawiesił się przed wysłaniem żądania).
+Wyjątek jest jeden i nazwany: **strumień logów nie dostaje limitu żądania**, bo
+ten zamknąłby go w chwili, gdy zaczyna działać.
+
+**Ekran to `Split`: drzewo grup API i rodzajów po lewej, treść po prawej**
+(D91 nr 3) — dla rodzaju jego lista, dla zasobu opis w zwijanych sekcjach, a `y`
+przełącza na surowy YAML. Trzy poziomy drzewa zamiast dwóch, bo rodzajów bywa
+kilkadziesiąt; grupa mieści się w panelu, płaska lista sześćdziesięciu pozycji
+nie. **Rozwinięcie gałęzi jest jedynym momentem, w którym pytamy o listę** —
+każde takie pytanie to proces potomny, więc gałąź rozwinięta i nieoglądana
+zostaje taka, jaka była.
+
+**Kolumny liczy moduł, nie serwer** (D91 nr 4) i jest to cena wybrana świadomie:
+`-o json` plus ręcznie napisane pakiety kolumn dla kilkunastu popularnych
+rodzajów, a rodzaj spoza spisu — w tym każdy CRD — pokazuje nazwę, wiek i nic
+więcej. Odrzucona droga (rozczytywanie tabeli drukowanej przez serwer) dawała
+prawdziwe kolumny każdemu rodzajowi za darmo, ale kupowała je parserem tekstu
+wyrównanego spacjami.
+
+**Jedno wywołanie mimo to oddaje tekst**: `kubectl api-resources` nie umie JSON-a
+w kliencie 1.25 (`-o` przyjmuje `wide` i `name`). Wiersz rozbiera się wyrażeniem
+opartym na niezmiennikach — czasowniki w nawiasach kwadratowych, przed nimi stała
+kolejność pól — **nigdy podziałem po spacjach**: kolumna `SHORTNAMES` bywa pusta,
+a wtedy podział przesuwa wszystkie pozostałe i `namespaced` czyta się
+z `APIVERSION`, czyli połowa katalogu dostaje odwróconą odpowiedź na pytanie „czy
+ten zasób mieszka w przestrzeni nazw”.
+
+**Sekrety są zamaskowane** w liście, w opisie i w widoku YAML; `x` odsłania
+**jeden** klucz, a `e` otwiera zmianę — wartość tekstem albo zapisem base64,
+dodanie klucza, skasowanie klucza (D91 nr 10). Wszystkie trzy idą jednym
+poleceniem `kubectl patch --type=merge -p '<json>'`, bo scalająca zmiana kasuje
+klucz o wartości `null` i zostawia nietknięte te, których nie wymieniono. Fragment
+idzie **argumentem**, nigdy wejściem standardowym — ta sama reguła unieważnia
+`kubectl apply -f -`, więc manifest podaje się ścieżką. Powód maskowania jest
+wymierny: `core.dump` z kroku 38 zapisuje klatkę na dysk.
+
+**Stan „nie ma klastra” jest stanem zwykłym, nie awarią**, i rozpada się na trzy:
+brak bieżącego kontekstu (spis czyta się z pliku, więc pada także bez sieci —
+ekran mówi, co wybrać), klaster nieosiągalny (powód pochodzi ze strumienia błędów
+klienta, nie z domysłu) i klaster gotowy. **Wersje klienta i serwera są widoczne,
+a różnica większa niż jedno wydanie jest ostrzeżeniem, nie odmową** — Kubernetes
+nazywa ją niewspieraną, a nie niemożliwą.
+
+Rdzeń kosztuje **jedną linię w `Bootstrapie` plus rozbudowę portu pracy tłowej**
+o wypis pracy trwającej (niżej, rozdz. o pracy tłowej) — plan kroku zakładał, że
+mechanizmu rdzenia nie ruszy żadnego, i to założenie zostało odwołane
+rozstrzygnięciem użytkownika (D91 nr 12).
 
 #### Kosz i cofnięcie ostatniej operacji (od kroku 44)
 
@@ -1802,6 +1882,7 @@ spis wszystkich celów z opisami; cel, którego w tym spisie nie ma, nie istniej
 | Budowa | `make build` | `bin/build-phar`: `build/light-manager-<wersja>.phar` (wersja z `composer.json`) plus `assets/` **obok** archiwum. Kończy się sprawdzeniem, że wynik się ładuje |
 | Uruchomienie | `make run`, `run-window`, `run-xterm` | `bin/light-manager`, ten sam z `--window`, `bin/run.sh` (XTerm z zasobami trybu graficznego) |
 | Podgląd wejścia terminala | `make probe`, `probe-xterm` | `bin/terminal-probe` — **jedyna** droga do sprawdzenia odpowiedzi DA1, bo wymaga interaktywnego terminala w trybie surowym |
+| Klaster do sprawdzeń modułu `k8s` | `make minikube-start`, `minikube-stop`, `minikube-status` | `minikube` (od kroku 52). Klaster jest **obciążeniem maszyny, nie częścią aplikacji**: moduł działa bez niego, a przed każdym `make bench*` węzeł ma być **zatrzymany** (reguła 17). `minikube-status` wolno wołać zawsze — nie podnosi klastra ani go nie kładzie, a kod wyjścia narzędzia (7 przy zatrzymanym, 85 przy nieistniejącym) jest tu odpowiedzią, nie awarią |
 | Sprzątanie | `make clean`, `dist-clean` | `clean` usuwa wytwory narzędzi i `build/`; `dist-clean` dokłada `vendor/`. Żaden nie tyka `docs/pomiary/` (wzorce są w repozytorium celowo, D33) ani konfiguracji w `HOME` |
 
 ### Reguła pierwszeństwa (D63)

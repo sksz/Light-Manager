@@ -46,12 +46,21 @@ final class DockerShortcutsTest extends TestCase
         );
     }
 
-    public function testTheLetterReservedForKubernetesIsStillFree(): void
+    /**
+     * **Zamówienie zostało zrealizowane w kroku 52**, więc test zmienił zdanie
+     * na przeciwne — i to jest jego cała treść.
+     *
+     * Do tamtego kroku pilnował, żeby litery `k` nikt nie zajął, bo rozstrzygnięcie
+     * D90 nr 2 przydzieliło ją modułowi, którego jeszcze nie było. Odkąd moduł
+     * istnieje, „litera wolna” znaczyłoby, że rozstrzygnięcia nie wykonano —
+     * a wcześniejsze brzmienie przeszłoby wtedy nadal.
+     */
+    public function testTheLetterReservedForKubernetesWentToIt(): void
     {
-        self::assertArrayNotHasKey(
-            self::RESERVED_FOR_KUBERNETES,
-            self::shortcuts(),
-            'litera k jest zamówiona dla modułu k8s z kroku 52 (D90 nr 2)',
+        self::assertSame(
+            'k8s',
+            self::shortcuts()[self::RESERVED_FOR_KUBERNETES] ?? null,
+            'literę k rozstrzygnięto dla modułu k8s razem z literą Dockera (D90 nr 2)',
         );
     }
 

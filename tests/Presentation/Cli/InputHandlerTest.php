@@ -481,13 +481,14 @@ final class InputHandlerTest extends TestCase
     {
         $this->special(Key::F1);
 
-        // Cztery razy w lewo, a nie trzy: od kroku 51 ostatnią zakładką jest
-        // Docker, przed nim sesja zdalna, przed nią dźwięk, a ten test opisuje
-        // zakładkę **modułu opisu pliku** — to on ma w deklaracji wszystkie
-        // cztery rzeczy, które sprawdzamy niżej. Liczba rośnie z każdym modułem
-        // dokładanym na koniec listy i to jest tańsze niż szukanie zakładki po
-        // nazwie: test ma pokazywać, że kolejność zakładek idzie za kolejnością
-        // modułów.
+        // Pięć razy w lewo, a nie cztery: od kroku 52 ostatnią zakładką jest
+        // klaster, przed nim Docker, przed nim sesja zdalna, przed nią dźwięk,
+        // a ten test opisuje zakładkę **modułu opisu pliku** — to on ma
+        // w deklaracji wszystkie cztery rzeczy, które sprawdzamy niżej. Liczba
+        // rośnie z każdym modułem dokładanym na koniec listy i to jest tańsze
+        // niż szukanie zakładki po nazwie: test ma pokazywać, że kolejność
+        // zakładek idzie za kolejnością modułów.
+        $this->special(Key::ArrowLeft);
         $this->special(Key::ArrowLeft);
         $this->special(Key::ArrowLeft);
         $this->special(Key::ArrowLeft);

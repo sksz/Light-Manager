@@ -6,6 +6,7 @@ namespace LightManager\Tests\Support;
 
 use LightManager\Application\Dto\BackgroundHandle;
 use LightManager\Application\Dto\BackgroundState;
+use LightManager\Application\Dto\OutputShape;
 use LightManager\Application\Port\BackgroundProcessPort;
 
 /**
@@ -38,6 +39,9 @@ final class StubBackgroundProcess implements BackgroundProcessPort
     /** @var list<int> limity czasu podane przy uruchamianiu */
     public array $timeouts = [];
 
+    /** @var list<OutputShape> kształty wypisu zamówione przy uruchamianiu (krok 52) */
+    public array $shapes = [];
+
     public int $stopCount = 0;
 
     /** @var array<int, BackgroundState> stan każdej pracy — numer uchwytu → stan */
@@ -60,10 +64,14 @@ final class StubBackgroundProcess implements BackgroundProcessPort
     ) {
     }
 
-    public function start(string $command, int $timeoutSeconds): BackgroundHandle
-    {
+    public function start(
+        string $command,
+        int $timeoutSeconds,
+        OutputShape $shape = OutputShape::Result,
+    ): BackgroundHandle {
         $this->startedCommands[] = $command;
         $this->timeouts[] = $timeoutSeconds;
+        $this->shapes[] = $shape;
 
         $handle = new BackgroundHandle(++$this->lastId);
         $this->polls[$handle->id] = 0;
@@ -72,6 +80,33 @@ final class StubBackgroundProcess implements BackgroundProcessPort
             : BackgroundState::failed($this->problemKey);
 
         return $handle;
+    }
+
+    /**
+     * Karmi trwającą pracę wypisem — atrapa strumienia (krok 52).
+     *
+     * Bez tego nie da się sprawdzić tego, co w strumieniu jest do sprawdzenia:
+     * że czytający **dokłada nowe wiersze zamiast czytać wszystko od nowa**
+     * i że pozna dziurę po bajtach, które wypadły. Praca zostaje trwająca —
+     * strumień z definicji nie kończy się po pierwszej porcji.
+     */
+    public function feed(BackgroundHandle $handle, string $chunk, int $droppedBytes = 0): void
+    {
+        $state = $this->states[$handle->id] ?? null;
+
+        if ($state === null) {
+            return;
+        }
+
+        $this->states[$handle->id] = BackgroundState::running(
+            $state->output . $chunk,
+            $state->errorOutput,
+            $state->droppedBytes + $droppedBytes,
+        );
+        // Karmienie jest zdarzeniem z zewnątrz, nie doglądaniem: licznik doglądań
+        // zerujemy, żeby porcja nie kończyła pracy w tej samej klatce, w której
+        // przyszła.
+        $this->polls[$handle->id] = 0;
     }
 
     public function poll(BackgroundHandle $handle): BackgroundState
@@ -88,9 +123,11 @@ final class StubBackgroundProcess implements BackgroundProcessPort
 
         $polls = ++$this->polls[$handle->id];
 
+        // Wypis, którym pracę nakarmiono, **przeżywa doglądanie** — inaczej
+        // atrapa gubiłaby dokładnie to, co strumień ma dowozić.
         return $this->states[$handle->id] = $polls >= $this->pollsUntilDone
             ? BackgroundState::done($this->output, $this->exitCode, $this->errorOutput)
-            : BackgroundState::running();
+            : BackgroundState::running($state->output, $state->errorOutput, $state->droppedBytes);
     }
 
     /**

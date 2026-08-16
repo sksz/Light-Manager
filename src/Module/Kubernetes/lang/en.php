@@ -1,0 +1,208 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Kubernetes module strings — English (fallback catalogue).
+ *
+ * **Every key must start with `module.k8s.`** — the catalogue accepts those and
+ * skips the rest.
+ *
+ * Three kinds of text deliberately have **no keys here**, because they are not
+ * this application's words. First: refusal reasons from `kubectl` (a quote from
+ * another program, substituted into `{reason}`). Second: **resource kind names**
+ * (`pods`, `deployments`) — they come from the cluster, there are dozens of them
+ * and every operator adds more; a translated „pod" would also stop being
+ * something you can type into `kubectl`. Third: **kind-specific column headers**
+ * keep the wording `kubectl` uses, because people compare this screen with the
+ * terminal next to it.
+ */
+
+return [
+    'module.k8s.name' => 'Kubernetes',
+    'module.k8s.description' => 'Cluster resources as a tree, details in sections, live logs, apply and secret editing.',
+    'module.k8s.unavailable.client' => 'The kubectl command is not in PATH.',
+
+    'module.k8s.name.empty' => 'Empty name ({subject}).',
+    'module.k8s.name.optionLike' => 'Name "{value}" starts with a dash — kubectl would read it as an option.',
+    'module.k8s.name.malformed' => 'Name "{value}" carries characters that do not belong in one ({subject}).',
+    'module.k8s.name.tooLong' => 'Name "{value}" is longer than {limit} characters.',
+
+    'module.k8s.setting.timeoutSeconds' => 'Call timeout (s)',
+    'module.k8s.setting.refreshSeconds' => 'List refresh (s)',
+    'module.k8s.setting.logLines' => 'Log lines kept',
+    'module.k8s.setting.context' => 'Remembered context',
+    'module.k8s.setting.namespace' => 'Remembered namespace',
+
+    'module.k8s.stage.unknown' => 'Cluster not asked yet.',
+    'module.k8s.stage.reading' => 'Asking the cluster…',
+    'module.k8s.stage.noContext' => 'No context is current — press c and pick a cluster.',
+    'module.k8s.stage.unreachable' => 'The cluster does not answer.',
+    'module.k8s.stage.ready' => 'The cluster answers.',
+
+    'module.k8s.problem.config' => 'Could not read the kubectl configuration file.',
+    'module.k8s.problem.unreachable' => 'The cluster does not answer: {reason}',
+    'module.k8s.problem.catalog' => 'Could not fetch the list of resource kinds.',
+    'module.k8s.problem.list' => 'Could not fetch the resource list.',
+    'module.k8s.problem.rejected' => 'kubectl refused: {reason}',
+    'module.k8s.problem.detail' => 'Could not fetch the resource details.',
+    'module.k8s.problem.action' => 'The action failed.',
+
+    'module.k8s.header.place' => 'Context {context}, namespace {namespace}',
+    'module.k8s.version.skew' => '— note: client {client}, server {server}',
+
+    'module.k8s.panel.tree' => 'Resources',
+    'module.k8s.panel.content' => 'Details',
+    'module.k8s.panel.logs' => 'Logs',
+    'module.k8s.view.resources' => 'Cluster',
+    'module.k8s.view.yaml' => 'Cluster — YAML',
+    'module.k8s.view.logs' => 'Cluster — logs',
+
+    'module.k8s.tree.reading' => 'reading…',
+    'module.k8s.tree.empty' => '(empty)',
+    'module.k8s.tree.none' => 'No resource kinds — the cluster did not list any.',
+    'module.k8s.list.reading' => 'Reading the list: {kind}…',
+    'module.k8s.list.empty' => 'No {kind} in this namespace.',
+    'module.k8s.content.none' => 'Pick a kind or a resource in the tree on the left.',
+    'module.k8s.content.group' => 'API group — expand it to see its resource kinds.',
+
+    'module.k8s.column.name' => 'Name',
+    'module.k8s.column.age' => 'Age',
+    'module.k8s.column.ready' => 'READY',
+    'module.k8s.column.status' => 'STATUS',
+    'module.k8s.column.restarts' => 'RESTARTS',
+    'module.k8s.column.node' => 'NODE',
+    'module.k8s.column.upToDate' => 'UP-TO-DATE',
+    'module.k8s.column.available' => 'AVAILABLE',
+    'module.k8s.column.type' => 'TYPE',
+    'module.k8s.column.clusterIp' => 'CLUSTER-IP',
+    'module.k8s.column.ports' => 'PORTS',
+    'module.k8s.column.data' => 'KEYS',
+
+    'module.k8s.detail.none' => 'No resource selected.',
+    'module.k8s.detail.reading' => 'Reading the resource…',
+    'module.k8s.detail.missing' => 'Could not read the resource.',
+    'module.k8s.detail.rejected' => 'Name "{name}" cannot be passed as a command argument.',
+    'module.k8s.detail.name' => 'Name',
+    'module.k8s.detail.kind' => 'Kind',
+    'module.k8s.detail.apiVersion' => 'API version',
+    'module.k8s.detail.namespace' => 'Namespace',
+    'module.k8s.detail.created' => 'Created',
+    'module.k8s.detail.phase' => 'Phase',
+    'module.k8s.detail.section.identity' => 'Identity',
+    'module.k8s.detail.section.status' => 'Status',
+    'module.k8s.detail.section.containers' => 'Containers',
+    'module.k8s.detail.section.data' => 'Data',
+    'module.k8s.detail.section.labels' => 'Labels',
+    'module.k8s.detail.section.annotations' => 'Annotations',
+    'module.k8s.detail.bytes' => ['{count} byte', '{count} bytes'],
+
+    'module.k8s.logs.header' => 'Logs: {name} / {container}',
+    'module.k8s.logs.container' => 'Which container should the logs come from?',
+    'module.k8s.logs.cancel' => 'Do not read',
+    'module.k8s.logs.waiting' => 'Waiting for the first line…',
+    'module.k8s.logs.closed' => 'Stream closed.',
+    'module.k8s.logs.broken' => 'The stream broke — the pod may be gone.',
+    'module.k8s.logs.failed' => 'Could not open the logs.',
+    'module.k8s.logs.interrupted' => 'The log stream was interrupted.',
+    'module.k8s.logs.notAPod' => 'Logs belong to a pod — pick one in the tree.',
+    'module.k8s.logs.lost' => ['Skipped {count} byte', 'Skipped {count} bytes'],
+
+    'module.k8s.age.minutes' => ['{count}m', '{count}m'],
+    'module.k8s.age.hours' => ['{count}h', '{count}h'],
+    'module.k8s.age.days' => ['{count}d', '{count}d'],
+
+    'module.k8s.context.title' => 'Which cluster?',
+    'module.k8s.context.cancel' => 'Keep the current one',
+    'module.k8s.context.chosen' => 'Context: {name}',
+    'module.k8s.context.rejected' => 'That context name cannot be passed to kubectl.',
+    'module.k8s.namespace.title' => 'Namespace',
+    'module.k8s.namespace.prompt' => 'Name',
+    'module.k8s.namespace.chosen' => 'Namespace: {name}',
+    'module.k8s.namespace.rejected' => 'That is not a valid namespace name.',
+
+    'module.k8s.apply.title' => 'Apply a file',
+    'module.k8s.apply.prompt' => 'Path',
+    'module.k8s.delete.confirm' => 'Delete {name} from the cluster? This cannot be undone.',
+    'module.k8s.delete.none' => 'Open the resource that should disappear first.',
+    'module.k8s.delete.forbidden' => 'The server does not allow deleting {kind}.',
+    'module.k8s.yaml.none' => 'Open a resource first — YAML shows one of them.',
+    'module.k8s.action.working.apply' => 'Applying the file…',
+    'module.k8s.action.working.delete' => 'Deleting the resource…',
+    'module.k8s.action.working.patchSecret' => 'Saving the secret…',
+    'module.k8s.action.done.apply' => 'Applied: {name}',
+    'module.k8s.action.done.delete' => 'Deleted: {name}',
+    'module.k8s.action.done.patchSecret' => 'Saved key: {name}',
+
+    'module.k8s.secret.none' => 'This resource has no masked values.',
+    'module.k8s.secret.reveal.title' => 'Which key should be revealed?',
+    'module.k8s.secret.edit.title' => 'What should happen to the secret?',
+    'module.k8s.secret.edit.text' => 'Change value (I will type text)',
+    'module.k8s.secret.edit.base64' => 'Change value (I will type base64)',
+    'module.k8s.secret.edit.add' => 'Add a key',
+    'module.k8s.secret.edit.remove' => 'Remove a key',
+    'module.k8s.secret.edit.cancel' => 'Do nothing',
+    'module.k8s.secret.key.title' => 'Which key should change?',
+    'module.k8s.secret.remove.title' => 'Which key should be removed?',
+    'module.k8s.secret.remove.confirm' => 'Remove key {key}? This cannot be undone.',
+    'module.k8s.secret.add.title' => 'New key',
+    'module.k8s.secret.add.prompt' => 'Key name',
+    'module.k8s.secret.value.text' => 'Value of key {key} (text)',
+    'module.k8s.secret.value.base64' => 'Value of key {key} (base64)',
+    'module.k8s.secret.value.prompt' => 'Value',
+    'module.k8s.secret.value.notBase64' => 'That is not valid base64.',
+
+    'module.k8s.key.expand' => 'Expand or collapse the branch',
+    'module.k8s.key.expand.short' => 'expand',
+    'module.k8s.key.open' => 'Open the resource',
+    'module.k8s.key.open.short' => 'open',
+    'module.k8s.key.focus' => 'Move between the tree and the details',
+    'module.k8s.key.focus.short' => 'panel',
+    'module.k8s.key.context' => 'Pick a cluster',
+    'module.k8s.key.context.short' => 'cluster',
+    'module.k8s.key.namespace' => 'Change the namespace',
+    'module.k8s.key.namespace.short' => 'namespace',
+    'module.k8s.key.yaml' => 'Show the raw YAML',
+    'module.k8s.key.yaml.short' => 'YAML',
+    'module.k8s.key.logs' => 'Pod logs',
+    'module.k8s.key.logs.short' => 'logs',
+    'module.k8s.key.reveal' => 'Reveal a secret value',
+    'module.k8s.key.reveal.short' => 'reveal',
+    'module.k8s.key.edit' => 'Change the secret',
+    'module.k8s.key.edit.short' => 'change',
+    'module.k8s.key.apply' => 'Apply a file',
+    'module.k8s.key.apply.short' => 'apply',
+    'module.k8s.key.delete' => 'Delete the resource',
+    'module.k8s.key.delete.short' => 'delete',
+    'module.k8s.key.refresh' => 'Refresh the catalogue and the list',
+    'module.k8s.key.refresh.short' => 'refresh',
+    'module.k8s.key.follow' => 'Back to the end of the log',
+    'module.k8s.key.follow.short' => 'end',
+    'module.k8s.key.back' => 'Close the logs',
+    'module.k8s.key.back.short' => 'back',
+    'module.k8s.key.retry' => 'Ask the cluster again',
+    'module.k8s.key.retry.short' => 'retry',
+
+    'module.k8s.command.get' => 'Show resources of the given kind',
+    'module.k8s.command.context' => 'Pick a cluster (kubectl context)',
+    'module.k8s.command.namespace' => 'Change the namespace',
+    'module.k8s.command.apply' => 'Apply a manifest file to the cluster',
+    'module.k8s.command.noKind' => 'The cluster does not know the kind "{kind}".',
+    'module.k8s.command.noCatalog' => 'The kind catalogue has not arrived yet — open the cluster screen (Ctrl+K).',
+    'module.k8s.argument.kind' => 'kind',
+    'module.k8s.argument.path' => 'path',
+
+    'module.k8s.event.applied' => 'Cluster: file applied',
+    'module.k8s.event.deleted' => 'Cluster: resource deleted',
+    'module.k8s.event.secret.changed' => 'Cluster: secret changed',
+    'module.k8s.event.connection.lost' => 'Cluster: the action failed',
+
+    'module.k8s.help.start' => 'Ctrl+K opens the cluster. On the left a tree: API groups, their resource kinds, their resources.',
+    'module.k8s.help.tree' => 'Enter expands a branch — only then does the module ask the cluster for a list. Kinds come from the cluster, so custom resources (CRDs) appear on their own.',
+    'module.k8s.help.place' => 'c picks a cluster, n changes the namespace. Both choices are remembered; the kubectl configuration file is left untouched.',
+    'module.k8s.help.detail' => 'Enter on a resource opens the details in collapsible sections, y switches to the raw YAML. Tab moves between the tree and the details.',
+    'module.k8s.help.logs' => 'l opens pod logs — they keep flowing while you look elsewhere. Arrow up holds the view, End returns to the end.',
+    'module.k8s.help.actions' => 'F5 applies a file (the path is proposed from the browser directory), F8 deletes a resource after confirmation. Ctrl+R refreshes the catalogue and the list.',
+    'module.k8s.help.secrets' => 'Secret values are masked. x reveals one, e opens the change: value as text or base64, adding a key, removing a key.',
+    'module.k8s.help.versions' => 'The header shows both versions when client and server differ by more than one release. The module refuses nothing then — Kubernetes calls that unsupported, not impossible.',
+];

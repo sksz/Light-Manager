@@ -255,10 +255,11 @@ final class ModuleRegistryTest extends TestCase
 
         self::assertSame([], $app->modules->rejections());
         self::assertSame(
-            ['b', 'd', 'a', 's', 'o'],
+            ['b', 'd', 'a', 's', 'o', 'k'],
             array_keys($app->modules->shortcuts()),
             'przeglądarka trzyma Ctrl+B, FileInfo — Ctrl+D, dźwięk — Ctrl+A (krok 45), '
-            . 'sesja zdalna — Ctrl+S (krok 48), Docker — Ctrl+O (krok 51)',
+            . 'sesja zdalna — Ctrl+S (krok 48), Docker — Ctrl+O, klaster — Ctrl+K (krok 52; '
+            . 'obie litery rozstrzygnięto naraz w D90 nr 2)',
         );
         self::assertNotNull($app->module('browser'));
         self::assertNotNull($app->module('file-info'));

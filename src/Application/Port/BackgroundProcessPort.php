@@ -6,6 +6,7 @@ namespace LightManager\Application\Port;
 
 use LightManager\Application\Dto\BackgroundHandle;
 use LightManager\Application\Dto\BackgroundState;
+use LightManager\Application\Dto\OutputShape;
 
 /**
  * Polecenie zewnętrzne uruchomione **obok klatki**, a nie w niej.
@@ -71,11 +72,21 @@ interface BackgroundProcessPort
      * musi więc obsługiwać awarii dwiema drogami: jedną przy starcie i drugą
      * w trakcie.
      *
-     * @param string $command      gotowy wiersz polecenia; cytowanie argumentów
-     *                             należy do wołającego (`escapeshellarg()`)
-     * @param int    $timeoutSeconds po ilu sekundach proces zostaje ubity
+     * @param string      $command      gotowy wiersz polecenia; cytowanie argumentów
+     *                                  należy do wołającego (`escapeshellarg()`)
+     * @param int         $timeoutSeconds po ilu sekundach proces zostaje ubity
+     * @param OutputShape $shape        czym jest wypis tej pracy — wynikiem do
+     *                                  odczytania na końcu (domyślnie) czy
+     *                                  strumieniem wierszy (krok 52). Rozstrzyga
+     *                                  o tym, co bufor robi po przekroczeniu
+     *                                  granicy: wynik **odrzuca nadmiar**,
+     *                                  strumień **zapomina najstarsze**
      */
-    public function start(string $command, int $timeoutSeconds): BackgroundHandle;
+    public function start(
+        string $command,
+        int $timeoutSeconds,
+        OutputShape $shape = OutputShape::Result,
+    ): BackgroundHandle;
 
     /**
      * Zagląda, czy coś się zmieniło. **Nigdy nie blokuje.**
@@ -89,6 +100,14 @@ interface BackgroundProcessPort
      *
      * Wołanie z uchwytem nieznanym portowi oddaje `Idle` — praca, o którą pytasz,
      * już nie trwa i nie ma wyniku.
+     *
+     * **Od kroku 52 stan `Running` niesie wypis, który dotąd przyszedł** (D91
+     * nr 12) — bez tego polecenie niekończące się nigdy nie miałoby jak
+     * powiedzieć ani słowa. Odczyt pozostaje **czysty**: dwa `poll()` w tej samej
+     * klatce oddają to samo, bo potoki opróżnia `pump()`, a nie zaglądanie.
+     * Wypis trwającej pracy jest z natury urwany w połowie wiersza, więc czyta go
+     * ten, kto zamówił `OutputShape::Stream`; **treść nadal odbiera się przy
+     * `Done`**.
      */
     public function poll(BackgroundHandle $handle): BackgroundState;
 

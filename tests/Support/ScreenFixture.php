@@ -26,6 +26,7 @@ use LightManager\Module\Browser\Domain\Repository\DirectoryRepositoryInterface;
 use LightManager\Module\Browser\Presentation\BrowserModule;
 use LightManager\Module\Docker\Presentation\DockerModule;
 use LightManager\Module\FileInfo\Presentation\FileInfoModule;
+use LightManager\Module\Kubernetes\Presentation\KubernetesModule;
 use LightManager\Module\Ssh\Presentation\SshModule;
 use LightManager\Presentation\Cli\Bootstrap;
 use LightManager\Presentation\Cli\Command\QuitCommand;
@@ -97,6 +98,9 @@ final class ScreenFixture
     /** Ekran modułu Dockera (krok 51) — kontenery, obrazy i logi w jednym. */
     public readonly ScreenInterface $dockerScreen;
 
+    /** Ekran modułu klastra (krok 52) — drzewo rodzajów i treść obok niego. */
+    public readonly ScreenInterface $kubernetesScreen;
+
     public readonly CommandRegistry $commandRegistry;
 
     /** Ekran, który stanął na dnie stosu — i powód, gdy nie ten, o który proszono. */
@@ -135,6 +139,7 @@ final class ScreenFixture
         public readonly StubRemoteTransfer $remoteTransfers = new StubRemoteTransfer(),
         public readonly StubDockerApi $docker = new StubDockerApi(),
         public readonly StubCompose $compose = new StubCompose(),
+        public readonly StubKubectl $kubectl = new StubKubectl(),
     ) {
         $translator = new StubTranslator();
         $themes = new FixedThemes();
@@ -232,8 +237,16 @@ final class ScreenFixture
         );
         $this->dockerScreen = $dockerModule->screen();
 
+        // Moduł klastra wchodzi z atrapą klienta `kubectl` (krok 52). Powód jest
+        // ten sam, co przy Dockerze, tylko ostrzejszy: **kryterium ukończenia
+        // kroku brzmi „żaden test nie wywołuje `kubectl`”**, a bez podstawionego
+        // portu przebieg zależałby od tego, czy maszyna testująca ma klienta —
+        // i czy akurat wskazuje na czyjś klaster.
+        $kubernetesModule = new KubernetesModule($this->state, $translator, $settingsStore, $kubectl);
+        $this->kubernetesScreen = $kubernetesModule->screen();
+
         $this->modules = new ModuleRegistry(
-            [$browser, $fileInfo, $audioModule, $sshModule, $dockerModule],
+            [$browser, $fileInfo, $audioModule, $sshModule, $dockerModule, $kubernetesModule],
             $settingsStore->current()->modules,
             Bootstrap::LAST_RESORT_MODULE,
         );

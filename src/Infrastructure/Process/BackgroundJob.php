@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LightManager\Infrastructure\Process;
 
 use LightManager\Application\Dto\BackgroundState;
+use LightManager\Application\Dto\OutputShape;
 
 /**
  * Jedna praca tłowa: proces potomny, jego dwa potoki i to, co z nich zebrano.
@@ -41,11 +42,16 @@ final class BackgroundJob
 
     private string $errorOutput = '';
 
+    /** Ile bajtów wypadło z początku bufora, bo strumień się przesunął (krok 52). */
+    private int $droppedBytes = 0;
+
     private BackgroundState $state;
 
     public function __construct(
         private readonly int $timeoutSeconds,
         private readonly int $outputLimit,
+        /** Czym jest wypis tej pracy — od tego zależy, co bufor robi po przekroczeniu granicy. */
+        private readonly OutputShape $shape = OutputShape::Result,
     ) {
         $this->state = BackgroundState::idle();
     }
@@ -130,6 +136,16 @@ final class BackgroundJob
 
         if ($status['running']) {
             if (microtime(true) < $this->deadline) {
+                // Stan trwającej pracy niesie od kroku 52 to, co dotąd przyszło
+                // (D91 nr 12). Powstaje **tutaj, a nie w `poll()`**, żeby
+                // zaglądanie zostało czystym odczytem: dwa doglądania w tej samej
+                // klatce mają oddać to samo.
+                $this->state = BackgroundState::running(
+                    $this->deliverableOutput(),
+                    trim($this->errorOutput),
+                    $this->droppedBytes,
+                );
+
                 return;
             }
 
@@ -143,10 +159,15 @@ final class BackgroundJob
         // Kod wyjścia bierzemy z tego właśnie odczytu stanu, bo `proc_close()`
         // po pochowaniu potomka oddaje już tylko −1.
         $this->drain();
-        $output = $this->output;
+        $output = $this->deliverableOutput();
         $errorOutput = $this->errorOutput;
         $this->release();
-        $this->state = BackgroundState::done(trim($output), $status['exitcode'], trim($errorOutput));
+        $this->state = BackgroundState::done(
+            $output,
+            $status['exitcode'],
+            trim($errorOutput),
+            $this->droppedBytes,
+        );
     }
 
     /**
@@ -205,13 +226,60 @@ final class BackgroundJob
             }
 
             if ($descriptor === 1) {
-                $this->output .= $this->fitting($chunk, $this->output);
+                $this->collect($chunk);
 
                 continue;
             }
 
+            // Strumień błędów zbiera się **zawsze jak wynik**, także przy pracy
+            // strumieniowej: diagnostyka jest krótka i najciekawsza na początku
+            // (pierwszy powód, dla którego coś poszło nie tak), a przesuwanie jej
+            // bufora kazałoby zapominać właśnie ten wiersz.
             $this->errorOutput .= $this->fitting($chunk, $this->errorOutput);
         }
+    }
+
+    /**
+     * Dokłada kawałek wypisu — **wynik odrzuca nadmiar, strumień zapomina
+     * najstarsze** (krok 52).
+     *
+     * Dwie reguły zamiast jednej, bo dwa rodzaje wypisu mają przeciwne wymagania.
+     * Wynik jest cenny od początku (suma `du` stoi w pierwszym wierszu), więc
+     * granica ucina koniec i praca się na tym kończy. Strumień jest cenny **na
+     * końcu** i nie kończy się nigdy, więc granica ucinająca koniec zamieniłaby
+     * go po kilkunastu sekundach w ciszę — logi płynęłyby dalej, a aplikacja nie
+     * dostawałaby ani jednego nowego wiersza.
+     */
+    private function collect(string $chunk): void
+    {
+        if ($this->shape === OutputShape::Result) {
+            $this->output .= $this->fitting($chunk, $this->output);
+
+            return;
+        }
+
+        $this->output .= $chunk;
+        $excess = strlen($this->output) - $this->outputLimit;
+
+        if ($excess <= 0) {
+            return;
+        }
+
+        $this->output = substr($this->output, $excess);
+        $this->droppedBytes += $excess;
+    }
+
+    /**
+     * Wypis w postaci, w jakiej wychodzi do warstwy aplikacji.
+     *
+     * Wynik przycinamy z białych znaków — tak było od kroku 26 i tak zostaje.
+     * Strumienia **nie przycinamy nigdy**: czytający liczy w nim pozycje
+     * w bajtach, a przycięcie początku przesunęłoby mu je wszystkie naraz, i to
+     * nie za każdym razem o tyle samo.
+     */
+    private function deliverableOutput(): string
+    {
+        return $this->shape === OutputShape::Stream ? $this->output : trim($this->output);
     }
 
     /** Tyle kawałka, ile mieści się w limicie; pusty napis, gdy nie mieści się nic. */

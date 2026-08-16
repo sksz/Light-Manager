@@ -35,12 +35,28 @@ namespace LightManager\Application\Dto;
  * Kod wyjścia jest przy `Done` i nie jest sam z siebie powodem niepowodzenia —
  * `du` kończy się jedynką za każdy nieprzeczytany katalog. Co z niego wynika,
  * rozstrzyga ten, kto zamówił pracę; rdzeń go tylko podaje.
+ *
+ * **Od kroku 52 wypis dociera także wtedy, gdy praca trwa** (D91 nr 12). Do tego
+ * kroku `Running` znaczyło „nic ci jeszcze nie powiem” — a to zamykało drogę
+ * każdemu poleceniu, które **nie kończy się nigdy**: `kubectl logs -f` wypisywał
+ * wiersze do potoku, port je zbierał, ale pierwszy raz oddałby je dopiero po
+ * śmierci potomka, czyli nigdy. Zmiana jest w jednym zdaniu kontraktu i nie
+ * odwraca poprzedniego: **polecenie, którego wyjściem jest treść, nadal czyta ją
+ * przy `Done`**, bo wypis trwającej pracy jest z definicji urwany w połowie —
+ * pół JSON-a nie jest JSON-em. Czytają go ci, dla których wypis jest strumieniem
+ * wierszy (`OutputShape::Stream`).
  */
 final class BackgroundState
 {
     private function __construct(
         public readonly BackgroundStage $stage,
-        /** Standardowe wyjście polecenia, przycięte z białych znaków; ma sens przy `Done`. */
+        /**
+         * Standardowe wyjście polecenia; ma sens przy `Done`, a przy `Running`
+         * jest tym, co dotąd przyszło (krok 52).
+         *
+         * Przycięte z białych znaków przy `OutputShape::Result` — i **nieprzycięte
+         * przy `Stream`**, bo tam czytający liczy pozycje w bajtach.
+         */
         public readonly string $output,
         /**
          * Strumień błędów polecenia, przycięty z białych znaków; ma sens przy
@@ -62,6 +78,19 @@ final class BackgroundState
          * @var array<string, string|int|float>
          */
         public readonly array $problemParameters,
+        /**
+         * Ile bajtów wypadło z **początku** wypisu, bo bufor się przesunął
+         * (krok 52).
+         *
+         * Zero wszędzie poza pracą zamówioną jako `OutputShape::Stream`, bo tylko
+         * tam bufor zapomina najstarsze. Czytający strumień trzyma własny licznik
+         * bajtów już odczytanych i z tej liczby pozna dwie rzeczy naraz: gdzie
+         * w buforze zaczyna się to, czego jeszcze nie widział, oraz **czy coś go
+         * ominęło** — jeśli odczytał mniej, niż zdążyło wypaść, wierszy pomiędzy
+         * nie ma już nigdzie. Milcząca dziura w logu jest gorsza od dziury
+         * opisanej, więc rdzeń podaje liczbę, a odbiorca mówi o niej zdaniem.
+         */
+        public readonly int $droppedBytes = 0,
     ) {
     }
 
@@ -70,14 +99,19 @@ final class BackgroundState
         return new self(BackgroundStage::Idle, '', '', null, null, []);
     }
 
-    public static function running(): self
+    /** @param string $output to, co praca zdążyła wypisać — puste, dopóki nic nie napisała */
+    public static function running(string $output = '', string $errorOutput = '', int $droppedBytes = 0): self
     {
-        return new self(BackgroundStage::Running, '', '', null, null, []);
+        return new self(BackgroundStage::Running, $output, $errorOutput, null, null, [], $droppedBytes);
     }
 
-    public static function done(string $output, int $exitCode, string $errorOutput = ''): self
-    {
-        return new self(BackgroundStage::Done, $output, $errorOutput, $exitCode, null, []);
+    public static function done(
+        string $output,
+        int $exitCode,
+        string $errorOutput = '',
+        int $droppedBytes = 0,
+    ): self {
+        return new self(BackgroundStage::Done, $output, $errorOutput, $exitCode, null, [], $droppedBytes);
     }
 
     /** @param array<string, string|int|float> $parameters */

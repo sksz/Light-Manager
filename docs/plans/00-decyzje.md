@@ -110,6 +110,7 @@ Kolumna **Stan** mówi, co się z decyzją stało w kodzie:
 | [D88](#d88--rozstrzygnięcia-startowe-kroku-49-jeden-ekran-w-dwóch-postaciach-kontekst-dostaje-pochodzenie-a-polecenie-którego-wyjściem-jest-treść-nie-scala-strumieni) | Rozstrzygnięcia startowe kroku 49: jeden ekran w dwóch postaciach, kontekst dostaje pochodzenie, a polecenie, którego wyjściem jest treść, nie scala strumieni | krok 49 (i przez nr 11 — rdzeniowy port pracy tłowej) | 2026-08-15 | Wdrożona |
 | [D89](#d89--rozstrzygnięcia-startowe-kroku-50-przesył-idzie-potomkiem-prosto-na-dysk-postęp-czyta-stat-a-wyjątek-15b-zostaje-bezprzedmiotowy) | Rozstrzygnięcia startowe kroku 50: przesył idzie potomkiem prosto na dysk, postęp czyta `stat`, a wyjątek 15b zostaje bezprzedmiotowy | krok 50 | 2026-08-15 | Wdrożona |
 | [D90](#d90--rozstrzygnięcia-startowe-kroku-51-granica-prac-tłowych-jest-ustawieniem-demon-leżący-nie-odrzuca-modułu-a-menu-f9-czeka-na-kwerendy) | Rozstrzygnięcia startowe kroku 51: granica prac tłowych jest ustawieniem, demon leżący nie odrzuca modułu, a menu `F9` czeka na kwerendy | krok 51 (przez nr 2 — także 52, przez nr 8 — także 53) | 2026-08-15 | Wdrożona |
+| [D91](#d91--rozstrzygnięcia-startowe-kroku-52-wszystkie-rodzaje-zasobów-w-drzewie-a-sekret-daje-się-zmienić) | Rozstrzygnięcia startowe kroku 52: wszystkie rodzaje zasobów w drzewie, a sekret daje się zmienić | krok 52 (przez nr 2 i 9 — także 53; przez nr 12 — rdzeniowy port pracy tłowej) | 2026-08-16 | Wdrożona |
 
 > **Indeks jest niekompletny od D62 wzwyż.** Wpisy **D62–D76** stoją w treści
 > dziennika, ale wiersza tutaj nie dostały — regułę „nowy wpis to dwie czynności”
@@ -6618,3 +6619,168 @@ przebiegu „przy pełnym zestawie”, a stała każe go wywołać przepisaniem 
 nie trzeba pakować `PharData`em), ale druga funkcja po compose schodząca z drogi
 technicznej fazy, czyli trzy rodzaje wejścia-wyjścia w jednym module zamiast
 dwóch.
+
+### D91 — Rozstrzygnięcia startowe kroku 52: wszystkie rodzaje zasobów w drzewie, a sekret daje się zmienić
+
+**Dotyczy:** kroku 52 ([52-modul-kubernetes.md](52-modul-kubernetes.md)), nowego
+katalogu `src/Module/Kubernetes/`, jednej linii w
+`Presentation/Cli/Bootstrap.php`, [SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md),
+[docs/architecture.md](../architecture.md) i [docs/pomiary/README.md](../pomiary/README.md).
+Przez rozstrzygnięcia nr 2 i 9 dotyczy także **kroku 53**: kwerenda
+`k8s.deployments` dostaje rodzaj, o który może zapytać, a czynność
+`k8s.deploy-image` — `apply` i `set image`, na których stanie.
+
+**Data:** 2026-08-16, przed pierwszą linią kodu. Siedem pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku” (nr 1 odpadł, bo literę przydzielono wcześniej
+— D90 nr 2), zadanych w dwóch turach, plus **trzy pytania, których plan nie
+przewidział**: wynikły z odpowiedzi na nr 2 i bez nich krok nie miał kształtu.
+
+**Sprawdzenie stanu zastanego: tabela z planu jest prawdziwa w każdym wierszu
+poza jednym — i ten jeden podnosi cenę sprawdzenia ręcznego.**
+
+| Plan mówi (2026-08-15) | Zastano 2026-08-16 |
+|---|---|
+| `minikube` zainstalowany, **zatrzymany** (`host: Stopped`) | **Kontenera nie ma w ogóle**: `host: Nonexistent`, „No such container: minikube” |
+
+Różnica nie jest kosmetyczna: `minikube start` na zatrzymanej maszynie to
+kilkanaście sekund, a utworzenie klastra od zera to pobranie obrazu i kilka minut
+pełnego obciążenia procesora — czyli dokładnie ten stan maszyny, przed którym
+ostrzega reguła 17. Pozostałe wiersze zgadzają się co do znaku: `kubectl`
+**v1.25.2** (Kustomize v4.5.7), jeden kontekst `ca-dev` i **żaden bieżący**,
+`helm` obecny, `src/Module/Kubernetes/` nie istnieje, a port pracy tłowej ma od
+kroku 51 kilka prac naraz (`BackgroundPumpPort`, `BackgroundJob` na miejscu).
+
+**Dwa fakty o narzędziu, sprawdzone przy rozstrzyganiu i oba mające skutek
+w kodzie:**
+
+1. **`kubectl api-resources` nie umie JSON-a** — `-o` przyjmuje wyłącznie `wide`
+   i `name` (sprawdzone w pomocy klienta 1.25.2). Katalog rodzajów jest przez to
+   **jedynym miejscem modułu rozczytującym tekst**; listy zasobów i opisy idą
+   `-o json`, jak każe plan.
+2. **`--show-managed-fields=false` jest domyślne**, więc YAML zasobu nie zaczyna
+   się od dwustu wierszy `managedFields` — widok surowy jest czytelny bez
+   zabiegów. Przy dużych listach jest ponadto `--chunk-size=500`.
+
+**Decyzje użytkownika:**
+
+1. **Litera skrótu nie była pytana** — `Ctrl`+`K` przydzielono z góry w D90 nr 2,
+   dla obu kroków naraz.
+2. **Moduł pokazuje wszystkie rodzaje zasobów, a nie trzy wybrane.** Plan stawiał
+   wybór między „same pody” a „pody + wdrożenia + usługi”; odpowiedź brzmiała
+   „pody, deploymenty, services, secrety i wszystkie inne elementy k8s”, czyli
+   **rodzaje bierze się z klastra**, a nie z listy w kodzie. Zmienia to naturę
+   kroku: nie ma „zestawu kolumn na rodzaj” pisanego z ręki, jest katalog
+   z `api-resources` — a CRD wchodzą same, bez dopisywania czegokolwiek.
+3. **Ekran to `Split`: drzewo po lewej, treść po prawej.** Lewy panel prowadzi
+   **grupy API → rodzaje → zasoby**; wybór rodzaju pokazuje po prawej jego listę,
+   wybór zasobu — jego opis. W głąb wchodzi się **w obu panelach**. Grupy w
+   korzeniu (zamiast płaskiej listy kilkudziesięciu rodzajów) wybrano dlatego, że
+   spis mieści się wtedy w kilkunastu pozycjach, a CRD lądują w swoich grupach bez
+   pytania kogokolwiek o zdanie.
+4. **Kolumny listy biorą się z JSON-a: ogólne z `metadata`, a znane rodzaje mają
+   pakiety.** Odrzucono rozczytywanie tabeli drukowanej przez serwer — droga
+   tańsza w kolumnach (każdy rodzaj, także CRD, oddaje wtedy swoje prawdziwe
+   nagłówki za darmo), ale kupowana parserem tekstu wyrównanego spacjami
+   i odstępstwem od zdania planu „wynik jako `-o json`”. Cena wyboru jest zapisana
+   z góry: rodzaj spoza pakietów pokazuje nazwę, przestrzeń i wiek, a `READY`,
+   `STATUS` i `RESTARTS` poda liczy **kod modułu**, powtarzając rachunek serwera.
+5. **Sekcje jako widok domyślny, surowy YAML pod klawiszem.** Sekcje pokazują
+   wybór autora, więc pole nieprzewidziane znikałoby bez śladu; `TextView` z kroku
+   29 i `-o yaml` domykają to bez dokładania komponentu.
+6. **Limit czasu jest pozycją ustawień modułu** — liczbą z listy przystanków,
+   wzorem głośności (11o) i bufora logów (D90 nr 3). Stała w kodzie odpadła, bo
+   klaster za VPN-em nie ma jak dostać więcej czasu; „stała plus nadpisanie”
+   odpadło jako dwie drogi do jednej wartości (D40).
+7. **Lista odświeża się z zegara, ale wyłącznie przy widocznym ekranie**, plus
+   `Ctrl`+`R` i samoczynnie po własnej czynności — wzorem D90 nr 7. Różnica wobec
+   Dockera jest realna i wchodzi do kodu: tam odświeżenie to nieblokujące pytanie
+   po gnieździe, tu **proces potomny**, więc odstęp jest dłuższy i jest **drugą
+   pozycją ustawień**.
+8. **Przy niezgodnych wersjach moduł pokazuje obie i nie odmawia niczego** —
+   zdanie planu wykonane wprost. Ostrzeżenie tonem `Warning` przy różnicy większej
+   niż jeden wydany numer; blokowanie czynności zmieniających odrzucono, bo
+   Kubernetes mówi o takiej różnicy „niewspierane”, a nie „niemożliwe”.
+9. **`apply` i usunięcie zasobu wchodzą w tym kroku**, oba. Reguła 11n
+   („czynność o dwóch wejściach mieszka raz”) i ten sam rachunek, co przy
+   `docker.build` w D90 nr 4: odbiorcą jest **użytkownik**, więc reguła 13 jest
+   spełniona bez kroku 53, a tamten krok zastaje czynność zamiast pisać ją drugi
+   raz. Usunięcie idzie `ConfirmOverlay`em w wariancie `dangerous`.
+10. **Sekret jest zamaskowany, odsłania go klawisz — i daje się zmienić.**
+    Wartości pod kluczami są ukryte, `x` odsłania wybraną; edycja obejmuje
+    **zmianę wartości, dodanie klucza i skasowanie klucza**, a wpisywać wolno
+    base64 albo tekst surowy do zakodowania. To **znosi punkt „Poza zakresem”
+    planu**: „Edycja zasobu (`kubectl edit`) — aplikacja nie ma edytora tekstu”.
+    Zniesienie jest wąskie i takie ma zostać: zmienia się **wartość pod kluczem
+    w `Secret`cie**, a nie dowolne pole dowolnego zasobu.
+11. **Sprawdzenie ręczne idzie na minikube**, a klaster uruchamia użytkownik.
+12. **Rdzeniowy port pracy tłowej oddaje wypis pracy trwającej — i to jest
+    zmiana kontraktu rdzenia, której plan kroku wykluczał.** Rozstrzygnięcie
+    zapadło **w trakcie pisania kodu**, nie na starcie, bo dopiero wtedy wyszło,
+    czego brakuje: `BackgroundState` przy `Running` niósł **pusty** wypis
+    (sprawdzone w `BackgroundJob::advance()`), więc `kubectl logs -f` — polecenie,
+    które nie kończy się nigdy — nie miało jak powiedzieć ani słowa. Moduł
+    Dockera tego nie dotknął, bo jego logi płyną gniazdem, a nie potomkiem.
+
+    Postawiono trzy drogi z ceną wypisaną przed wyborem: **rosnący plik roboczy**
+    (wzorzec z kroku 50, bez zmiany rdzenia, ale z plikiem na dysku),
+    **powtarzane `logs --tail`** (bez plików i bez rdzenia, ale to nie jest
+    strumień — wiersze między wywołaniami uciekają) i **rozbudowa portu**.
+    Użytkownik wybrał rozbudowę: strumień działa wtedy wprost, a przyszłe moduły
+    (`journalctl -f`, `tail -f`) dostają go za darmo.
+
+    **Rozbudowa okazała się dwuczęściowa, i to druga część jest ważniejsza.**
+    Samo oddawanie wypisu nie wystarcza: bufor rdzenia **odrzucał nadmiar** po
+    przekroczeniu granicy (`fitting()`), więc log dobiłby do niej w kilkanaście
+    sekund i **zamilkł na zawsze** — potomek pisałby dalej, a aplikacja nie
+    dostawałaby ani jednego nowego wiersza. Wynik i strumień mają wobec granicy
+    wymagania **przeciwne**, więc doszło pojęcie `Application\Dto\OutputShape`:
+    `Result` zbiera do granicy i odrzuca nadmiar (zachowanie sprzed kroku 52, co
+    do bajtu), `Stream` **zapomina najstarsze**, a ile bajtów wypadło, mówi nowe
+    pole `BackgroundState::$droppedBytes`. Kształt podaje się przy `start()`, bo
+    jest własnością **zamówienia, nie polecenia**: to samo `kubectl logs` bywa
+    jednym i drugim, zależnie od `-f`.
+
+    Trzy rzeczy zostają przy tym nietknięte i są warunkiem przyjęcia zmiany:
+    **`poll()` pozostaje czystym odczytem** (stan powstaje w `pump()`, więc dwa
+    doglądania w jednej klatce oddają to samo), **treść nadal odbiera się przy
+    `Done`** (wypis trwającej pracy jest urwany w połowie wiersza — pół JSON-a nie
+    jest JSON-em), a **każdy dotychczasowy odbiorca dostaje to samo, co przed
+    krokiem**: `du`, `sftp`, `ssh` i compose nie podają kształtu, więc idą
+    domyślnym `Result`.
+
+**Co z tych decyzji wynika dla kroku:**
+
+- **Rdzeń kosztuje jedną linię w `Bootstrapie` plus rozbudowę portu pracy tłowej**
+  (nr 12). Zdanie planu „mechanizmu rdzenia krok nie rusza żadnego” jest przez to
+  **odwołane**, i to jawnie: rusza jeden. Wszystko inne, czego moduł potrzebuje,
+  stoi już w rdzeniu — `Split` i `TreeView`, kilka prac tłowych naraz (krok 51),
+  `NeedsTick`, `RequiresEnvironment`, `ConfirmOverlay`, `PromptOverlay`
+  i `ChoiceOverlay`.
+- **Dochodzi zależność od kroku 31**, której plan nie wymieniał: drzewo z
+  rozstrzygnięcia nr 3 to `TreeView`, `TreeNode` i `TreeState` (czwarta klasa
+  stanu między klatkami). Plan wymieniał `Table`, `Split`, `TextView`,
+  `ConfirmOverlay` i `SectionState` — pięć zależności zamiast sześciu.
+- **Rozstrzygnięcie nr 2 przenosi ciężar kroku z rysowania na katalog.** Trudność
+  zapowiadana przez plan („czas oczekiwania”) zostaje, ale obok niej staje druga:
+  **rodzaj zasobu jest daną, nie klasą** — jego nazwa, przynależność do grupy,
+  namespace'owość i dostępne czasowniki przychodzą z klastra i mogą się zmienić
+  między dwoma uruchomieniami aplikacji.
+- **Nazwa klasy z planu jest w PHP niewykonalna**: `Namespace` to słowo
+  zastrzeżone, więc obiektem wartości będzie `NamespaceName` — obok `ContextName`,
+  którego plan nazwał poprawnie.
+- **Ustawienia modułu mają dwie pozycje** (limit czasu, odstęp odświeżania),
+  a nie zero — obie wprost z rozstrzygnięć 6 i 7.
+- **Sekret dokłada czynności zmieniające ponad `apply` i usunięcie.** Idą
+  `kubectl patch --type=merge -p '<json>'` — **argumentem, nigdy wejściem
+  standardowym**, bo port potomkowi wejścia nie daje (ta sama reguła, dla której
+  `kubectl apply -f -` jest w tym module niewykonalne).
+
+**Odrzucone alternatywy** (poza wymienionymi przy decyzjach): tabela drukowana
+przez serwer jako źródło kolumn — kolumny prawdziwe dla każdego rodzaju bez
+jednej linii o rodzajach w kodzie, odrzucona przy nr 4; płaska lista rodzajów
+w korzeniu drzewa — łatwiej trafić w znany rodzaj, ale ~60 pozycji, w tym rzeczy
+oglądane raz w roku; przestrzenie nazw w korzeniu — naturalne przy pracy w jednej
+przestrzeni, ale zasoby bez przestrzeni (węzły, `PersistentVolume`, CRD) muszą
+wtedy dostać gałąź obok; odsłanianie sekretów bez maskowania — najprostsze,
+odrzucone, bo `core.dump` z kroku 38 zapisuje klatkę na dysk, a zrzut z hasłem
+w środku jest nieodwracalny.

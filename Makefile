@@ -36,6 +36,7 @@ COMPOSER_INI_SCAN_DIR ?=
         test test-unit test-functional coverage \
         bench bench-window bench-text bench-loop bench-xterm \
         run run-window run-xterm probe probe-xterm \
+        minikube-start minikube-stop minikube-status \
         build clean dist-clean
 
 ##@ Pomoc
@@ -212,6 +213,35 @@ probe: $(AUTOLOAD) ## Podgląd wejścia terminala (bin/terminal-probe) — takż
 
 probe-xterm: $(AUTOLOAD) ## Podgląd wejścia w XTermie z zasobami trybu graficznego
 	./bin/run-terminal-probe.sh
+
+##@ Klaster do sprawdzeń (krok 52)
+
+# Cele istnieją po to, żeby klaster do sprawdzania modułu `k8s` podnosiło
+# i kładło **jedno wejście**, a nie polecenie pamiętane z głowy — ta sama zasada,
+# co przy pozostałych procesach projektu (reguła 18).
+#
+# **Klaster jest obciążeniem maszyny, nie częścią aplikacji.** Moduł działa bez
+# niego (stan „nie ma klastra” jest zwykłym widokiem), a przed każdym pomiarem
+# `make bench*` klaster ma być **zatrzymany** — reguła 17 mówi o spokojnej
+# maszynie, a węzeł minikube zajmuje rdzenie i pamięć przez cały czas działania.
+
+minikube-start: ## Podnosi klaster minikube do sprawdzeń modułu k8s (obciąża maszynę — nie mierz przy nim)
+	minikube start
+
+minikube-stop: ## Zatrzymuje klaster minikube (zwalnia maszynę przed pomiarem; klastra nie kasuje)
+	minikube stop
+
+# Pytanie **tanie i bezpieczne**: nie podnosi klastra i nie kładzie go, więc wolno
+# je zadać także tuż przed pomiarem — a wtedy jest wręcz najpotrzebniejsze, bo
+# odpowiada na jedyne pytanie, które reguła 17 stawia przed `make bench*`.
+#
+# `|| true` jest tu **konieczne, a nie wygodne**: `minikube status` kończy się
+# kodem 7 przy zatrzymanym węźle i kodem 85 przy nieistniejącym. Dla tego celu
+# obie odpowiedzi są prawidłowe — pytamy o stan, a „zatrzymany" jest stanem, nie
+# awarią. Bez tego `make minikube-status` wypisywałby prawdziwą odpowiedź
+# i **kończył się błędem**, czyli uczyłby, że coś jest zepsute.
+minikube-status: ## Mówi, czy klaster działa (sprawdź przed pomiarem — węzeł ma być zatrzymany)
+	minikube status || true
 
 ##@ Budowa i sprzątanie
 

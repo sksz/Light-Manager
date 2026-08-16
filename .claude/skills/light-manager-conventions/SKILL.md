@@ -186,8 +186,12 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     pierwszy `poll()`), **oba potoki opróżniane co klatkę dla każdej pracy**
     (nieczytany zatrzymuje potomka; robi to **pętla** przez osobny
     `Application\Port\BackgroundPumpPort::pump()`, bo pompowanie należy do pętli,
-    nie do modułu — `poll()` jest odtąd czystym odczytem stanu) i **kod wyjścia
-    ≠ 0 nie jest sam z siebie niepowodzeniem** — `du` kończy się jedynką za nieprzeczytany katalog, a wynik
+    nie do modułu — `poll()` jest odtąd czystym odczytem stanu), **wypis pracy
+    trwającej** (krok 52, D91 nr 12 — `Running` niósł do tamtego kroku pusty
+    napis, więc polecenie niekończące się nigdy nie miało jak powiedzieć ani
+    słowa; `poll()` **zostaje czysty**, bo stan powstaje w `pump()`, a treść nadal
+    odbiera się przy `Done` — wypis w trakcie jest urwany w połowie wiersza)
+    i **kod wyjścia ≠ 0 nie jest sam z siebie niepowodzeniem** — `du` kończy się jedynką za nieprzeczytany katalog, a wynik
     mimo to podaje. Pierwszy odbiorca: wiersz „zajęte na dysku” w `FileInfo`,
     tylko dla katalogów i tylko na klawisz `d`; **odbiorców jest dziś czterech**
     (`du`, sesja zdalna, przesył plików, compose modułu Dockera) i to oni wymusili
@@ -601,6 +605,36 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     (`DockerCatalogPort`, `LogReaderPort`, `BuildReaderPort`), bo stan listy jest
     daną warstwy `Application` i nie ma prawa znać ani jednej klasy stamtąd
     (reguła 4).
+11u. **Zamawiając pracę tłową, powiedz, czym jest jej wypis** (krok 52, D91 nr 12).
+    `Application\Dto\OutputShape` ma dwie wartości i **przeciwne** reguły wobec
+    granicy bufora: `Result` (domyślny) zbiera do granicy i **odrzuca nadmiar** —
+    tak jak port robił od kroku 26, bo suma `du` stoi w pierwszym wierszu;
+    `Stream` **zapomina najstarsze**, bo inaczej log dobiłby do granicy
+    w kilkanaście sekund i zamilkł na zawsze przy potomku, który nadal pisze.
+    Ile bajtów wypadło, mówi `BackgroundState::$droppedBytes` — czytający
+    strumień trzyma **własny licznik bajtów bezwzględnych** i z różnicy pozna
+    dziurę, o której ma powiedzieć zdaniem (log ucięty po cichu wygląda tak samo,
+    jak log, w którym nic się nie działo). Kształt jest własnością **zamówienia,
+    nie polecenia**: to samo `kubectl logs` bywa jednym i drugim, zależnie od `-f`.
+11v. **Klaster rozmawia procesem potomnym, a rodzaje zasobów przychodzą z niego**
+    (krok 52, D91). Moduł `src/Module/Kubernetes/` (`Ctrl`+`K`) woła `kubectl`
+    rdzeniowym portem pracy tłowej — **żadne wywołanie nie pada w rysowaniu
+    klatki**, bo żadne nie pada w procesie aplikacji (reguła nadrzędna z kroku 48).
+    Cztery rzeczy warte zapamiętania. **Limit czasu jest częścią każdego
+    wywołania**, i to podwójny: `--request-timeout` (klient przestaje czekać na
+    serwer) plus limit procesu — z jednym wyjątkiem, którym jest strumień logów,
+    bo limit żądania zamknąłby go w chwili, gdy zaczyna działać. **Rodzajów
+    zasobów nie ma w kodzie**: pochodzą z `api-resources`, więc CRD wchodzą do
+    drzewa same, a `ResourceKind` jest **daną z klastra**, nie gałęzią `match`a;
+    kolumny własne rodzaju mają za to pakiety pisane ręcznie (D91 nr 4) i rodzaj
+    spoza spisu pokazuje trzy kolumny ogólne — to jest zapisana cena, nie usterka.
+    **`api-resources` jest jedynym wywołaniem oddającym tekst** (klient 1.25 nie
+    umie tam JSON-a), a wiersz rozbiera się wyrażeniem opartym na niezmiennikach,
+    **nigdy podziałem po spacjach**: pusta kolumna `SHORTNAMES` przesuwa wtedy
+    wszystkie pozostałe i `namespaced` czyta się z `APIVERSION`. **Sekrety są
+    zamaskowane** w liście, w opisie i w YAML-u; odsłania jeden klucz `x`, a zmiana
+    idzie `kubectl patch --type=merge -p` — argumentem, bo potomek nie dostaje
+    wejścia (ta sama reguła unieważnia `apply -f -`).
 11. **Nowy element interfejsu to nowy komponent w `Presentation/Ui/Component`**,
     a nie nowa metoda w rendererze. Komponent oddaje prymitywy z ról motywu i
     prostokątów w siatce znakowej — pikseli nie zna. Słownik prymitywów jest
