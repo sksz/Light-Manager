@@ -17,6 +17,17 @@ namespace LightManager\Infrastructure\Diagnostics;
  */
 enum Scenario: string
 {
+    /**
+     * Ile prac tłowych prowadzi scenariusz `background-many` (krok 51).
+     *
+     * Liczba jest **domyślną granicą z ustawień** (`Settings::DEFAULT_BACKGROUND_JOBS`)
+     * przepisaną tutaj, a nie z niej czytaną: pomiar ma być powtarzalny między
+     * maszynami i między przebiegami, a konfiguracja użytkownika jest zmienna.
+     * Stała powtórzona świadomie — rozjazd z ustawieniami zmieniłby wyłącznie
+     * to, jak ostry jest przypadek najgorszy, a nie poprawność pomiaru.
+     */
+    private const MANY_BACKGROUND_JOBS = 8;
+
     /** Koszt bazowy: alokacja płótna, tło, kwantyzacja, kodowanie. */
     case Empty = 'empty';
 
@@ -94,6 +105,21 @@ enum Scenario: string
      * procesu, trzydzieści razy na sekundę.
      */
     case Background = 'background';
+
+    /**
+     * Ta sama klatka, co `background`, ale z **kompletem prac tłowych** obok
+     * (krok 51).
+     *
+     * Rozlicza się **w parze z `background`**, nie samodzielnie, i ta para jest
+     * całym powodem jego istnienia: różnica między nimi to cena, którą pętla
+     * płaci za rozbudowę portu z „jednej pracy naraz” do kilku — jedno przejście
+     * pompowania po ośmiu potomkach zamiast po jednym, plus siedem doglądań.
+     *
+     * Liczba prac jest **domyślną granicą z ustawień**, a nie wartością dobraną
+     * pod ładny wynik: mierzymy przypadek najgorszy, jaki aplikacja dopuszcza
+     * bez ruszania konfiguracji.
+     */
+    case BackgroundMany = 'background-many';
 
     /**
      * Pełna klatka listy plików o **czterech kolumnach** zamiast dwóch (krok 27).
@@ -264,20 +290,31 @@ enum Scenario: string
         return match ($this) {
             self::Chrome, self::ChromeWithText, self::Thumbnail, self::Popup,
             self::Command, self::Sections, self::Progress, self::Split,
-            self::Background, self::Columns, self::TextView, self::Highlight,
-            self::Settings, self::Tree, self::Marked => true,
+            self::Background, self::BackgroundMany, self::Columns, self::TextView,
+            self::Highlight, self::Settings, self::Tree, self::Marked => true,
             default => false,
         };
     }
 
     /**
-     * Czy pomiar ma toczyć się przy uruchomionym procesie potomnym.
+     * Przy ilu uruchomionych procesach potomnych ma toczyć się pomiar.
      *
-     * Odpowiedź twierdząca kosztuje przebieg jeden proces — uruchamiany przed
-     * rozgrzewką i ubijany po ostatniej próbce — oraz jedno doglądanie na klatkę.
+     * Każdy kosztuje przebieg jeden proces — uruchamiany przed rozgrzewką
+     * i ubijany po ostatniej próbce — oraz jedno doglądanie na klatkę; wszystkie
+     * razem kosztują jedno przejście pompowania, bo pętla przechodzi po nich
+     * raz na klatkę niezależnie od tego, ile ich jest.
+     *
+     * Do kroku 51 odpowiedź była **dwustanowa**, bo port prowadził jedną pracę
+     * naraz i „kilka prac” nie było stanem osiągalnym. Odkąd jest, liczba stała
+     * się osią pomiaru: różnica między `background` a `background-many` jest
+     * w całości ceną rozbudowy portu, płaconą w klatce.
      */
-    public function needsBackgroundWork(): bool
+    public function backgroundJobs(): int
     {
-        return $this === self::Background;
+        return match ($this) {
+            self::Background => 1,
+            self::BackgroundMany => self::MANY_BACKGROUND_JOBS,
+            default => 0,
+        };
     }
 }

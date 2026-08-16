@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace LightManager\Infrastructure\Diagnostics;
 
-use LightManager\Application\Dto\BackgroundHandle;
 use LightManager\Application\Port\BackgroundProcessPort;
 use LightManager\Infrastructure\Rendering\RenderingOptions;
 use LightManager\Infrastructure\Rendering\TextFrameRenderer;
@@ -37,11 +36,11 @@ final class TextBenchmarkRunner extends AbstractBenchmarkRunner
         parent::__construct($factory, $options, $processes);
     }
 
-    protected function sample(ScenarioFrame $prepared, ?BackgroundHandle $work = null): PhaseSample
+    protected function sample(ScenarioFrame $prepared): PhaseSample
     {
         $started = microtime(true);
 
-        $this->pollCompanion($work);
+        $this->advanceCompanions();
 
         $buffer = $this->renderer->composeBuffer(
             $prepared->frame,

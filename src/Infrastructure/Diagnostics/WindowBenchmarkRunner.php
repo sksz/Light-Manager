@@ -6,7 +6,6 @@ namespace LightManager\Infrastructure\Diagnostics;
 
 use GL\Buffer\UByteBuffer;
 use Imagick;
-use LightManager\Application\Dto\BackgroundHandle;
 use LightManager\Application\Port\BackgroundProcessPort;
 use LightManager\Infrastructure\Glfw\GlfwWindowService;
 use LightManager\Infrastructure\Rendering\OpenGlFrameRenderer;
@@ -103,11 +102,11 @@ final class WindowBenchmarkRunner extends AbstractBenchmarkRunner implements Sce
         );
     }
 
-    protected function sample(ScenarioFrame $prepared, ?BackgroundHandle $work = null): PhaseSample
+    protected function sample(ScenarioFrame $prepared): PhaseSample
     {
         $started = microtime(true);
 
-        $this->pollCompanion($work);
+        $this->advanceCompanions();
 
         $this->renderer->drawFrame(
             $prepared->frame,

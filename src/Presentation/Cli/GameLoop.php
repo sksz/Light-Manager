@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Presentation\Cli;
 
+use LightManager\Application\Port\BackgroundPumpPort;
 use LightManager\Application\Port\InputPort;
 
 /**
@@ -39,6 +40,7 @@ final class GameLoop
         private readonly InputHandler $input,
         private readonly LoopState $state,
         private readonly ?ModuleTicker $modules = null,
+        private readonly ?BackgroundPumpPort $processes = null,
         int $framesPerSecond = self::DEFAULT_FRAMES_PER_SECOND,
     ) {
         $this->frameBudgetMicroseconds = (int) (self::MICROSECONDS_PER_SECOND / $framesPerSecond);
@@ -63,6 +65,15 @@ final class GameLoop
             // wszystko, co zmienia się samo z siebie — dziś karetka w polu
             // tekstowym, wcześniej gaszenie komunikatów.
             $state->tick($startedAt);
+
+            // Potoki prac tłowych (krok 51): jedno przejście po wszystkich, raz
+            // na klatkę. Do tego kroku prace były prowadzone po jednej i karmił
+            // je jej właściciel przy zaglądaniu; odkąd jest ich kilka, karmienie
+            // przestało być sprawą właściciela — potomek, którego nikt nie czyta,
+            // zatrzymuje się na pełnym potoku, a jego limitu czasu też nie ma kto
+            // sprawdzić. Faza stoi przed taktem modułów, żeby moduł oglądał w tej
+            // klatce stan już posunięty, a nie stan sprzed klatki.
+            $this->processes?->pump();
 
             // Kawałek pracy prowadzonej przez okno nakładane (krok 41): usuwanie
             // katalogu wraz z zawartością posuwa się po jednym kawałku na takt.

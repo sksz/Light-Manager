@@ -7,16 +7,23 @@ namespace LightManager\Infrastructure\Process;
 use LightManager\Application\Dto\BackgroundHandle;
 use LightManager\Application\Dto\BackgroundState;
 use LightManager\Application\Port\BackgroundProcessPort;
+use LightManager\Application\Port\BackgroundPumpPort;
 use LightManager\Infrastructure\Config\SettingsService;
 use LightManager\Infrastructure\Support\AbstractSingleton;
 
 /**
- * Proces potomny doglądany między klatkami.
+ * Procesy potomne doglądane między klatkami.
  *
  * Cała klasa sprowadza się do jednego zdania: **żadne wywołanie stąd nie czeka
- * na potomka**. `start()` uruchamia i wraca, `poll()` zagląda do potoków i do
- * stanu procesu, po czym wraca niezależnie od tego, co zastało. Pętla główna nie
- * ma prawa zauważyć, że coś obok trwa.
+ * na potomka**. `start()` uruchamia i wraca, `pump()` zagląda do potoków i do
+ * stanu procesów, po czym wraca niezależnie od tego, co zastało, a `poll()` czyta
+ * już tylko gotową daną. Pętla główna nie ma prawa zauważyć, że coś obok trwa.
+ *
+ * **Od kroku 51 prac jest kilka naraz** (D90 nr 1), każda pod własnym uchwytem,
+ * z granicą braną z ustawień. Zmiana dotknęła podziału pracy w tej klasie
+ * bardziej niż jej rozmiaru: to, co dzieje się z **jednym** potomkiem, wyniosło
+ * się w całości do `BackgroundJob`, a tutaj zostało to, czego jedna praca nie
+ * potrafi — rozdawanie uchwytów, pilnowanie granicy i sprzątanie.
  *
  * Trzy rzeczy, których zaniedbanie kończy się nie błędem, tylko śmieciem
  * w systemie — i dlatego każda ma tu swoje miejsce:
@@ -26,11 +33,13 @@ use LightManager\Infrastructure\Support\AbstractSingleton;
  *    na ścieżce wyjścia (`Bootstrap::shutdown()`) i funkcja zamknięcia procesu
  *    jako gwarancja ostatniej szansy. Pierwsza jest widoczna w kodzie, druga
  *    łapie to, czego pierwsza nie dosięga — błąd krytyczny i `exit()` z boku.
+ *    Przy kilku pracach naraz obie drogi sprzątają **komplet**.
  * 2. **Potoki trzeba czytać, nawet gdy nikogo nie obchodzą.** Potomek, który
- *    zapełni potok, zatrzymuje się na zapisie i stoi tak do limitu czasu; `du`
- *    na katalogu domowym wypisuje na strumieniu błędów setki wierszy „brak
- *    dostępu”. Strumień błędów jest więc czytany i **wyrzucany**, a nie
- *    ignorowany — to nie to samo.
+ *    zapełni potok, zatrzymuje się na zapisie i stoi tak do limitu czasu. Do
+ *    kroku 51 karmił go jego właściciel przy każdym `poll()`; odkąd prac jest
+ *    kilka, karmi je **pętla** przez `pump()` — bo właściciel niezaglądający
+ *    (ekran modułu zniknął, moduł ma usterkę) zatrzymałby swojego potomka i nie
+ *    zauważyłby tego nikt.
  * 3. **Zamknięty potomek trzeba pochować.** Bez `proc_close()` zostaje zombie,
  *    a bez `proc_terminate()` przed nim — działający potomek po zamknięciu
  *    aplikacji.
@@ -39,106 +48,55 @@ use LightManager\Infrastructure\Support\AbstractSingleton;
  * grzeczności: przy wyjściu z aplikacji nie ma już komu poczekać, aż potomek
  * rozmyśli się nad obsługą sygnału.
  */
-final class BackgroundProcessService extends AbstractSingleton implements BackgroundProcessPort
+final class BackgroundProcessService extends AbstractSingleton implements BackgroundProcessPort, BackgroundPumpPort
 {
     /**
-     * Ile najwyżej bajtów wyjścia pamiętamy, gdy konfiguracja milczy.
+     * Ile stanów prac **zakończonych** pamiętamy, zanim zaczniemy zapominać
+     * najstarsze.
      *
-     * **Do kroku 49 była to stała wpisana w kod** (64 KiB) dobrana pod polecenia
-     * oddające jeden wiersz: `du -s` wypisuje jeden, `file -b` jeden. Zdalny
-     * katalog jest pierwszym odbiorcą, dla którego wyjściem jest **treść** —
-     * wypis `sftp ls -l` kosztuje około 84 bajtów na wpis, więc dawna stała
-     * urywała listę na siedmiuset wpisach, i to **po cichu**.
-     *
-     * Wartość obowiązującą podaje odtąd konfiguracja
-     * (`Settings::backgroundOutputBytes()`, domyślnie 1 MiB); ta stała zostaje
-     * jako ostatnia deska ratunku dla przebiegów bez wczytanych ustawień —
-     * testów, narzędzi diagnostycznych i awaryjnego odczytu konfiguracji.
-     * Nadmiar jest **czytany i wyrzucany**, bo przestać czytać znaczyłoby
-     * zatrzymać potomka.
+     * Praca skończona nie trzyma już ani procesu, ani potoków — zostaje z niej
+     * sam stan do odczytania, a zdejmuje go `stop()` wołany przez właściciela.
+     * Ten zapas istnieje na wypadek właściciela, który `stop()` zapomni: bez
+     * niego tablica rosłaby przez całe uruchomienie aplikacji. Wartość jest
+     * hojna wobec każdego dzisiejszego odbiorcy — wszyscy odbierają wynik
+     * w klatce, w której go zobaczyli.
      */
-    private const FALLBACK_OUTPUT_BYTES = 64 * 1024;
-
-    private const KILL_SIGNAL = 9;
-
-    /** Uchwyt bieżącej pracy; `null` — nic nie zamówiono albo już posprzątano. */
-    private ?BackgroundHandle $current = null;
-
-    /** @var resource|null */
-    private $process = null;
-
-    /** @var array<int, resource> */
-    private array $pipes = [];
-
-    private float $deadline = 0.0;
-
-    private int $timeoutSeconds = 0;
-
-    private string $output = '';
+    private const RETAINED_FINISHED_JOBS = 32;
 
     /**
-     * Strumień błędów bieżącej pracy — od kroku 49 **pamiętany, a nie
-     * wyrzucany**.
+     * Prace tego uruchomienia — numer uchwytu → praca. Trwające i te, których
+     * stanu nikt jeszcze nie zdjął.
      *
-     * Zmiana wyszła z odczytu zdalnego katalogu: polecenie, którego wyjściem
-     * jest treść, nie ma prawa scalać z nią diagnostyki w wierszu polecenia
-     * (`2>&1`) — a mimo to musi mieć jak powiedzieć, co poszło nie tak. Powód,
-     * dla którego scalanie jest tam zakazane, stoi przy `BackgroundState`.
+     * @var array<int, BackgroundJob>
      */
-    private string $errorOutput = '';
-
-    /** Ile bajtów wyjścia wolno zapamiętać bieżącej pracy (krok 49). */
-    private int $outputLimit = self::FALLBACK_OUTPUT_BYTES;
+    private array $jobs = [];
 
     private int $lastId = 0;
 
     private bool $shutdownRegistered = false;
 
-    private BackgroundState $state;
-
-    protected function __construct()
-    {
-        $this->state = BackgroundState::idle();
-    }
-
     public function start(string $command, int $timeoutSeconds): BackgroundHandle
     {
-        $this->release();
-
         $handle = new BackgroundHandle(++$this->lastId);
-        $this->current = $handle;
-        $this->timeoutSeconds = max(1, $timeoutSeconds);
-        $this->outputLimit = self::limitFromSettings();
+        $limit = self::jobLimitFromSettings();
+        $job = new BackgroundJob(max(1, $timeoutSeconds), self::outputLimitFromSettings());
 
-        if (!function_exists('proc_open')) {
-            $this->state = BackgroundState::failed('process.unavailable');
+        // Granica pilnuje **prac trwających**, a nie wpisów w tablicy: praca
+        // skończona, której stanu nikt jeszcze nie zdjął, nie zajmuje ani
+        // procesu, ani potoków, więc odmowa z jej powodu byłaby odmową bez
+        // powodu. Liczymy przed dopisaniem tej pracy, bo ona jeszcze nie trwa.
+        $refused = $this->runningCount() >= $limit;
+
+        $this->forgetOldestFinished();
+        $this->jobs[$handle->id] = $job;
+
+        if ($refused) {
+            $job->refuse($limit);
 
             return $handle;
         }
 
-        $pipes = [];
-        $process = @proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
-
-        if (!is_resource($process)) {
-            $this->state = BackgroundState::failed('process.failed');
-
-            return $handle;
-        }
-
-        // Bez tego pierwszy odczyt z potoku, do którego potomek jeszcze nic nie
-        // napisał, zatrzymałby klatkę — czyli dokładnie to, czemu ta klasa ma
-        // zapobiegać.
-        foreach ($pipes as $pipe) {
-            stream_set_blocking($pipe, false);
-        }
-
-        $this->process = $process;
-        $this->pipes = $pipes;
-        $this->deadline = microtime(true) + $this->timeoutSeconds;
-        $this->output = '';
-        $this->errorOutput = '';
-        $this->state = BackgroundState::running();
-
+        $job->start($command);
         $this->registerShutdownHandler();
 
         return $handle;
@@ -146,164 +104,118 @@ final class BackgroundProcessService extends AbstractSingleton implements Backgr
 
     public function poll(BackgroundHandle $handle): BackgroundState
     {
-        if (!$this->isCurrent($handle)) {
-            return BackgroundState::idle();
+        return ($this->jobs[$handle->id] ?? null)?->state() ?? BackgroundState::idle();
+    }
+
+    public function pump(): void
+    {
+        foreach ($this->jobs as $job) {
+            $job->advance();
         }
-
-        $process = $this->process;
-
-        if (!$this->state->isRunning() || !is_resource($process)) {
-            return $this->state;
-        }
-
-        $this->drain();
-        $status = proc_get_status($process);
-
-        if ($status['running']) {
-            if (microtime(true) < $this->deadline) {
-                return $this->state;
-            }
-
-            proc_terminate($process, self::KILL_SIGNAL);
-            $this->release();
-
-            return $this->state = BackgroundState::failed(
-                'process.timedOut',
-                ['seconds' => $this->timeoutSeconds],
-            );
-        }
-
-        // Potomek skończył, ale w potokach może jeszcze coś stać: zamknięcie ich
-        // przed ostatnim odczytem zgubiłoby wynik polecenia, które wypisało go
-        // tuż przed wyjściem. Kod wyjścia bierzemy z tego właśnie odczytu stanu,
-        // bo `proc_close()` po pochowaniu potomka oddaje już tylko −1.
-        $this->drain();
-        $output = $this->output;
-        $errorOutput = $this->errorOutput;
-        $exitCode = $status['exitcode'];
-        $this->release();
-
-        return $this->state = BackgroundState::done(trim($output), $exitCode, trim($errorOutput));
     }
 
     public function stop(BackgroundHandle $handle): void
     {
-        if (!$this->isCurrent($handle)) {
+        $job = $this->jobs[$handle->id] ?? null;
+
+        if ($job === null) {
             return;
         }
 
-        $this->release();
-        $this->state = BackgroundState::idle();
-        $this->current = null;
+        $job->release();
+        unset($this->jobs[$handle->id]);
     }
 
     /**
-     * Sprzątanie przy wyjściu z aplikacji — jedyna metoda spoza portu.
+     * Sprzątanie przy wyjściu z aplikacji — jedyna metoda spoza obu portów.
      *
      * Nie ma jej w porcie z rozmysłem: moduł zamawia pracę i ją przerywa, ale
      * o zamykaniu aplikacji nie wie i nie ma prawa wiedzieć. Woła ją
      * `Bootstrap::shutdown()` — tą samą ścieżką, którą terminal wraca do trybu
      * normalnego — oraz funkcja zamknięcia procesu zarejestrowana przy pierwszym
      * uruchomieniu.
+     *
+     * Od kroku 51 sprząta **wszystkie** prace i jest to zarazem odpowiedź na
+     * pytanie, które plan tamtego kroku zadawał inaczej: sprzątania całości nie
+     * dokłada się do portu jako `stopAll()`, bo droga wychodząca z aplikacji
+     * istnieje tu od kroku 26 i nie jest dostępna modułom.
      */
     public function shutdown(): void
     {
-        $this->release();
-        $this->state = BackgroundState::idle();
-        $this->current = null;
+        foreach ($this->jobs as $job) {
+            $job->release();
+        }
+
+        $this->jobs = [];
     }
 
-    private function isCurrent(BackgroundHandle $handle): bool
+    private function runningCount(): int
     {
-        return $this->current !== null && $this->current->equals($handle);
+        $running = 0;
+
+        foreach ($this->jobs as $job) {
+            if ($job->isRunning()) {
+                ++$running;
+            }
+        }
+
+        return $running;
     }
 
     /**
-     * Czyta to, co potomek zdążył wypisać, i **nie czeka na resztę**.
+     * Zapomina najstarsze prace zakończone, gdy uzbiera się ich ponad zapas.
      *
-     * Potoki są nieblokujące, więc `stream_get_contents()` oddaje tyle, ile
-     * stoi w buforze, i wraca. Standardowe wyjście zbieramy do granicy rozmiaru,
-     * strumień błędów wyrzucamy — ale czytamy oba, bo nieczytany potok zatrzymuje
-     * potomka.
+     * Zapominanie idzie **po kolejności zamówienia** (klucze rosną), a nie po
+     * czasie zakończenia: praca zamówiona wcześniej ma za sobą więcej klatek,
+     * w których jej właściciel mógł odebrać wynik.
      */
-    private function drain(): void
+    private function forgetOldestFinished(): void
     {
-        foreach ($this->pipes as $descriptor => $pipe) {
-            if (!is_resource($pipe)) {
-                continue;
+        $finished = [];
+
+        foreach ($this->jobs as $id => $job) {
+            if (!$job->isRunning()) {
+                $finished[] = $id;
             }
+        }
 
-            $chunk = stream_get_contents($pipe);
+        $excess = count($finished) - self::RETAINED_FINISHED_JOBS;
 
-            if ($chunk === false || $chunk === '') {
-                continue;
-            }
-
-            // **Oba strumienie idą do granicy z osobna**, każdy z własnym
-            // limitem: `du` na katalogu domowym potrafi wypisać na strumieniu
-            // błędów więcej, niż wynosi jego wynik, a wspólny licznik kazałby
-            // wynikowi ustąpić narzekaniu.
-            if ($descriptor === 1) {
-                $this->output .= $this->fitting($chunk, $this->output);
-
-                continue;
-            }
-
-            $this->errorOutput .= $this->fitting($chunk, $this->errorOutput);
+        for ($index = 0; $index < $excess; ++$index) {
+            unset($this->jobs[$finished[$index]]);
         }
     }
 
-    /** Tyle kawałka, ile mieści się w limicie; pusty napis, gdy nie mieści się nic. */
-    private function fitting(string $chunk, string $collected): string
-    {
-        $room = $this->outputLimit - strlen($collected);
-
-        return $room > 0 ? substr($chunk, 0, $room) : '';
-    }
-
     /**
-     * Limit obowiązujący **tę** pracę — brany raz, przy jej uruchomieniu.
+     * Limit wyjścia obowiązujący **tę** pracę — brany raz, przy jej uruchomieniu.
      *
      * Raz, a nie co odczyt, i to jest cała reguła tego miejsca: praca, której
      * limit zmieniłby się w trakcie, zbierałaby wyjście wedle dwóch różnych
      * miar i nikt nie umiałby powiedzieć, ile jej w końcu wolno.
+     *
+     * **Stałej awaryjnej tu nie ma i nie potrzeba jej**: do kroku 49 limit był
+     * wpisany w kod (64 KiB pod polecenia oddające jeden wiersz — `du -s`,
+     * `file -b`), a od kroku 51 dolną granicę trzyma sam `Settings`, sprowadzając
+     * wartość spoza listy do najmniejszego przystanku — czyli do tej samej
+     * liczby, którą niosła tamta stała.
      */
-    private static function limitFromSettings(): int
+    private static function outputLimitFromSettings(): int
     {
         return SettingsService::getInstance()->current()->backgroundOutputBytes();
     }
 
     /**
-     * Ubija potomka, zamyka potoki i chowa go. **Idempotentne** — wolno wołać
-     * wielokrotnie i z dowolnej ścieżki wyjścia, bo dokładnie tak jest wołane:
-     * przy przerwaniu, przy limicie czasu, przy zakończeniu i przy zamykaniu
-     * aplikacji.
+     * Granica liczby prac — czytana przy **każdym** uruchomieniu, inaczej niż
+     * limit wyjścia.
      *
-     * Stanu ani uchwytu nie rusza: przerwane sprzątanie i zakończona praca różnią
-     * się tym, co po nich zostaje do obejrzenia, a nie tym, co po nich zostaje
-     * w systemie.
+     * Różnica jest celowa: limit wyjścia opisuje pracę, więc zmiana w trakcie
+     * czyniłaby jej wynik niepoliczalnym, a granica opisuje **zbiór prac**, więc
+     * ustawienie zmienione na ekranie ma obowiązywać od następnego zamówienia,
+     * a nie od następnego uruchomienia aplikacji.
      */
-    private function release(): void
+    private static function jobLimitFromSettings(): int
     {
-        $process = $this->process;
-
-        if (is_resource($process)) {
-            if (proc_get_status($process)['running']) {
-                proc_terminate($process, self::KILL_SIGNAL);
-            }
-
-            foreach ($this->pipes as $pipe) {
-                if (is_resource($pipe)) {
-                    fclose($pipe);
-                }
-            }
-
-            proc_close($process);
-        }
-
-        $this->process = null;
-        $this->pipes = [];
-        $this->deadline = 0.0;
+        return SettingsService::getInstance()->current()->backgroundJobLimit();
     }
 
     private function registerShutdownHandler(): void

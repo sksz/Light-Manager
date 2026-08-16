@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace LightManager\Infrastructure\Diagnostics;
 
-use LightManager\Application\Dto\BackgroundHandle;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Port\BackgroundProcessPort;
@@ -64,11 +63,11 @@ final class LoopBenchmarkRunner extends AbstractBenchmarkRunner
         );
     }
 
-    protected function sample(ScenarioFrame $prepared, ?BackgroundHandle $work = null): PhaseSample
+    protected function sample(ScenarioFrame $prepared): PhaseSample
     {
         $started = microtime(true);
 
-        $this->pollCompanion($work);
+        $this->advanceCompanions();
 
         $key = $this->nextKey();
         $read = microtime(true);

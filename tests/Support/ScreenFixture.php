@@ -24,6 +24,7 @@ use LightManager\Module\Audio\Presentation\AudioModule;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Domain\Repository\DirectoryRepositoryInterface;
 use LightManager\Module\Browser\Presentation\BrowserModule;
+use LightManager\Module\Docker\Presentation\DockerModule;
 use LightManager\Module\FileInfo\Presentation\FileInfoModule;
 use LightManager\Module\Ssh\Presentation\SshModule;
 use LightManager\Presentation\Cli\Bootstrap;
@@ -93,6 +94,9 @@ final class ScreenFixture
     /** Spis hostów modułu sesji zdalnej (krok 48). */
     public readonly ScreenInterface $sshScreen;
 
+    /** Ekran modułu Dockera (krok 51) — kontenery, obrazy i logi w jednym. */
+    public readonly ScreenInterface $dockerScreen;
+
     public readonly CommandRegistry $commandRegistry;
 
     /** Ekran, który stanął na dnie stosu — i powód, gdy nie ten, o który proszono. */
@@ -129,6 +133,8 @@ final class ScreenFixture
         public readonly StubHostBook $hosts = new StubHostBook(),
         public readonly StubRemoteDirectory $remote = new StubRemoteDirectory(),
         public readonly StubRemoteTransfer $remoteTransfers = new StubRemoteTransfer(),
+        public readonly StubDockerApi $docker = new StubDockerApi(),
+        public readonly StubCompose $compose = new StubCompose(),
     ) {
         $translator = new StubTranslator();
         $themes = new FixedThemes();
@@ -211,8 +217,23 @@ final class ScreenFixture
         );
         $this->sshScreen = $sshModule->screen();
 
+        // Moduł Dockera wchodzi z atrapami obu portów — gniazda demona (bo test
+        // nie ma prawa zatrzymać cudzego kontenera ani skasować cudzego obrazu)
+        // i wtyczki compose (bo `up` sięga po obrazy do sieci). Podstawiony port
+        // gniazda jest zarazem odpowiedzią na `RequiresEnvironment`: bez niego
+        // zestaw modułów zależałby od tego, czy maszyna uruchamiająca testy ma
+        // zainstalowanego Dockera (krok 51).
+        $dockerModule = new DockerModule(
+            $this->state,
+            $translator,
+            $settingsStore,
+            $docker,
+            $compose,
+        );
+        $this->dockerScreen = $dockerModule->screen();
+
         $this->modules = new ModuleRegistry(
-            [$browser, $fileInfo, $audioModule, $sshModule],
+            [$browser, $fileInfo, $audioModule, $sshModule, $dockerModule],
             $settingsStore->current()->modules,
             Bootstrap::LAST_RESORT_MODULE,
         );

@@ -326,6 +326,10 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
                 && in_array($value, Settings::BACKGROUND_OUTPUT_CHOICES, true)
                 ? $settings->withBackgroundOutputKib($value)
                 : null,
+            SettingKey::BackgroundJobs => is_int($value)
+                && in_array($value, Settings::BACKGROUND_JOBS_CHOICES, true)
+                ? $settings->withBackgroundJobs($value)
+                : null,
         };
     }
 
@@ -378,6 +382,7 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
             SettingKey::WindowColumns->value => $settings->windowColumns,
             SettingKey::WindowRows->value => $settings->windowRows,
             SettingKey::BackgroundOutputKib->value => $settings->backgroundOutputKib,
+            SettingKey::BackgroundJobs->value => $settings->backgroundJobs,
         ];
 
         if ($settings->modules !== []) {

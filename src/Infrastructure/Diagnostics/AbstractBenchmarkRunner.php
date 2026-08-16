@@ -6,6 +6,7 @@ namespace LightManager\Infrastructure\Diagnostics;
 
 use LightManager\Application\Dto\BackgroundHandle;
 use LightManager\Application\Port\BackgroundProcessPort;
+use LightManager\Application\Port\BackgroundPumpPort;
 use LightManager\Infrastructure\Process\BackgroundProcessService;
 
 /**
@@ -35,12 +36,31 @@ abstract class AbstractBenchmarkRunner
 
     protected readonly BackgroundProcessPort $processes;
 
+    /**
+     * Pompowanie potoków — ta sama faza, którą pętla główna wykonuje raz na
+     * klatkę (krok 51).
+     *
+     * `null` znaczy „port podany z zewnątrz nie umie pompować” i zdarza się
+     * wyłącznie w testach: prawdziwa usługa obsługuje oba porty. Bez tej fazy
+     * pomiar scenariuszy tłowych **kłamałby w jedną stronę** — praca, której
+     * nikt nie pompuje, nie kończy się nigdy i nie kosztuje nic.
+     */
+    private readonly ?BackgroundPumpPort $pump;
+
+    /**
+     * Prace towarzyszące bieżącemu scenariuszowi.
+     *
+     * @var list<BackgroundHandle>
+     */
+    private array $companions = [];
+
     public function __construct(
         protected readonly ScenarioFactory $factory,
         protected readonly BenchmarkOptions $options,
         ?BackgroundProcessPort $processes = null,
     ) {
         $this->processes = $processes ?? BackgroundProcessService::getInstance();
+        $this->pump = $this->processes instanceof BackgroundPumpPort ? $this->processes : null;
     }
 
     /**
@@ -79,36 +99,34 @@ abstract class AbstractBenchmarkRunner
     protected function runOne(Scenario $scenario): ScenarioResult
     {
         $prepared = $this->factory->build($scenario);
-        $work = $this->startCompanion($scenario);
+        $this->startCompanions($scenario);
         $cold = null;
 
         memory_reset_peak_usage();
 
         try {
             for ($index = 0; $index < $this->options->warmupIterations; ++$index) {
-                $sample = $this->sample($prepared, $work);
+                $sample = $this->sample($prepared);
                 $cold ??= $sample;
             }
 
             $samples = [];
 
             for ($index = 0; $index < max(1, $this->options->iterations); ++$index) {
-                $samples[] = $this->sample($prepared, $work);
+                $samples[] = $this->sample($prepared);
             }
         } finally {
             // `finally`, bo przebieg przerwany w połowie nie ma prawa zostawić
-            // po sobie procesu — narzędzie pomiarowe podlega tej samej regule,
+            // po sobie procesów — narzędzie pomiarowe podlega tej samej regule,
             // co aplikacja.
-            if ($work !== null) {
-                $this->processes->stop($work);
-            }
+            $this->stopCompanions();
         }
 
         return ScenarioResult::fromSamples($scenario, $samples, $cold, memory_get_peak_usage(true));
     }
 
     /** Jedna klatka danego toru wraz z podziałem na fazy. */
-    abstract protected function sample(ScenarioFrame $prepared, ?BackgroundHandle $work = null): PhaseSample;
+    abstract protected function sample(ScenarioFrame $prepared): PhaseSample;
 
     /** Przygotowanie przebiegu; tory terminalowe nie potrzebują żadnego. */
     protected function prepareRun(): void
@@ -116,21 +134,30 @@ abstract class AbstractBenchmarkRunner
     }
 
     /**
-     * Doglądanie procesu towarzyszącego **wchodzi do czasu klatki**, bo
-     * w aplikacji też do niego wchodzi: ekran pyta o stan raz na klatkę, tuż
-     * przed rysowaniem. Osobna faza dla dwóch pustych potoków byłaby kolumną zer
-     * w każdym pozostałym scenariuszu.
+     * Doglądanie procesów towarzyszących **wchodzi do czasu klatki**, bo
+     * w aplikacji też do niego wchodzi: pętla pompuje potoki raz na klatkę,
+     * a ekran pyta o stan swojej pracy tuż przed rysowaniem. Osobna faza dla
+     * dwóch pustych potoków byłaby kolumną zer w każdym pozostałym scenariuszu.
+     *
+     * Kolejność jest ta sama, co w `GameLoop`: **najpierw pompowanie
+     * wszystkich, potem pytanie o stan** — inaczej pomiar sprawdzałby stan
+     * sprzed klatki.
      */
-    protected function pollCompanion(?BackgroundHandle $work): void
+    protected function advanceCompanions(): void
     {
-        if ($work !== null) {
-            $this->processes->poll($work);
+        if ($this->companions === []) {
+            return;
+        }
+
+        $this->pump?->pump();
+
+        foreach ($this->companions as $handle) {
+            $this->processes->poll($handle);
         }
     }
 
     /**
-     * Proces potomny towarzyszący pomiarowi — albo `null`, gdy scenariusz go nie
-     * zamawia.
+     * Procesy potomne towarzyszące pomiarowi — tyle, ile zamawia scenariusz.
      *
      * Polecenie **milczy i śpi**, bo tak właśnie zachowuje się `du`: nie mówi
      * o sobie nic, aż skończy. Limit czasu jest hojny z tego samego powodu, dla
@@ -138,10 +165,24 @@ abstract class AbstractBenchmarkRunner
      * z setką powtórzeń, a gdyby mimo wszystko nie przeżył, pomiar zmierzyłby
      * klatkę bez sąsiada i cicho skłamał.
      */
-    private function startCompanion(Scenario $scenario): ?BackgroundHandle
+    private function startCompanions(Scenario $scenario): void
     {
-        return $scenario->needsBackgroundWork()
-            ? $this->processes->start('sleep ' . self::COMPANION_SECONDS, self::COMPANION_SECONDS)
-            : null;
+        $this->companions = [];
+
+        for ($index = 0; $index < $scenario->backgroundJobs(); ++$index) {
+            $this->companions[] = $this->processes->start(
+                'sleep ' . self::COMPANION_SECONDS,
+                self::COMPANION_SECONDS,
+            );
+        }
+    }
+
+    private function stopCompanions(): void
+    {
+        foreach ($this->companions as $handle) {
+            $this->processes->stop($handle);
+        }
+
+        $this->companions = [];
     }
 }

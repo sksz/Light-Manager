@@ -38,6 +38,14 @@ namespace LightManager\Application\Dto;
  * mechanizmu: ile wyjścia polecenia tłowego aplikacja pamięta. Wszedł, bo
  * zdalny katalog jest pierwszym poleceniem, którego wyjściem jest treść, a nie
  * jedna liczba — i dawna stała urywała je po cichu.
+ *
+ * `BackgroundJobs` (krok 51) jest **drugim** takim kluczem i stoi obok tamtego
+ * z tego samego powodu: opisuje granicę mechanizmu, nie wygląd. Ile prac
+ * tłowych wolno prowadzić naraz — do kroku 51 jedną, i to nie z powodu
+ * technicznego. Klucz jest w rdzeniu, a nie w ustawieniach modułu Dockera,
+ * mimo że to on wymusił rozbudowę: port jest rdzeniowy i prowadzi prace
+ * **trzech** modułów naraz, więc granica jednego z nich nie miałaby prawa
+ * rozstrzygać za pozostałe.
  */
 enum SettingKey: string
 {
@@ -50,6 +58,7 @@ enum SettingKey: string
     case WindowColumns = 'windowColumns';
     case WindowRows = 'windowRows';
     case BackgroundOutputKib = 'backgroundOutputKib';
+    case BackgroundJobs = 'backgroundJobs';
 
     public function labelKey(): string
     {

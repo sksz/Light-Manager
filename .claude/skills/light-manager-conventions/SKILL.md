@@ -179,13 +179,25 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     jak po `ImagePreviewPort`. Sprzątanie idzie **dwiema drogami naraz**: jawnie
     w `Bootstrap::shutdown()` i przez `register_shutdown_function` rejestrowaną
     leniwie przy pierwszym uruchomieniu pracy; jedna jest czytelna, druga łapie
-    błąd krytyczny. Ponadto: **jedna praca naraz** (uchwyt `BackgroundHandle` jest
-    po to, żeby wyparty zamawiający zobaczył `Idle`, a nie cudzy stan), **oba
-    potoki czytane co klatkę** (nieczytany zatrzymuje potomka; strumień błędów
-    czytamy i wyrzucamy) i **kod wyjścia ≠ 0 nie jest sam z siebie
-    niepowodzeniem** — `du` kończy się jedynką za nieprzeczytany katalog, a wynik
+    błąd krytyczny. Ponadto: **kilka prac naraz** (krok 51, D90 nr 1 — do tamtego
+    kroku była **jedna**, i to z decyzji, nie z techniki; granicę podaje
+    ustawienie rdzenia `backgroundJobs`, domyślnie osiem, a jej przekroczenie
+    znaczy **odmowę, nie wyparcie najstarszej** — uchwyt wraca, powód odbiera
+    pierwszy `poll()`), **oba potoki opróżniane co klatkę dla każdej pracy**
+    (nieczytany zatrzymuje potomka; robi to **pętla** przez osobny
+    `Application\Port\BackgroundPumpPort::pump()`, bo pompowanie należy do pętli,
+    nie do modułu — `poll()` jest odtąd czystym odczytem stanu) i **kod wyjścia
+    ≠ 0 nie jest sam z siebie niepowodzeniem** — `du` kończy się jedynką za nieprzeczytany katalog, a wynik
     mimo to podaje. Pierwszy odbiorca: wiersz „zajęte na dysku” w `FileInfo`,
-    tylko dla katalogów i tylko na klawisz `d`.
+    tylko dla katalogów i tylko na klawisz `d`; **odbiorców jest dziś czterech**
+    (`du`, sesja zdalna, przesył plików, compose modułu Dockera) i to oni wymusili
+    rozbudowę — `compose up` trwa minutami, więc przy dawnej regule podniesienie
+    projektu ubijałoby liczenie katalogu. Uchwyt zmienił przez to **znaczenie, nie
+    kształt**: przestał mówić „wyparto cię", zaczął „prace da się rozróżnić".
+    Sposobu na zakończenie **cudzej** pracy w porcie nie ma i nie będzie —
+    `stopAll()` zapowiadany planem kroku 51 nie wszedł, bo metoda dostępna każdemu
+    modułowi jest dawną regułą na żądanie; sprzątanie całości ma drogę poza portem
+    od kroku 26.
     **Trzecim i czwartym użytkownikiem wzorca są operacje na plikach** (kroki 41
     i 42) i one dokładają piątą regułę: praca, która **zmienia dysk**, posuwa się
     w `GameLoop` (przez `RunsWork`), a nie w `draw()` — rysowanie nie ma prawa mieć
@@ -566,6 +578,29 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     Skutek uboczny naprawiony przy okazji: napisy do katalogu wchodzą odtąd
     z **`declared()`, nie `accepted()`** — spis na zakładce „Moduły" tłumaczy
     także moduł odrzucony, a przy `accepted()` wypisywał tam surowe klucze.
+11t. **Docker rozmawia gniazdem, compose procesem potomnym** (krok 51, D90).
+    Moduł `src/Module/Docker/` (`Ctrl`+`O`) idzie do demona przez
+    `/var/run/docker.sock` — `ext-curl` z `CURLOPT_UNIX_SOCKET_PATH` i rodzina
+    `curl_multi_*` w trybie nieblokującym, pompowana raz na takt (`NeedsTick`);
+    `curl_multi_select()` nie pada ani razu, bo pytanie o gotowość deskryptorów
+    kosztuje tyle, co samo posunięcie transferu. **Compose idzie osobnym portem
+    i procesem potomnym**, bo demon nie ma dla wtyczki ani jednego zasobu w API —
+    i jest to jedyna część modułu sięgająca po rdzeniowy port pracy tłowej. Dwie
+    pułapki strumieniowe, obie dające „działa, ale wygląda na zepsute”: **logi bez
+    TTY są multipleksowane** ośmiobajtową ramką (o tym, czy strumień jest
+    ramkowany, rozstrzyga **treść**, i rozstrzyga się to dopiero z ósmym bajtem —
+    porcja krótsza wygląda jak zwykły tekst, a odpowiedź raz udzielona obowiązuje
+    do końca), a **niepowodzenie budowy przychodzi w treści, nie w kodzie
+    odpowiedzi** (nieudana budowa kończy się HTTP 200). Kontekst budowy pakuje
+    `PharData` pracą kawałkową, z pominięciem tego, co wyklucza `.dockerignore` —
+    czytany w podzbiorze składni, którego różnica objawia się **rozmiarem
+    kontekstu, a nie wynikiem budowy**. Brak `ext-curl` albo gniazda **odrzuca
+    moduł** (11s), ale **leżący demon nie**: rozszerzenia nie da się doładować
+    w trakcie działania, a demona da się podnieść. Rozczytywanie cudzych formatów
+    (JSON demona, ramki, strumień budowy) leży w `Infrastructure` **za portami**
+    (`DockerCatalogPort`, `LogReaderPort`, `BuildReaderPort`), bo stan listy jest
+    daną warstwy `Application` i nie ma prawa znać ani jednej klasy stamtąd
+    (reguła 4).
 11. **Nowy element interfejsu to nowy komponent w `Presentation/Ui/Component`**,
     a nie nowa metoda w rendererze. Komponent oddaje prymitywy z ról motywu i
     prostokątów w siatce znakowej — pikseli nie zna. Słownik prymitywów jest

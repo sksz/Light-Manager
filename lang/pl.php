@@ -56,6 +56,7 @@ return [
     'settings.key.windowColumns' => 'Kolumny okna (tryb okienkowy)',
     'settings.key.windowRows' => 'Wiersze okna (tryb okienkowy)',
     'settings.key.backgroundOutputKib' => 'Pamięć na wynik pracy w tle',
+    'settings.key.backgroundJobs' => 'Prace w tle naraz',
     'settings.language.auto' => 'Automatyczny',
     'settings.language.pl' => 'Polski',
     'settings.language.en' => 'English',
@@ -308,6 +309,7 @@ return [
     'process.unavailable' => 'Uruchamianie procesów jest w tym środowisku wyłączone.',
     'process.failed' => 'Nie udało się uruchomić procesu.',
     'process.timedOut' => 'Praca w tle przekroczyła limit {seconds} s i została przerwana.',
+    'process.tooMany' => 'W tle trwa już {limit} prac naraz — ta nie została uruchomiona.',
 
     // Narzędzie pomiarowe `bin/render-bench` (krok 16). Napisy narzędzia idą
     // przez katalog jak reszta interfejsu — ale treść mierzonych klatek już nie,
@@ -361,6 +363,7 @@ return [
     'bench.scenario.progress' => 'paski postępu',
     'bench.scenario.split' => 'klatka podzielona',
     'bench.scenario.background' => 'klatka z pracą w tle',
+    'bench.scenario.background-many' => 'klatka z kompletem prac w tle',
     'bench.scenario.columns' => 'lista w kolumnach',
     'bench.scenario.text-view' => 'podgląd tekstu',
     'bench.scenario.highlight' => 'lista z podświetleniem',

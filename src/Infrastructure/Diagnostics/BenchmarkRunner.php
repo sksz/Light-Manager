@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace LightManager\Infrastructure\Diagnostics;
 
 use Imagick;
-use LightManager\Application\Dto\BackgroundHandle;
 use LightManager\Application\Port\BackgroundProcessPort;
 use LightManager\Infrastructure\Imagick\SixelFrameEncoder;
 use LightManager\Infrastructure\Rendering\RenderingOptions;
@@ -45,11 +44,11 @@ final class BenchmarkRunner extends AbstractBenchmarkRunner implements ScenarioI
      * gdybyśmy zgadywali tę odpowiedź, scenariusz z miniaturą mógłby zostać
      * zmierzony na innej palecie niż ta, której użyje aplikacja.
      */
-    protected function sample(ScenarioFrame $prepared, ?BackgroundHandle $work = null): PhaseSample
+    protected function sample(ScenarioFrame $prepared): PhaseSample
     {
         $started = microtime(true);
 
-        $this->pollCompanion($work);
+        $this->advanceCompanions();
 
         $canvas = $this->encoder->drawCanvas(
             $prepared->frame,

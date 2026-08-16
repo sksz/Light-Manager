@@ -92,6 +92,31 @@ final class Settings
 
     public const DEFAULT_BACKGROUND_OUTPUT_KIB = 1024;
 
+    /**
+     * Ile prac tłowych wolno prowadzić naraz (krok 51, D90 nr 1).
+     *
+     * Do kroku 51 port prowadził **jedną** i była to decyzja z kroku 26, nie
+     * ograniczenie techniczne. Trzeci odbiorca — moduł Dockera, którego
+     * `compose up` trwa minutami, a `compose logs -f` nie kończy się nigdy —
+     * zamieniłby ją w regułę „jedna funkcja aplikacji wyłącza drugą bez słowa
+     * wyjaśnienia”.
+     *
+     * Granica jest **ustawieniem, a nie stałą**, bo zakres nr 7 planu kroku każe
+     * zmierzyć koszt `poll()` „przy pustym zestawie prac i przy pełnym” — a
+     * „pełny” jest pojęciem wykonalnym dopiero wtedy, gdy liczba daje się
+     * ustawić bez przepisywania kodu. Przekroczenie znaczy **odmowę**, nie
+     * wyparcie najstarszej: wyparcie przywracałoby dokładnie tę chorobę, którą
+     * rozbudowa leczy.
+     *
+     * Wartość jest **sufitem, nie rezerwacją** — potomek powstaje dopiero wtedy,
+     * gdy ktoś o niego poprosi. Przystanek `1` zostaje w liście świadomie: jest
+     * dokładnie dawnym zachowaniem portu (z odmową zamiast wyparcia) i tanim
+     * sposobem sprawdzenia, jak aplikacja znosi granicę osiągniętą.
+     */
+    public const BACKGROUND_JOBS_CHOICES = [1, 2, 4, 8, 16];
+
+    public const DEFAULT_BACKGROUND_JOBS = 8;
+
     /** @param array<string, array<string, bool|int|string>> $modules `id modułu` → klucz → wartość */
     public function __construct(
         public readonly string $language = Language::Auto->value,
@@ -104,6 +129,7 @@ final class Settings
         public readonly int $windowColumns = self::DEFAULT_WINDOW_COLUMNS,
         public readonly int $windowRows = self::DEFAULT_WINDOW_ROWS,
         public readonly int $backgroundOutputKib = self::DEFAULT_BACKGROUND_OUTPUT_KIB,
+        public readonly int $backgroundJobs = self::DEFAULT_BACKGROUND_JOBS,
     ) {
     }
 
@@ -142,6 +168,9 @@ final class Settings
             ),
             SettingKey::BackgroundOutputKib => $this->withBackgroundOutputKib(
                 self::next(self::BACKGROUND_OUTPUT_CHOICES, $this->backgroundOutputKib, $direction),
+            ),
+            SettingKey::BackgroundJobs => $this->withBackgroundJobs(
+                self::next(self::BACKGROUND_JOBS_CHOICES, $this->backgroundJobs, $direction),
             ),
         };
     }
@@ -189,6 +218,24 @@ final class Settings
     public function withBackgroundOutputKib(int $backgroundOutputKib): self
     {
         return $this->copy(backgroundOutputKib: $backgroundOutputKib);
+    }
+
+    public function withBackgroundJobs(int $backgroundJobs): self
+    {
+        return $this->copy(backgroundJobs: $backgroundJobs);
+    }
+
+    /**
+     * Granica liczby prac tłowych — postać, w której pyta o nią usługa procesu.
+     *
+     * Dolna granica stoi tutaj z tego samego powodu, co przy limicie wyjścia:
+     * plik konfiguracji ruszony ręcznie jest jedynym sposobem, żeby wpisać tam
+     * zero, a zero znaczyłoby „żadna praca tłowa się nie uruchomi” — czyli
+     * awarię wyglądającą jak cisza.
+     */
+    public function backgroundJobLimit(): int
+    {
+        return max(self::BACKGROUND_JOBS_CHOICES[0], $this->backgroundJobs);
     }
 
     /**
@@ -252,7 +299,8 @@ final class Settings
             && $this->modules === $other->modules
             && $this->windowColumns === $other->windowColumns
             && $this->windowRows === $other->windowRows
-            && $this->backgroundOutputKib === $other->backgroundOutputKib;
+            && $this->backgroundOutputKib === $other->backgroundOutputKib
+            && $this->backgroundJobs === $other->backgroundJobs;
     }
 
     /**
@@ -276,6 +324,7 @@ final class Settings
         ?int $windowColumns = null,
         ?int $windowRows = null,
         ?int $backgroundOutputKib = null,
+        ?int $backgroundJobs = null,
     ): self {
         return new self(
             $language ?? $this->language,
@@ -288,6 +337,7 @@ final class Settings
             $windowColumns ?? $this->windowColumns,
             $windowRows ?? $this->windowRows,
             $backgroundOutputKib ?? $this->backgroundOutputKib,
+            $backgroundJobs ?? $this->backgroundJobs,
         );
     }
 

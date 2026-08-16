@@ -7,7 +7,11 @@ namespace LightManager\Tests\Infrastructure\Process;
 use LightManager\Application\Dto\BackgroundHandle;
 use LightManager\Application\Dto\BackgroundStage;
 use LightManager\Application\Dto\BackgroundState;
+use LightManager\Application\Dto\Language;
+use LightManager\Application\Dto\Settings;
+use LightManager\Infrastructure\Config\SettingsService;
 use LightManager\Infrastructure\Process\BackgroundProcessService;
+use LightManager\Tests\Support\PinsLanguage;
 use LightManager\Tests\Support\ResetsSingletons;
 use PHPUnit\Framework\TestCase;
 
@@ -30,6 +34,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class BackgroundProcessServiceTest extends TestCase
 {
+    use PinsLanguage;
     use ResetsSingletons;
 
     /** Ile najdłużej test czeka na coś, co ma się zdarzyć w milisekundach. */
@@ -51,10 +56,29 @@ final class BackgroundProcessServiceTest extends TestCase
     {
         BackgroundProcessService::getInstance()->shutdown();
         $this->resetSingleton(BackgroundProcessService::class);
+        $this->resetSingleton(SettingsService::class);
 
         foreach ($this->temporaryFiles as $file) {
             @unlink($file);
         }
+    }
+
+    /**
+     * Usługa z zadaną granicą liczby prac (krok 51).
+     *
+     * Granica idzie przez **prawdziwe ustawienia**, a nie przez wstrzyknięcie:
+     * pytanie o nią pada w usłudze przy każdym uruchomieniu pracy i to właśnie
+     * ta droga ma być sprawdzona. Katalog domowy jest przy tym podmieniony na
+     * tymczasowy, więc zapis nie ma jak dotknąć konfiguracji osoby uruchamiającej
+     * testy — ta sama ostrożność, co w `SettingsServiceTest`.
+     */
+    private function serviceWithJobLimit(int $limit): BackgroundProcessService
+    {
+        $this->pinLanguage(Language::Polish);
+        $this->resetSingleton(SettingsService::class);
+        SettingsService::getInstance()->save((new Settings())->withBackgroundJobs($limit));
+
+        return BackgroundProcessService::getInstance();
     }
 
     /**
@@ -165,6 +189,7 @@ final class BackgroundProcessServiceTest extends TestCase
         $handle = $service->start('for i in $(seq 1 16); do head -c 16384 /dev/zero | tr "\\0" "X"; done', 30);
 
         while (true) {
+            $service->pump();
             $state = $service->poll($handle);
 
             if (!$state->isRunning()) {
@@ -203,10 +228,15 @@ final class BackgroundProcessServiceTest extends TestCase
     }
 
     /**
-     * Nowe zamówienie przerywa poprzednie — usługa prowadzi jedną pracę — a wyparty
-     * zamawiający **dowiaduje się o tym**, zamiast zobaczyć cudzy stan jako swój.
+     * **Odwrócenie testu z kroku 26** i miara powodzenia rozbudowy z kroku 51.
+     *
+     * Do tamtego kroku nowe zamówienie przerywało poprzednie, a test o tej samej
+     * treści sprawdzał, czy wyparty zamawiający **dowiaduje się** o wyparciu.
+     * Odtąd nikt nikogo nie wypiera: obie prace trwają, obaj zamawiający widzą
+     * swoją. Zdanie z kryteriów kroku — „`du` działa w trakcie pracy compose
+     * i odwrotnie” — jest tym sprawdzeniem, sprowadzonym do dwóch `sleep`ów.
      */
-    public function testNewWorkReplacesTheOldOneAndTheStaleHandleGoesIdle(): void
+    public function testNewWorkLeavesTheRunningOneAlone(): void
     {
         $service = BackgroundProcessService::getInstance();
         $pidFile = $this->temporaryFile();
@@ -215,9 +245,91 @@ final class BackgroundProcessServiceTest extends TestCase
 
         $second = $service->start('sleep 5', 30);
 
-        self::assertProcessGone($pid);
-        self::assertSame(BackgroundStage::Idle, $service->poll($first)->stage);
+        self::assertTrue(is_dir('/proc/' . $pid), 'pierwsza praca miała przeżyć zamówienie drugiej');
+        self::assertSame(BackgroundStage::Running, $service->poll($first)->stage);
         self::assertSame(BackgroundStage::Running, $service->poll($second)->stage);
+    }
+
+    /**
+     * Granica z ustawień: praca ponad nią **nie powstaje i mówi dlaczego**, a te
+     * trwające zostają nietknięte.
+     *
+     * Odmowa jest tu tym, czym w kroku 26 było wyparcie — odpowiedzią na pytanie
+     * „co, gdy zamówień jest więcej, niż port prowadzi” — i różni się od niego
+     * jedną rzeczą: **traci ten, kto przyszedł później**, a nie ten, kto już
+     * pracuje.
+     */
+    public function testWorkBeyondTheLimitIsRefusedWhileTheRunningOnesStay(): void
+    {
+        $service = $this->serviceWithJobLimit(2);
+        $first = $service->start('sleep 5', 30);
+        $second = $service->start('sleep 5', 30);
+
+        $refused = $service->poll($service->start('sleep 5', 30));
+
+        self::assertSame(BackgroundStage::Failed, $refused->stage);
+        self::assertSame('process.tooMany', $refused->problemKey);
+        self::assertSame(['limit' => 2], $refused->problemParameters);
+        self::assertSame(BackgroundStage::Running, $service->poll($first)->stage);
+        self::assertSame(BackgroundStage::Running, $service->poll($second)->stage);
+    }
+
+    /** Zwolnione miejsce jest znowu do wzięcia — granica dotyczy prac trwających. */
+    public function testStoppedWorkGivesItsPlaceBack(): void
+    {
+        $service = $this->serviceWithJobLimit(1);
+        $first = $service->start('sleep 5', 30);
+
+        $service->stop($first);
+
+        self::assertSame(BackgroundStage::Running, $service->poll($service->start('sleep 5', 30))->stage);
+    }
+
+    /**
+     * **Pracę posuwa pompowanie, a nie zaglądanie** — to jest cała zmiana kroku
+     * 51 widziana z zewnątrz.
+     *
+     * Test nie dogląda pracy ani razu, dopóki nie skończy się pompowanie: gdyby
+     * posuwanie nadal siedziało w `poll()`, wynik nie miałby prawa dojść.
+     */
+    public function testPumpingAdvancesWorkNobodyIsLookingAt(): void
+    {
+        $service = BackgroundProcessService::getInstance();
+        $handle = $service->start('echo posuniete', 30);
+        $deadline = microtime(true) + self::PATIENCE_SECONDS;
+
+        do {
+            $service->pump();
+            usleep(5000);
+        } while ($service->poll($handle)->isRunning() && microtime(true) < $deadline);
+
+        self::assertSame('posuniete', $service->poll($handle)->output);
+    }
+
+    /**
+     * Limit czasu pilnuje **pompowanie**, więc obowiązuje także pracę, o którą
+     * nikt nie pyta.
+     *
+     * Przy jednej pracy było to bez znaczenia — właściciel zaglądał co klatkę,
+     * bo po to ją zamówił. Przy kilku pracach właściciel bywa nieobecny (ekran
+     * modułu zniknął), a proces bez straży wisiałby wtedy bez końca.
+     */
+    public function testPumpingEnforcesTheTimeoutOfWorkNobodyIsLookingAt(): void
+    {
+        $service = BackgroundProcessService::getInstance();
+        $pidFile = $this->temporaryFile();
+        $handle = $service->start($this->announcingSleep($pidFile), 1);
+        $pid = $this->pidFrom($pidFile);
+        $deadline = microtime(true) + self::PATIENCE_SECONDS;
+
+        while (microtime(true) < $deadline && is_dir('/proc/' . $pid)) {
+            $service->pump();
+            usleep(20_000);
+            clearstatcache();
+        }
+
+        self::assertProcessGone($pid);
+        self::assertSame('process.timedOut', $service->poll($handle)->problemKey);
     }
 
     public function testShutdownStopsWorkThatIsStillRunning(): void
@@ -231,6 +343,27 @@ final class BackgroundProcessServiceTest extends TestCase
 
         self::assertProcessGone($pid);
         self::assertSame(BackgroundStage::Idle, $service->poll($handle)->stage);
+    }
+
+    /**
+     * Sprzątanie przy wyjściu obejmuje **komplet** prac — bo od kroku 51 jest ich
+     * kilka, a osierocony potomek nie przestaje być osierocony przez to, że miał
+     * towarzystwo.
+     */
+    public function testShutdownStopsEveryRunningJob(): void
+    {
+        $service = BackgroundProcessService::getInstance();
+        $first = $this->temporaryFile();
+        $second = $this->temporaryFile();
+        $service->start($this->announcingSleep($first), 30);
+        $service->start($this->announcingSleep($second), 30);
+        $pids = [$this->pidFrom($first), $this->pidFrom($second)];
+
+        $service->shutdown();
+
+        foreach ($pids as $pid) {
+            self::assertProcessGone($pid);
+        }
     }
 
     /**
@@ -318,6 +451,7 @@ final class BackgroundProcessServiceTest extends TestCase
         $deadline = microtime(true) + self::PATIENCE_SECONDS;
 
         do {
+            $service->pump();
             $state = $service->poll($handle);
 
             if (!$state->isRunning()) {

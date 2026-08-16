@@ -7,7 +7,9 @@
 
 ## Status
 
-**Nie rozpoczęty.**
+**Ukończony** (2026-08-16). Rozstrzygnięcia startowe zapadły 2026-08-15
+([00-decyzje.md](00-decyzje.md), D90), przed pierwszą linią kodu; pomiar i klatka
+pod XTermem — dzień później, na zwolnionej maszynie.
 
 ## Cel
 
@@ -214,28 +216,50 @@ czyli treść mierzona przez `columns` i `text-view`; powód pominięcia idzie d
 | `docs/architecture.md`, `SKILL.md` | Dokumentacja | Poprawka reguły 11d (kilka prac naraz) wraz z powodem; moduł i jego dwie drogi do Dockera |
 | testy | Testy | **Żaden test nie rozmawia z demonem**: rozbieranie ramek logów i strumienia budowy na próbkach bajtów, parser wyjścia compose na zapisanym JSON-ie, port za atrapą, kilka prac tłowych na `sleep`/`echo` |
 
-## Do rozstrzygnięcia na starcie kroku
+## Rozstrzygnięcia startowe (2026-08-15)
 
-1. **Ile prac tłowych naraz** i co się dzieje po przekroczeniu granicy —
-   odmowa z komunikatem czy wyparcie najstarszej.
-2. **Litera skrótu** — propozycja `k` (kontenery), bo `d` zajmuje moduł opisu
-   pliku; krok 52 zamówi drugą i warto rozstrzygnąć obie naraz.
-3. **Górna granica bufora logów** — ile wierszy trzymamy i co widać po jej
-   przekroczeniu.
-4. **Czy `docker.build` jest w tym kroku, czy dopiero w 53** — budowa jest tu
-   funkcją samą w sobie, ale jej **jedynym odbiorcą poza użytkownikiem** jest
-   krok 53; wcześniejsze dowiezienie jest bezpieczne, późniejsze — czystsze
-   wobec reguły 13.
-5. **Skąd bierze się plik compose** — wyłącznie z pola tekstowego, czy także
-   z `ModuleContext` (katalog przeglądarki).
-6. **Co widać przy niedostępnym demonie** — pusty ekran z powodem, czy moduł
-   odrzucony przez rejestr; przy braku `ext-curl` odpowiedź może być inna niż
-   przy zatrzymanym demonie.
-7. **Czy odświeżanie list idzie z zegara** (co N sekund w takcie), czy wyłącznie
-   na `F5`. Zegar znaczy zapytanie do demona trzydzieści razy na minutę.
-8. **Czy usunięcie obrazu i kontenera trafia do menu `F9`** — czynności
-   nieodwracalne mają tam pozycję od kroku 47, ale te nie dotyczą zaznaczenia
-   w przeglądarce.
+Pełne uzasadnienia i odrzucone alternatywy: [00-decyzje.md](00-decyzje.md), D90.
+Osiem pytań, osiem odpowiedzi, wszystkie przed pierwszą linią kodu.
+
+1. **Ile prac tłowych naraz** → **wartość konfigurowalna**, a przekroczenie
+   granicy znaczy **odmowę** (uchwyt wraca, powód odbiera pierwszy `poll()`).
+   Wyparcie najstarszej odrzucone — przywracałoby chorobę, którą krok leczy.
+2. **Litera skrótu** → moduł Dockera bierze **`Ctrl`+`O`**, a moduł k8s z kroku
+   52 — **`Ctrl`+`K`**, rozstrzygnięte z góry dla obu. Propozycja planu (`k` dla
+   kontenerów) przegrała z utrwalonym poza aplikacją skrótem Kubernetesa.
+3. **Górna granica bufora logów** → **pozycja ustawień modułu** (lista
+   przystanków), najstarsze wiersze wypadają, a pominięcie jest **widoczne**.
+4. **Czy `docker.build` jest w tym kroku** → **jest**. Odbiorcą jest użytkownik,
+   więc reguła 13 nie czeka na krok 53; ten dostaje zdarzenia jako rzecz zastaną.
+5. **Skąd plik compose** → **kontekst jako propozycja + pole tekstowe**
+   (`ReadsContext` wypełnia `PromptOverlay` wstępnie, wolno nadpisać).
+6. **Co przy niedostępnym demonie** → **rozdzielnie**: brak `ext-curl` albo
+   gniazda **odrzuca moduł** (`RequiresEnvironment`), leżący demon — **nie**,
+   bo demona da się podnieść bez restartu aplikacji; ekran mówi powód.
+7. **Czy odświeżanie idzie z zegara** → **co pięć sekund, ale tylko gdy ekran
+   modułu jest widoczny**, plus `Ctrl`+`R` i samoczynnie po własnej czynności.
+8. **Czy usunięcie trafia do menu `F9`** → **nie w tym kroku**; pytanie wraca
+   w kroku 53, bo `MenuOverlay` zawęża się dziś do zaznaczenia przeglądarki.
+
+**Skutek dla rdzenia:** rośnie o **trzy rzeczy**, nie o jedną linię — zmiana
+kontraktu portu (zapowiedziana), **nowy klucz rdzenia** z granicą liczby prac
+(skutek nr 1) i pozycja modułu w `Bootstrapie`.
+
+## Stan zastany — poprawka do tabeli powyżej
+
+Tabela „Stan zastany” jest prawdziwa w każdym wierszu poza jednym, a ten jeden
+przesądza o wadze kroku: **odbiorców portu pracy tłowej jest trzech, nie
+jeden**. Plan pisano, gdy Faza XVII była niewykonana; kroki 48–50 dołożyły
+modułowi `Ssh` pięć miejsc wywołań (sonda sesji, `ssh -O check`, listing
+`sftp`, przesył, sprzątanie połówki), z których dwa potrafią stać obok siebie.
+Kryterium „starszy odbiorca nie ma prawa ucierpieć” dotyczy przez to **dwóch
+modułów**, a rozbudowa portu zdejmuje z modułu `Ssh` cenę zapisaną w D89 —
+przesył przestaje zajmować port na cały swój czas — **nie zmieniając w nim ani
+jednej linii**.
+
+Reszta liczb potwierdzona 2026-08-15: Docker 27.3.1, API demona 1.47, gniazdo
+odpowiada z PHP (`GET /containers/json` → 200), `ext-curl` 8.5.0, `ext-phar`
+obecne, Compose v2.29.7, 29 kontenerów, **125** obrazów.
 
 ## Kryteria ukończenia
 
@@ -257,4 +281,128 @@ czyli treść mierzona przez `columns` i `text-view`; powód pominięcia idzie d
 
 ## Dziennik realizacji
 
-_(pusty — krok nie rozpoczęty)_
+### 2026-08-15/16 — rdzeń, moduł, testy i dokumentacja; pomiar odłożony
+
+**Stan: kod gotowy i zielony** (`make qa`: 2011 testów, PHPStan `max`,
+PHP-CS-Fixer). Pomiar i klatka — w drugiej części dziennika, poniżej.
+
+**Rdzeń urósł o cztery rzeczy, nie o trzy zapowiedziane w rozstrzygnięciach.**
+Czwarta wyszła w trakcie i jest rozstrzygnięciem użytkownika podjętym przed
+pierwszą linią kodu portu:
+
+1. **Kontrakt `BackgroundProcessPort`** — kilka prac naraz, każda pod uchwytem,
+   odmowa po przekroczeniu granicy.
+2. **Klucz rdzenia `backgroundJobs`** (zakładka „Zasoby”, przystanki 1–16,
+   domyślnie 8) — bo wartość konfigurowalna musi mieć gdzie mieszkać.
+3. **Pozycja w `Bootstrapie`** — jedna linia, zgodnie z regułą 15.
+4. **`Application\Port\BackgroundPumpPort` i faza w `GameLoop`** — pompowanie
+   potoków wszystkich prac raz na klatkę. Postawiono trzy warianty z cenami;
+   użytkownik wybrał osobne `pump()` zamiast „`poll()` posuwa wszystkie” i zamiast
+   „każdy karmi swoją”. `poll()` jest odtąd **czystym odczytem stanu**.
+
+**Dwie rzeczy z planu nie powstały i obie świadomie:**
+
+- **`stopAll()` w porcie** — plan zapowiadał je „dla sprzątania”, ale metoda
+  dostępna każdemu modułowi pozwala ubić pracę sąsiada jednym wywołaniem, czyli
+  jest dawną regułą „jedna praca naraz” na żądanie. Sprzątanie całości ma drogę
+  **poza portem** od kroku 26 (`shutdown()`, D47). Rozstrzygnięcie użytkownika.
+- **`UnavailableDockerService`** (pusty obiekt portu) — po rozstrzygnięciu D90
+  nr 6 nie ma odbiorcy: brak `ext-curl` albo gniazda **odrzuca moduł**, a leżący
+  demon jest zdaniem na ekranie, nie pustym portem. Mechanizm bez odbiorcy łamie
+  regułę 13, więc nie powstał.
+
+**Compose ma trzy czynności zamiast pięciu z planu.** `ps` nie wchodzi, bo lista
+kontenerów **już zna projekt** (etykieta `com.docker.compose.project` przychodzi
+razem z listą, więc zawężenie nie kosztuje ani jednego pytania więcej), a
+`logs -f` nie wchodzi, bo logi kontenera płyną gniazdem i drugi tor do tej samej
+treści byłby drugą drogą do jednej rzeczy.
+
+**Sprawdzone na żywym demonie — bez interfejsu, samym kodem modułu** (Docker
+27.3.1, API 1.47, 29 kontenerów, 123 obrazy):
+
+| Co | Wynik |
+|---|---|
+| lista kontenerów przez gniazdo | `Done` 200, 29 wpisów, 12 klatek; **najwolniejsze `pump()`+`poll()` 0,40 ms** |
+| logi z ramkami multipleksera | trzy wiersze czystej treści, **bez śmieci z nagłówków** |
+| odmowa demona | `404` + zdanie `No such container: …` podane w całości |
+| dwie rozmowy naraz | 29 kontenerów i 123 obrazy, uchwyty się nie pomieszały |
+| pakowanie kontekstu | 3 pliki zamiast 4 — `.dockerignore` wyciął `node_modules` (4 KB zamiast 204 KB); archiwum tymczasowe **zniknęło po sprzątaniu** |
+| budowa obrazu | `Done`, 159 klatek, skrót obrazu odebrany; **najwolniejsza klatka 12,3 ms** (odczyt archiwum i wysyłka) |
+| `compose ls -a` | 2 projekty, 46 klatek, najwolniejsza 0,79 ms |
+| `compose up -d` | `Done`, 200 klatek (~0,6 s), zdanie `Container projekt-probka-1 Started` |
+| `compose down` | `Done`, 3374 klatki (~10 s), zdanie `Network projekt_default Removed` |
+| **praca sąsiada w trakcie obu prac compose** | `sleep 120` zamówiony osobno **przetrwał obie** — `Running` przed i po |
+
+Ostatni wiersz jest **kryterium ukończenia rozbudowy portu** („`du` działa
+w trakcie pracy compose i odwrotnie”) sprowadzonym do dwóch procesów. Obraz
+i kontener próbki zostały po sprawdzeniu usunięte; stan maszyny wrócił do
+zastanego.
+
+**Test złapał usterkę, której oko by nie złapało.** Czytnik logów rozstrzygał
+o ramkowaniu **pierwszą porcją, jaka przyszła** — a porcja krótsza od
+ośmiobajtowego nagłówka wygląda jak zwykły tekst, bo nie ma w niej czego
+sprawdzić. Odpowiedź raz udzielona obowiązuje do końca strumienia, więc cały log
+ramkowany zamieniał się w wiersze zaczynające się ośmioma kropkami. Rozstrzygnięcie
+przeniesiono na **ósmy bajt**; przypadek stoi odtąd w teście jako „ramka przecięta
+w połowie”.
+
+**Starsi odbiorcy portu nie zostali tknięci**: `src/Module/Ssh/` i
+`src/Module/FileInfo/` nie mają w tym kroku ani jednej zmienionej linii kodu
+produkcyjnego. Zmienił się jeden **test** modułu SSH — ten, który sprawdzał
+wyparcie pracy przez cudze zamówienie: wyparcia nie ma, więc przebieg dochodzi do
+`Idle` inną drogą (port już nie zna uchwytu), a moduł ma je rozumieć tak samo.
+Cena zapisana w D89 („przesył zajmuje port na cały swój czas”) **zniknęła sama**.
+
+### 2026-08-16 — pomiar i klatka pod XTermem
+
+**Pomiar wykonany na zwolnionej maszynie** (obciążenie 0,05–0,13 na rdzeń,
+rozrzut bez ostrzeżenia). Oś `--loop`, dwa przebiegi, tak jak żąda zakres nr 7:
+
+| Co mierzone | Wynik |
+|---|---|
+| **przy pustym zestawie prac** — wobec wzorca po kroku 49 | **−1,1%**, bez regresji ([2026-08-16-po-kroku-51-loop.json](../pomiary/2026-08-16-po-kroku-51-loop.json)) |
+| **przy pełnym zestawie** — `background` (1 praca) wobec `background-many` (8 prac) | takt **0,084 → 0,115 ms**, faza wejścia **0,006 → 0,034 ms** ([2026-08-16-po-kroku-51-loop-prace.json](../pomiary/2026-08-16-po-kroku-51-loop-prace.json)) |
+
+**Cena rozbudowy portu wynosi 0,028 ms na klatkę** — tyle kosztuje `pump()`
+przechodzący po ośmiu potomkach zamiast po jednym, czyli około 4 µs na pracę.
+Wobec budżetu klatki (33,3 ms) jest to **0,09%**. Udział fazy wejścia w takcie
+rośnie przy tym z 7% do 29% i to jest jedyne miejsce, w którym różnicę w ogóle
+widać — całkowity czas taktu zaokrągla się w tabeli do tej samej dziesiątej
+milisekundy.
+
+**Narzędzie musiało dostać poprawkę, żeby ten pomiar był wykonalny.** Tor
+`--loop` od kroku 38 wymuszał **jeden** scenariusz („osi scenariuszy w nim nie
+ma, bo treść składa `LoopScenarioScreen`”), więc pary prac tłowych nie dawało się
+na nim zmierzyć. Granicę postawiono dokładniej zamiast znosić zasadę: przechodzą
+tędy **wyłącznie scenariusze różniące się liczbą prac tłowych**, bo mają w tym
+torze tę samą treść klatki, a różnią się tylko tym, ilu potomków pompuje pętla.
+Scenariusz bez prac tłowych nadal nie ma tu czego wnieść.
+
+**Klatka obejrzana pod XTermem** (`make run-xterm ARGS='140x36'`, prawdziwy demon,
+29 kontenerów, 123 obrazy) — wszystkie trzy postacie ekranu:
+
+- **kontenery**: podział z listą i opisem, stan `działa` w akcencie i
+  `restartuje` w ostrzeżeniu, kolumna portów (`8081->8081/tcp`), projekt compose
+  w opisie;
+- **obrazy**: rozmiary z przecinkiem dziesiętnym (`1,4 GiB`), wiek w formach
+  mnogich, obrazy osierocone przygaszone i pokazane samym skrótem treści;
+- **logi**: strumień MongoDB płynący na żywo, **bez jednego śmiecia z ramek
+  multipleksowania**, z suwakiem i stopką mówiącą, co robi `End`.
+
+**Klatka dała jedną poprawkę, której nie dałby żaden test.** Kolumna „Użyć”
+(liczba kontenerów korzystających z obrazu) stała **pusta w każdym wierszu**:
+demon zwraca w tym zasobie `Containers: -1` niezależnie od wariantu zapytania —
+sprawdzone trzema (`bez opcji`, `?shared-size=true`, `?all=true`). Kolumna
+zabierała osiem znaków szerokości nazwie obrazu, więc **wyszła z listy, z opisu
+i z domeny**; zwolniona szerokość wróciła nazwie i ucinanie nazw zniknęło.
+Reguła ogólna z tej poprawki, warta zapamiętania przy każdej następnej kolumnie
+czytanej z cudzego API: **pole obecne w odpowiedzi nie znaczy, że ma wartość** —
+i widać to dopiero na prawdziwych danych, bo w próbce testowej wpisuje się liczbę
+własnoręcznie.
+
+**Stan maszyny po sprawdzeniach jest taki, jak przed nimi**: obraz próbny
+i kontener projektu próbnego usunięte, archiwum tymczasowe skasowane przez sam
+port, aplikacja i XTerm zamknięte.
+
+Scenariusza klatki krok nie dokłada, a powód pominięcia stoi
+w [docs/pomiary/README.md](../pomiary/README.md).

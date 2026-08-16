@@ -751,6 +751,11 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
                 $this->translator->translate('settings.value.kib', ['value' => $settings->backgroundOutputKib]),
                 $selected,
             ),
+            SettingKey::BackgroundJobs => new Choice(
+                $label,
+                $this->translator->number($settings->backgroundJobs),
+                $selected,
+            ),
         };
     }
 

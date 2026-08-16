@@ -201,11 +201,20 @@ final class RemoteTransferServiceTest extends TestCase
         self::assertSame('module.ssh.transfer.denied', $state->problemKey);
     }
 
-    /** Wyparcie przez cudzą pracę tłową jest zwykłym stanem, nie awarią. */
-    public function testBeingPreemptedByAnotherBackgroundJobEndsTheWork(): void
+    /**
+     * Praca, której port już nie zna, kończy przesył — zwykły stan, nie awaria.
+     *
+     * **Do kroku 51 dochodziło się tu wyparciem**: port prowadził jedną pracę,
+     * więc cudze zamówienie odbierało tę trwającą, a test zamawiał ją wprost.
+     * Odkąd prac jest kilka, wyparcia nie ma i tamten test nie miałby czego
+     * sprawdzić — ale samo `Idle` na uchwyt zostaje osiągalne (pracę zatrzymał
+     * ten, kto trzyma jej uchwyt; jej stan wypadł z zapasu), a moduł ma je
+     * rozumieć tak samo.
+     */
+    public function testWorkThePortNoLongerKnowsEndsTheTransfer(): void
     {
         $this->beginDownload('plik.bin', 5);
-        $this->processes->start('cudza praca', 5);
+        $this->processes->forgetEverything();
 
         $state = $this->transfers->advance();
 

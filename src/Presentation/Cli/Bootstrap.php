@@ -48,6 +48,7 @@ use LightManager\Infrastructure\Terminal\TerminalService;
 use LightManager\Infrastructure\Terminal\TerminalSizeService;
 use LightManager\Module\Audio\Presentation\AudioModule;
 use LightManager\Module\Browser\Presentation\BrowserModule;
+use LightManager\Module\Docker\Presentation\DockerModule;
 use LightManager\Module\FileInfo\Presentation\FileInfoModule;
 use LightManager\Module\Ssh\Presentation\SshModule;
 use LightManager\Presentation\Cli\Command\DumpFrameCommand;
@@ -270,6 +271,10 @@ final class Bootstrap
             // wyłączony i odrzucony taktu nie dostaje — a odsiew tych, które
             // o niego proszą, zdarza się tu raz, nie trzydzieści razy na sekundę.
             ModuleTicker::of($modules->accepted(), self::problemPresenter()),
+            // Pompowanie potoków prac tłowych (krok 51). Ta sama usługa, którą
+            // moduły znają jako `BackgroundProcessPort` — ale pod drugim portem,
+            // bo pompowanie należy do pętli, a nie do modułu.
+            BackgroundProcessService::getInstance(),
         );
     }
 
@@ -398,6 +403,14 @@ final class Bootstrap
             // który się tu nie zjawi: bez klienta OpenSSH rejestr go odrzuca
             // (`RequiresEnvironment`, D87 nr 11), a ta linia zostaje ta sama.
             new SshModule($state, $translator, $settings),
+            // Piąta pozycja i **cały koszt modułu Dockera w rdzeniu** (krok 51)
+            // ponad rozbudowę portu pracy tłowej, która jest osobnym zakresem
+            // tego samego kroku i ma trzech odbiorców, nie jednego. Rdzeń nie
+            // wie o tym module nic ponad tę linię — ani że rozmawia gniazdem,
+            // ani że compose idzie procesem potomnym. Bez `ext-curl` albo bez
+            // gniazda demona rejestr go odrzuca (`RequiresEnvironment`, D90 nr 6),
+            // a ta linia zostaje ta sama.
+            new DockerModule($state, $translator, $settings),
         ];
     }
 

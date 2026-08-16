@@ -109,6 +109,7 @@ Kolumna **Stan** mówi, co się z decyzją stało w kodzie:
 | [D87](#d87--rozstrzygnięcia-startowe-kroku-48-cała-sesja-w-procesie-potomnym-przez-controlmaster-known_hosts-prowadzi-ssh-rdzeń-rośnie-o-dwie-rzeczy-zamiast-jednej-linii) | Rozstrzygnięcia startowe kroku 48: cała sesja w procesie potomnym przez `ControlMaster`, `known_hosts` prowadzi `ssh`, rdzeń rośnie o dwie rzeczy zamiast jednej linii | krok 48 (i przez nr 1 — Faza XVII w całości) | 2026-08-15 | Wdrożona |
 | [D88](#d88--rozstrzygnięcia-startowe-kroku-49-jeden-ekran-w-dwóch-postaciach-kontekst-dostaje-pochodzenie-a-polecenie-którego-wyjściem-jest-treść-nie-scala-strumieni) | Rozstrzygnięcia startowe kroku 49: jeden ekran w dwóch postaciach, kontekst dostaje pochodzenie, a polecenie, którego wyjściem jest treść, nie scala strumieni | krok 49 (i przez nr 11 — rdzeniowy port pracy tłowej) | 2026-08-15 | Wdrożona |
 | [D89](#d89--rozstrzygnięcia-startowe-kroku-50-przesył-idzie-potomkiem-prosto-na-dysk-postęp-czyta-stat-a-wyjątek-15b-zostaje-bezprzedmiotowy) | Rozstrzygnięcia startowe kroku 50: przesył idzie potomkiem prosto na dysk, postęp czyta `stat`, a wyjątek 15b zostaje bezprzedmiotowy | krok 50 | 2026-08-15 | Wdrożona |
+| [D90](#d90--rozstrzygnięcia-startowe-kroku-51-granica-prac-tłowych-jest-ustawieniem-demon-leżący-nie-odrzuca-modułu-a-menu-f9-czeka-na-kwerendy) | Rozstrzygnięcia startowe kroku 51: granica prac tłowych jest ustawieniem, demon leżący nie odrzuca modułu, a menu `F9` czeka na kwerendy | krok 51 (przez nr 2 — także 52, przez nr 8 — także 53) | 2026-08-15 | Wdrożona |
 
 > **Indeks jest niekompletny od D62 wzwyż.** Wpisy **D62–D76** stoją w treści
 > dziennika, ale wiersza tutaj nie dostały — regułę „nowy wpis to dwie czynności”
@@ -6473,3 +6474,147 @@ postępu z `/proc/<pid>/fdinfo` potomka** — dawałby dokładne bajty także pr
 wysyłaniu, za darmo i bez pty, ale wymaga wystawienia numeru procesu przez
 rdzeniowy port tłowy i działa wyłącznie na Linuksie. **Wsad `put` + `chmod`
 + `chown`** — odrzucony razem z rozstrzygnięciem nr 7.
+
+### D90 — Rozstrzygnięcia startowe kroku 51: granica prac tłowych jest ustawieniem, demon leżący nie odrzuca modułu, a menu `F9` czeka na kwerendy
+
+**Dotyczy:** kroku 51 ([51-modul-docker.md](51-modul-docker.md)),
+**zmiany kontraktu `Application\Port\BackgroundProcessPort`** wraz
+z `Infrastructure/Process/BackgroundProcessService.php` i nowym kluczem rdzenia,
+nowego katalogu `src/Module/Docker/`, jednej linii w
+`Presentation/Cli/Bootstrap.php`, pola `suggest` w `composer.json`, reguły 11d
+w [SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md),
+[docs/architecture.md](../architecture.md)
+i [docs/pomiary/README.md](../pomiary/README.md). Przez rozstrzygnięcie nr 2
+dotyczy także **kroku 52** (litera skrótu), a przez nr 8 — **kroku 53**
+(zawężenie menu kontekstowego).
+
+**Data:** 2026-08-15, przed pierwszą linią kodu — osiem pytań z sekcji „Do
+rozstrzygnięcia na starcie kroku”, zadanych w dwóch turach.
+
+**Sprawdzenie stanu zastanego: tabela z planu jest prawdziwa w każdym wierszu
+poza jednym — i akurat ten jeden przesądza o wadze kroku.** Środowisko zgadza
+się co do liczby: Docker 27.3.1, API demona **1.47**, gniazdo
+`/var/run/docker.sock` odpowiada z PHP przez `ext-curl` 8.5.0 (`GET
+/containers/json` → 200, trzynaście pól na kontener), Compose v2.29.7 jako
+wtyczka CLI, `ext-phar` obecne, 29 kontenerów i **125** obrazów. Nie zgadza się
+wiersz o porcie pracy tłowej:
+
+| Plan mówi | Zastano |
+|---|---|
+| jeden odbiorca portu (`du` w module opisu pliku) | **trzech**: `du`, moduł `Ssh` (sonda sesji, `ssh -O check`, listing `sftp`, przesył, sprzątanie połówki) i — od tego kroku — moduł `Docker` |
+
+Plan pisano w dniu, w którym Faza XVII była jeszcze niewykonana; kroki 48–50
+dołożyły portowi **pięć miejsc wywołań w jednym module**, z których dwa
+(przesył i sprzątanie po nim) potrafią stać obok siebie. Kryterium „starszy
+odbiorca nie ma prawa ucierpieć” dotyczy przez to **dwóch modułów, nie jednego**,
+a rozbudowa portu zdejmuje z modułu `Ssh` ograniczenie zapisane w D89 jako cena
+zapłacona w najdroższym miejscu: „przesył zajmuje port na cały czas trwania, więc
+panel zdalny się nie odświeży, a `du` nie policzy”. Zdejmuje je **mechanicznie**
+— żadnej linii modułu `Ssh` ten krok nie zmienia.
+
+**Decyzje użytkownika:**
+
+1. **Granica prac tłowych jest wartością konfigurowalną, a jej przekroczenie
+   znaczy odmowę.** Nie stała w kodzie i nie wyparcie najstarszej. Odmowa idzie
+   drogą, którą port ma od kroku 26: `start()` oddaje uchwyt **zawsze**, a powód
+   odbiera się pierwszym `poll()`-em — wołający nie obsługuje awarii dwiema
+   drogami. Wyparcie odrzucono jako przywrócenie dokładnie tej choroby, którą krok
+   leczy: jedna funkcja aplikacji ubija drugą bez słowa wyjaśnienia. Brak granicy
+   odrzucono, bo zapętlony moduł zostawiałby po sobie dziesiątki potomków, a cena
+   `poll()` co klatkę nie miałaby górnego oszacowania — czyli nie dałaby się
+   zmierzyć „przy pełnym zestawie prac”, jak każe zakres nr 7 planu.
+2. **Moduł Dockera bierze `Ctrl`+`O`, a moduł k8s — `Ctrl`+`K`, i to
+   rozstrzygnięto z góry, dla obu kroków naraz.** Propozycja planu była odwrotna
+   (`k` dla kontenerów, `u` dla kUbernetesa) i przegrała jednym argumentem:
+   `k` jest utrwalonym skrótem Kubernetesa poza tą aplikacją (alias `k` dla
+   `kubectl` ma go w palcach każdy, kto pracuje z klastrem), więc oddanie tej
+   litery Dockerowi kazałoby krokowi 52 wziąć literę słabszą **i** zaskoczyć
+   użytkownika. `o` jak dOcker jest mnemoniką słabszą, ale niekolidującą.
+   Sprawdzone przy rozstrzyganiu: obie litery są wolne, żadnej nie ma w
+   `ModuleRegistry::FORBIDDEN_CHARACTERS`, a `t` — mimo że wolne jako litera
+   modułu — jest **zajęte w praktyce** przez `Ctrl`+`T` przeglądarki (widok
+   drzewa, reguła 11m), więc do puli nie wróciło.
+3. **Górna granica bufora logów jest pozycją ustawień modułu**, a nie stałą.
+   Wartość z listy przystanków, wzorem głośności w module dźwięku (11o) — bo
+   `ModuleSetting::valueFrom()` sprowadza wartość spoza listy do domyślnej.
+   Po przekroczeniu wypadają wiersze **najstarsze**, a `TextView` pokazuje to
+   wprost pozycją mówiącą, ile pominięto: bufor ucinający po cichu jest gorszy od
+   kontenera, który milczy, bo wygląda tak samo.
+4. **Budowanie obrazu zostaje w kroku 51.** Zgodnie z rekomendacją planu i z jego
+   miarą powodzenia („`F7` buduje obraz z widocznym postępem”). Reguła 13 jest
+   spełniona bez kroku 53, bo **odbiorcą jest użytkownik** — dokładnie tak, jak
+   przy oknie kwerend z D86. Krok 53 dostaje przez to zdarzenia
+   `docker.build.finished` i `docker.build.failed` jako rzecz **zastaną**, a nie
+   jako drugą połowę własnego zakresu.
+5. **Ścieżka pliku compose bierze się z kontekstu jako propozycja, a wpisuje
+   polem tekstowym.** Moduł deklaruje `ReadsContext`, więc zna katalog, w którym
+   stoi użytkownik przeglądarki; `PromptOverlay` otwiera się z tą ścieżką
+   wpisaną wstępnie i wolno ją nadpisać. Jedna droga do wartości (reguła D40
+   „jedna droga — jeden klucz”), kontekst wyłącznie podpowiada. Odrzucono samo
+   pole tekstowe (przepisywanie tej samej ścieżki przy każdym podniesieniu
+   projektu) oraz listę projektów z `docker compose ls` jako **trzecią** drogę
+   w tym samym kroku — sama lista projektów zostaje, ale jako widok, nie jako
+   źródło ścieżki.
+6. **Brak `ext-curl` odrzuca moduł; leżący demon — nie.** Rozdzielenie dwóch
+   awarii, które plan dopuszczał jako możliwe („odpowiedź może być inna”), i to
+   rozdzielenie ma powód mechaniczny: rozszerzenia nie da się doładować w trakcie
+   działania aplikacji, a demona **da się podnieść** — moduł odrzucony przy
+   starcie nie wróciłby aż do restartu. Brak rozszerzenia i brak gniazda
+   sprawdza `RequiresEnvironment::unavailableReason()` odpowiedzią tanią
+   (`extension_loaded()`, `is_readable()` — reguła 11s, nigdy uruchomienie
+   programu); demon odmawiający odpowiedzi to **ekran z powodem i drogą do
+   ponowienia**.
+7. **Listy odświeżają się z zegara co pięć sekund, ale wyłącznie wtedy, gdy ekran
+   modułu jest widoczny** — plus na żądanie (`Ctrl`+`R`) i samoczynnie po własnej
+   czynności. Zapytanie po gnieździe unixowym jest nieblokujące i tanie, a lista
+   kłamiąca o stanie kontenera jest gorsza od dwunastu zapytań na minutę. Zegar
+   chodzący zawsze odrzucono (trzydzieści zapytań na minutę przez cały czas
+   działania aplikacji, także gdy modułu nikt nie ogląda), samo żądanie —
+   bo kontener zatrzymany z zewnątrz wisiałby na liście jako działający,
+   a częstotliwość jako pozycję ustawień — bo to druga pozycja ustawień w kroku,
+   który i tak jest największy w projekcie.
+8. **Menu kontekstowe `F9` zostaje w tym kroku nietknięte, a pytanie wraca
+   w kroku 53.** Powód jest kontraktowy: `MenuOverlay` zawęża się przez
+   `AppliesToSelection` do `ModuleContext`, a ten niesie zaznaczenie **przeglądarki
+   plików** — kontener pod kursorem ekranu Dockera nie jest w nim widoczny w
+   żadnej postaci. Pozycja „usuń kontener” w menu otwartym nad przeglądarką
+   dotyczyłaby więc czegoś, czego menu nie umie pokazać. Zawężenie „tylko gdy
+   ekranem czynnym jest ekran modułu” odrzucono, bo wymaga podania menu czegoś,
+   czego `ModuleContext` dziś nie niesie — czyli zmiany rdzenia ponad zapowiedzianą
+   jedną linię. Czynności nieodwracalne idą w tym kroku klawiszem ekranu
+   z `ConfirmOverlay` w wariancie `dangerous`.
+
+**Co z tych decyzji wynika dla kroku:**
+
+- **Rdzeń kosztuje trzy rzeczy, nie jedną linię**, i wszystkie trzy są skutkiem
+  rozstrzygnięć 1 i 6: zmiana kontraktu portu (zapowiedziana w planie),
+  **nowy klucz rdzenia** z granicą liczby prac (nr 1 — bo wartość konfigurowalna
+  musi mieć gdzie mieszkać, a port jest rdzeniowy, więc klucz nie może być
+  ustawieniem modułu) oraz linia w `Bootstrapie`. Zdolności `RequiresEnvironment`
+  dokładać nie trzeba — jest w rdzeniu od kroku 48.
+- **Rozstrzygnięcie nr 1 domyka pomiar, a nie tylko kontrakt.** Zakres nr 7 planu
+  każe zmierzyć oś `--loop` „przy pustym zestawie prac i przy pełnym” — a „pełny”
+  jest pojęciem wykonalnym dopiero wtedy, gdy granica istnieje i daje się
+  ustawić. Pomiar idzie przez `bin/render-bench`, bo pomiar idzie tam zawsze
+  (reguła 16b).
+- **Reguła 11d dostaje poprawkę w brzmieniu, ale nie w duchu.** „Jedna praca
+  naraz” staje się „kilka prac, każda ze swoim uchwytem, z granicą braną
+  z ustawień”; zdanie o uchwycie zmienia znaczenie (przestaje mówić „żebyś
+  zobaczył, że cię wyparto”, zaczyna „żeby prace dały się rozróżnić”). Bez zmian
+  zostają cztery rzeczy: zaglądanie nigdy nie blokuje, **oba potoki czytane co
+  klatkę dla każdej pracy**, potomek nie dostaje wejścia, sprzątanie dwiema
+  drogami (D47). Zakaz scalania strumieni (15f) zostaje tym bardziej — przy wielu
+  pracach naraz pomylenie diagnostyki z treścią byłoby jeszcze trudniejsze do
+  zauważenia.
+- **Moduł `Ssh` zyskuje na tym kroku, nie tracąc ani jednej linii.** Cena z D89
+  („przesył zajmuje port na cały czas trwania”) znika sama; sprawdzenie tego jest
+  częścią kryterium „starszy odbiorca nie ma prawa ucierpieć”, rozszerzonego z
+  jednego modułu na dwa.
+
+**Odrzucone alternatywy** (poza wymienionymi przy decyzjach): granica prac jako
+stała w kodzie (osiem albo cztery) — prostsze, ale zakres nr 7 planu wymaga
+przebiegu „przy pełnym zestawie”, a stała każe go wywołać przepisaniem kodu;
+`docker build` procesem potomnym zamiast `POST /build` — mniej kodu (kontekstu
+nie trzeba pakować `PharData`em), ale druga funkcja po compose schodząca z drogi
+technicznej fazy, czyli trzy rodzaje wejścia-wyjścia w jednym module zamiast
+dwóch.

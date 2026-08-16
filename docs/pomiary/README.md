@@ -39,6 +39,7 @@ z istniejącym — jak `highlight` z `columns`.
 | `Tabs`, `Choice`, `Toggle`, `Button`, `Spacer`, `VStack` | `settings` | krok 38; rozlicza się w parze z `chrome-text` |
 | `TreeNode`, `TreeView` | `tree` | krok 31; wcięcie i prowadnice, znak spoza ASCII **na poziom**; rozlicza się w parze z `sections` — ten sam prostokąt, ten sam `ListView`, różnicą jest sam przedrostek |
 | proces potomny obok pętli | `background` | jedyny scenariusz sięgający poza PHP |
+| **komplet prac tłowych obok pętli** | `background-many` | krok 51; rozlicza się **w parze z `background`**, a różnica między nimi jest w całości ceną rozbudowy portu z „jednej pracy naraz" do kilku: jedno przejście `pump()` po ośmiu potomkach zamiast po jednym, plus siedem doglądań. Liczba prac to **domyślna granica z ustawień** (`backgroundJobs`), czyli przypadek najgorszy, jaki aplikacja dopuszcza bez ruszania konfiguracji. Klatka jest co do prymitywu równa `background` — złota klatka obu scenariuszy jest tym samym plikiem |
 
 ### Pominięcia i ich powody
 
@@ -46,6 +47,7 @@ z istniejącym — jak `highlight` z `columns`.
 |---|---|
 | `ConfirmOverlay` | ta sama obwódka i te same wiersze, co `Dialog` — koszt mieści się w `popup` (zapisane w kroku 28) |
 | `MessageOverlay` | rysuje się `Dialog`iem, czyli jest `popup`em pod inną nazwą |
+| ekran modułu Dockera (kontenery, obrazy, logi) | krok 51: treść to `Table` w podziale i `TextView` w strefie środkowej, czyli **dokładnie to, co mierzą `columns` i `text-view`**. Panel opisu jest `ListView`em par etykieta–wartość, czyli treścią `chrome-text`. Ani jeden prymityw nie jest nowy, a osobny scenariusz powtarzałby pomiar pod inną nazwą — i nie dałby się rozliczyć w parze z niczym, czego tamte dwa już nie izolują. Cena modułu leży **poza klatką** (rozmowa z demonem, pompowanie gniazda) i mierzy ją oś `--loop` wraz z parą `background`/`background-many` |
 | `FilterOverlay` (panel filtra) | `Panel` plus `TextInput`, czyli **okno komend bez listy podpowiedzi** — prymitywy są podzbiorem `command`, a zawężona lista pod spodem jest treścią `highlight`. Osobny scenariusz nie izolowałby kosztu, którego nie izoluje już któryś z tych dwóch, więc nie dałby się rozliczyć w parze z niczym |
 | `HelpScreen` | treść ekranu to `SectionList` (mierzy `sections`), a oprawa i pasek stanu — `chrome-text`. Scenariusz powtarzałby sumę dwóch istniejących |
 | `StartupScreen` | nie rysuje klatki; wybiera ekran dna stosu |

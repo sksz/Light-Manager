@@ -10,7 +10,8 @@
         "ext-pcntl": "*"
     },
     "suggest": {
-        "ext-glfw": "Windowed mode (--window): a native window with an OpenGL context via PHP-GLFW (https://phpgl.net), and music playback in the audio module (GL\\Audio, no window needed). Terminal modes and the rest of the application work without it."
+        "ext-glfw": "Windowed mode (--window): a native window with an OpenGL context via PHP-GLFW (https://phpgl.net), and music playback in the audio module (GL\\Audio, no window needed). Terminal modes and the rest of the application work without it.",
+        "ext-curl": "Docker module (Ctrl+O): talks to the daemon over the /var/run/docker.sock unix socket, non-blocking, via curl_multi. Without it the module is rejected at startup and the rest of the application works unchanged."
     },
     "autoload": {
         "psr-4": {

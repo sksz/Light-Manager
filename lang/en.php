@@ -44,6 +44,7 @@ return [
     'settings.key.windowColumns' => 'Window columns (windowed mode)',
     'settings.key.windowRows' => 'Window rows (windowed mode)',
     'settings.key.backgroundOutputKib' => 'Memory for background job output',
+    'settings.key.backgroundJobs' => 'Concurrent background jobs',
     'settings.language.auto' => 'Automatic',
     'settings.language.pl' => 'Polski',
     'settings.language.en' => 'English',
@@ -280,6 +281,7 @@ return [
     'process.unavailable' => 'Starting processes is disabled in this environment.',
     'process.failed' => 'The process could not be started.',
     'process.timedOut' => 'The background work exceeded its {seconds}s limit and was stopped.',
+    'process.tooMany' => 'Already running {limit} background jobs — this one was not started.',
 
     // The `bin/render-bench` measurement tool (step 16). Tool strings go through
     // the catalog like the rest of the interface — but the content of the
@@ -334,6 +336,7 @@ return [
     'bench.scenario.progress' => 'progress bars',
     'bench.scenario.split' => 'split frame',
     'bench.scenario.background' => 'frame with background work',
+    'bench.scenario.background-many' => 'frame with a full set of background jobs',
     'bench.scenario.columns' => 'list with columns',
     'bench.scenario.text-view' => 'text preview',
     'bench.scenario.highlight' => 'list with highlighting',

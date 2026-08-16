@@ -251,11 +251,25 @@ final class BenchmarkArguments
         };
 
         // Tor taktu mierzy **jedno**: drogę klatki od klawisza do prymitywów.
-        // Osi scenariuszy w nim nie ma, bo treść składa `LoopScenarioScreen`,
+        // Osi treści scenariuszy w nim nie ma, bo klatkę składa `LoopScenarioScreen`,
         // a nie fabryka — szesnaście wierszy z tą samą liczbą byłoby tabelą
-        // udającą pomiar. Wiersz zostaje jeden i nosi nazwę pełnej klatki.
+        // udającą pomiar. Domyślny wiersz zostaje jeden i nosi nazwę pełnej klatki.
+        //
+        // **Od kroku 51 przechodzą tędy scenariusze różniące się liczbą prac
+        // tłowych** i nie jest to odwołanie tamtej zasady, tylko jej granica
+        // postawiona dokładniej: `background` i `background-many` mają w tym torze
+        // **tę samą treść klatki** (bo treści fabryka tu nie podaje), a różnią się
+        // wyłącznie tym, ilu potomków pompuje pętla. Różnica między takimi
+        // wierszami jest więc pomiarem, a nie powtórzeniem — i jest dokładnie tą
+        // liczbą, o którą prosi plan kroku 51: ceną `pump()` na pełnym zestawie
+        // prac. Scenariusz bez prac tłowych nadal nie ma tu czego wnieść.
         if ($loop) {
-            $scenarios = [Scenario::ChromeWithText];
+            $withWork = array_values(array_filter(
+                $scenarios,
+                static fn (Scenario $scenario): bool => $scenario->backgroundJobs() > 0,
+            ));
+
+            $scenarios = $withWork === [] ? [Scenario::ChromeWithText] : $withWork;
         }
 
         return new self(

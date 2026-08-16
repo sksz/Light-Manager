@@ -102,6 +102,7 @@ final class SettingsTab
             ]),
             self::core('settings.tab.resources', [
                 SettingKey::BackgroundOutputKib,
+                SettingKey::BackgroundJobs,
             ]),
         ];
     }

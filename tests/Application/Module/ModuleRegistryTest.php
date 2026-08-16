@@ -255,13 +255,15 @@ final class ModuleRegistryTest extends TestCase
 
         self::assertSame([], $app->modules->rejections());
         self::assertSame(
-            ['b', 'd', 'a', 's'],
+            ['b', 'd', 'a', 's', 'o'],
             array_keys($app->modules->shortcuts()),
-            'przeglądarka trzyma Ctrl+B, FileInfo — Ctrl+D, dźwięk — Ctrl+A (krok 45), sesja zdalna — Ctrl+S (krok 48)',
+            'przeglądarka trzyma Ctrl+B, FileInfo — Ctrl+D, dźwięk — Ctrl+A (krok 45), '
+            . 'sesja zdalna — Ctrl+S (krok 48), Docker — Ctrl+O (krok 51)',
         );
         self::assertNotNull($app->module('browser'));
         self::assertNotNull($app->module('file-info'));
         self::assertNotNull($app->module('audio'));
         self::assertNotNull($app->module('ssh'));
+        self::assertNotNull($app->module('docker'));
     }
 }

@@ -1019,11 +1019,26 @@ samego powodu: jedna droga jest czytelna, druga nieomylna.
 
 Trzy rzeczy ponadto, każda niosąca własną klasę błędów:
 
-- **usługa prowadzi jedną pracę naraz**, a uchwyt (`BackgroundHandle`) służy
-  temu, żeby zamawiający, którego pracę wyparto, zobaczył `Idle` zamiast cudzego
-  stanu wziętego za swój;
-- **potoki są nieblokujące i czytane co klatkę** — także strumień błędów, którego
-  wynik nie zawiera: nieczytany potok zatrzymuje potomka, gdy się zapełni;
+- **usługa prowadzi kilka prac naraz** (od kroku 51), każdą pod własnym uchwytem
+  (`BackgroundHandle`), z **granicą braną z ustawień** (`backgroundJobs`,
+  domyślnie osiem, zakładka „Zasoby”). Do tamtego kroku prowadziła **jedną** i była
+  to decyzja z kroku 26, nie ograniczenie techniczne: przy jednym odbiorcy (`du`)
+  nikomu nie przeszkadzała, ale odbiorców zrobiło się trzech — doszła sesja zdalna
+  (kroki 48–50) i moduł Dockera, którego `compose up` trwa minutami. Uchwyt zmienił
+  przez to **znaczenie, nie kształt**: przestał mówić „wyparto cię”, zaczął
+  „prace da się rozróżnić”. **Przekroczenie granicy znaczy odmowę, nie wyparcie
+  najstarszej** — wyparcie przywracałoby chorobę, którą rozbudowa leczy, a odmowa
+  idzie tą samą drogą, co każda inna awaria startu: uchwyt wraca, powód odbiera
+  pierwszy `poll()`;
+- **potoki są nieblokujące i opróżniane co klatkę — dla każdej pracy naraz**.
+  Do kroku 51 karmił je właściciel przy zaglądaniu; odkąd prac jest kilka, robi to
+  **pętla** przez osobny port `Application\Port\BackgroundPumpPort` (`pump()`),
+  wołany raz na klatkę w fazie „aktualizuj stan”. Port jest osobny **konstrukcyjnie,
+  a nie z porządku**: pompowanie należy do pętli, nie do modułu — ta sama zasada,
+  która w kroku 26 zostawiła `shutdown()` poza portem. Właściciel niezaglądający
+  (ekran modułu zniknął, moduł ma usterkę) zatrzymałby inaczej swojego potomka na
+  pełnym potoku, a jego limitu czasu też nie miałby kto sprawdzić. `poll()` jest
+  odtąd **czystym odczytem stanu**;
 - **kod wyjścia różny od zera nie jest sam z siebie niepowodzeniem** — `du`
   kończy się jedynką za każdy nieprzeczytany katalog, a mimo to podaje sumę tego,
   co przeczytać zdołało. Co z kodu wynika, rozstrzyga zamawiający; rdzeń go tylko
@@ -1224,6 +1239,55 @@ do przeglądarki ani razu (reguła 15).
 **Przesyłane są pliki, nie katalogi**, a przesył wyłącznie kopiuje: wariantu
 przenoszącego nie ma, praw i czasu zmiany nie przenosi (`sftp -p` poza zakresem),
 a wznawianie przerwanej pracy zostaje osobną rzeczą do zaprojektowania.
+
+#### Docker: kilka rozmów naraz (od kroku 51)
+
+Moduł `src/Module/Docker/` (`Ctrl`+`O`) pokazuje kontenery i obrazy tej maszyny,
+puszcza logi na żywo, buduje obrazy i podnosi projekty compose. Jest **piątym
+sprawdzianem kontraktu modułu** — po module rysującym główną funkcję (21),
+module bez ekranu (36), module pracującym, gdy go nie widać (45), i module
+rozmawiającym z cudzą maszyną (48) przyszedł moduł **prowadzący kilka rozmów
+naraz**: dwie listy, strumień logów, budowa i praca compose potrafią trwać w tej
+samej chwili.
+
+**Drogi są dwie i to nie z wygody.** Docker idzie **gniazdem unixowym**
+(`/var/run/docker.sock`, `ext-curl` z `CURLOPT_UNIX_SOCKET_PATH`, rodzina
+`curl_multi_*` w trybie nieblokującym), a compose — **procesem potomnym**, bo
+demon nie wystawia dla wtyczki ani jednego zasobu w API. Rozmowy pompuje takt
+modułu (`NeedsTick`), nigdy rysowanie klatki; `curl_multi_select()` nie pada ani
+razu, bo pytanie o gotowość deskryptorów kosztuje tyle samo, co samo posunięcie
+transferu.
+
+**Dwa formaty strumieniowe są pułapkami dającymi „działa, ale wygląda na
+zepsute”** i oba rozbiera moduł, nie komponent (reguła 11i):
+
+- **logi kontenera bez TTY są multipleksowane** — osiem bajtów przed każdą porcją
+  (numer strumienia, trzy wypełniające, cztery długości w kolejności sieciowej).
+  Czytane jak tekst dają śmieci co kilka wierszy. Czy strumień jest ramkowany,
+  rozstrzyga **treść, a nie pytanie do demona**, i rozstrzyga się to dopiero
+  z ósmym bajtem: porcja krótsza od nagłówka wygląda jak zwykły tekst, a odpowiedź
+  raz udzielona obowiązuje do końca strumienia;
+- **budowa oddaje postęp strumieniem obiektów JSON**, po jednym na wiersz, i to
+  w nim — a nie w kodzie odpowiedzi — przychodzi **niepowodzenie**: nieudana
+  budowa kończy się kodem HTTP 200, bo z punktu widzenia protokołu wszystko
+  poszło dobrze.
+
+**Kontekst budowy pakuje `PharData` pracą kawałkową** (D46), z pominięciem tego,
+co wyklucza `.dockerignore` — czytany w podzbiorze składni, którego różnica wobec
+pełnej semantyki Dockera objawia się **rozmiarem kontekstu, a nie wynikiem
+budowy**. Bez tego pierwszy lepszy projekt Node.js wysłałby demonowi
+`node_modules`.
+
+**Moduł odmawia startu bez `ext-curl` albo bez gniazda** (`RequiresEnvironment`),
+ale **nie odmawia z powodu leżącego demona**: rozszerzenia nie da się doładować
+w trakcie działania aplikacji, a demona da się podnieść — moduł odrzucony przy
+starcie nie wróciłby aż do restartu, więc zatrzymany demon jest zdaniem na
+ekranie, a nie powodem nieobecności.
+
+**Listy odświeżają się z zegara co pięć sekund, ale wyłącznie przy widocznym
+ekranie**; zawężenie do projektu compose nie kosztuje ani jednego pytania więcej,
+bo kontener zna swój projekt z etykiety `com.docker.compose.project`
+przychodzącej razem z listą.
 
 #### Kosz i cofnięcie ostatniej operacji (od kroku 44)
 
