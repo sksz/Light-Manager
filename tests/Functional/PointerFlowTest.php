@@ -314,14 +314,58 @@ final class PointerFlowTest extends TestCase
         self::assertSame($list->column, reset($rows), 'wpisy zaczynają się w pierwszej kolumnie treści');
     }
 
-    /** Kliknięcie środkowym przyciskiem nie robi nic — słownik go zna, aplikacja nie używa. */
-    public function testTheMiddleButtonDoesNothing(): void
+    /**
+     * Środkowy przycisk stawia kursor **i zaznacza** wskazany wpis — to, co
+     * spacja, ale bez kroku w dół.
+     *
+     * Do tego kliknięcia zaznaczenie było osiągalne wyłącznie klawiaturą, więc
+     * użytkownik trzymający mysz nie miał jak wybrać kilku plików do
+     * skopiowania.
+     */
+    public function testTheMiddleButtonMarksTheEntryUnderIt(): void
     {
         $list = $this->listArea();
 
         $this->pointer(PointerEvent::press($list->row + 3, $list->column + 3, PointerButton::Middle));
 
-        self::assertSame('wpis-00', $this->selection());
+        self::assertSame('wpis-03', $this->selection(), 'kursor staje na wskazanym wierszu');
+        self::assertSame(1, $this->app->state->context()->markedCount, 'i wpis jest zaznaczony');
+    }
+
+    /** Drugie kliknięcie w ten sam wiersz zaznaczenie **zdejmuje** — jak spacja. */
+    public function testTheMiddleButtonTogglesTheMarkOffAgain(): void
+    {
+        $list = $this->listArea();
+        $row = $list->row + 3;
+
+        $this->pointer(PointerEvent::press($row, $list->column + 3, PointerButton::Middle));
+        $this->pointer(PointerEvent::press($row, $list->column + 3, PointerButton::Middle));
+
+        self::assertSame(0, $this->app->state->context()->markedCount);
+    }
+
+    /**
+     * Kursor **nie schodzi** wiersz niżej: mysz wskazuje każdy wiersz z osobna,
+     * więc przesunięty kursor stałby gdzie indziej niż to, w co kliknięto.
+     */
+    public function testTheMiddleButtonLeavesTheCursorWhereItClicked(): void
+    {
+        $list = $this->listArea();
+
+        $this->pointer(PointerEvent::press($list->row + 2, $list->column + 3, PointerButton::Middle));
+
+        self::assertSame('wpis-02', $this->selection());
+    }
+
+    /** Zaznaczenie należy do listy, więc w drzewie środkowy przycisk nie robi nic (reguła 15c). */
+    public function testTheMiddleButtonDoesNothingInTheTree(): void
+    {
+        $this->app->browser->handle(KeyPress::ctrl('t'));
+        $list = $this->listArea();
+
+        $this->pointer(PointerEvent::press($list->row + 1, $list->column + 3, PointerButton::Middle));
+
+        self::assertSame(0, $this->app->state->context()->markedCount);
     }
 
     private function selection(): ?string

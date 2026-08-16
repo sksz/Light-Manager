@@ -348,8 +348,23 @@ final class KeySequenceParser
         return $released ? PointerAction::Release : PointerAction::Press;
     }
 
+    /**
+     * Przycisk z dwóch najniższych bitów — **z wyjątkiem kółka**.
+     *
+     * Przy obrocie kółka te same bity niosą **kierunek**, a nie przycisk, więc
+     * czytane wprost dawały `Middle` przy każdym obrocie w dół (bit 0 zapalony
+     * w wartości 65). Skutek był cichy i rozjeżdżał tory: to samo pokręcenie
+     * kółkiem oddawało w terminalu `Middle`, a w oknie `Left`, bo
+     * `GlfwPointerMapper::mapScroll()` przycisku z kierunku nie wyprowadza.
+     * Obrót niczego nie naciska, więc odpowiedzią jest `Left` — wartość
+     * obojętna, tak samo jak w torze okienkowym.
+     */
     private function pointerButton(int $flags): PointerButton
     {
+        if (($flags & self::SGR_WHEEL) !== 0) {
+            return PointerButton::Left;
+        }
+
         return match ($flags & self::SGR_BUTTON_MASK) {
             1 => PointerButton::Middle,
             2 => PointerButton::Right,

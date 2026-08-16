@@ -476,6 +476,39 @@ do **+3,2…+4,7%**. Wniosek na przyszłość: **oś `--loop` odróżnia zmiany 
 dziesiątych części milisekundy, a nie mikrosekund**, a powtarzanie jej
 przebiegów pod rząd **psuje własny pomiar**.
 
+#### Poprawka po pierwszym uruchomieniu (2026-08-16)
+
+Użytkownik sprawdził wskaźnik i zgłosił, że **naciśnięcie środkowego przycisku
+nic nie robi, a rolka działa**. Rozpoznanie rozdzieliło to na dwie rzeczy i obie
+okazały się prawdziwe.
+
+**Naciśnięcie dochodziło poprawnie** — parser oddawał `Press` / `Middle`
+z właściwą komórką w obu torach. Brakowało mu **czynności**: każdy ekran miał
+jawne pominięcie środkowego przycisku, bo rozstrzygnięcie D95 nr 3 wyliczyło
+komplet czynności myszy i tego przycisku w nim nie było. Uzupełnienie jest więc
+rozszerzeniem zakresu, a nie naprawą — stąd osobne rozstrzygnięcie użytkownika
+(D99 nr 5): **środkowy przycisk zaznacza wpis, tak jak spacja, ale bez kroku
+w dół**. Zamyka to lukę, której nie widać było w spisie czynności: zaznaczenie
+było osiągalne **wyłącznie klawiaturą**, więc użytkownik trzymający mysz nie
+miał jak wybrać kilku plików do skopiowania. Krok w dół odpadł świadomie —
+spacja schodzi niżej po to, żeby dało się zaznaczyć ciąg bez podnoszenia palca,
+a mysz i tak wskazuje każdy wiersz z osobna.
+
+**Przy okazji wyszła prawdziwa usterka, i to cicha: obrót kółka w dół oddawał
+`button: Middle`.** Protokół SGR podaje kierunek obrotu na **tych samych dwóch
+bitach**, na których podaje numer przycisku (kółko w dół to wartość 65, czyli
+bit kółka plus bit zero), a parser czytał je wprost. Tor okienkowy przycisku
+z kierunku nie wyprowadza, więc **to samo pokręcenie kółkiem dawało w terminalu
+`Middle`, a w oknie `Left`**. Nie było tego widać, bo każdy ekran pyta najpierw
+`isScroll()` — usterka czekała na pierwszego odbiorcę, który zapyta o przycisk,
+a takim odbiorcą miał się właśnie stać środkowy przycisk. Zaporą jest odtąd
+osobne zdanie w `PointerSequenceTest`.
+
+Wniosek ogólny, warty przeniesienia dalej: **pole, o które nikt jeszcze nie
+pyta, nie jest polem sprawdzonym** — rozjazd między torami przeżył komplet
+testów mapowania, bo wszystkie pytały o rodzaj czynności, a żaden o przycisk
+przy kółku.
+
 #### Czego krok nie dowiózł
 
 - **Klatki pod XTermem nikt jeszcze nie oglądał.** Użytkownik wybrał

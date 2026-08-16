@@ -362,13 +362,26 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
             return $this->scrolled($index, $event->scrollRows());
         }
 
-        if ($event->action !== PointerAction::Press || $event->button === PointerButton::Middle) {
+        if ($event->action !== PointerAction::Press) {
             return ScreenOutcome::stay();
         }
 
-        return $this->queries->showsTree($index)
-            ? $this->treeCursorAt($index, $event, $pane)
-            : $this->listCursorAt($index, $event, $pane);
+        // Zaznaczenie należy do **listy**, nie do ekranu (reguła 15c), więc
+        // w drzewie środkowy przycisk znaczy dokładnie tyle, co spacja: nic.
+        // Zbiór trzyma nazwy z jednego katalogu, a węzły leżą na różnych
+        // poziomach.
+        if ($this->queries->showsTree($index)) {
+            return $event->button === PointerButton::Middle
+                ? ScreenOutcome::stay()
+                : $this->treeCursorAt($index, $event, $pane);
+        }
+
+        return $this->listCursorAt(
+            $index,
+            $event,
+            $pane,
+            marks: $event->button === PointerButton::Middle,
+        );
     }
 
     /**
@@ -396,8 +409,16 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
         return [0, null];
     }
 
-    /** Kursor listy postawiony na wskazanym wierszu. */
-    private function listCursorAt(int $index, PointerEvent $event, Rect $content): ScreenOutcome
+    /**
+     * Kursor listy postawiony na wskazanym wierszu, a przy `$marks` — także
+     * przełączone zaznaczenie tego wpisu.
+     *
+     * Kolejność jest tu regułą, nie wygodą: **najpierw kursor, potem
+     * zaznaczenie**. `BrowserState::toggleMark()` działa na wpisie pod
+     * kursorem, więc odwrotna kolejność przełączałaby zaznaczenie tego, co było
+     * wskazane przed kliknięciem.
+     */
+    private function listCursorAt(int $index, PointerEvent $event, Rect $content, bool $marks = false): ScreenOutcome
     {
         $directory = $this->queries->directory($index);
         $row = PointerRow::of(
@@ -416,6 +437,31 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
         $this->panes->pane($index)[0]->selectionChanged();
         $this->panes->publishFocused();
         $this->events->fire(BrowserEvent::CursorMoved);
+
+        return $marks ? $this->markedUnderPointer($index) : ScreenOutcome::stay();
+    }
+
+    /**
+     * Zaznaczenie wpisu wskazanego **środkowym przyciskiem** — to, co spacja,
+     * ale **bez kroku w dół**.
+     *
+     * Różnica jest zamierzona i wynika z tego, czym różni się ręka od
+     * klawiatury: spacja schodzi wiersz niżej, żeby dało się zaznaczyć ciąg
+     * plików bez podnoszenia palca, a mysz i tak wskazuje każdy wiersz z
+     * osobna — przesunięty kursor stałby wtedy gdzie indziej niż to, w co
+     * użytkownik przed chwilą kliknął.
+     *
+     * Zaznaczenie było do tej pory osiągalne **wyłącznie klawiaturą**, więc
+     * użytkownik trzymający mysz nie miał jak wybrać kilku plików do
+     * skopiowania. To jest ta luka, którą środkowy przycisk zamyka.
+     */
+    private function markedUnderPointer(int $index): ScreenOutcome
+    {
+        if (!$this->panes->pane($index)[0]->toggleMark()) {
+            return ScreenOutcome::stay();
+        }
+
+        $this->events->fire(BrowserEvent::EntryMarked);
 
         return ScreenOutcome::stay();
     }

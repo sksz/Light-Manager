@@ -210,6 +210,7 @@ tekstowym i okienkowym. Zachowanie jest wszędzie takie samo:
 | Kliknięcie w wiersz listy | kursor staje na wskazanej pozycji |
 | Kliknięcie w drugi panel | ognisko przechodzi na ten panel **i** kursor staje |
 | Podwójne kliknięcie | to, co `Enter` w tym miejscu (próg 400 ms, ta sama komórka) |
+| Środkowy przycisk | zaznaczenie wpisu — to, co spacja, ale **bez kroku w dół** (tylko lista plików) |
 | Prawy przycisk | menu kontekstowe, po uprzednim postawieniu kursora |
 | Kółko | przewinięcie o trzy wiersze, **bez ruszania kursora** |
 | Przeciągnięcie granicy paneli | zmiana proporcji podziału; zapisuje się w ustawieniach modułu |

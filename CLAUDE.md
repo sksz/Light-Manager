@@ -8,6 +8,8 @@ lub modyfikować kod w `src/`/`tests/`, zastosuj konwencje z:
 - `docs/architecture.md` — pełny dokument źródłowy.
 - `docs/plans/00-index.md` i `docs/plans/00-decyzje.md` — status realizacji
   i historia decyzji.
+- `docs/konwencja-changelogu.md` — jak powstaje `CHANGELOG.md` (numeracja,
+  nazwy wydań, treść wpisów).
 
 Zamiast podejmować decyzje pytaj użytkownika.
 
@@ -17,6 +19,10 @@ spis, bramka jakości to `make qa`. **Tam, gdzie projekt ma własne narzędzie
 zastępnik doraźnie.** Zawężenie przebiegu wolno wołać wprost (pojedynczy test
 filtrem, jedna oś pomiaru); zakazana jest równoległa droga do procesu, który
 wejście już ma. Pełny spis „proces → wejście”: `docs/architecture.md`, rozdz. 8.
+
+**Ukończony krok planu dopisuj do `CHANGELOG.md` wedle
+`docs/konwencja-changelogu.md`** — tam stoi numeracja, nazewnictwo wydań, zasada
+sekcji „Niewydane” i zgodność wersji w `composer.json`.
 
 **Przed pomiarem wydajności (`make bench*`, `bin/render-bench`) oraz przed
 sprawdzeniem działania aplikacji w prawdziwym terminalu (zrzuty ekranu, klatka

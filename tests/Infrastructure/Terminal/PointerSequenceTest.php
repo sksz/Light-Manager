@@ -58,7 +58,7 @@ final class PointerSequenceTest extends TestCase
             'przeciągnięcie prawym' => ["\e[<34;5;5M", PointerButton::Right, PointerAction::Drag],
             // Bit 64 to kółko i **zastępuje** numer przycisku.
             'kółko w górę' => ["\e[<64;1;1M", PointerButton::Left, PointerAction::ScrollUp],
-            'kółko w dół' => ["\e[<65;1;1M", PointerButton::Middle, PointerAction::ScrollDown],
+            'kółko w dół' => ["\e[<65;1;1M", PointerButton::Left, PointerAction::ScrollDown],
         ];
     }
 
@@ -72,6 +72,21 @@ final class PointerSequenceTest extends TestCase
 
         self::assertSame($button, $event->button);
         self::assertSame($action, $event->action);
+    }
+
+    /**
+     * Obrót kółka **nie niesie przycisku** — i musi to być ta sama odpowiedź,
+     * co w torze okienkowym.
+     *
+     * Bity, na których protokół podaje kierunek, są tymi samymi, na których
+     * podaje numer przycisku, więc czytane wprost dawały `Middle` przy każdym
+     * obrocie w dół. Rozjazd był cichy: kółko działało w obu torach, a wartość
+     * pola różniła się między nimi.
+     */
+    public function testTheWheelCarriesNoButtonInEitherDirection(): void
+    {
+        self::assertSame(PointerButton::Left, $this->pointerOf("\e[<64;1;1M")->button);
+        self::assertSame(PointerButton::Left, $this->pointerOf("\e[<65;1;1M")->button);
     }
 
     /**

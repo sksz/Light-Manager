@@ -7705,6 +7705,19 @@ w kodzie i jedno z nich jest sprzecznością **wewnątrz samego planu**.
    ustawienie w całym kroku. Odrzucone: proporcja ginąca z zamknięciem aplikacji.
 4. **Krok 54 zatwierdza użytkownik sam**, przed startem 55 — żeby różnica
    każdego z kroków dała się obejrzeć osobno.
+5. **Środkowy przycisk zaznacza wpis** — to, co spacja, ale **bez kroku w dół**
+   (rozstrzygnięte **po pierwszym uruchomieniu**, gdy użytkownik zauważył, że
+   przycisk nic nie robi). Zamyka lukę, której spis czynności z D95 nr 3 nie
+   pokazywał: zaznaczenie było osiągalne wyłącznie klawiaturą, więc użytkownik
+   trzymający mysz nie miał jak wybrać kilku plików do skopiowania. Cena
+   nazwana przed wyborem: czynność należy do **listy plików** (reguła 15c), więc
+   w drzewie i poza przeglądarką środkowy przycisk nadal nie robi nic.
+   Odrzucone: znaczenie `Enter` (uniwersalne i jednolinijkowe, ale powtarzałoby
+   podwójne kliknięcie, a zaznaczanie myszą nadal by nie istniało), wariant
+   mieszany „zaznaczenie w przeglądarce, `Enter` poza nią” (pełne pokrycie za
+   cenę złamania zasady *takie samo, a nie podobne*, którą ten krok stosuje do
+   trzech torów) oraz wklejenie w tradycji X11 (wymaga schowka z kroku 57, czyli
+   ściągnięcia zakresu dwa kroki do przodu).
 
 **Co z tego wynika — i czego krok pilnuje:**
 
@@ -7721,6 +7734,13 @@ w kodzie i jedno z nich jest sprzecznością **wewnątrz samego planu**.
   rdzeń rysuje pasek stanu sam, więc sam go pamięta. Zdanie reguły 11z brzmi
   **kto rysuje, ten pamięta**. Prostokąty liczą się przy tym **leniwie**, dopiero
   przy kliknięciu — pomiar pokazał, że budowane co klatkę kosztują mierzalnie.
+- **Rozstrzygnięcie nr 5 odsłoniło cichą usterkę w parserze.** Obrót kółka
+  w dół oddawał `button: Middle`, bo protokół SGR podaje kierunek obrotu na tych
+  samych dwóch bitach, co numer przycisku. Tor okienkowy przycisku z kierunku nie
+  wyprowadza, więc **to samo pokręcenie kółkiem dawało w terminalu co innego niż
+  w oknie**. Rozjazd przeżył komplet testów mapowania, bo wszystkie pytały
+  o rodzaj czynności, a żaden o przycisk przy kółku — i jest to wniosek ogólny:
+  **pole, o które nikt jeszcze nie pyta, nie jest polem sprawdzonym**.
 - **Oś `--loop` nie odpowiada na pytanie tego kroku** i jest to zapisane
   w dzienniku jako granica pomiaru, nie jako przeoczenie: `LoopBenchmarkRunner`
   buduje `KeyPress` wprost, z pominięciem `InputPort`, więc ani parser SGR, ani

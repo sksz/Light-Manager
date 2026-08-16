@@ -756,7 +756,12 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     odejmuje ją raz), w oknie — `GlfwPointerMapper` metryką czcionki.
     Trzy czynności rdzenia **zamieniają się z powrotem w naciśnięcie** i wracają
     do `InputHandler::handle()`: kliknięcie w podpowiedź stopki to jej klawisz,
-    podwójne kliknięcie to `Enter`, prawy przycisk to `F9`. Dwie drogi do tej
+    podwójne kliknięcie to `Enter`, prawy przycisk to `F9`. Czwarty przycisk —
+    **środkowy** — należy do listy plików i znaczy tam **zaznaczenie wpisu**
+    (spacja bez kroku w dół, D99 nr 5); w drzewie i poza przeglądarką nie robi
+    nic, bo zaznaczenie jest własnością listy (reguła 15c). Kolejność jest przy
+    tym regułą: **najpierw kursor, potem zaznaczenie**, bo `toggleMark()` działa
+    na wpisie pod kursorem. Dwie drogi do tej
     samej czynności rozjeżdżają się przy pierwszej poprawce (krok 32).
     Raportowanie włącza się **razem z trybem surowym** i schodzi **tą samą
     trzytorową gwarancją**, co ustawienia terminala (krok 06) — raportowanie
