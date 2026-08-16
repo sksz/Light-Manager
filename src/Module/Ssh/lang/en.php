@@ -24,6 +24,12 @@ return [
     'module.ssh.argument.target' => 'target directory on this machine',
     'module.ssh.argument.remoteTarget' => 'target directory on the host',
 
+    // Module queries (step 54).
+    'module.ssh.query.hosts' => 'host book along with the authentication method',
+    'module.ssh.query.session' => 'session stage, host and failure reason',
+    'module.ssh.query.entries' => 'remote directory along with the listing stage',
+    'module.ssh.query.transfer' => 'transfer state: direction, file, bytes, stage',
+
     'module.ssh.setting.timeout' => 'Connection timeout (s)',
     'module.ssh.setting.auth' => 'Authentication method',
     'module.ssh.setting.remember' => 'Remember fingerprints of new hosts',

@@ -87,6 +87,65 @@ final class Label implements ComponentInterface
     }
 
     /**
+     * Zdanie rozłożone na wiersze mieszczące się w podanej szerokości.
+     *
+     * Trzecia reguła tej samej rodziny, co `fit()` i `fitEnd()` — wszystkie trzy
+     * odpowiadają na pytanie „co zrobić z treścią szerszą od prostokąta”,
+     * a różnią się wyłącznie odpowiedzią. Rachunek stał do poprawki
+     * z 2026-08-16 prywatnie w `ConfirmOverlay` (krok 48) i wyszedł stamtąd
+     * z chwilą, gdy zapytał o niego drugi wołający: zdanie stanu w ekranie
+     * klastra, które w panelu szerokim na 0,4 podziału nie mieści się nigdy.
+     *
+     * Łamie **po słowach**, a nie po znakach — odwrotnie niż `TextView` (11i)
+     * i z odwrotnego powodu: tam treścią jest plik, którego wierszy nie wolno
+     * przeinaczyć, tutaj zdanie do przeczytania przez człowieka. Słowo dłuższe
+     * od wiersza dzieli się mimo to twardo, bo takim słowem jest właśnie odcisk
+     * klucza — czyli dokładnie ta treść, dla której to zawijanie powstało.
+     *
+     * **Nadmiaru wierszy nie ucina** i to należy do wołającego: okno pytania ma
+     * na to własną granicę, a panel ekranu ma wysokość, o której tu nie wiadomo.
+     *
+     * @return list<string> zawsze co najmniej jeden wiersz, także pusty
+     */
+    public static function wrap(string $text, int $columns): array
+    {
+        if ($columns < 1) {
+            return [$text];
+        }
+
+        $lines = [];
+        $current = '';
+
+        foreach (explode(' ', $text) as $word) {
+            $candidate = $current === '' ? $word : $current . ' ' . $word;
+
+            if (mb_strlen($candidate) <= $columns) {
+                $current = $candidate;
+
+                continue;
+            }
+
+            if ($current !== '') {
+                $lines[] = $current;
+                $current = '';
+            }
+
+            while (mb_strlen($word) > $columns) {
+                $lines[] = mb_substr($word, 0, $columns);
+                $word = mb_substr($word, $columns);
+            }
+
+            $current = $word;
+        }
+
+        if ($current !== '' || $lines === []) {
+            $lines[] = $current;
+        }
+
+        return $lines;
+    }
+
+    /**
      * To samo, ale ucięte od **początku**: wielokropek staje z przodu, a koniec
      * treści zostaje.
      *

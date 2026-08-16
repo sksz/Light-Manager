@@ -22,7 +22,16 @@ return [
     'module.docker.argument.directory' => 'directory holding the Dockerfile',
     'module.docker.argument.file' => 'compose file, or the directory it lives in',
 
+    // Module queries (step 54).
+    'module.docker.query.images' => 'images known to the daemon along with their tags',
+    'module.docker.query.containers' => 'containers along with their compose project',
+    'module.docker.query.compose' => 'compose projects along with the work stage',
+    'module.docker.query.build' => 'build state: stage, tag, latest message',
+
     'module.docker.setting.logLines' => 'Log lines kept in memory',
+    'module.docker.setting.registry' => 'Image registry',
+    'module.docker.setting.registryUser' => 'Registry user',
+    'module.docker.setting.registryToken' => 'Registry token',
 
     'module.docker.view.containers' => 'CONTAINERS',
     'module.docker.view.images' => 'IMAGES',
@@ -102,6 +111,23 @@ return [
     'module.docker.build.stage.building' => 'building',
     'module.docker.build.busy' => 'A build is already running — wait for it to finish.',
     'module.docker.build.done' => 'Image {tag} built.',
+    // Pushing an image to the registry (step 54).
+    'module.docker.push.title' => 'Pushing {tag}',
+    'module.docker.push.target' => 'Name in the registry',
+    'module.docker.push.stage' => 'sending layers…',
+    'module.docker.push.busy' => 'A push is already running — wait for it to finish.',
+    'module.docker.push.noImage' => 'Nothing to push: an untagged image has no name the registry would accept.',
+    'module.docker.push.done' => 'Image {tag} pushed to the registry.',
+    'module.docker.push.cancelled' => 'Push cancelled.',
+    'module.docker.push.started' => 'Pushing {tag} started.',
+    'module.docker.push.failed' => 'The image could not be pushed.',
+    'module.docker.push.rejected' => 'The registry refused: {reason}',
+    'module.docker.push.notTagged' => 'Could not tag image {source} as {target} — without that the registry will not accept it.',
+    'module.docker.push.noCredentials' => 'No registry credentials — fill them in on the module settings tab.',
+    'module.docker.command.push' => 'push an image to the registry',
+    'module.docker.argument.image' => 'image name along with its tag',
+    'module.docker.query.push' => 'state of pushing an image to the registry',
+
     'module.docker.build.cancelled' => 'Build stopped.',
     'module.docker.build.failed' => 'The build did not succeed.',
     'module.docker.build.rejected' => 'The build did not succeed: {reason}',

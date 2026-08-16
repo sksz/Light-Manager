@@ -49,6 +49,7 @@ return [
     'module.k8s.problem.action' => 'The action failed.',
 
     'module.k8s.header.place' => 'Context {context}, namespace {namespace}',
+    'module.k8s.header.noPlace' => 'No cluster chosen',
     'module.k8s.version.skew' => '— note: client {client}, server {server}',
 
     'module.k8s.panel.tree' => 'Resources',
@@ -187,10 +188,39 @@ return [
     'module.k8s.command.context' => 'Pick a cluster (kubectl context)',
     'module.k8s.command.namespace' => 'Change the namespace',
     'module.k8s.command.apply' => 'Apply a manifest file to the cluster',
+    // The `k8s.deploy-image` action (step 54).
+    'module.k8s.command.deployImage' => 'Deploy a container image to the cluster',
+    'module.k8s.setting.buildWaitSeconds' => 'Build wait limit (s)',
+    'module.k8s.deploy.pickImage' => 'Which image to deploy',
+    'module.k8s.deploy.pickDeployment' => 'Where to deploy {tag}',
+    'module.k8s.deploy.buildNew' => '— build a new image —',
+    'module.k8s.deploy.waiting' => 'Preparing {tag}',
+    'module.k8s.deploy.stage' => 'waiting for the Docker module…',
+    'module.k8s.deploy.building' => 'Build ordered — come back here once it finishes.',
+    'module.k8s.deploy.noDocker' => 'The Docker module is disabled or absent — there is nobody to ask about images.',
+    'module.k8s.deploy.imagesNotRead' => 'The Docker module has not read the images yet — open its screen (Ctrl+O, F3) and come back.',
+    'module.k8s.deploy.noDeployments' => 'The cluster has no deployments to show — open the cluster screen (Ctrl+K) and load them.',
+    'module.k8s.deploy.timedOut' => 'The wait limit has passed. The work continues in the Docker module.',
+    'module.k8s.deploy.abandoned' => 'Deployment abandoned. The Docker module keeps working.',
+    'module.k8s.deploy.pushFailed' => 'The image did not reach the registry — without that the cluster cannot pull it.',
+    'module.k8s.deploy.pushRefused' => 'The registry did not accept the image: {reason}',
+    'module.k8s.deploy.applying' => 'Image swap in {deployment} to {tag} ordered.',
+    'module.k8s.action.done.setImage' => 'Image swapped in: {name}',
+
     'module.k8s.command.noKind' => 'The cluster does not know the kind "{kind}".',
     'module.k8s.command.noCatalog' => 'The kind catalogue has not arrived yet — open the cluster screen (Ctrl+K).',
     'module.k8s.argument.kind' => 'kind',
     'module.k8s.argument.path' => 'path',
+
+    // Module queries (step 54).
+    'module.k8s.query.contexts' => 'contexts from kubeconfig along with the current one',
+    'module.k8s.query.cluster' => 'cluster and client versions along with the session stage',
+    'module.k8s.query.namespaces' => 'namespaces known to the session',
+    'module.k8s.query.kinds' => 'resource kinds reported by the cluster',
+    'module.k8s.query.resources' => 'rows of the given resource kind along with the stage',
+    'module.k8s.query.deployments' => 'deployments along with each container image',
+    'module.k8s.query.unknownKind' => 'The cluster does not know such a resource kind.',
+    'module.k8s.query.noDeployments' => 'The kind catalogue has not arrived yet, or the cluster knows no deployments.',
 
     'module.k8s.event.applied' => 'Cluster: file applied',
     'module.k8s.event.deleted' => 'Cluster: resource deleted',

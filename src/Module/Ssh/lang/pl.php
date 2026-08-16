@@ -26,6 +26,12 @@ return [
     'module.ssh.argument.target' => 'katalog docelowy na tej maszynie',
     'module.ssh.argument.remoteTarget' => 'katalog docelowy na hoście',
 
+    // Kwerendy modułu (krok 54).
+    'module.ssh.query.hosts' => 'książka hostów wraz ze sposobem uwierzytelnienia',
+    'module.ssh.query.session' => 'etap sesji, host i powód niepowodzenia',
+    'module.ssh.query.entries' => 'zdalny katalog wraz z etapem odczytu',
+    'module.ssh.query.transfer' => 'stan przesyłu: kierunek, plik, bajty, etap',
+
     // Pozycje zakładki ustawień.
     'module.ssh.setting.timeout' => 'Limit czasu połączenia (s)',
     'module.ssh.setting.auth' => 'Sposób uwierzytelnienia',

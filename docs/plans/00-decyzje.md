@@ -111,6 +111,11 @@ Kolumna **Stan** mówi, co się z decyzją stało w kodzie:
 | [D89](#d89--rozstrzygnięcia-startowe-kroku-50-przesył-idzie-potomkiem-prosto-na-dysk-postęp-czyta-stat-a-wyjątek-15b-zostaje-bezprzedmiotowy) | Rozstrzygnięcia startowe kroku 50: przesył idzie potomkiem prosto na dysk, postęp czyta `stat`, a wyjątek 15b zostaje bezprzedmiotowy | krok 50 | 2026-08-15 | Wdrożona |
 | [D90](#d90--rozstrzygnięcia-startowe-kroku-51-granica-prac-tłowych-jest-ustawieniem-demon-leżący-nie-odrzuca-modułu-a-menu-f9-czeka-na-kwerendy) | Rozstrzygnięcia startowe kroku 51: granica prac tłowych jest ustawieniem, demon leżący nie odrzuca modułu, a menu `F9` czeka na kwerendy | krok 51 (przez nr 2 — także 52, przez nr 8 — także 53) | 2026-08-15 | Wdrożona |
 | [D91](#d91--rozstrzygnięcia-startowe-kroku-52-wszystkie-rodzaje-zasobów-w-drzewie-a-sekret-daje-się-zmienić) | Rozstrzygnięcia startowe kroku 52: wszystkie rodzaje zasobów w drzewie, a sekret daje się zmienić | krok 52 (przez nr 2 i 9 — także 53; przez nr 12 — rdzeniowy port pracy tłowej) | 2026-08-16 | Wdrożona |
+| [D92](#d92--kwerendy-obejmują-wszystkie-źródła-danych-rdzenia-i-sześciu-modułów-rejestr-staje-się-jedyną-drogą-odczytu-a-krok-pęka-na-dwa) | Kwerendy obejmują wszystkie źródła danych rdzenia i sześciu modułów, rejestr staje się jedyną drogą odczytu, a krok pęka na dwa | krok 53 (przez nr 2 — powstaje krok 54) | 2026-08-16 | Wdrożona |
+| [D93](#d93--trzy-poprawki-których-nie-było-w-planie-pamięć-ulotna-wycofana-czas-i-rozmiar-wracają-dla-oka) | Trzy poprawki, których nie było w planie: pamięć ulotna wycofana, czas i rozmiar wracają dla oka | krok 53 | 2026-08-16 | Wdrożona |
+| [D94](#d94--obraz-idzie-do-klastra-rejestrem-ghcr-budowa-przenosi-się-do-taktu-modułu-a-modulesetting-uczy-się-maskować) | Obraz idzie do klastra rejestrem GHCR, budowa przenosi się do taktu modułu, a `ModuleSetting` uczy się maskować | krok 54 (przez nr 7 — rdzeniowy `ModuleSetting`) | 2026-08-16 | Wdrożona |
+| [D95](#d95--wskaźnik-wchodzi-jako-wspólny-nadtyp-zdarzeń-trafienie-deklaruje-ekran-a-faza-xix-dzieli-się-na-trzy-kroki) | Wskaźnik wchodzi jako wspólny nadtyp zdarzeń, trafienie deklaruje ekran, a Faza XIX dzieli się na trzy kroki | Faza XIX — kroki 55, 56 i 57 (przez nr 9 — powstają 56 i 57) | 2026-08-16 | Czeka |
+| [D98](#d98--dziesięć-modułów-wchodzi-jako-zarysy-podział-wedle-poziomów-wartości-jeden-plik-na-krok-trzy-pytania-przecinające-całość) | Dziesięć modułów wchodzi jako zarysy: podział wedle poziomów wartości, jeden plik na krok, trzy pytania przecinające całość | Fazy XXII–XXIV — kroki 66–75 (rozstrzygnięcia o kształcie planu, nie o modułach) | 2026-08-16 | Czeka |
 
 > **Indeks jest niekompletny od D62 wzwyż.** Wpisy **D62–D76** stoją w treści
 > dziennika, ale wiersza tutaj nie dostały — regułę „nowy wpis to dwie czynności”
@@ -6790,7 +6795,7 @@ w środku jest nieodwracalny.
 ### D92 — Kwerendy obejmują wszystkie źródła danych rdzenia i sześciu modułów, rejestr staje się jedyną drogą odczytu, a krok pęka na dwa
 
 **Dotyczy:** kroku 53 ([53-kwerendy-miedzymodulowe.md](archiwum/53-kwerendy-miedzymodulowe.md))
-i **nowego kroku 54** ([54-kwerendy-modulow-kontenerowych.md](54-kwerendy-modulow-kontenerowych.md));
+i **nowego kroku 54** ([54-kwerendy-modulow-kontenerowych.md](archiwum/54-kwerendy-modulow-kontenerowych.md));
 nowego katalogu `src/Application/Query/`, zdolności
 `Application\Module\ProvidesQueries`, dwóch linii w `Presentation/Cli/Bootstrap.php`
 i `Presentation/Cli/LoopState.php`, okna komend
@@ -7005,3 +7010,644 @@ przy odbiorze klatki i przy zielonym teście, czwarte przy pytaniu użytkownika
   rejestr komend powstaje pusty (kwerenda trzyma go obiektem), kwerendy rdzenia
   wchodzą **przed** modułami (moduł składa się, czytając ustawienia), a kwerendy
   modułów — **przed** oknem komend (`prepare()` liczy podpowiedzi raz).
+
+## Rozstrzygnięcia startowe kroku 54 (2026-08-16)
+
+### D94 — Obraz idzie do klastra rejestrem GHCR, budowa przenosi się do taktu modułu, a `ModuleSetting` uczy się maskować
+
+**Dotyczy:** kroku 54 ([54-kwerendy-modulow-kontenerowych.md](archiwum/54-kwerendy-modulow-kontenerowych.md)),
+modułów `src/Module/Ssh/`, `src/Module/Docker/` i `src/Module/Kubernetes/` wraz
+z ich `lang/`, klas `Application\Module\ModuleSetting`,
+`Application\Module\ModuleSettingKind` i `Presentation\Cli\Screen\SettingsScreen`
+oraz testu-strażnika `QueryIsTheOnlyReadPathTest`.
+
+**Data:** 2026-08-16, przed pierwszą linią kodu. Cztery pytania **odłożone
+z D92** (nr 4, 5, 6 i 10) zadane w pierwszej turze; trzy dalsze wynikły
+z wybranej drogi i z rozpoznania w kodzie — rejestr i poświadczenia w drugiej,
+maskowanie w trzeciej.
+
+**Co rozstrzygnęło rozpoznanie w kodzie, zanim padło pierwsze pytanie.** Sześć
+faktów, wszystkie sprawdzone przy starcie:
+
+- **Stan maszyny jest ten sam, co przy planowaniu Fazy XVIII, i to on unieważnił
+  dwie z trzech dróg z tabeli w planie kroku.** Docker 27.3.1 odpowiada gniazdem,
+  `kubectl` v1.25.2, `kind` nie ma w ogóle, a minikube v1.27.0 jest **zatrzymany**
+  — profil `minikube` ze sterownikiem `docker` i środowiskiem `docker`,
+  Kubernetes v1.25.0, 2 rdzenie i 3800 MB. Sterownik `docker` przesądza rzecz,
+  o którą pyta całe zastrzeżenie startowe: minikube **prowadzi własnego demona
+  wewnątrz kontenera**, więc obraz zbudowany na demonie hosta nie jest dla klastra
+  widoczny — założenie o wspólnym demonie było na tej maszynie z góry fałszywe.
+  W lokalnym demonie leży przy tym **jeden obraz** (`kicbase`), czyli sprawdzenie
+  czynności końcem końców wymaga zbudowania czegoś własnego.
+- **Budowa obrazu nie jest dziś pracą tłową i plan tego nie zauważył.**
+  `BuildWork::tick()` woła **wyłącznie okno postępu** modułu Dockera
+  (`BuildFlow::step()` przez `RunsWork`); `DockerModule::tick()` pompuje samo
+  gniazdo, a `DockerScreen::tick()` posuwa listy, logi i compose — budowy nie
+  dotyka żaden z nich. Zdarzenia `docker.build.finished` i `.failed` ogłasza
+  domknięcie okna. Skoro stos okien ma **jedno piętro** (D75), zdanie planu
+  „`Esc` przerywa czekanie, nie budowę" było w tym kształcie **niewykonalne**:
+  okno czekania modułu k8s wypchnęłoby okno, które jako jedyne posuwa budowę.
+- **`file-info.usage` nie ma argumentów** i czyta stan ekranu opisu pliku, a samo
+  liczenie startuje klawiszem `d` na tamtym ekranie. Drugi odbiorca znaczył więc
+  argument ze ścieżką, osobny stan pracy na ścieżkę i komendę uruchamiającą
+  liczenie (bo kwerenda nie zmienia) — mechanizm, nie linię.
+- **`~/.docker/config.json` jest plikiem klienta, nie demona.** Demon nie czyta go
+  ani razu: `POST /images/{name}/push` wymaga nagłówka `X-Registry-Auth`, więc
+  poświadczenia musi podać ten, kto pcha. Plik ma na tej maszynie wpis do
+  prywatnego rejestru firmowego (`gitlab.cyberfolks.pl:5505`) zapisany jawnie —
+  helperów poświadczeń nie ma.
+- **`gh` nie jest zainstalowany**, ale zdalne repozytorium to
+  `github.com:sksz/Light-Manager.git`, więc przestrzeń GHCR jest znana z góry
+  (`ghcr.io/sksz/…`), a `ghcr.io/v2/` odpowiada `401` — sieć jest, brakuje tokena.
+- **`ChoiceOverlay` nie przewija i mówi to o sobie wprost**: „lista odpowiedzi
+  mieści się w oknie, bo pytanie o kilkanaście odpowiedzi nie jest pytaniem",
+  a `drawItems()` ucina nadmiar `array_slice`iem **milczkiem**. Etykiety idą przy
+  tym przez katalog napisów. Lista obrazów i lista wdrożeń są **daną**, a nie
+  zbiorem odpowiedzi, więc plan wskazał w etapach 1 i 5 okno, które przy
+  kilkudziesięciu obrazach gubiłoby pozycje bez śladu.
+
+**Decyzje użytkownika:**
+
+1. **Obraz trafia do klastra rejestrem — GHCR, publicznie.** Odrzucone zostały
+   wszystkie trzy drogi z tabeli planu: `minikube image load` (wiąże czynność
+   z jednym rodzajem klastra), założenie o wspólnym demonie (na tej maszynie
+   fałszywe z powodu sterownika) i pytanie użytkownika przy każdym wdrożeniu
+   (trzy drogi do napisania, z których dwie nie mają czym się wykazać).
+   Przestrzeń: `ghcr.io/sksz/…`, pakiety **publiczne** — a to jest zarazem powód,
+   dla którego rozstrzygnięcie nr 3 mogło paść tak, jak padło.
+   **`docker push` wchodzi tym samym do zakresu kroku**, choć plan kroku 51
+   trzymał go poza swoim.
+2. **Poświadczenia są pozycjami ustawień modułu Dockera**, nie odczytem
+   `~/.docker/config.json`. Odrzucony został wariant „czyta moduł, pisze
+   `docker login`" — mimo precedensu z kroku 48 (`known_hosts`) i mimo tego, że
+   nie kładzie sekretu w plikach aplikacji. Odrzucone też `docker push` procesem
+   potomnym, czyli drugi wyłom od „Docker rozmawia gniazdem" (11t): push **ma
+   w API zasób**, więc powód, którym broni się wyjątek compose, tu nie zachodzi.
+   Push idzie zatem gniazdem, z nagłówkiem `X-Registry-Auth` złożonym z ustawień.
+3. **`imagePullSecret` nie wchodzi do zakresu.** Etap 5 podmienia obraz i tyle;
+   obraz publiczny sekretu nie potrzebuje. Czynność ma przy tym **sprawdzić
+   i powiedzieć wprost**, gdy obraz jest prywatny, a przestrzeń nazw sekretu nie
+   ma — milczenie skończyłoby się `ImagePullBackOff` wyglądającym jak usterka
+   aplikacji. Odrzucone: zakładanie sekretu w cudzym klastrze, czyli czynność
+   nieodwracalna poza tą maszyną.
+4. **Czynność `deploy-image` należy do modułu `k8s`** — zgodnie z rekomendacją
+   planu. Dockera pyta **nazwą kwerendy i nazwą komendy**, nigdy typem. Odrzucone:
+   moduł Dockera (musiałby poznać pojęcie wdrożenia) i trzeci moduł spinający
+   (nowy moduł powołany dla jednej czynności — reguła 13 każe pytać o odbiorcę).
+5. **Budowa przenosi się do taktu modułu Dockera i dostaje limit czasu
+   czekania.** `BuildWork::tick()` woła odtąd `DockerModule::tick()`, a zdarzenia
+   budowy ogłasza takt — mechanizm `takeFinished()` czeka na to od kroku 51.
+   Budowa staje się przez to **prawdziwą pracą tłową**: trwa niezależnie od tego,
+   czyje okno jest otwarte, a okno budowy Dockera zostaje **obserwatorem**. Moduł
+   k8s pokazuje własne okno czekania z limitem czasu z ustawień; `Esc` porzuca
+   czekanie, a budowa idzie dalej — czyli dokładnie to, co obiecywał plan
+   i czego bez tej zmiany dowieźć się nie dało. Odrzucone: to samo bez limitu
+   (okno czekania na budowę zawieszoną po stronie demona stoi bez końca) oraz
+   pozostawienie Dockera nietkniętym za cenę czynności pękającej na pół.
+6. **`file-info.usage` zostaje przy jednym odbiorcy.** Etap pakowania i tak
+   pokazuje `done/total` plików, a drugi odbiorca kosztowałby rozbudowę cudzego
+   modułu w kroku, który miał mu tylko dopisać kwerendy.
+7. **`ModuleSetting` rośnie o znacznik maskowania.** Jedno pole obok istniejących
+   `pattern` i `maxLength`, przekazane w `SettingsScreen` do `TextInput`, który
+   maskowanie ma od kroku 48, plus zasłonięcie wartości w wierszu listy. Rdzeń
+   dostaje **znacznik przy istniejącym rodzaju, a nie piąty rodzaj** — żadnej
+   nowej drogi rysowania. Odrzucone: token jawny (odczytalny z każdego zrzutu
+   ekranu) i token ze zmiennej środowiskowej (odwracałby rozstrzygnięcie nr 2
+   i wynosił konfigurację poza aplikację).
+
+**Rozstrzygnięcia wzięte z reguł projektu, bez pytania** (bo po decyzjach powyżej
+pozostały bezalternatywne):
+
+- **Wybór obrazu i wybór wdrożenia to okno modułu `k8s`, nie `ChoiceOverlay`.**
+  Plan wskazywał okno rdzenia, ale rozpoznanie pokazało, że ono **gubi pozycje
+  milczkiem**, a jego etykiety idą przez katalog napisów — podczas gdy nazwa
+  obrazu jest daną. Okno znające dane modułu mieszka w jego `Presentation/Overlay`
+  (reguła 11, precedens `FilterOverlay` z kroku 30) i składa się z `Dialog`u,
+  `ListView` i `ScrollWindow` — czyli z tego samego, z czego złożony jest
+  `ChoiceOverlay`, plus przewijanie. Rdzeń nie rośnie ani o linię, a jedno okno
+  obsługuje **oba** wybory. Wariant „`ChoiceOverlay` uczy się przewijać" odrzucony:
+  odwracałby uzasadnienie zapisane w tamtej klasie i zmieniał okno rdzenia dla
+  potrzeby jednego modułu.
+
+**Co z tego wynika — i czego krok pilnuje:**
+
+- **Rdzeń kosztuje w tym kroku dwie rzeczy, nie jedną**, i obie są nazwane wprost:
+  znacznik maskowania w `ModuleSetting` (rozstrzygnięcie 7) oraz **nic więcej** —
+  takt budowy jest zmianą **wewnątrz** modułu Dockera, a nie w rdzeniu, bo
+  `NeedsTick` moduł ma od kroku 51. Reguła 15 zostaje przez to naruszona
+  **raz**, świadomie i z ceną wypisaną przed wyborem.
+- **Miara kroku „mechanizm z kroku 53 nie zmienia się ani o linię" zostaje
+  nietknięta** przez wszystkie siedem rozstrzygnięć: żadne z nich nie dotyka
+  `src/Application/Query/`.
+- **Zakres rośnie o `docker push`**, którego plan kroku 54 nie wymieniał w spisie
+  czynności, bo zakładał, że rozstrzygnięcie nr 1 może pójść drogą bez rejestru.
+  Wchodzi wraz z nim para pozycji ustawień modułu Dockera i jedna komenda.
+- **Kryterium „na prawdziwym demonie i prawdziwym klastrze" wymaga uruchomienia
+  minikube**, czyli zgody użytkownika i zwolnienia maszyny (reguła 17) — klaster
+  ze sterownikiem `docker` przy 2 rdzeniach i 3800 MB nie jest obciążeniem, które
+  wolno puścić obok pomiaru `--loop`.
+
+### D95 — Wskaźnik wchodzi jako wspólny nadtyp zdarzeń, trafienie deklaruje ekran, a Faza XIX dzieli się na trzy kroki
+
+**Dotyczy:** Fazy XIX w całości — kroków **55** ([55-mysz-wskaznik.md](55-mysz-wskaznik.md)),
+**56** ([56-zaznaczanie-tresci.md](56-zaznaczanie-tresci.md)) i **57**
+([57-schowek.md](57-schowek.md)), które powstały z podziału zarysu; klas
+`Application\Dto\KeyPress`, `Application\Port\InputPort`,
+`Infrastructure\Terminal\TerminalService`,
+`Infrastructure\Terminal\KeySequenceParser`,
+`Infrastructure\Glfw\GlfwInputService`, `Presentation\Cli\InputHandler`,
+`Presentation\Cli\FrameComposer`, `Presentation\Ui\SplitState`,
+`Presentation\Ui\StatusHints` oraz pliku `bin/run.sh`.
+
+**Data:** 2026-08-16, przy rozpisywaniu zarysu na plan gotowy do wykonania —
+czyli **przed** rozpoczęciem kroku, a nie na jego starcie. Powód tej różnicy
+wobec D81, D87–D94: zarys nosił tytuł całej fazy i siedem pytań, z których
+**cztery wyznaczały zakres**, a nie sposób wykonania. Bez nich plan zostałby
+zarysem pod inną nazwą.
+
+**Co rozstrzygnęło rozpoznanie w kodzie, zanim padło pierwsze pytanie.** Pięć
+faktów, wszystkie sprawdzone przy rozpisywaniu:
+
+- **Tryb surowy zostawia włączone `isig` i `iexten`.** Sprawdzone w prawdziwym
+  pty, nie w dokumentacji: po `stty -icanon -echo -ixon min 1 time 0`
+  obowiązuje nadal `intr = ^C` i `lnext = ^V`. Skutek jest twardy i unieważnił
+  odpowiedź udzieloną wcześniej w tej samej rozmowie — `Ctrl`+`Alt`+`c` wysyła
+  `ESC` + `0x03`, a sterownik tty zamienia `0x03` na SIGINT **zanim aplikacja
+  cokolwiek przeczyta**, czyli ten skrót zamyka program; `Ctrl`+`Alt`+`v` to
+  `ESC` + `0x16`, a `lnext` połyka wtedy następny bajt.
+- **Aplikacja nie ma zachowanego drzewa komponentów i pytanie „co jest pod
+  kursorem" jest przez to tym samym pytaniem, co „co ma ognisko"** (reguły 11a
+  i 11p). Krok 40 odpowiedział na nie deklaracją, bo innej drogi nie było —
+  a `FrameComposer` mówi o tym wprost w komentarzu przy `hints()`.
+- **`TextFrameRenderer::composeBuffer()` już zamienia prymitywy w siatkę
+  znaków.** Warstwa tekstowa klatki nie jest nowym pomysłem, tylko rachunkiem
+  stojącym w jednym torze, którego dwa pozostałe nie mają jak zawołać.
+  `CellBuffer` **nie ma przy tym odczytu** — umie `put()`, `write()`, `paint()`
+  i `toAnsi()`.
+- **PHP-GLFW ma komplet obsługi wskaźnika**, sprawdzony `function_exists()`:
+  `glfwSetMouseButtonCallback`, `glfwSetCursorPosCallback`,
+  `glfwSetScrollCallback`, `glfwGetMouseButton`, `glfwSetCursorEnterCallback`,
+  `glfwCreateStandardCursor`, obie funkcje schowka i komplet stałych. Tor
+  okienkowy jest przez to **najłatwiejszy z trzech**, odwrotnie niż zwykle.
+- **`xclip` i `xsel` są na maszynie, `wl-copy` nie; sesja to X11.** Droga przez
+  proces potomny istnieje i ma rdzeniowy port pracy tłowej — i mimo to przegrała,
+  bo nie działa tam, gdzie schowek jest najbardziej potrzebny.
+
+**Decyzje użytkownika:**
+
+1. **Wskaźnik wchodzi do słownika wejścia jako wspólny nadtyp `InputEvent`.**
+   `KeyPress` i `PointerEvent` implementują ten sam interfejs, a
+   `InputPort::readKey()` staje się `readEvent()`. Zyskiem jest **jedna kolejka**,
+   czyli zachowana kolejność kliknięcia wobec klawisza. Odrzucone: drugi kanał
+   portu (`readPointer()`, tańszy, ale gubiący kolejność w takcie) oraz pozycja
+   w `Key` wraz z polami w `KeyPress` (najtańsza w hydraulice, odwracająca
+   zdanie „`KeyPress` niesie znak i modyfikatory" i zmuszająca
+   `KeyBinding::matches()` do ignorowania pól).
+2. **Trafienie deklaruje ekran** — zdolność `AcceptsPointer` obok `DeclaresFocus`,
+   a ekran pamięta prostokąt z ostatniej klatki i tłumaczy współrzędne na własne
+   pojęcia. Rdzeń **nie zyskuje mapy** tego, co gdzie narysowano. Odrzucone: mapa
+   trafień składana razem z klatką (komponent oddawałby obszary obok prymitywów,
+   czyli `draw()` przestałby oddawać samą treść) oraz liczenie trafienia
+   z prymitywów w rdzeniu (bez semantyki — trafia w napis, nie we wpis listy).
+3. **Mysz umie komplet w pierwszym podejściu**: kursor, ognisko, kółko, prawy
+   przycisk, podwójne kliknięcie, przeciąganie granicy podziału, klikanie
+   w podpowiedzi stopki i w zakładki. Cena była wypisana przed wyborem
+   („realnie faza, nie krok") i została przyjęta — to rozstrzygnięcie jest
+   powodem, dla którego zapadło nr 9. Odrzucone: zakres minimalny (kursor,
+   ognisko, kółko) i pośredni (plus prawy przycisk i podwójne kliknięcie).
+4. **Zaznaczanie treści to prostokąt czytany z warstwy tekstowej klatki** —
+   jedna droga identyczna w trzech torach, bez wiedzy o tym, czym jest zaznaczony
+   napis. Odrzucone: zaznaczanie elementów zamiast znaków (sensowne w liście
+   plików, bezużyteczne w logach kontenera i w podglądzie tekstu) oraz rezygnacja
+   z zaznaczania myszą (znikałaby jedna trzecia tytułu fazy).
+5. **Schowek idzie w całości przez OSC 52, a `GetSelection` i `SetSelection`
+   wracają na listę dozwolonych operacji w `bin/run.sh`.** Zapis i odczyt jedną
+   drogą, działającą przez SSH i bez serwera okien. **Cena jest nazwana:
+   aplikacja działająca w terminalu może odczytać cudzy schowek** — i to ona
+   zamienia się na trzy zobowiązania w zakresie kroku 57 (czyta się wyłącznie na
+   polecenie, treść ma jedno miejsce docelowe, `bin/run.sh` tłumaczy zmianę).
+   Odrzucone: sam `SetSelection` (kopiowanie bez wklejania), `xclip`/`xsel`
+   procesem potomnym (nie działa przez SSH ani w konsoli) i hybryda zapisu przez
+   OSC 52 z odczytem przez `xclip` (dwie drogi do utrzymania, jedna kaleka).
+6. **Wklejanie wchodzi do zakresu**, a pierwszym odbiorcą jest `TextInput`
+   z kroku 19 — nazwa pliku, wzorzec filtra, wiersz komend. Odrzucone: zamknięcie
+   kroku na samym kopiowaniu.
+7. **Raportowanie myszy włącza się także w torze tekstowym** — jednolicie we
+   wszystkich trzech. Odrzucone: pozostawienie toru tekstowego przy zaznaczaniu
+   terminala (działa tam za darmo i lepiej, ale ceną byłoby **różne zachowanie
+   w trzech torach**: kliknięcie stawiające kursor wszędzie poza jednym miejscem)
+   oraz oddanie tego ustawieniu. Natywne zaznaczanie zostaje osiągalne pod
+   `Shift`em i po wyłączeniu myszy.
+8. **Klawisze schowka to `Alt`+`c` i `Alt`+`v`.** Odpowiedź udzielona wcześniej
+   (`Ctrl`+`Alt`+`c`/`v`) została **wycofana przez samego użytkownika po
+   przedstawieniu pomiaru z pty** — patrz pierwszy fakt rozpoznania. Odrzucone
+   wraz z nią: rozszerzenie trybu surowego o `-isig -iexten` (zmieniałoby
+   gwarancję kroku 06 dla wygody jednego skrótu; ubocznie kuszące, bo `Ctrl`+`C`
+   przestałby ubijać kopiowanie w połowie) oraz dwa różne skróty w różnych torach.
+   Odrzucone też, jeszcze przed pytaniem: `Ctrl`+`c` — należy do skrótów modułów
+   (krok 20) i jest SIGINT-em. Reguła 11j zostaje przez to **nietknięta**:
+   modyfikatory pozostają rozłączne.
+9. **Faza dzieli się na trzy kroki — 55 mysz, 56 zaznaczanie treści,
+   57 schowek** — po jednym na mechanizm. Odrzucone: jeden krok (pomiar „przed
+   i po" nie odróżniłby, który z trzech mechanizmów co kosztował) oraz podział na
+   dwa (mysz osobno, zaznaczanie ze schowkiem razem).
+   **Kolejność 56 przed 57 jest wyborem świadomym i ma cenę**: zaznaczenie
+   dowiezione przed schowkiem jest funkcją bez odbiorcy, czyli **jawnym wyjątkiem
+   od reguły 13**. Zaproponowana zamiana kolejności — schowek jako krok 56, gdzie
+   odbiorcą byłoby to, co już istnieje (ścieżka wpisu pod kursorem, nazwy
+   zaznaczonych wpisów z kroku 43), a zaznaczanie jako 57 — usuwała problem bez
+   żadnego kosztu i **została odrzucona** na rzecz kolejności z tytułu zarysu.
+   Zgoda jest przez to tą samą jawną zgodą, której `SKILL.md` wymaga od czasu
+   `ProgressBar`a (krok 23): dług ma właściciela (krok 57) i termin.
+10. **Mysz jest przełącznikiem ustawień rdzenia, domyślnie włączonym** —
+    jedenasty klucz `SettingKey`. Powody są dwa i oba prawdziwe: terminal bez
+    raportowania myszy oraz użytkownik wolący natywne zaznaczanie. Odrzucone:
+    mysz działająca zawsze, bez możliwości wyłączenia.
+
+**Co z tego wynika — i czego kroki pilnują:**
+
+- **Rdzeń rośnie w tej fazie o trzy rzeczy i wszystkie trzy są nazwane**:
+  słownik wejścia (`InputEvent` wraz z dwiema nowymi postaciami zdarzenia),
+  zdolność `AcceptsPointer` i port schowka. Reguła 15 nie zachodzi w żadnej
+  z nich — wejście, trafienie i dostęp do terminala są zdolnościami toru, a nie
+  funkcjami, które dałoby się umieścić w module.
+- **Model kroku 55 to `Fable / xhigh`** (warunek z przypisów ¹ i ² zachodzi:
+  słownik wejścia i trzy tory naraz), kroku 56 — **`Opus / xhigh`**, kroku 57 —
+  **`Opus / high`**. Wstępny przydział z zarysu (`Fable / xhigh` dla całości)
+  obowiązuje przez to wyłącznie dla pierwszego z trzech.
+- **Słownik prymitywów zostaje zamknięty we wszystkich trzech krokach.**
+  Zaznaczenie rysuje się `TextMark`ami z kroku 30 — jeśli okaże się to
+  niewykonalne, jest to wynik do zapisania w dzienniku kroku 56 i osobna zgoda na
+  dziewiąty kształt, a nie cichy dopisek.
+- **Miara kroku 55 jest sprawdzalna maszynowo**: `FrameComposer`
+  i `ComponentInterface` mają zostać nietknięte co do tego, co gdzie leży.
+  Rozstrzygnięcie nr 2 kłamie dokładnie wtedy, gdy ta miara się nie spełni.
+
+## Decyzje z planowania Fazy XX (2026-08-16)
+
+### D96 — Środowiska, klastry i rejestry wchodzą jako spisy prowadzone przez użytkownika: trzy kroki, dwie drogi do zdalnego demona, cudze pliki czytane
+
+**Dotyczy:** Fazy XX w całości — kroków **58**
+([58-srodowiska-dockera.md](58-srodowiska-dockera.md)), **59**
+([59-klastry-kubernetesa.md](59-klastry-kubernetesa.md)) i **60**
+([60-rejestry-obrazow.md](60-rejestry-obrazow.md)); klas
+`Module/Docker/Infrastructure/DockerApiService`,
+`Module/Docker/Infrastructure/ComposeCliService`,
+`Module/Docker/Presentation/DockerModule`,
+`Module/Docker/Application/DockerSettings`,
+`Module/Kubernetes/Application/KubectlCall`,
+`Module/Kubernetes/Infrastructure/KubectlService`,
+`Module/Kubernetes/Application/ClusterState`,
+`Module/Kubernetes/Application/ClusterSession`,
+`Module/Kubernetes/Application/KubernetesSettings` oraz plików stanu
+`~/.light-manager/docker.json` i `~/.light-manager/k8s.json`.
+
+**Data:** 2026-08-16, przy rozpisywaniu polecenia użytkownika na plan — czyli
+**przed** rozpoczęciem pierwszego kroku. Cztery pytania, wszystkie wyznaczające
+**zakres**, a nie sposób wykonania.
+
+**Co rozstrzygnęło rozpoznanie w kodzie i na maszynie, zanim padło pierwsze
+pytanie.** Sześć faktów:
+
+- **Docker ma wpisaną w kod odpowiedź na pytanie „z którym demonem".**
+  `DockerApiService::SOCKET_PATH` to stała klasy, a `isSupported()` — metoda
+  **statyczna**. Nie jest to skrót: przy jednym demonie pytanie „z którym"
+  nie istnieje.
+- **Brak gniazda odrzuca dziś cały moduł** (`unavailableReason()`, reguła 11s) —
+  czyli maszyna bez demona lokalnego, a więc dokładnie ta, na której środowisko
+  zdalne ma sens, nie dostaje modułu w ogóle.
+- **`--kubeconfig` nie pada w module k8s ani razu**, choć klient 1.25 ma tę flagę
+  (sprawdzone `kubectl options`). Miejsce ma dziś jedną współrzędną — kontekst —
+  a `ClusterScreen::forgetEverything()` zawiązuje na jego **nazwie** klucze
+  czterech klas stanu. Dwa pliki `kubeconfig` z kontekstem tej samej nazwy
+  mieszałyby przez to dane po cichu.
+- **`docker context ls --format json` działa i oddaje NDJSON** (`Name`,
+  `DockerEndpoint`, `Current`, `ContextType`); na maszynie jest jeden kontekst
+  `default`, a katalog `~/.docker/contexts` **nie istnieje** — powstaje dopiero
+  z pierwszym kontekstem własnym.
+- **OpenSSH 9.6p1 na maszynie dokumentuje `-L local_socket:remote_socket`**
+  (przekierowanie gniazd unixowych), a `ext-curl` ma OpenSSL/3.0.13 — czyli obie
+  drogi do zdalnego demona są wykonalne **bez ani jednej nowej zależności**.
+- **Port pracy tłowej bierze gotowy wiersz polecenia** i uruchamia go
+  `proc_open`em ze stringiem, bez deskryptora wejścia. Zmienna środowiskowa dla
+  compose idzie przez to **przedrostkiem wiersza**, a nie tablicą `env`.
+
+**Decyzje użytkownika:**
+
+1. **Faza dzieli się na trzy kroki — 58 środowiska Dockera, 59 klastry
+   Kubernetesa, 60 rejestry obrazów** — po jednej rzeczy na krok, wzorem Faz VII,
+   XIV i XVII. Krok 60 stoi ostatni, bo konsumuje oba poprzednie. Odrzucone:
+   cztery kroki z compose wydzielonym osobno (dokładniejsze w pomiarze, droższe
+   w utrzymaniu planu) oraz dwa kroki po modułach (krok o Dockerze byłby wtedy
+   większy niż 51, czyli największy w projekcie, a pomiar „przed i po" nie
+   odróżniłby, który mechanizm co kosztował).
+2. **Zdalny demon Dockera idzie dwiema drogami naraz, a rodzaj jest daną
+   wpisu**: tunel gniazda przez `ssh -L` i TCP z TLS-em klienta, obok gniazda
+   lokalnego. Zyskiem wspólnym obu jest to, że **kod rozmowy z demonem zostaje
+   jeden** — ramkowanie logów, strumień budowy i `X-Registry-Auth` nie zmieniają
+   się o linię. Odrzucone: sam tunel SSH (tańszy, ale nie pokrywa demonów
+   wystawionych po sieci), sam TCP+TLS (wymaga wystawienia demona, co jest
+   rzadkie i ryzykowne) oraz `docker -H ssh://` przez klienta — ta ostatnia
+   odrzucona twardo, bo listy zdalne szłyby **inną drogą niż lokalne**, czyli
+   powstałaby druga droga do tej samej danej (reguła 18).
+3. **Cudze pliki są czytane, a książka modułu dokłada wpisy własne.** Docker
+   czyta konteksty klienta, k8s — konteksty z domyślnego `kubeconfig` i ze
+   ścieżek w `KUBECONFIG`; wpisy własne niosą to, czego tamte nie mają (host
+   tunelu, certyfikaty, plik spoza standardowych ścieżek). Trzy reguły
+   towarzyszące: pochodzenie jest widoczne, przy zbieżnej nazwie wygrywa wpis
+   własny, a wpisu czytanego **nie da się z aplikacji skasować** — bo do cudzych
+   plików moduł nie pisze i to zdanie z kroków 51 i 52 zostaje w mocy.
+   Odrzucone: sama książka (pierwsze uruchomienie zaczynałoby od pustej listy,
+   choć `kubeconfig` z gotowym kontekstem leży obok — czyli krok wstecz wobec
+   dzisiejszego zachowania modułu k8s) i same cudze pliki (zarządzanie
+   połączeniami znaczyłoby wtedy **pisanie do nich**).
+4. **Tożsamością miejsca staje się nazwa wpisu, a nie nazwa kontekstu** —
+   konsekwencja rozstrzygnięcia 3, wyciągnięta z trzeciego faktu rozpoznania.
+   Dotyczy `TreeState`, `SectionState`, `ScrollWindow` i `ResourceCache`
+   w module k8s.
+5. **Rejestry dostają komplet: książkę, wypchnięcie i pobranie, widok zawartości
+   oraz sekret zakładany w klastrze.** Krok 60 dotyka przez to obu modułów
+   naraz i domyka pozycję, której krok 54 świadomie nie dowiózł (D94 nr 3:
+   `imagePullSecret` nie był zakładany, więc rejestr musiał być publiczny).
+   Odrzucone: sama książka z push/pull, książka z sekretem bez widoku zawartości
+   oraz książka z widokiem bez sekretu.
+
+**Co z tego wynika — i czego kroki pilnują:**
+
+- **Rdzeń nie rośnie w tej fazie o nic.** Trzy kroki mieszczą się w regule 15
+  w całości: książki, drogi transportu i rozmowa z rejestrem są własnością
+  modułów, a wszystko, czego potrzebują od rdzenia — port pracy tłowej, kwerendy,
+  komendy, zdarzenia, okna — stoi tam od kroków 26, 53, 54, 46 i 28. Jeśli
+  którykolwiek krok zechce zmiany w rdzeniu, jest to **wynik do rozstrzygnięcia
+  osobno**, a nie dopisek.
+- **Wyjątkiem możliwym i nazwanym z góry jest przegląd reguły 15e w kroku 59**:
+  wzorzec książki wpisów stanie tam po raz **trzeci** (`ssh.json`, `docker.json`,
+  `k8s.json`), a reguła każe wtedy postawić pytanie „czy to nadal powtórzenie,
+  czy już wspólne miejsce". Plan rekomenduje wydzielenie **samego zapisu** pliku
+  stanu (`0600`, plik tymczasowy, nieznane klucze przeżywają) przy pozostawieniu
+  pojęć w modułach — bo to zapis jest mechanizmem, a wpis pojęciem dziedziny.
+  Rozstrzyga użytkownik na starcie kroku 59.
+- **Dwie rzeczy są tezami do sprawdzenia przed pisaniem kodu, nie założeniami**:
+  czy `kubectl patch` łatą strategiczną **dopisuje** `imagePullSecrets`, zamiast
+  podmieniać listę (krok 60, po lekcji D94 o `--type=merge`), oraz które
+  z osiągalnych rejestrów wystawiają `/v2/_catalog` — bo specyfikacja OCI go nie
+  wymaga, a GHCR i Docker Hub go nie mają. Oba wyniki idą do dzienników kroków.
+- **Granica poświadczeń zostaje ta sama, co w krokach 48 i 54, i dostaje trzecie
+  zdanie**: token nie wychodzi wierszami kwerendy (reguła 11w) ani wierszem
+  polecenia (krok 48) — a między modułami przechodzi **ścieżką pliku o prawach
+  `0600`**, kasowanego zaraz po użyciu. To jest wariant proponowany przez plan
+  kroku 60 i podlega potwierdzeniu na jego starcie.
+- **Modele:** krok 58 — `Opus / xhigh` (dwie drogi transportu naraz, przestawienie
+  reguły odrzucania modułu, praca tłowa przeżywająca swój uchwyt), krok 59 —
+  `Opus / high` (żadnej nowej drogi, ciężar w przeliczeniu tożsamości miejsca),
+  krok 60 — `Opus / xhigh` (dwa moduły naraz i rozmówca, którego aplikacja nie
+  miała). Warunek `Fable` z przypisów ¹ i ² nie zachodzi w żadnym z trzech:
+  prymitywów nie przybywa, słownik wejścia nie rośnie, trzej tłumacze zostają
+  nietknięci.
+
+## Decyzje z planowania Fazy XXI (2026-08-16)
+
+### D97 — Dokumentacja dostaje pięć kroków, dwa języki, diagramy w mermaidzie i obronę w bramce jakości
+
+**Dotyczy:** Fazy XXI w całości — kroków **61**
+([61-porzadek-dokumentacji.md](61-porzadek-dokumentacji.md)), **62**
+([62-podrecznik-uzytkownika.md](62-podrecznik-uzytkownika.md)), **63**
+([63-dokumentacja-dewelopera.md](63-dokumentacja-dewelopera.md)), **64**
+([64-onboarding.md](64-onboarding.md)) i **65**
+([65-diagramy-i-pilnowanie.md](65-diagramy-i-pilnowanie.md)); plików
+`docs/architecture.md`, `README.md`, `CLAUDE.md`,
+`.claude/skills/light-manager-conventions/SKILL.md`, `Makefile`,
+`phpstan.neon.dist`, `phpunit.xml.dist` oraz nowych drzew `docs/architektura/`,
+`docs/pl/`, `docs/en/`, `examples/` i `tests/Documentation/`.
+
+**Data:** 2026-08-16, przy rozpisywaniu polecenia użytkownika na plan — czyli
+**przed** rozpoczęciem pierwszego kroku. Cztery pytania, wszystkie wyznaczające
+**zakres i trwałość**, a nie sposób wykonania.
+
+**Co rozstrzygnęło rozpoznanie, zanim padło pierwsze pytanie.** Sześć liczb,
+wszystkie policzone w repozytorium:
+
+- **Dokumentacji jest 12 797 wierszy i jest zorganizowana wokół historii, a nie
+  wokół czytelnika.** Największy dokument to dziennik decyzji (**7405** wierszy);
+  drugi — architektura (**2054**, z czego około **1330** to słownik domenowy);
+  trzeci — plan (**1388**).
+- **`README.md` (1242 wiersze) odpowiada na dwa pytania naraz** — jak używać
+  (sterowanie, moduły, ustawienia) i jak rozwijać (struktura, narzędzia, pomiar,
+  budowa). To nie jest wada tekstu, tylko dwa gatunki w jednej okładce.
+- **Reguły mają dziś dwa domy i żaden nie jest formalnie pierwszy.**
+  `architecture.md` i `SKILL.md` (1006 wierszy) opisują te same 18 reguł;
+  pierwszeństwo jest zapisane jednym zdaniem w trzecim pliku (`CLAUDE.md`)
+  i nikt go nie pilnuje.
+- **Do `docs/architecture.md` wskazuje 51 plików, z czego 40 leży
+  w `docs/plans/archiwum`** — czyli w dokumentach zamkniętych, których nie
+  przepisuje się bez zmieniania historii. W `src/` i `bin/` nie ma **ani
+  jednego** wskazania. To przesądziło o kształcie rozbicia dokumentu źródłowego:
+  zostaje pod swoim adresem jako spis rozdziałów.
+- **Diagramów jest zero.** Jedyne rysunki to 33 wiersze ramek ASCII
+  z drzewami katalogów.
+- **Materiał na spisy i scenariusze już istnieje i jest sprawdzony**: 167 wywołań
+  `KeyBinding::`, 41 kwerend, około 32 komend, 6 modułów, 29 celów `make`
+  i **26 nazwanych przebiegów funkcjonalnych**, z których każdy jest zapisaną
+  drogą użytkownika.
+
+**Decyzje użytkownika:**
+
+1. **Faza dzieli się na pięć kroków — 61 porządek, 62 podręcznik użytkownika,
+   63 dokumentacja dewelopera, 64 onboarding, 65 diagramy i pilnowanie.**
+   Krok 61 stoi pierwszy z powodu mechanicznego: cztery pozostałe muszą wiedzieć,
+   gdzie pisać. Onboarding dostaje **własny krok**, bo jest ścieżką przechodzoną
+   raz, a przewodnik — referencją, do której się wraca; mieszanie ich daje
+   dokument, który nie jest ani jednym, ani drugim. Odrzucone: wariant czterech
+   kroków (onboarding razem z przewodnikiem), trzech (bez kroku porządkującego —
+   czyli z pozostawieniem pytania „gdzie mieszka reguła" bez odpowiedzi, a to
+   jest dokładnie ten rozjazd, który już raz powstał między architekturą
+   a Skillem) i dwóch (krok „deweloper" objąłby onboarding, osiem przewodników,
+   workflow, komplet diagramów i testy naraz).
+2. **Diagramy są blokami ```mermaid w plikach `.md`.** Diagram jest wtedy
+   **tekstem w repozytorium** — wchodzi do `git diff` i do przeglądu jak kod.
+   **Cena jest nazwana i zamieniona na regułę:** w czystym terminalu diagram
+   widnieje jako źródło, więc **każdy ma obok zdanie mówiące to samo słowami** —
+   co służy zarazem czytnikom ekranu. Odrzucone: ASCII (czytelne wszędzie, ale
+   graf zależności rysowany ręcznie jest drogi przy każdej zmianie), wariant
+   mieszany wedle rodzaju (dwa narzędzia do utrzymania) oraz SVG (plik binarny
+   w przeglądzie i drugie źródło prawdy obok kodu).
+3. **Dokumentacja powstaje dwujęzycznie — `pl` i `en` — dla podręcznika,
+   przewodników i onboardingu.** Architektura, dziennik decyzji, plany i pomiary
+   **zostają jednojęzyczne** wraz z powodem: to są dokumenty pracy nad projektem,
+   nie dokumenty projektu. **Polski jest źródłem, angielski tłumaczeniem**,
+   a wersja, która została w tyle, jest **usterką widoczną w bramce** (test
+   z kroku 65), nie stanem normalnym. Cena przyjęta świadomie: podwojenie
+   objętości każdego kroku tej fazy i stały koszt przy każdej późniejszej
+   zmianie. Odrzucone: tylko polski (spójne z dzisiejszym stanem, ale zamyka
+   projekt) i dwujęzyczny sam podręcznik.
+4. **Dokumentacji broni bramka jakości**: spisy porównują się z kodem, przykłady
+   się kompilują, odnośniki muszą prowadzić do istniejących miejsc, a para
+   językowa nie ma prawa rozjechać się w ciszy. Przykłady przestają być blokami
+   w markdownie i stają się **plikami w `examples/`**, objętymi PHPStanem `max` —
+   dokument je wskazuje, zamiast kopiować. Odrzucone: pilnowanie samych
+   odnośników i przykładów (łapie połowę rozjazdów) oraz utrzymanie ręczne, jak
+   dziś.
+5. **Miarą całej fazy jest zdanie sprawdzalne próbą**: usunięcie jednego
+   `KeyBinding`u z kodu ma zaczerwienić bramkę, dopóki podręcznik nie zostanie
+   poprawiony.
+
+**Co z tego wynika — i czego kroki pilnują:**
+
+- **Faza nie dotyka ścieżki klatki ani razu** i jest przez to **drugą taką
+  w projekcie po XII (Makefile)**: reguła 17 (pomiar i oglądanie klatki na
+  zwolnionej maszynie) nie zachodzi w krokach 61–64 w ogóle, a w 65 tylko przy
+  pokazie ścieżki onboardingu. Kod produkcyjny powstaje **wyłącznie w kroku 65**
+  i jest kodem testów.
+- **Rdzeń aplikacji nie rośnie o nic.** Rosną: `Makefile` (cel `docs-check`),
+  drzewo analizowane PHPStanem (`examples/`) i zestaw testów
+  (`tests/Documentation/`).
+- **Dokument źródłowy zostaje pod swoim adresem.** `docs/architecture.md` staje
+  się spisem rozdziałów, a rozdziały przenoszą się do `docs/architektura/` —
+  wyłącznie dlatego, że 40 z 51 wskazań leży w archiwum, którego nie wolno
+  przepisywać. Kotwice utracone przy podziale wchodzą do dziennika kroku 61 jako
+  **jawna strata**, nie po cichu.
+- **`SKILL.md` przestaje być źródłem i mówi o tym sam.** Reguła powstaje
+  w rozdziale architektury, Skill ją streszcza, a `SkillMatchesArchitectureTest`
+  pilnuje, żeby każdy numer miał rozdział i odwrotnie. Wariant „skrót generowany
+  ze źródła" odrzucony: streszczenie nie jest wyciągiem.
+- **Scenariusze podręcznika i przebiegi funkcjonalne opisują tę samą drogę.**
+  Sześć scenariuszy wywodzi się z 26 przebiegów; gdy przebieg się zmieni,
+  scenariusz kłamie — dlatego oba wymienia się w tym samym kroku planu.
+- **Modele:** 61 — `Opus / high` (operacja na żywym organizmie: pięćdziesiąt
+  wskazań), 62 — `Opus / xhigh` (objętość razy dwa języki, spis wobec 167
+  wiązań), 63 — `Opus / xhigh` (osiem przewodników i przykłady sprawdzane
+  wykonaniem), 64 — `Opus / high` (najmniejszy objętościowo, najdroższy
+  w sprawdzeniu — weryfikuje go przejście przez kogoś innego niż autor), 65 —
+  `Opus / high` (kod testów, format spisów). Warunek `Fable` z przypisów ¹ i ²
+  nie zachodzi w żadnym z pięciu: prymitywów nie przybywa, słownik wejścia nie
+  rośnie, trzej tłumacze zostają nietknięci.
+- **Faza ma jedną granicę wobec przyszłości, nazwaną z góry**: reguła utrzymania
+  z kroku 61 („krok, który zmienia klawisz, ustawienie, komendę, kwerendę albo
+  moduł, aktualizuje dokumentację **w tym samym kroku**") obowiązuje **od kroku
+  62 wzwyż**, także kroki Faz XIX i XX, jeśli wykonają się później. Dokumentacja
+  bez tej reguły rozjechałaby się w pierwszym kroku po fazie — a wtedy testy
+  z kroku 65 zamieniłyby się z obrony w przeszkodę.
+
+## Decyzje z planowania Faz XXII–XXIV (2026-08-16)
+
+### D98 — Dziesięć modułów wchodzi jako zarysy: podział wedle poziomów wartości, jeden plik na krok, trzy pytania przecinające całość
+
+**Dotyczy:** Faz **XXII–XXIV** w całości — kroków **66**
+([66-modul-git.md](66-modul-git.md)), **67** ([67-modul-runner.md](67-modul-runner.md)),
+**68** ([68-modul-deps.md](68-modul-deps.md)), **69** ([69-modul-forge.md](69-modul-forge.md)),
+**70** ([70-modul-http.md](70-modul-http.md)), **71** ([71-modul-services.md](71-modul-services.md)),
+**72** ([72-modul-env.md](72-modul-env.md)), **73** ([73-modul-db.md](73-modul-db.md)),
+**74** ([74-modul-team.md](74-modul-team.md)) i **75**
+([75-modul-procs.md](75-modul-procs.md)).
+
+**Data:** 2026-08-16, przy przekuwaniu propozycji modułów na kroki planu —
+czyli **przed** rozpisaniem którejkolwiek z faz i przed pierwszą linią kodu.
+Wpis rejestruje **trzy rozstrzygnięcia o kształcie planu** oraz rozpoznanie;
+rozstrzygnięć merytorycznych o samych modułach **nie zawiera ani jednego** i to
+jest jego cechą, nie brakiem.
+
+**Skąd te dziesięć pozycji.** Użytkownik poprosił o przegląd pytania „jakie
+moduły warto dodać, żeby aplikacja pomagała zarządzać aplikacjami, projektami
+i zespołem deweloperskim". Przegląd wyszedł od tego, co rdzeń **już umie**,
+a nie od listy życzeń — i to przesądziło o składzie: weszły wyłącznie pozycje,
+które da się zbudować z mechanizmów stojących w projekcie od dawna.
+
+**Co rozstrzygnęło rozpoznanie, zanim padło pierwsze pytanie.** Fakty sprawdzone
+na maszynie i w kodzie 2026-08-16:
+
+- **Modułów jest sześć** (`browser`, `file-info`, `audio`, `ssh`, `docker`,
+  `k8s`), więc dziesięć nowych to **największa jednorazowa rozbudowa spisu**
+  w historii projektu.
+- **Rdzeń nie musi urosnąć o nic.** Praca tłowa równoległa (26, 51), takt modułu
+  (45), zdarzenia (46), kwerendy (53, 54), `Table` (27), `TreeView` (31),
+  `TextView` (29), filtr (30), okna (28, 32), `RequiresEnvironment` (48), sekret
+  w ustawieniach (54) i plik stanu modułu (wzór `SshStateService`) — wszystko
+  stoi. Każdy z dziesięciu modułów kosztuje **jedną pozycję w `Bootstrapie`**.
+- **`gh` ani `glab` nie ma w `PATH`** — co przesądza, że moduł `forge` ma
+  wybór między zależnością ogłoszoną `RequiresEnvironment` a własną rozmową
+  HTTP, i że nie jest to wybór wygody.
+- **Są za to:** `git` 2.43.0, `make`, `composer` 2.7.1, `npm` (Node 21.6.0),
+  `systemctl`/`journalctl` (systemd 255), `psql` 16.14, `mysql` (MariaDB
+  10.11.14), `redis-cli`, `curl`, `jq`, `ss`, `lsof`.
+- **Rozszerzenia PHP kuszące wywołaniem w procesie:** `pdo_pgsql`, `pdo_mysql`,
+  `pgsql`, `mysqli`, `mongodb`, `amqp`, `ssh2` — wszystkie blokujące, wszystkie
+  bez limitu czasu, czyli wszystkie w tej samej pułapce, którą **D87** rozbroił
+  w kroku 48.
+- **Repozytorium projektu:** `origin` na GitHubie, jedna gałąź, 25 zatwierdzeń,
+  **jeden autor** — czyli moduł `team` (krok 74) nie ma odbiorcy w tym
+  repozytorium i jego odbiorcą jest projekt cudzy, oglądany przeglądarką. Fakt
+  zapisany w zarysie kroku wprost, żeby nie wyszedł na jaw przy rozpisywaniu.
+
+**Decyzje użytkownika:**
+
+1. **Podział idzie wedle poziomów wartości, nie wedle osi tematycznej** — trzy
+   fazy: **XXII** (66–68) o najlepszym stosunku wartości do rozmiaru i z
+   odbiorcą już w kodzie, **XXIII** (69–72) wymagająca rozstrzygnięć przed
+   pierwszą linią, **XXIV** (73–75) o największym zakresie albo najdalszym
+   odbiorcy. Numeracja odwzorowuje przez to **kolejność wartości**, a nie
+   wymuszoną kolejność wykonania: dziesięć modułów zależy od rdzenia, nie od
+   siebie, więc łańcuchem nie są. Odrzucone: podział wedle osi „aplikacje /
+   projekty / zespół" (tematycznie spójniejszy, ale mieszający moduł tani
+   z drogim i odkładający `git` za `env`) oraz jedna faza z dziesięcioma
+   krokami (byłaby największą w projekcie — dotąd maksimum to pięć — i stawiałaby
+   moduł bez sieci obok modułu z tokenem).
+2. **Zarys ma postać jednego pliku na krok**, a nie jednego na fazę. Odrzucony
+   został dokładny precedens Fazy XIX (zarys 55 nosił tytuł całej fazy i mieścił
+   trzy mechanizmy, po czym pękł na 55/56/57): kolumna „Plik" w indeksie wskazuje
+   wtedy właściwe miejsce od pierwszego dnia, a rozbicie nie wymaga przepisywania.
+3. **Wpis w dzienniku powstaje teraz**, razem z zarysami, a nie dopiero przy
+   rozpisywaniu pierwszej z faz. Odrzucone: wariant zgodny z Fazą XIX, gdzie
+   zarys stał bez wpisu, a D95 doszło po rozstrzygnięciach — przy dziesięciu
+   krokach naraz oznaczałby dziesięć plików bez adresu w dzienniku.
+4. **Trzy pytania przecinają wszystkie dziesięć kroków i rozstrzygają się raz,
+   przed pierwszym z nich** — nie w każdym kroku z osobna. Wynika to
+   z rozstrzygnięć 1–3, a nie jest osobnym wyborem użytkownika; zapisane tu,
+   bo bez tego zdania każdy z trzech rachunków zostałby zrobiony po kilka razy:
+   - **Gdzie mieszka sekret.** `ModuleSetting::secret()` (D94 nr 7) maskuje
+     wartość w interfejsie, a `SettingsService` pisze plik trybem `0600` —
+     token leżałby w nim **jawnym tekstem**, jak w `~/.docker/config.json`.
+     Dotyczy naraz kroków 69, 70 i 73.
+   - **Biblioteka w procesie kontra proces potomny.** Drogą domyślną zostaje
+     proces potomny; wywołanie w procesie wymaga uzasadnienia. Powód jest
+     zapisany w D87 i kosztował już raz odwrócenie drogi technicznej całej
+     Fazy XVII na jej starcie.
+   - **Wzorzec książki wpisów.** Przegląd z reguły 15e należy do kroku 59;
+     kroki 73, 70 i ewentualnie 69 mają jego **wynik zastosować**, a nie
+     powtórzyć rachunek od zera.
+
+**Czego ten wpis nie rozstrzyga.** Każdy z dziesięciu zarysów niesie własną
+sekcję „Pytania do rozstrzygnięcia" — od trzech do pięciu pytań — i **żadne
+z nich nie ma dziś odpowiedzi**. Najcięższe z nich, wymienione tu, bo wyznaczają
+zakres, a nie sposób wykonania:
+
+- **Krok 66:** czy moduł tylko czyta, czy także zatwierdza i wypycha (zapis
+  wymaga okna edycji wielowierszowej, którego `TextInput` nie ma).
+- **Krok 67:** co moduł robi z zadaniem, które chce terminala sterującego —
+  `make run` tej właśnie aplikacji jest tego najbliższym przykładem.
+- **Krok 69:** cudzy klient czy własne HTTP, jeden serwis czy książka, czy
+  moduł pisze w imieniu użytkownika.
+- **Krok 71:** czy pierwszy krok obejmuje wyłącznie zakres użytkownika
+  (`--user`), skoro aplikacja nie ma i nie chce mieć drogi do `sudo`.
+- **Krok 74:** **po co pokazywane są liczby o ludziach.** Jedyne pytanie
+  nietechniczne w całej trójce; rekomendacja zarysu to miary opisujące kod,
+  a nie rankingi osób — rozstrzyga użytkownik.
+
+**Co z tego wynika:**
+
+- **Kolejność wykonania jest wolna, ale trzy zależności są prawdziwe** i idą
+  przez kwerendy, nigdy przez typ: 74 stoi na `git.log` i `forge.pulls`, 69 na
+  wiedzy o gałęzi z kroku 66 i na wzorze rozmowy z kroku 60, a 73 na **wyniku
+  przeglądu** z kroku 59 — pierwsza w całym grafie zależność od rozstrzygnięcia,
+  a nie od kodu.
+- **Reguła 15 wychodzi z trójki nietknięta**, i to jest kryterium wspólne
+  wszystkich dziesięciu kroków: jeśli którykolwiek zacznie kosztować więcej niż
+  pozycję w `Bootstrapie`, jest to błąd do naprawienia, a nie powód, żeby dotknąć
+  rdzenia.
+- **Moduł `team` byłby pierwszym w projekcie bez własnego źródła danych** —
+  czyli pierwszym prawdziwym sprawdzianem zdania z reguły 15g („moduł pytający
+  musi umieć żyć bez odpowiedzi"), które od kroku 53 obowiązuje, ale nie miało
+  dotąd wypadku, w którym cała treść modułu pochodzi z cudzych kwerend.
+- **Wysiłek w tabelach jest wstępny** i potwierdza się go przy rozpisaniu
+  kroku: zarys nie zna jeszcze zakresu, który rozstrzygnie użytkownik. Warunek
+  `Fable` z przypisów ¹ i ² nie zachodzi w żadnym z dziesięciu — prymitywów nie
+  przybywa, słownik wejścia nie rośnie, trzej tłumacze zostają nietknięci.

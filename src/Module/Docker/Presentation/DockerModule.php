@@ -11,6 +11,7 @@ use LightManager\Application\Module\ModuleSettingsTab;
 use LightManager\Application\Module\ModuleShortcut;
 use LightManager\Application\Module\NeedsTick;
 use LightManager\Application\Module\ProvidesCommands;
+use LightManager\Application\Module\ProvidesQueries;
 use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Module\RequiresEnvironment;
 use LightManager\Application\Port\SettingsPort;
@@ -23,6 +24,7 @@ use LightManager\Module\Docker\Application\ImageList;
 use LightManager\Module\Docker\Application\LogStream;
 use LightManager\Module\Docker\Application\Port\ComposePort;
 use LightManager\Module\Docker\Application\Port\DockerApiPort;
+use LightManager\Module\Docker\Application\PushWork;
 use LightManager\Module\Docker\Infrastructure\BuildContextPacker;
 use LightManager\Module\Docker\Infrastructure\BuildProgressReader;
 use LightManager\Module\Docker\Infrastructure\ComposeCliService;
@@ -34,6 +36,12 @@ use LightManager\Module\Docker\Presentation\Command\ComposeDownCommand;
 use LightManager\Module\Docker\Presentation\Command\ComposeUpCommand;
 use LightManager\Module\Docker\Presentation\Command\ImagesCommand;
 use LightManager\Module\Docker\Presentation\Command\PsCommand;
+use LightManager\Module\Docker\Presentation\Command\PushCommand;
+use LightManager\Module\Docker\Presentation\Query\BuildQuery;
+use LightManager\Module\Docker\Presentation\Query\ComposeQuery;
+use LightManager\Module\Docker\Presentation\Query\ContainersQuery;
+use LightManager\Module\Docker\Presentation\Query\ImagesQuery;
+use LightManager\Module\Docker\Presentation\Query\PushQuery;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
@@ -67,6 +75,7 @@ final class DockerModule implements
     RequiresEnvironment,
     ProvidesSettingsTab,
     ProvidesCommands,
+    ProvidesQueries,
     ProvidesHelpTab,
     ProvidesScreen,
     NeedsTick,
@@ -97,7 +106,23 @@ final class DockerModule implements
 
     private ?BuildFlow $builds = null;
 
+    /**
+     * Budowa — **jedna na moduł**, trzymana tutaj, a nie tylko w łańcuchu okien.
+     *
+     * Do kroku 54 mieszkała wyłącznie w `BuildFlow`, bo posuwało ją jego okno
+     * postępu. Odkąd posuwa ją **takt modułu** (D94 nr 5), potrzebują jej trzy
+     * miejsca: takt, łańcuch okien i kwerenda `docker.build` — a trzy obiekty
+     * znaczyłyby trzy prawdy o jednej budowie.
+     */
+    private ?BuildWork $work = null;
+
+    private ?PushWork $pushWork = null;
+
+    private ?PushFlow $pushes = null;
+
     private ?ComposeFlow $composeFlow = null;
+
+    private ?DockerQueries $reader = null;
 
     /**
      * @param ?DockerApiPort $api  wstrzyknięcie istnieje dla testów, które nie mają
@@ -191,7 +216,41 @@ final class DockerModule implements
             $this->builds(),
             $this->translator,
             $this->state,
+            $this->reader(),
         );
+    }
+
+    /**
+     * Fasada odczytu — **jedna na moduł** (krok 53, D92 nr 3; ten moduł dostał ją
+     * w kroku 54).
+     *
+     * Trzyma sam rejestr, więc wolno ją zbudować **przed** kwerendami, których
+     * odpowiedzi rozpakowuje — i to jest cała odpowiedź na pozorny cykl: fasada
+     * nie zna kwerend, zna nazwy.
+     */
+    private function reader(): DockerQueries
+    {
+        return $this->reader ??= new DockerQueries($this->state->queries());
+    }
+
+    /**
+     * Cztery źródła danych tego modułu — **wraz z parą, na której stoi cała
+     * Faza XVIII**.
+     *
+     * `docker.images` i `docker.build` są tym, czym moduł Kubernetesa wdroży
+     * obraz, nie znając Dockera z typu (D85). Reszta wchodzi z tego samego
+     * powodu, co w każdym module: **kwerendę dostaje wszystko, co da się
+     * przeczytać** (D92 nr 1).
+     */
+    public function queries(): array
+    {
+        return [
+            new ImagesQuery($this->images(), $this->translator),
+            new ContainersQuery($this->containers()),
+            new ComposeQuery($this->compose()),
+            new BuildQuery($this->work()),
+            new PushQuery($this->pushWork()),
+        ];
     }
 
     /**
@@ -212,6 +271,15 @@ final class DockerModule implements
     {
         $this->api()->pump();
         $this->logs()->useLimit(DockerSettings::logLinesFrom($this->settings->current()));
+        // Budowa idzie **tutaj**, a nie w oknie postępu (krok 54, D94 nr 5):
+        // trwa minutami, a stos okien ma jedno piętro — więc praca posuwana
+        // wyłącznie przez własne okno stawała, gdy cokolwiek innego zajęło
+        // ekran. Stąd bierze się „`Esc` przerywa czekanie, nie budowę".
+        $this->builds()->advance();
+        // Wypychanie idzie tym samym torem, co budowa, i z tego samego powodu:
+        // trwa minutami, a czynność `k8s.deploy-image` ogląda je **własnym**
+        // oknem, nie oknem Dockera.
+        $this->pushes()->advance();
         $this->screen()->tick($now);
     }
 
@@ -264,16 +332,37 @@ final class DockerModule implements
     private function builds(): BuildFlow
     {
         return $this->builds ??= new BuildFlow(
-            new BuildWork($this->api(), new BuildContextPacker(), new BuildProgressReader()),
+            $this->work(),
             $this->images(),
             $this->translator,
             $this->state,
         );
     }
 
+    private function work(): BuildWork
+    {
+        return $this->work ??= new BuildWork($this->api(), new BuildContextPacker(), new BuildProgressReader());
+    }
+
+    /**
+     * Wypychanie — **jedno na moduł**, jak budowa.
+     *
+     * Czytnik postępu jest ten sam, co przy budowie, i nie jest to oszczędność:
+     * demon nadaje jedno i drugie tym samym strumieniem obiektów JSON.
+     */
+    private function pushWork(): PushWork
+    {
+        return $this->pushWork ??= new PushWork($this->api(), new BuildProgressReader());
+    }
+
+    private function pushes(): PushFlow
+    {
+        return $this->pushes ??= new PushFlow($this->pushWork(), $this->translator, $this->settings);
+    }
+
     private function composeFlow(): ComposeFlow
     {
-        return $this->composeFlow ??= new ComposeFlow($this->compose(), $this->translator);
+        return $this->composeFlow ??= new ComposeFlow($this->compose(), $this->reader(), $this->translator);
     }
 
     private function api(): DockerApiPort
@@ -297,6 +386,7 @@ final class DockerModule implements
             new BuildCommand($this->builds(), $screen),
             new ComposeUpCommand($this->composeFlow(), $screen),
             new ComposeDownCommand($this->composeFlow(), $screen),
+            new PushCommand($this->pushes(), $this->reader(), $this->translator),
         ];
     }
 }

@@ -46,6 +46,17 @@ final class ImageList
 
     private bool $loaded = false;
 
+    /**
+     * Licznik zmian odpowiedzi — **znacznik pokolenia dla kwerendy
+     * `docker.images`** (krok 54).
+     *
+     * Bije w dwóch miejscach i oba są tutaj: przyjęcie listy od demona oraz
+     * przestawienie kursora. Dlaczego kursor: wiersz kwerendy niesie `selected`,
+     * więc przesunięcie o jeden **zmienia odpowiedź** — licznik, który by tego
+     * nie zauważył, kazałby oknu kwerend pokazywać zaznaczenie sprzed ruchu.
+     */
+    private int $revision = 0;
+
     public function __construct(
         private readonly DockerApiPort $api,
         private readonly DockerCatalogPort $catalog,
@@ -131,6 +142,12 @@ final class ImageList
         return $this->cursor;
     }
 
+    /** Patrz opis pola: ten sam numer znaczy tę samą odpowiedź kwerendy. */
+    public function revision(): int
+    {
+        return $this->revision;
+    }
+
     public function moveBy(int $delta): void
     {
         $this->moveTo($this->cursor + $delta);
@@ -138,7 +155,13 @@ final class ImageList
 
     public function moveTo(int $position): void
     {
-        $this->cursor = max(0, min(max(0, count($this->images) - 1), $position));
+        $moved = max(0, min(max(0, count($this->images) - 1), $position));
+
+        if ($moved !== $this->cursor) {
+            ++$this->revision;
+        }
+
+        $this->cursor = $moved;
     }
 
     public function stop(): void
@@ -185,6 +208,7 @@ final class ImageList
         $this->images = $this->catalog->images($result->body);
         $this->problemKey = null;
         $this->loaded = true;
+        ++$this->revision;
         $this->moveTo($this->cursor);
     }
 

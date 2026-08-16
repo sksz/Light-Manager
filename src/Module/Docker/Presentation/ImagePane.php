@@ -9,8 +9,8 @@ use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
 use LightManager\Module\Docker\Application\DockerSettings;
-use LightManager\Module\Docker\Application\ImageList;
 use LightManager\Module\Docker\Domain\ValueObject\Image;
+use LightManager\Module\Docker\Presentation\Component\ImageSize;
 use LightManager\Presentation\Ui\Component\Align;
 use LightManager\Presentation\Ui\Component\Column;
 use LightManager\Presentation\Ui\Component\Label;
@@ -48,10 +48,8 @@ final class ImagePane
     private const AGE_WIDTH = 12;
 
     /** Ile bajtów ma kibibajt — i każdy następny stopień. */
-    private const UNIT_STEP = 1024;
-
     public function __construct(
-        private readonly ImageList $images,
+        private readonly DockerQueries $reader,
         private readonly TranslatorPort $translator,
         private readonly ScrollWindow $window,
     ) {
@@ -60,7 +58,7 @@ final class ImagePane
     /** @return list<Primitive> */
     public function draw(Rect $bounds): array
     {
-        $entries = $this->images->entries();
+        $entries = $this->reader->images()->entries;
 
         if ($entries === []) {
             return (new Label($this->emptySentence()))->draw($bounds);
@@ -68,7 +66,7 @@ final class ImagePane
 
         $count = count($entries);
         $capacity = Table::capacityOf($bounds, withHeader: true);
-        $cursor = $this->images->cursor();
+        $cursor = $this->reader->images()->cursor;
         $offset = $this->window->keepVisible($cursor, $count, $capacity);
 
         return (new Table(
@@ -83,7 +81,7 @@ final class ImagePane
     /** @return list<Primitive> */
     public function drawDetails(Rect $bounds): array
     {
-        $image = $this->images->selected();
+        $image = $this->reader->images()->selected();
 
         if ($image === null) {
             return [];
@@ -154,41 +152,25 @@ final class ImagePane
 
     private function emptySentence(): string
     {
-        $problem = $this->images->problemKey();
+        $problem = $this->reader->images()->problemKey;
 
         if ($problem !== null) {
             return $this->translator->translate($problem);
         }
 
-        return $this->images->isLoaded() ? $this->text('images.empty') : $this->text('images.reading');
+        return $this->reader->images()->loaded ? $this->text('images.empty') : $this->text('images.reading');
     }
 
     /**
-     * Rozmiar w postaci „1,4 GB”.
+     * Rozmiar w postaci „1,4 GB” — liczy go `ImageSize`.
      *
-     * Jednostki idą przez katalog napisów, a liczba przez `TranslatorPort::number()`
-     * — bo separator dziesiętny jest sprawą języka. Ta sama droga, którą krok 42
-     * złożył licznik bajtów w oknie postępu.
+     * Rachunek wyszedł stąd w kroku 54, gdy dostał **drugiego** użytkownika
+     * (kwerenda `docker.images`). Metoda zostaje jako jedno wywołanie, bo panel
+     * woła ją w dwóch miejscach i nazwa `size()` mówi tu więcej niż nazwa klasy.
      */
     private function size(?int $bytes): string
     {
-        if ($bytes === null || $bytes < 0) {
-            return '';
-        }
-
-        $units = ['size.bytes', 'size.kib', 'size.mib', 'size.gib'];
-        $value = (float) $bytes;
-        $unit = 0;
-
-        while ($value >= self::UNIT_STEP && $unit < count($units) - 1) {
-            $value /= self::UNIT_STEP;
-            ++$unit;
-        }
-
-        return $this->translator->translate(
-            'module.' . DockerSettings::ID . '.' . $units[$unit],
-            ['value' => $this->translator->number($value, $unit === 0 ? 0 : 1)],
-        );
+        return ImageSize::of($this->translator, $bytes);
     }
 
     private function age(?int $createdAt): string

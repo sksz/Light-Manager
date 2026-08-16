@@ -11,16 +11,21 @@ use LightManager\Application\Event\EventRegistry;
 use LightManager\Application\Module\ContextEntryKind;
 use LightManager\Application\Module\ContextOrigin;
 use LightManager\Application\Module\ModuleContext;
+use LightManager\Application\Query\QueryRegistry;
 use LightManager\Module\Ssh\Application\RemoteBrowser;
 use LightManager\Module\Ssh\Application\RemoteTransferItem;
 use LightManager\Module\Ssh\Application\RemoteTransferState;
 use LightManager\Module\Ssh\Application\SshEvent;
+use LightManager\Module\Ssh\Application\SshSettings;
 use LightManager\Module\Ssh\Application\TransferDirection;
 use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntry;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntryType;
 use LightManager\Module\Ssh\Presentation\LocalPlace;
+use LightManager\Module\Ssh\Presentation\Query\EntriesQuery;
+use LightManager\Module\Ssh\Presentation\Query\TransferQuery;
 use LightManager\Module\Ssh\Presentation\RemoteTransfer;
+use LightManager\Module\Ssh\Presentation\SshQueries;
 use LightManager\Presentation\Ui\Component\TextInput;
 use LightManager\Presentation\Ui\Overlay\ChoiceOverlay;
 use LightManager\Presentation\Ui\Overlay\ProgressOverlay;
@@ -228,10 +233,26 @@ final class RemoteTransferTest extends TestCase
         $browser->tick();
         $browser->putCursor($cursor);
 
-        return [
-            new RemoteTransfer($browser, $port, $this->local, new StubTranslator(), $this->events),
+        // Rejestr z kwerendami modułu — **jedyna droga odczytu także w teście**
+        // (reguła 15g: moduł niezarejestrowany nie widzi własnych danych).
+        // Kolejność jest tu wymuszona tak samo, jak w module: fasada trzyma sam
+        // rejestr, więc powstaje **przed** kwerendami, a `TransferQuery` dostaje
+        // gotowy obiekt pracy.
+        $registry = new QueryRegistry();
+        $transfers = new RemoteTransfer(
+            $browser,
             $port,
-        ];
+            $this->local,
+            new StubTranslator(),
+            $this->events,
+            new SshQueries($registry),
+        );
+        $registry->add(SshSettings::ID, [
+            new EntriesQuery($browser, new StubTranslator()),
+            new TransferQuery($transfers, new StubTranslator()),
+        ]);
+
+        return [$transfers, $port];
     }
 
     private static function valueOf(PromptOverlay $overlay): string

@@ -202,6 +202,12 @@ final class Bootstrap
         // 3. Kwerendy modułów wchodzą **przed oknami komend**, bo `prepare()`
         //    liczy podpowiedzi stałe raz i już się nie odświeży.
         $registry = new CommandRegistry();
+        // Stan pętli **podaje** rejestr komend modułom (krok 54): bez tego moduł
+        // zna nazwę cudzej czynności i nie ma czego o nią zapytać. Podanie idzie
+        // **przed** składaniem modułów, bo `k8s.deploy-image` bierze rejestr
+        // w konstruktorze — a wypełnia się on dopiero niżej i to jest w porządku,
+        // bo trzymamy **obiekt**, nie jego zawartość.
+        $state->useCommands($registry);
         self::registerQueries($state, $modules, $registry);
         $state->queries()->useModules($modules->accepted());
 

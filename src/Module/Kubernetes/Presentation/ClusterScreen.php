@@ -123,6 +123,7 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
         private readonly ClusterSession $session,
         private readonly TranslatorPort $translator,
         private readonly LoopState $state,
+        private readonly KubernetesQueries $reader,
     ) {
         $this->treeState = new TreeState();
         $this->treeState->useContext(self::ID);
@@ -132,8 +133,8 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
         $this->listWindow = new ScrollWindow();
         $this->listWindow->useContext(self::ID . ':list');
 
-        $this->tree = new ClusterTree($catalog, $cache, $this->treeState, $translator);
-        $this->resources = new ResourcePane($cache, $translator, $this->listWindow);
+        $this->tree = new ClusterTree($cache, $this->treeState, $translator, $reader);
+        $this->resources = new ResourcePane($translator, $this->listWindow, $reader);
         $this->details = new DetailPane($detail, $translator, $this->sectionState, new ScrollWindow());
         $this->logPane = new LogPane($logs, $translator);
         $this->secrets = new SecretFlow($detail, $actions, $translator);
@@ -207,8 +208,8 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
             return $this->logPane->draw($bounds);
         }
 
-        if (!$this->cluster->stage()->allowsQueries()) {
-            return (new Label($this->stageSentence()))->draw($bounds);
+        if (!$this->reader->cluster()->stage->allowsQueries()) {
+            return $this->drawStage($bounds);
         }
 
         if (!$this->splitsIn($bounds)) {
@@ -239,7 +240,7 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
             return $this->logBindings();
         }
 
-        if (!$this->cluster->stage()->allowsQueries()) {
+        if (!$this->reader->cluster()->stage->allowsQueries()) {
             return $this->stageBindings();
         }
 
@@ -264,7 +265,7 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
 
         // Pierwsze wejście na ekran zamawia konteksty; kolejne nie kosztują nic,
         // bo `ClusterState` pyta raz i pamięta.
-        if ($this->cluster->stage() === ClusterStage::Unknown) {
+        if ($this->reader->cluster()->stage === ClusterStage::Unknown) {
             $this->cluster->begin();
         }
     }
@@ -290,7 +291,7 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
         $this->logs->advance();
         $this->actions->advance();
 
-        if ($this->cluster->stage()->allowsQueries()) {
+        if ($this->reader->cluster()->stage->allowsQueries()) {
             $this->catalog->begin();
         }
 
@@ -312,7 +313,7 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
             return $this->handleLogs($key);
         }
 
-        if (!$this->cluster->stage()->allowsQueries()) {
+        if (!$this->reader->cluster()->stage->allowsQueries()) {
             return $this->handleStage($key);
         }
 
@@ -351,7 +352,7 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
     {
         $options = [];
 
-        foreach ($this->cluster->contexts() as $context) {
+        foreach ($this->reader->contexts()->contexts as $context) {
             $options[$context->value] = $context->value;
         }
 
@@ -420,6 +421,51 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
             $this->translator,
             $this->key('apply.prompt'),
         );
+    }
+
+    /**
+     * Stan bez klastra — zdanie **we wnętrzu panelu**, nie na całej strefie.
+     *
+     * Poprawka z 2026-08-16 i dwie rzeczy naraz. Ekran oprawia się sam
+     * (`DrawsOwnFrame`, reguła 11c), więc dostaje **cały** prostokąt strefy wraz
+     * z wierszami obwódki — a zdanie rysowane od jego pierwszego wiersza kładło
+     * się dokładnie na ramce lewego panelu. Wnętrze bierze się stąd tym samym
+     * rachunkiem, co przy drzewie: te dwa prostokąty nie mają prawa się rozjechać.
+     *
+     * Zdanie **się zawija**, bo panel przy podziale ma 0,4 szerokości strefy —
+     * od 24 kolumn treści przy progu podziału — a każde zdanie stanu jest dłuższe;
+     * jednowierszowa etykieta ucinała je wielokropkiem razem z podpowiedzią
+     * klawisza, czyli z jedyną częścią, po którą się je czyta (reguła kroku 48:
+     * zanim utniesz treść, sprawdź, czy użytkownik ma ją skąd wziąć).
+     *
+     * @return list<Primitive>
+     */
+    private function drawStage(Rect $bounds): array
+    {
+        $zone = $bounds;
+
+        if ($this->splitsIn($bounds)) {
+            [$left] = Split::halves($bounds, SplitAxis::Vertical, 0.4);
+            $zone = Panel::inner($left);
+        }
+
+        if ($zone->isEmpty()) {
+            return [];
+        }
+
+        $primitives = [];
+
+        foreach (Label::wrap($this->stageSentence(), $zone->columns) as $offset => $line) {
+            if ($offset >= $zone->rows) {
+                break;
+            }
+
+            foreach ((new Label($line))->draw($zone->line($offset)) as $primitive) {
+                $primitives[] = $primitive;
+            }
+        }
+
+        return $primitives;
     }
 
     /** @return list<Primitive> */
@@ -493,7 +539,7 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
         $kind = $this->focusedKind();
 
         if ($kind !== null && $this->openResource() === null) {
-            $rows = count($this->cache->rowsOf($kind));
+            $rows = count($this->reader->rowsOf($kind));
             $moved = $this->moveList($key, $rows);
 
             if ($moved !== null) {
@@ -614,7 +660,7 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
 
     private function openSelectedRow(ResourceKind $kind): ScreenOutcome
     {
-        $rows = $this->cache->rowsOf($kind);
+        $rows = $this->reader->rowsOf($kind);
         $row = $rows[$this->listCursor ?? 0] ?? null;
 
         if ($row === null) {
@@ -797,7 +843,7 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
 
     private function refresh(): ScreenOutcome
     {
-        if (!$this->cluster->stage()->allowsQueries()) {
+        if (!$this->reader->cluster()->stage->allowsQueries()) {
             $this->cluster->begin();
 
             return ScreenOutcome::stay();
@@ -926,6 +972,13 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
 
     /**
      * Zdanie górnego pasa — **co się właśnie dzieje**, a gdy nic, to gdzie stoimy.
+     *
+     * Stanu rozmowy z klastrem **tu nie ma** i to jest poprawka z 2026-08-16:
+     * pas wypisywał wtedy dokładnie to samo zdanie, co treść ekranu, więc przy
+     * braku bieżącego kontekstu widać było dwie kopie jednej informacji. Mówi
+     * o stanie **treść**, bo tam jest miejsce na zdanie z podpowiedzią klawisza;
+     * pasowi zostaje jego własne pytanie — gdzie stoimy — na które przy braku
+     * kontekstu odpowiedź brzmi „nigdzie”, a nie „kontekst , przestrzeń ”.
      */
     private function headerText(): string
     {
@@ -935,10 +988,6 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
             return $this->text('action.working.' . $action->value);
         }
 
-        if (!$this->cluster->stage()->allowsQueries()) {
-            return $this->translator->translate($this->cluster->stage()->labelKey());
-        }
-
         if ($this->view === ClusterView::Logs) {
             return $this->text('logs.header', [
                 'name' => $this->logs->reference()->name ?? '',
@@ -946,7 +995,13 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
             ]);
         }
 
-        $versions = $this->cluster->versions();
+        $context = $this->session->context();
+
+        if ($context === null) {
+            return $this->text('header.noPlace');
+        }
+
+        $versions = $this->reader->cluster()->versions;
         $skew = $versions !== null && $versions->isSkewed()
             ? ' ' . $this->text('version.skew', [
                 'client' => $versions->client,
@@ -955,7 +1010,7 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
             : '';
 
         return $this->text('header.place', [
-            'context' => $this->session->context()->value ?? '',
+            'context' => $context->value,
             'namespace' => $this->session->namespace()->value ?? '',
         ]) . $skew;
     }
@@ -963,13 +1018,13 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
     /** Zdanie zastępujące treść, gdy nie ma o co pytać klastra. */
     private function stageSentence(): string
     {
-        $problem = $this->cluster->problemKey();
+        $problem = $this->reader->cluster()->problemKey;
 
         if ($problem !== null) {
-            return $this->translator->translate($problem, $this->cluster->problemParameters());
+            return $this->translator->translate($problem, $this->reader->cluster()->problemParameters);
         }
 
-        return $this->translator->translate($this->cluster->stage()->labelKey());
+        return $this->translator->translate($this->reader->cluster()->stage->labelKey());
     }
 
     /**

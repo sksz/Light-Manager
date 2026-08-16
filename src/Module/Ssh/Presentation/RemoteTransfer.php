@@ -13,6 +13,7 @@ use LightManager\Domain\ValueObject\MessageTone;
 use LightManager\Module\Ssh\Application\Port\RemoteTransferPort;
 use LightManager\Module\Ssh\Application\RemoteBrowser;
 use LightManager\Module\Ssh\Application\RemoteTransferItem;
+use LightManager\Module\Ssh\Application\RemoteTransferProgress;
 use LightManager\Module\Ssh\Application\RemoteTransferStage;
 use LightManager\Module\Ssh\Application\RemoteTransferState;
 use LightManager\Module\Ssh\Application\SshEvent;
@@ -76,13 +77,34 @@ final class RemoteTransfer
 
     private string $name = '';
 
+    /**
+     * @param RemoteBrowser $browser **wyłącznie do czynności** — odświeżenia listy po
+     *                               udanym przesyle i odczytu agregatu przy kolizji nazw;
+     *                               wszystko, co czytamy, idzie przez `$reader`
+     */
     public function __construct(
         private readonly RemoteBrowser $browser,
         private readonly RemoteTransferPort $transfers,
         private readonly LocalPlace $local,
         private readonly TranslatorPort $translator,
         private readonly EventRegistry $events,
+        private readonly SshQueries $reader,
     ) {
+    }
+
+    /**
+     * Stan prowadzonej pracy wraz z jej kierunkiem — **źródło kwerendy
+     * `ssh.transfer`** (krok 54).
+     *
+     * Kierunek mieszka tutaj, a nie w `RemoteTransferState`, i to nie zmieniło
+     * się wraz z kwerendą: stan opisuje **postęp**, a postęp pobierania i wysyłania
+     * liczy się tak samo. Dopisanie kierunku do stanu kazałoby go przewlec przez
+     * osiem konstruktorów statycznych po to, żeby jedno miejsce mogło go
+     * przeczytać.
+     */
+    public function snapshot(): RemoteTransferProgress
+    {
+        return new RemoteTransferProgress($this->transfers->state(), $this->direction, $this->name);
     }
 
     /** `F5` — okno ze ścieżką celu, wypełnione katalogiem, w którym stoi przeglądarka. */
@@ -108,16 +130,16 @@ final class RemoteTransfer
      */
     public function canTransfer(): bool
     {
-        return $this->browser->host() !== null && $this->browser->hasListing();
+        return $this->reader->host() !== null && $this->reader->hasListing();
     }
 
     /** Komenda `ssh.get [ścieżka]`: bez ścieżki pyta oknem, ze ścieżką rusza od razu. */
     public function downloadRequest(?string $path = null): OverlayOutcome
     {
-        $entry = $this->browser->selected();
-        $directory = $this->browser->path();
+        $entry = $this->reader->selected();
+        $directory = $this->reader->path();
 
-        if ($this->browser->host() === null) {
+        if ($this->reader->host() === null) {
             return OverlayOutcome::close($this->problem('transfer.noSession'));
         }
 
@@ -147,9 +169,9 @@ final class RemoteTransfer
     public function uploadRequest(?string $path = null): OverlayOutcome
     {
         $source = $this->local->filePath();
-        $directory = $this->browser->path();
+        $directory = $this->reader->path();
 
-        if ($this->browser->host() === null) {
+        if ($this->reader->host() === null) {
             return OverlayOutcome::close($this->problem('transfer.noSession'));
         }
 
@@ -177,9 +199,9 @@ final class RemoteTransfer
      */
     private function startDownload(string $target): OverlayOutcome
     {
-        $entry = $this->browser->selected();
-        $directory = $this->browser->path();
-        $host = $this->browser->host();
+        $entry = $this->reader->selected();
+        $directory = $this->reader->path();
+        $host = $this->reader->host();
 
         if ($entry === null || $directory === null || $host === null) {
             return OverlayOutcome::close($this->problem('remote.noSelection'));
@@ -209,7 +231,7 @@ final class RemoteTransfer
     {
         $source = $this->local->filePath();
         $name = $this->local->fileName();
-        $host = $this->browser->host();
+        $host = $this->reader->host();
 
         if ($source === null || $name === null || $host === null) {
             return OverlayOutcome::close($this->problem('transfer.noLocal'));
@@ -247,15 +269,16 @@ final class RemoteTransfer
      */
     private function occupiedIn(RemotePath $target): array
     {
-        $directory = $this->browser->directory();
+        $view = $this->reader->remote();
+        $path = $view->path;
 
-        if ($directory === null || !$directory->path->equals($target)) {
+        if (!$view->hasListing || $path === null || !$path->equals($target)) {
             return [];
         }
 
         $names = [];
 
-        foreach ($directory->entries as $entry) {
+        foreach ($view->entries as $entry) {
             $names[] = $entry->name;
         }
 

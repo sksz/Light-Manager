@@ -68,6 +68,13 @@ final class SshScreen implements ScreenInterface, DeclaresFocus, Resettable, Rea
      * na ekranie, i nic poza tym.
      */
     private bool $drawn = false;
+
+    /**
+     * @param SshSession    $session **wyłącznie do taktu** — odczyt etapu idzie przez `$reader`
+     * @param RemoteBrowser $browser **wyłącznie do czynności** — takt, otwarcie i zamknięcie
+     *                               katalogu; wszystko, co ekran czyta, pochodzi z `$reader`
+     *                               (krok 53, D92 nr 3)
+     */
     public function __construct(
         private readonly SshSession $session,
         private readonly RemoteBrowser $browser,
@@ -75,6 +82,7 @@ final class SshScreen implements ScreenInterface, DeclaresFocus, Resettable, Rea
         private readonly RemoteScreen $remote,
         private readonly LoopState $state,
         private readonly LocalPlace $local,
+        private readonly SshQueries $reader,
     ) {
     }
 
@@ -142,7 +150,7 @@ final class SshScreen implements ScreenInterface, DeclaresFocus, Resettable, Rea
     {
         $bindings = $this->showsRemote() ? $this->remote->bindings() : $this->hosts->bindings();
 
-        if (!$this->browser->hasListing()) {
+        if (!$this->reader->hasListing()) {
             return $bindings;
         }
 
@@ -179,7 +187,7 @@ final class SshScreen implements ScreenInterface, DeclaresFocus, Resettable, Rea
      */
     public function handle(KeyPress $key): ScreenOutcome
     {
-        if ($key->key === Key::F3 && $this->browser->hasListing()) {
+        if ($key->key === Key::F3 && $this->reader->hasListing()) {
             $this->showsHosts = !$this->showsHosts;
 
             return ScreenOutcome::stay();
@@ -225,17 +233,17 @@ final class SshScreen implements ScreenInterface, DeclaresFocus, Resettable, Rea
      */
     private function settle(): void
     {
-        $connected = $this->session->state()->isConnected();
-        $host = $this->session->state()->host;
+        $connected = $this->reader->session()->isConnected();
+        $host = $this->reader->session()->host;
 
-        if ($connected && $host !== null && $this->browser->host()?->equals($host) !== true) {
+        if ($connected && $host !== null && $this->reader->host()?->equals($host) !== true) {
             $this->browser->open($host);
             $this->showsHosts = false;
 
             return;
         }
 
-        if (!$connected && $this->browser->host() !== null) {
+        if (!$connected && $this->reader->host() !== null) {
             // Rozłączenie — także to niechciane — wraca do spisu hostów
             // (rozstrzygnięcie użytkownika ze startu kroku). Powód zerwania
             // mówi pasek stanu, więc lista zostawiona na ekranie nie miałaby
@@ -247,7 +255,7 @@ final class SshScreen implements ScreenInterface, DeclaresFocus, Resettable, Rea
 
     private function showsRemote(): bool
     {
-        return !$this->showsHosts && $this->browser->hasListing();
+        return !$this->showsHosts && $this->reader->hasListing();
     }
 
     /**
@@ -264,14 +272,14 @@ final class SshScreen implements ScreenInterface, DeclaresFocus, Resettable, Rea
             return;
         }
 
-        $entry = $this->browser->selected();
+        $entry = $this->reader->selected();
 
         $this->state->publishContext(new ModuleContext(
-            $this->browser->path()->value ?? '',
+            $this->reader->path()->value ?? '',
             $entry?->name,
             self::kindOf($entry),
             origin: ContextOrigin::Remote,
-            originLabel: $this->browser->host()?->label() ?? '',
+            originLabel: $this->reader->host()?->label() ?? '',
             selectionBytes: $entry?->isDirectory() === false ? $entry->sizeInBytes : null,
             selectionModifiedAt: $entry?->modifiedAt,
             selectionPermissions: $entry?->permissions,

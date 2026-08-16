@@ -13,6 +13,7 @@ use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
 use LightManager\Presentation\Ui\Component\Button;
 use LightManager\Presentation\Ui\Component\Dialog;
+use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\OverlayInterface;
 use LightManager\Presentation\Ui\OverlayOutcome;
@@ -241,54 +242,17 @@ final class ConfirmOverlay implements OverlayInterface
     /**
      * Pytanie rozłożone na wiersze mieszczące się w podanej szerokości (krok 48).
      *
-     * Łamie **po słowach**, a nie po znakach — odwrotnie niż `TextView` (11i)
-     * i z odwrotnego powodu: tam treścią jest plik, którego wierszy nie wolno
-     * przeinaczyć, tutaj zdanie do przeczytania przez człowieka. Słowo dłuższe od
-     * wiersza dzieli się mimo to twardo, bo takim słowem jest właśnie odcisk
-     * klucza — czyli dokładnie ta treść, dla której to zawijanie powstało.
+     * Samo łamanie po słowach mieszka od poprawki z 2026-08-16 w `Label::wrap()`
+     * — wyszło stąd, gdy o tę samą regułę zapytał drugi wołający (zdanie stanu
+     * w ekranie klastra). Oknu zostaje to, co jest **jego**: górna granica
+     * wysokości, bo pytanie dłuższe niż sześć wierszy jest pytaniem źle
+     * napisanym, a nie oknem za małym.
      *
      * @return list<string> zawsze co najmniej jeden wiersz, także pusty
      */
     private function questionLines(int $width): array
     {
-        $question = $this->question();
-
-        if ($width < 1) {
-            return [$question];
-        }
-
-        $lines = [];
-        $current = '';
-
-        foreach (explode(' ', $question) as $word) {
-            $candidate = $current === '' ? $word : $current . ' ' . $word;
-
-            if (mb_strlen($candidate) <= $width) {
-                $current = $candidate;
-
-                continue;
-            }
-
-            if ($current !== '') {
-                $lines[] = $current;
-                $current = '';
-            }
-
-            // Słowo dłuższe od wiersza (odcisk klucza) dzieli się twardo —
-            // zostawione w całości i tak zostałoby ucięte przez `Dialog`.
-            while (mb_strlen($word) > $width) {
-                $lines[] = mb_substr($word, 0, $width);
-                $word = mb_substr($word, $width);
-            }
-
-            $current = $word;
-        }
-
-        if ($current !== '' || $lines === []) {
-            $lines[] = $current;
-        }
-
-        return array_slice($lines, 0, self::MAX_QUESTION_ROWS);
+        return array_slice(Label::wrap($this->question(), $width), 0, self::MAX_QUESTION_ROWS);
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Presentation\Cli;
 
+use LightManager\Application\Command\CommandRegistry;
 use LightManager\Application\Dto\Settings;
 use LightManager\Application\Event\AppEvent;
 use LightManager\Application\Event\EventRegistry;
@@ -73,6 +74,26 @@ final class LoopState
      */
     private readonly QueryRegistry $queries;
 
+    /**
+     * Rejestr komend (krok 54) — **jedyna droga do cudzej czynności**.
+     *
+     * Trzeci rejestr w tym miejscu i **z tego samego rachunku**, co dwa poprzednie:
+     * `LoopState` dostaje każdy moduł, więc zamówienie cudzej czynności nie
+     * kosztuje ani jednego argumentu więcej w `Bootstrapie`.
+     *
+     * **Powód, dla którego tu trafił, jest luką w planie, a nie nową funkcją.**
+     * Reguła 15g mówi od kroku 53: *moduł zna nazwę cudzej komendy (napis), nigdy
+     * jej typ* — ale sama nazwa jest bezużyteczna, dopóki nie ma czego o nią
+     * zapytać. Do kroku 54 **żaden moduł nie sięgał po rejestr komend** i nikt
+     * tego nie zauważył, bo pierwszy odbiorca — `k8s.deploy-image` — powstał
+     * dopiero teraz. Zamówienie cudzej czynności było przez to zapisane w regułach
+     * i niewykonalne w kodzie.
+     *
+     * Rejestr **wchodzi tu wypełniony** (inaczej niż dwa poprzednie): składa go
+     * `Bootstrap` z komend rdzenia i modułów, a stan wyłącznie go podaje.
+     */
+    private ?CommandRegistry $commands = null;
+
     public function __construct(
         private Settings $settings = new Settings(),
         ?EventRegistry $events = null,
@@ -92,6 +113,25 @@ final class LoopState
     public function queries(): QueryRegistry
     {
         return $this->queries;
+    }
+
+    /**
+     * Rejestr komend — patrz opis pola.
+     *
+     * Oddaje **rejestr pusty**, dopóki `Bootstrap` go nie poda, a nie `null`:
+     * moduł ma pytać o komendę, a nie sprawdzać, czy jest o co pytać. Nieznana
+     * nazwa oddaje wtedy `null` z `find()` i wołający mówi zdaniem — dokładnie
+     * tak samo, jak przy module wyłączonym.
+     */
+    public function commands(): CommandRegistry
+    {
+        return $this->commands ??= new CommandRegistry();
+    }
+
+    /** Podaje rejestr złożony w `Bootstrapie` — wołane **raz**, przy starcie. */
+    public function useCommands(CommandRegistry $commands): void
+    {
+        $this->commands = $commands;
     }
 
     public function context(): ModuleContext

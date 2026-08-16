@@ -56,6 +56,7 @@ final class ResourceJsonParser
                 $created === null ? null : ClusterJson::timestamp($created),
                 ResourceColumnPacks::valuesFor($kind, $item),
                 ResourceColumnPacks::toneFor($kind, $item),
+                self::imagesOf($item),
             );
         }
 
@@ -97,6 +98,43 @@ final class ResourceJsonParser
         }
 
         return $names;
+    }
+
+    /**
+     * Obrazy kontenerów zasobu — **z JSON-a, który już mamy** (krok 54).
+     *
+     * Czyta **dwa kształty naraz**, bo w klastrze występują oba i różnią się
+     * jednym poziomem: pod trzyma kontenery pod `spec.containers`, a wszystko,
+     * co pody tworzy (wdrożenie, zestaw stanowy, demon), pod
+     * `spec.template.spec.containers`. Kwerenda `k8s.deployments` pyta o ten
+     * drugi, ale rozróżnianie ich tutaj kosztuje jedną pętlę i oszczędza drugiej
+     * kwerendzie wiedzy o kształcie cudzego dokumentu.
+     *
+     * Nie wykonuje **ani jednego wywołania**: obrazy stoją w odpowiedzi, którą
+     * `kubectl get -o json` już przyniósł, więc kwerenda oddająca je nie łamie
+     * reguły nr 4.
+     *
+     * @param  array<string, mixed> $item
+     * @return array<string, string> nazwa kontenera → obraz
+     */
+    public static function imagesOf(array $item): array
+    {
+        $images = [];
+
+        foreach ([['spec'], ['spec', 'template', 'spec']] as $path) {
+            foreach (['initContainers', 'containers'] as $section) {
+                foreach (ClusterJson::objects($item, ...[...$path, $section]) as $container) {
+                    $name = ClusterJson::text($container, 'name');
+                    $image = ClusterJson::text($container, 'image');
+
+                    if ($name !== null && $name !== '' && $image !== null && $image !== '') {
+                        $images[$name] = $image;
+                    }
+                }
+            }
+        }
+
+        return $images;
     }
 
     /**

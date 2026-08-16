@@ -12,6 +12,7 @@ use LightManager\Application\Ui\Primitive\TextRun;
 use LightManager\Application\Ui\Rect;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
 use LightManager\Module\Browser\Domain\ValueObject\Entry;
+use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Tests\Support\InMemoryDirectoryRepository;
 use LightManager\Tests\Support\ScreenFixture;
 use LightManager\Tests\Support\StubKubectl;
@@ -156,6 +157,45 @@ final class ClusterFlowTest extends TestCase
         self::assertSame(1, count($this->kubectl->calls), 'bez kontekstu nie pytamy klastra o nic');
     }
 
+    /**
+     * **Zdanie o braku klastra stoi raz i we wnętrzu panelu** (poprawka z 2026-08-16).
+     *
+     * Do tej poprawki wypisywały je **dwa** miejsca naraz — górny pas i treść
+     * ekranu — a treść rysowała się od pierwszego wiersza strefy, czyli dokładnie
+     * na obwódce, którą ekran rysuje sobie sam (`DrawsOwnFrame`).
+     */
+    public function testTheMissingClusterSentenceStandsOnceAndInsideTheFrame(): void
+    {
+        $this->kubectl->willReturn('{"contexts":[{"name":"ca-dev","context":{}}],"current-context":""}');
+
+        $this->press(KeyPress::ctrl('k'));
+        $this->tick();
+
+        $screen = $this->app->screens->current();
+        $bounds = new Rect(0, 0, self::ROWS, self::COLUMNS);
+        $runs = self::runsOf($screen->draw($bounds));
+
+        self::assertNotSame([], $runs, 'stan bez klastra mówi zdaniem');
+
+        foreach ($runs as $run) {
+            self::assertGreaterThan($bounds->row, $run->row, 'zdanie nie leży na górnej obwódce');
+            self::assertGreaterThanOrEqual(
+                $bounds->column + Panel::CONTENT_COLUMN,
+                $run->column,
+                'zdanie nie leży na lewej obwódce',
+            );
+        }
+
+        $header = $screen->header();
+
+        self::assertNotNull($header, 'ekran klastra ma górny pas');
+        self::assertStringNotContainsString(
+            'module.k8s.stage.',
+            implode("\n", self::textsOf($header->content->draw(new Rect(0, 0, 1, self::COLUMNS)))),
+            'pas nie powtarza zdania, które stoi w treści',
+        );
+    }
+
     /** Ekran zna oba miejsca ogniska, więc `Tab` przenosi je na treść. */
     public function testTabMovesTheFocusToTheContentPane(): void
     {
@@ -200,6 +240,27 @@ final class ClusterFlowTest extends TestCase
     private function joined(): string
     {
         return implode("\n", $this->drawCurrent());
+    }
+
+    /**
+     * Same napisy klatki, wraz z ich położeniem — bo poprawka z 2026-08-16
+     * dotyczy tego, **gdzie** wiersz stanął, a nie co w nim pisze.
+     *
+     * @param list<Primitive> $primitives
+     *
+     * @return list<TextRun>
+     */
+    private static function runsOf(array $primitives): array
+    {
+        $runs = [];
+
+        foreach ($primitives as $primitive) {
+            if ($primitive instanceof TextRun) {
+                $runs[] = $primitive;
+            }
+        }
+
+        return $runs;
     }
 
     /**

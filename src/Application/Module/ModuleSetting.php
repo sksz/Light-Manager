@@ -19,6 +19,12 @@ namespace LightManager\Application\Module;
  */
 final class ModuleSetting
 {
+    /** Znak zasłony — ten sam, którym maskuje `TextInput` od kroku 48. */
+    private const MASK = '*';
+
+    /** Długość zasłony: stała, żeby nie zdradzała długości sekretu. */
+    private const MASK_LENGTH = 8;
+
     /** @param list<string|int> $choices dopuszczalne wartości — dla `Choice` i `Number` */
     public function __construct(
         /** Klucz w podprzestrzeni `modules.<id>`. */
@@ -32,6 +38,23 @@ final class ModuleSetting
         public readonly ?string $pattern = null,
         /** Długość maksymalna w znakach — wyłącznie dla `Text`. */
         public readonly ?int $maxLength = null,
+        /**
+         * Czy wartość zasłaniać przy pokazywaniu — **wyłącznie dla `Text`**
+         * (krok 54, D94 nr 7).
+         *
+         * **Znacznik przy istniejącym rodzaju, a nie piąty rodzaj**, i to jest
+         * cała różnica w cenie: rodzaj to osobna droga w ekranie ustawień, więc
+         * kosztowałby nową gałąź rysowania, nową gałąź klawiszy i nowy przypadek
+         * w `valueFrom()`. Maskowanie nie zmienia **niczego** poza tym, co widać:
+         * wartość zapisuje się, sprawdza i przesuwa dokładnie tak samo.
+         *
+         * **Nie jest szyfrowaniem i nie udaje go.** Wartość leży w pliku
+         * konfiguracyjnym jawnie, więc znacznik broni wyłącznie przed spojrzeniem
+         * — przed zrzutem ekranu, przed udostępnionym pulpitem, przed sąsiadem
+         * przy biurku. Pierwszym użytkownikiem jest token rejestru obrazów
+         * w module Dockera, który niesie uprawnienie `write:packages`.
+         */
+        public readonly bool $masked = false,
     ) {
     }
 
@@ -61,6 +84,39 @@ final class ModuleSetting
         ?int $maxLength = null,
     ): self {
         return new self($key, $labelKey, ModuleSettingKind::Text, [], $default, $pattern, $maxLength);
+    }
+
+    /**
+     * Pozycja tekstowa, której wartości **nie widać** — patrz `$masked`.
+     *
+     * Konstruktor osobny, a nie parametr w `text()`, bo maskowanie ma być
+     * **decyzją**, a nie ósmym argumentem, który ktoś przeoczy przy dopisywaniu
+     * pozycji z sekretem.
+     */
+    public static function secret(
+        string $key,
+        string $labelKey,
+        ?string $pattern = null,
+        ?int $maxLength = null,
+    ): self {
+        return new self($key, $labelKey, ModuleSettingKind::Text, [], '', $pattern, $maxLength, masked: true);
+    }
+
+    /**
+     * Wartość w postaci, w jakiej wolno ją pokazać — zasłonięta, gdy pozycja
+     * jest sekretem.
+     *
+     * Zasłona ma **stałą długość**, a nie długość wartości: liczba gwiazdek
+     * równa liczbie znaków mówi o sekrecie tyle, ile mówić nie musi. Pustka
+     * zostaje pustką, bo „nic tu nie ma" nie jest sekretem.
+     */
+    public function shown(bool|int|string $value): bool|int|string
+    {
+        if (!$this->masked || !is_string($value) || $value === '') {
+            return $value;
+        }
+
+        return str_repeat(self::MASK, self::MASK_LENGTH);
     }
 
     /**

@@ -35,6 +35,9 @@ final class SshSession
 
     private ?string $bookProblem = null;
 
+    /** Ile razy książka się zmieniła — patrz `revision()`. */
+    private int $revision = 0;
+
     /**
      * Etap, o którym już ogłoszono.
      *
@@ -64,6 +67,7 @@ final class SshSession
             $loaded = $this->storage->load();
             $this->book = $loaded->book;
             $this->bookProblem = $loaded->problemKey;
+            ++$this->revision;
         }
 
         return $this->book;
@@ -127,9 +131,28 @@ final class SshSession
         return SshSettings::authFrom($this->settings->current());
     }
 
+    /**
+     * Licznik zmian książki hostów — **znacznik pokolenia dla kwerendy
+     * `ssh.hosts`** (krok 54).
+     *
+     * Bije w trzech miejscach i wszystkie trzy są tutaj: pierwsze wczytanie
+     * z dysku oraz dopisanie i usunięcie wpisu. Warunek D93 nr 1 („pamięć wyniku
+     * wolno trzymać wyłącznie tam, gdzie źródło umie powiedzieć, że się
+     * zmieniło”) jest przez to spełniony **konstrukcyjnie**, a nie obietnicą:
+     * książka nie ma innej drogi zmiany niż te trzy, bo `HostBook` wychodzi stąd
+     * wyłącznie przez `book()`, a zapisuje ją `persist()`.
+     */
+    public function revision(): int
+    {
+        $this->book();
+
+        return $this->revision;
+    }
+
     public function add(HostProfile $profile): void
     {
         $this->book()->add($profile);
+        ++$this->revision;
         $this->persist();
     }
 
@@ -139,6 +162,7 @@ final class SshSession
             return false;
         }
 
+        ++$this->revision;
         $this->persist();
 
         return true;

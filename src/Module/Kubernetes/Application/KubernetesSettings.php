@@ -71,6 +71,25 @@ final class KubernetesSettings
 
     public const DEFAULT_LOG_LINES = 1000;
 
+    /** Ile sekund czekać na koniec cudzej budowy — `k8s.deploy-image` (krok 54, D94 nr 5). */
+    public const BUILD_WAIT = 'buildWaitSeconds';
+
+    /**
+     * Przystanki limitu czekania.
+     *
+     * Zaczynają się od **minuty**, bo budowa obrazu krótsza od minuty zdarza się
+     * wyłącznie wtedy, gdy wszystko jest w pamięci podręcznej demona, a kończą na
+     * **pół godzinie**, bo dłuższa budowa jest zwykle pomyłką w `Dockerfile`,
+     * a nie cierpliwością wartą nagrody. Upływ limitu **nie przerywa budowy** —
+     * ta należy do modułu Dockera i trwa dalej u siebie (D94 nr 5); kończy się
+     * wyłącznie czekanie.
+     *
+     * @var list<int>
+     */
+    public const BUILD_WAIT_CHOICES = [60, 300, 600, 1800];
+
+    public const DEFAULT_BUILD_WAIT = 600;
+
     /** @return list<ModuleSetting> */
     public static function declarations(): array
     {
@@ -78,9 +97,17 @@ final class KubernetesSettings
             self::timeoutDeclaration(),
             self::refreshDeclaration(),
             self::logLinesDeclaration(),
+            self::buildWaitDeclaration(),
             ModuleSetting::text(self::CONTEXT, 'module.' . self::ID . '.setting.' . self::CONTEXT, ''),
             ModuleSetting::text(self::NAMESPACE, 'module.' . self::ID . '.setting.' . self::NAMESPACE, ''),
         ];
+    }
+
+    public static function buildWaitFrom(Settings $settings): int
+    {
+        $value = self::buildWaitDeclaration()->valueFrom($settings->moduleValue(self::ID, self::BUILD_WAIT));
+
+        return is_int($value) ? $value : self::DEFAULT_BUILD_WAIT;
     }
 
     public static function timeoutFrom(Settings $settings): int
@@ -118,6 +145,16 @@ final class KubernetesSettings
         $value = $settings->moduleValue(self::ID, self::NAMESPACE);
 
         return is_string($value) ? $value : '';
+    }
+
+    private static function buildWaitDeclaration(): ModuleSetting
+    {
+        return ModuleSetting::number(
+            self::BUILD_WAIT,
+            'module.' . self::ID . '.setting.' . self::BUILD_WAIT,
+            self::BUILD_WAIT_CHOICES,
+            self::DEFAULT_BUILD_WAIT,
+        );
     }
 
     private static function timeoutDeclaration(): ModuleSetting

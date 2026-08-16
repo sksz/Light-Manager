@@ -44,13 +44,18 @@ final class RemoteFilterOverlay implements OverlayInterface, NeedsTime
     /** Wpis zaznaczony w chwili otwarcia — cel powrotu przy odmowie. */
     private readonly ?string $restore;
 
+    /**
+     * @param RemoteBrowser $browser **wyłącznie do czynności** — nadania filtra,
+     *                               wyczyszczenia go i przestawienia kursora
+     */
     public function __construct(
         private readonly RemoteBrowser $browser,
         private readonly TranslatorPort $translator,
+        private readonly SshQueries $reader,
     ) {
-        $this->restore = $browser->selected()?->name;
+        $this->restore = $reader->selected()?->name;
         $this->input = new TextInput($translator->translate('module.' . SshSettings::ID . '.filter.prompt'));
-        $this->input->useValue($browser->filter()->value);
+        $this->input->useValue($reader->remote()->filter->value);
     }
 
     public function id(): string
@@ -125,7 +130,7 @@ final class RemoteFilterOverlay implements OverlayInterface, NeedsTime
         $restore = $this->restore;
 
         if ($restore !== null) {
-            $index = $this->browser->directory()?->indexOf($restore);
+            $index = $this->reader->indexOf($restore);
 
             if ($index !== null) {
                 $this->browser->putCursor($index);

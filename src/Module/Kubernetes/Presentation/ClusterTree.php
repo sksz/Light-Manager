@@ -6,7 +6,6 @@ namespace LightManager\Module\Kubernetes\Presentation;
 
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Role;
-use LightManager\Module\Kubernetes\Application\ApiCatalog;
 use LightManager\Module\Kubernetes\Application\KubernetesSettings;
 use LightManager\Module\Kubernetes\Application\ResourceCache;
 use LightManager\Module\Kubernetes\Application\ResourceRow;
@@ -41,11 +40,15 @@ final class ClusterTree
     /** @var list<string> */
     private array $keys = [];
 
+    /**
+     * @param ResourceCache $cache **wyłącznie do zamawiania odczytu** (`load()`);
+     *                             wszystko, co drzewo czyta, idzie przez `$reader`
+     */
     public function __construct(
-        private readonly ApiCatalog $catalog,
         private readonly ResourceCache $cache,
         private readonly TreeState $state,
         private readonly TranslatorPort $translator,
+        private readonly KubernetesQueries $reader,
     ) {
     }
 
@@ -83,7 +86,7 @@ final class ClusterTree
     {
         $parts = explode('/', $key);
 
-        return count($parts) >= 2 ? $this->catalog->find($parts[1]) : null;
+        return count($parts) >= 2 ? $this->reader->findKind($parts[1]) : null;
     }
 
     /** Nazwa zasobu wskazanego kluczem — `null`, gdy klucz wskazuje grupę albo rodzaj. */
@@ -128,7 +131,7 @@ final class ClusterTree
         $this->nodes = [];
         $this->keys = [];
 
-        $groups = $this->catalog->groups();
+        $groups = $this->reader->groups();
         $lastGroup = count($groups) - 1;
 
         foreach ($groups as $index => $group) {
@@ -141,7 +144,7 @@ final class ClusterTree
                 $index === $lastGroup,
                 true,
                 $expanded,
-                (string) count($this->catalog->kindsOf($group)),
+                (string) count($this->reader->kindsOf($group)),
                 Role::Accent,
             ));
 
@@ -177,13 +180,13 @@ final class ClusterTree
 
     private function walkKinds(string $group, bool $groupContinues): void
     {
-        $kinds = $this->catalog->kindsOf($group);
+        $kinds = $this->reader->kindsOf($group);
         $last = count($kinds) - 1;
 
         foreach ($kinds as $index => $kind) {
             $key = $group . '/' . $kind->address();
             $expanded = $this->state->isExpanded($key);
-            $known = $this->cache->knows($kind);
+            $known = $this->reader->knows($kind);
 
             $this->push(new TreeNode(
                 $key,
@@ -195,7 +198,7 @@ final class ClusterTree
                 // Liczba zasobów dopiero po odczycie: przed nim nie wiemy jej
                 // i **nie zgadujemy** — pusta wartość znaczy „jeszcze nie
                 // pytaliśmy”, a zero znaczy „pytaliśmy i nie ma nic”.
-                $known ? (string) count($this->cache->rowsOf($kind)) : '',
+                $known ? (string) count($this->reader->rowsOf($kind)) : '',
                 Role::Text,
             ));
 
@@ -208,14 +211,14 @@ final class ClusterTree
     /** @param list<bool> $guides */
     private function walkResources(string $branch, ResourceKind $kind, array $guides): void
     {
-        $rows = $this->cache->rowsOf($kind);
+        $rows = $this->reader->rowsOf($kind);
 
         if ($rows === []) {
             $this->push(new TreeNode(
                 $branch . '/',
                 $this->translator->translate(
                     'module.' . KubernetesSettings::ID
-                    . ($this->cache->knows($kind) ? '.tree.empty' : '.tree.reading'),
+                    . ($this->reader->knows($kind) ? '.tree.empty' : '.tree.reading'),
                 ),
                 $guides,
                 true,

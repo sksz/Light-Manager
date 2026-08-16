@@ -34,6 +34,9 @@ final class StubDockerApi implements DockerApiPort
 
     public int $stopped = 0;
 
+    /** Ostatni nagłówek `X-Registry-Auth` — pusty, dopóki nikt nie wypychał. */
+    public string $registryAuth = '';
+
     /** @var array<int, DockerResult> odpowiedzi przypisane do uchwytów */
     private array $results = [];
 
@@ -64,6 +67,20 @@ final class StubDockerApi implements DockerApiPort
     public function post(string $path, ?string $body = null, ?string $contentType = null): DockerCall
     {
         $this->changes[] = 'POST ' . $path;
+
+        return $this->begin($path);
+    }
+
+    /**
+     * Wypchnięcie — atrapa **zapamiętuje nagłówek poświadczeń** (krok 54).
+     *
+     * Zapamiętuje, bo to jest jedyna rzecz w tym wywołaniu, którą da się
+     * sprawdzić bez rejestru: czy poświadczenia w ogóle poszły i w jakiej
+     * postaci. Sama rozmowa idzie tym samym torem, co pozostałe.
+     */
+    public function push(string $path, string $registryAuth): DockerCall
+    {
+        $this->registryAuth = $registryAuth;
 
         return $this->begin($path);
     }

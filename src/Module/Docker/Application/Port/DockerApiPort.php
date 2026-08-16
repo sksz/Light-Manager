@@ -50,6 +50,23 @@ interface DockerApiPort
     public function delete(string $path): DockerCall;
 
     /**
+     * Wypchnięcie obrazu do rejestru — **POST płynący, z poświadczeniami
+     * w nagłówku** (krok 54, D94 nr 2).
+     *
+     * Metoda osobna, a nie `post()` z dwoma argumentami więcej, bo różni się od
+     * niej **dwiema rzeczami naraz** i obie są istotne. Po pierwsze płynie:
+     * odpowiedź to strumień zdań o postępie warstw, a wypchnięcie gigabajtowego
+     * obrazu trwa dłużej niż limit czasu zwykłego wywołania — `post()`
+     * urwałoby je w połowie. Po drugie niesie `X-Registry-Auth`, którego demon
+     * **nie ma skąd wziąć**: `~/.docker/config.json` jest plikiem klienta, a nie
+     * demona, więc poświadczenia składa ten, kto pcha.
+     *
+     * @param string $registryAuth wartość nagłówka `X-Registry-Auth` — obiekt JSON
+     *                             zakodowany base64 wedle URL (patrz `RegistryAuth`)
+     */
+    public function push(string $path, string $registryAuth): DockerCall;
+
+    /**
      * Pytanie płynące: logi na żywo, postęp budowy.
      *
      * Różni się od `get()` dwiema rzeczami: **nie ma limitu czasu** (bo nie ma

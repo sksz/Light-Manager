@@ -31,6 +31,18 @@ final readonly class ResourceRow
         public ?int $createdAt,
         public array $values = [],
         public RowTone $tone = RowTone::Normal,
+        /**
+         * Obrazy kontenerów — **nazwa kontenera → obraz** (krok 54).
+         *
+         * Pole powstało dla kwerendy `k8s.deployments`, bez której czynność
+         * `k8s.deploy-image` nie miałaby czego podmienić: `kubectl set image`
+         * wymaga **nazwy kontenera**, a nie samej nazwy wdrożenia. Wypełnia się
+         * z tego samego JSON-a, z którego biorą się kolumny, więc nie kosztuje
+         * ani jednego wywołania; rodzaje bez kontenerów mają je puste.
+         *
+         * @var array<string, string>
+         */
+        public array $images = [],
     ) {
     }
 

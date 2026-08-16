@@ -540,7 +540,13 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
         );
 
         $this->editing = $setting;
-        $this->input = new TextInput($this->translator->translate($setting->labelKey) . ': ');
+        // Pozycja z sekretem edytuje się **z zasłoną** (krok 54, D94 nr 7):
+        // `TextInput` umie to od kroku 48, więc znacznik z `ModuleSetting`
+        // przechodzi tu wprost i nie dokłada ani jednej gałęzi rysowania.
+        $this->input = new TextInput(
+            $this->translator->translate($setting->labelKey) . ': ',
+            masked: $setting->masked,
+        );
         $this->input->useValue(is_string($value) ? $value : '');
 
         return ScreenOutcome::stay();
@@ -800,7 +806,11 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
             );
         }
 
-        $text = is_bool($value) ? '' : (string) $value;
+        // Sekret zasłania się **także w wierszu listy**, nie tylko przy edycji —
+        // inaczej maskowanie broniłoby wartości wyłącznie w chwili, w której
+        // użytkownik i tak na nią patrzy.
+        $shown = $setting->shown($value);
+        $text = is_bool($shown) ? '' : (string) $shown;
 
         return new Choice(
             $label,

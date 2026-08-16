@@ -9,7 +9,6 @@ use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
 use LightManager\Module\Kubernetes\Application\KubernetesSettings;
-use LightManager\Module\Kubernetes\Application\ResourceCache;
 use LightManager\Module\Kubernetes\Application\ResourceRow;
 use LightManager\Module\Kubernetes\Application\RowTone;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ResourceKind;
@@ -43,9 +42,9 @@ final class ResourcePane
     private const AGE_WIDTH = 10;
 
     public function __construct(
-        private readonly ResourceCache $cache,
         private readonly TranslatorPort $translator,
         private readonly ScrollWindow $window,
+        private readonly KubernetesQueries $reader,
     ) {
     }
 
@@ -56,7 +55,7 @@ final class ResourcePane
      */
     public function draw(Rect $bounds, ResourceKind $kind, ?int $cursor = null): array
     {
-        $rows = $this->cache->rowsOf($kind);
+        $rows = $this->reader->rowsOf($kind);
 
         if ($rows === []) {
             return (new Label($this->emptySentence($kind)))->draw($bounds);
@@ -138,7 +137,7 @@ final class ResourcePane
      */
     private function emptySentence(ResourceKind $kind): string
     {
-        return $this->text($this->cache->knows($kind) ? 'list.empty' : 'list.reading', ['kind' => $kind->name]);
+        return $this->text($this->reader->knows($kind) ? 'list.empty' : 'list.reading', ['kind' => $kind->name]);
     }
 
     /**

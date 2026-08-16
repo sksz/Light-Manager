@@ -31,8 +31,17 @@ return [
     'module.docker.argument.directory' => 'katalog z plikiem Dockerfile',
     'module.docker.argument.file' => 'plik compose albo katalog, w którym leży',
 
+    // Kwerendy modułu (krok 54).
+    'module.docker.query.images' => 'obrazy znane demonowi wraz z etykietami',
+    'module.docker.query.containers' => 'kontenery wraz z projektem compose',
+    'module.docker.query.compose' => 'projekty compose wraz z etapem pracy',
+    'module.docker.query.build' => 'stan budowy: etap, znacznik, ostatni komunikat',
+
     // Pozycja zakładki ustawień — jedyna (D90 nr 3).
     'module.docker.setting.logLines' => 'Wierszy logu w pamięci',
+    'module.docker.setting.registry' => 'Rejestr obrazów',
+    'module.docker.setting.registryUser' => 'Użytkownik rejestru',
+    'module.docker.setting.registryToken' => 'Token rejestru',
 
     // Nazwy postaci ekranu — widać je w etykiecie strefy.
     'module.docker.view.containers' => 'KONTENERY',
@@ -122,6 +131,23 @@ return [
     'module.docker.build.stage.building' => 'buduję',
     'module.docker.build.busy' => 'Budowa już trwa — poczekaj, aż się skończy.',
     'module.docker.build.done' => 'Obraz {tag} zbudowany.',
+    // Wypychanie obrazu do rejestru (krok 54).
+    'module.docker.push.title' => 'Wypychanie {tag}',
+    'module.docker.push.target' => 'Nazwa w rejestrze',
+    'module.docker.push.stage' => 'wysyłanie warstw…',
+    'module.docker.push.busy' => 'Wypychanie już trwa — poczekaj, aż się skończy.',
+    'module.docker.push.noImage' => 'Nie ma czego wypchnąć: obraz bez etykiety nie ma nazwy, którą przyjmie rejestr.',
+    'module.docker.push.done' => 'Obraz {tag} wypchnięty do rejestru.',
+    'module.docker.push.cancelled' => 'Wypychanie przerwane.',
+    'module.docker.push.started' => 'Wypychanie {tag} zaczęte.',
+    'module.docker.push.failed' => 'Nie udało się wypchnąć obrazu.',
+    'module.docker.push.rejected' => 'Rejestr odmówił: {reason}',
+    'module.docker.push.notTagged' => 'Nie udało się nadać obrazowi {source} nazwy {target} — bez niej rejestr go nie przyjmie.',
+    'module.docker.push.noCredentials' => 'Brak poświadczeń rejestru — uzupełnij je w ustawieniach modułu.',
+    'module.docker.command.push' => 'wypchnij obraz do rejestru',
+    'module.docker.argument.image' => 'nazwa obrazu wraz z etykietą',
+    'module.docker.query.push' => 'stan wypychania obrazu do rejestru',
+
     'module.docker.build.cancelled' => 'Budowa przerwana.',
     'module.docker.build.failed' => 'Budowa się nie udała.',
     'module.docker.build.rejected' => 'Budowa się nie udała: {reason}',

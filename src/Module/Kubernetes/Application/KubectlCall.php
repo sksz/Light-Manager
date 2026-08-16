@@ -163,6 +163,39 @@ final readonly class KubectlCall
         return new self([...self::pointing('patch', $reference), '--type=merge', '-p', $patch], $context);
     }
 
+    /**
+     * Podmiana obrazu kontenera we wdrożeniu (krok 54).
+     *
+     * `set image` zamiast `patch`, i to jest różnica warta zapisania: `patch`
+     * kazałby złożyć fragment dokumentu, w którym kontener wskazuje się
+     * **nazwą wewnątrz tablicy** — a scalanie tablic w `--type=merge` podmienia
+     * całą tablicę, więc wdrożenie o dwóch kontenerach straciłoby jeden.
+     * `set image` zna tę strukturę od środka i zmienia dokładnie jedno pole.
+     *
+     * Kontener wskazuje się **nazwą**, stąd `k8s.deployments` oddaje wiersz na
+     * kontener, a nie na wdrożenie.
+     */
+    public static function setImage(
+        ResourceRef $reference,
+        string $container,
+        string $image,
+        ?ContextName $context,
+    ): self {
+        // `set image` jest czasownikiem **dwuczłonowym**, więc `pointing()` tu nie
+        // wystarcza: składa `<czasownik> <adres>`, a tutaj adres stoi dopiero
+        // trzeci. Reszta — przestrzeń nazw — dokłada się tak samo.
+        $arguments = ['set', 'image', $reference->address()];
+
+        if ($reference->namespace !== null) {
+            $arguments[] = '-n';
+            $arguments[] = $reference->namespace->value;
+        }
+
+        $arguments[] = $container . '=' . $image;
+
+        return new self($arguments, $context);
+    }
+
     /** Czy wywołanie jest strumieniem — pyta usługa, składając limity. */
     public function isStreaming(): bool
     {

@@ -105,6 +105,23 @@ final class ClusterActions
         );
     }
 
+    /**
+     * Podmiana obrazu kontenera we wdrożeniu — **ostatni etap
+     * `k8s.deploy-image`** (krok 54).
+     *
+     * Wdrożenie i kontener przychodzą osobno, bo `kubectl set image` wskazuje
+     * kontener nazwą — i to jest powód, dla którego kwerenda `k8s.deployments`
+     * oddaje wiersz na kontener, a nie na wdrożenie.
+     */
+    public function setImage(ResourceRef $reference, string $container, string $image): void
+    {
+        $this->begin(
+            ClusterAction::SetImage,
+            $reference->name . '/' . $container,
+            KubectlCall::setImage($reference, $container, $image, $this->session->context()),
+        );
+    }
+
     public function advance(): void
     {
         $state = $this->work->advance();

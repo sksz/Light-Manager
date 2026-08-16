@@ -43,6 +43,7 @@ final class ComposeFlow
 
     public function __construct(
         private readonly ComposePort $compose,
+        private readonly DockerQueries $reader,
         private readonly TranslatorPort $translator,
     ) {
     }
@@ -66,7 +67,7 @@ final class ComposeFlow
      */
     private function begin(ComposeAction $action, string $path): ?Message
     {
-        if ($this->compose->state()->isWorking()) {
+        if ($this->reader->compose()->isWorking()) {
             return Message::warning($this->text('compose.busy'));
         }
 

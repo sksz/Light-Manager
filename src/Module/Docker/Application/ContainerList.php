@@ -55,6 +55,9 @@ final class ContainerList
 
     private bool $loaded = false;
 
+    /** Ile razy zmieniła się odpowiedź — patrz `revision()`. */
+    private int $revision = 0;
+
     public function __construct(
         private readonly DockerApiPort $api,
         private readonly DockerCatalogPort $catalog,
@@ -186,12 +189,35 @@ final class ContainerList
 
     public function moveTo(int $position): void
     {
-        $this->cursor = max(0, min(max(0, count($this->entries()) - 1), $position));
+        $moved = max(0, min(max(0, count($this->entries()) - 1), $position));
+
+        if ($moved !== $this->cursor) {
+            ++$this->revision;
+        }
+
+        $this->cursor = $moved;
+    }
+
+    /**
+     * Licznik zmian odpowiedzi — **znacznik pokolenia dla kwerendy
+     * `docker.containers`** (krok 54).
+     *
+     * Bije w trzech miejscach: przyjęcie listy od demona, przestawienie kursora
+     * i zmiana zawężenia do projektu. To ostatnie **jest zmianą odpowiedzi**, bo
+     * kwerenda oddaje to, co widać w panelu — a nie wszystko, co demon zna.
+     */
+    public function revision(): int
+    {
+        return $this->revision;
     }
 
     /** Zawężenie do projektu compose; `null` zdejmuje je. */
     public function narrowTo(?string $project): void
     {
+        if ($project !== $this->project) {
+            ++$this->revision;
+        }
+
         $this->project = $project;
         $this->cursor = 0;
     }
@@ -277,6 +303,7 @@ final class ContainerList
         $this->containers = $this->catalog->containers($result->body);
         $this->problemKey = null;
         $this->loaded = true;
+        ++$this->revision;
         $this->moveTo($this->cursor);
     }
 

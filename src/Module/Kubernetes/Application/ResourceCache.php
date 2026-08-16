@@ -63,6 +63,37 @@ final class ResourceCache
         return $this->rows[$kind->address()] ?? [];
     }
 
+    /**
+     * Przestrzenie nazw stojące w wierszach, które już wczytano — **źródło
+     * kwerendy `k8s.namespaces`** (krok 54).
+     *
+     * Nie pyta klastra o nic i pytać nie ma prawa: to jest odpowiedź złożona
+     * z tego, co i tak leży w pamięci po obejrzeniu zasobów. Rodzaje bez
+     * przestrzeni (węzły, przestrzenie same) nie wnoszą nic, bo ich wiersze mają
+     * `namespace === null`.
+     *
+     * @return list<string> alfabetycznie, bez powtórzeń
+     */
+    public function namespacesSeen(): array
+    {
+        $this->forgetOnGenerationChange();
+
+        $names = [];
+
+        foreach ($this->rows as $rows) {
+            foreach ($rows as $row) {
+                if ($row->namespace !== null && $row->namespace !== '') {
+                    $names[$row->namespace] = true;
+                }
+            }
+        }
+
+        $names = array_keys($names);
+        sort($names);
+
+        return $names;
+    }
+
     public function knows(ResourceKind $kind): bool
     {
         $this->forgetOnGenerationChange();

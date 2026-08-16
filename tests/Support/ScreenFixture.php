@@ -280,6 +280,10 @@ final class ScreenFixture
         $this->help = new HelpScreen($settingsStore, $translator, Bootstrap::VERSION, 'Sixel');
 
         $this->commandRegistry = new CommandRegistry();
+        // Stan pętli podaje rejestr komend modułom (krok 54) — **przed** pytaniem
+        // ich o komendy, bo `k8s.deploy-image` bierze go w konstruktorze.
+        // To jest ta sama kolejność, którą wymusza `Bootstrap`.
+        $this->state->useCommands($this->commandRegistry);
         $change = new ChangeSettingUseCase($settingsStore, $themes, $translator, self::startupModules($this->modules));
         $this->commandRegistry->add(CommandRegistry::CORE, [
             new ScreenCommand('core.help', 'help'),

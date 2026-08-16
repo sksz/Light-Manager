@@ -155,10 +155,17 @@ final class QueryWindowFlowTest extends TestCase
         self::assertStringContainsString('notatka.txt', $this->overlayText());
     }
 
-    /** Nieznane źródło mówi zdaniem i nie zamyka okna. */
+    /**
+     * Nieznane źródło mówi zdaniem i nie zamyka okna.
+     *
+     * Przykładem był do kroku 54 `docker.images` — i przestał nim być dokładnie
+     * wtedy, gdy tamten krok dał modułowi Dockera kwerendy. Nazwa jest odtąd
+     * spoza **przestrzeni jakiegokolwiek modułu**, więc nie ma jak przestać być
+     * nieznana przy następnym rozszerzeniu aplikacji.
+     */
     public function testAnUnknownNameIsAnsweredWithASentence(): void
     {
-        $this->ask('docker.images');
+        $this->ask('nosuchmodule.things');
 
         $message = $this->app->state->message();
 

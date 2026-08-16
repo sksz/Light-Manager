@@ -8,7 +8,6 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
-use LightManager\Module\Docker\Application\ContainerList;
 use LightManager\Module\Docker\Application\DockerSettings;
 use LightManager\Module\Docker\Domain\ValueObject\Container;
 use LightManager\Module\Docker\Domain\ValueObject\ContainerState;
@@ -51,7 +50,7 @@ final class ContainerPane
     private const AGE_WIDTH = 12;
 
     public function __construct(
-        private readonly ContainerList $containers,
+        private readonly DockerQueries $reader,
         private readonly TranslatorPort $translator,
         private readonly ScrollWindow $window,
     ) {
@@ -60,7 +59,7 @@ final class ContainerPane
     /** @return list<Primitive> */
     public function draw(Rect $bounds): array
     {
-        $entries = $this->containers->entries();
+        $entries = $this->reader->containers()->entries;
 
         if ($entries === []) {
             return (new Label($this->emptySentence()))->draw($bounds);
@@ -68,7 +67,7 @@ final class ContainerPane
 
         $count = count($entries);
         $capacity = Table::capacityOf($bounds, withHeader: true);
-        $cursor = $this->containers->cursor();
+        $cursor = $this->reader->containers()->cursor;
         $offset = $this->window->keepVisible($cursor, $count, $capacity);
 
         return (new Table(
@@ -91,7 +90,7 @@ final class ContainerPane
      */
     public function drawDetails(Rect $bounds): array
     {
-        $container = $this->containers->selected();
+        $container = $this->reader->containers()->selected();
 
         if ($container === null) {
             return [];
@@ -179,17 +178,17 @@ final class ContainerPane
      */
     private function emptySentence(): string
     {
-        $problem = $this->containers->problemKey();
+        $problem = $this->reader->containers()->problemKey;
 
         if ($problem !== null) {
             return $this->translator->translate($problem);
         }
 
-        if (!$this->containers->isLoaded()) {
+        if (!$this->reader->containers()->loaded) {
             return $this->text('containers.reading');
         }
 
-        $project = $this->containers->project();
+        $project = $this->reader->containers()->project;
 
         return $project === null
             ? $this->text('containers.empty')

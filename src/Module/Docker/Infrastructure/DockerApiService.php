@@ -113,6 +113,11 @@ final class DockerApiService extends AbstractSingleton implements DockerApiPort
         return $this->begin($path, streaming: false, method: 'DELETE');
     }
 
+    public function push(string $path, string $registryAuth): DockerCall
+    {
+        return $this->begin($path, streaming: true, method: 'POST', registryAuth: $registryAuth);
+    }
+
     public function follow(string $path): DockerCall
     {
         return $this->begin($path, streaming: true);
@@ -184,6 +189,7 @@ final class DockerApiService extends AbstractSingleton implements DockerApiPort
         string $method = 'GET',
         ?string $body = null,
         ?string $contentType = null,
+        ?string $registryAuth = null,
     ): DockerCall {
         $call = new DockerCall(++$this->lastId);
 
@@ -204,7 +210,16 @@ final class DockerApiService extends AbstractSingleton implements DockerApiPort
 
         $conversation = new DockerConversation($handle, $streaming, self::MAX_BUFFER_BYTES);
 
-        curl_setopt_array($handle, $this->options($handle, $conversation, $path, $streaming, $method, $body, $contentType));
+        curl_setopt_array($handle, $this->options(
+            $handle,
+            $conversation,
+            $path,
+            $streaming,
+            $method,
+            $body,
+            $contentType,
+            $registryAuth,
+        ));
         curl_multi_add_handle($multi, $handle);
 
         $this->calls[$call->id] = $conversation;
@@ -231,6 +246,7 @@ final class DockerApiService extends AbstractSingleton implements DockerApiPort
         string $method,
         ?string $body,
         ?string $contentType,
+        ?string $registryAuth = null,
     ): array {
         $options = [
             CURLOPT_UNIX_SOCKET_PATH => self::SOCKET_PATH,
@@ -256,9 +272,16 @@ final class DockerApiService extends AbstractSingleton implements DockerApiPort
         // Nagłówek typu treści idzie **zawsze przy żądaniu z treścią**, bo demon
         // odsyła `400` żądaniu budowy bez `application/x-tar` — i odsyła je
         // zanim przeczyta choćby bajt archiwum.
-        $options[CURLOPT_HTTPHEADER] = $contentType !== null
-            ? ['Content-Type: ' . $contentType]
-            : ['Content-Type: application/json'];
+        $headers = [$contentType !== null ? 'Content-Type: ' . $contentType : 'Content-Type: application/json'];
+
+        // Poświadczenia rejestru idą **nagłówkiem, nie w treści** — tak żąda
+        // demon i tak jest bezpieczniej: treść żądania bywa logowana, nagłówek
+        // znika razem z połączeniem.
+        if ($registryAuth !== null && $registryAuth !== '') {
+            $headers[] = 'X-Registry-Auth: ' . $registryAuth;
+        }
+
+        $options[CURLOPT_HTTPHEADER] = $headers;
 
         return $options;
     }

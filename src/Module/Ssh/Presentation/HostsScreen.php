@@ -78,10 +78,17 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable
 
     private readonly ScrollWindow $window;
 
+    /**
+     * @param SshSession $session **wyłącznie do czynności** — dopisania wpisu,
+     *                            usunięcia, odświeżenia i rozłączenia. Odczyt
+     *                            idzie przez `$reader`, bo rejestr kwerend jest
+     *                            jedyną drogą do danej (krok 53, D92 nr 3)
+     */
     public function __construct(
         private readonly SshSession $session,
         private readonly ConnectFlow $flow,
         private readonly TranslatorPort $translator,
+        private readonly SshQueries $reader,
     ) {
         $this->window = new ScrollWindow();
     }
@@ -105,7 +112,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable
      */
     public function header(): ScreenZone
     {
-        $state = $this->session->state();
+        $state = $this->reader->session();
         $host = $state->host;
 
         $text = $host !== null && $state->stage !== SessionStage::Idle
@@ -113,7 +120,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable
                 'stage' => $this->text($state->stage->labelKey()),
                 'host' => $host->label(),
             ])
-            : $this->session->location();
+            : $this->reader->hostBook()->location;
 
         return new ScreenZone($this->labelKey(), new Label($text));
     }
@@ -126,7 +133,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable
 
     public function draw(Rect $bounds): array
     {
-        $book = $this->session->book();
+        $book = $this->reader->book();
 
         if ($book->isEmpty()) {
             return (new Label($this->text('module.' . SshSettings::ID . '.empty'), '', Role::Muted))->draw($bounds);
@@ -173,7 +180,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable
             Key::ArrowUp => $this->select(-1),
             Key::ArrowDown => $this->select(1),
             Key::Home => $this->putSelection(0),
-            Key::End => $this->putSelection($this->session->book()->count() - 1),
+            Key::End => $this->putSelection($this->reader->book()->count() - 1),
             Key::Enter => $this->activate(),
             Key::F4 => $this->cycleAuth(),
             Key::F5 => $this->refresh(),
@@ -197,7 +204,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable
             return ScreenOutcome::stay();
         }
 
-        $state = $this->session->state();
+        $state = $this->reader->session();
 
         if ($state->isConnected() && $state->concerns($profile)) {
             $this->session->disconnect();
@@ -272,7 +279,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable
 
     private function refresh(): ScreenOutcome
     {
-        if (!$this->session->state()->isConnected()) {
+        if (!$this->reader->session()->isConnected()) {
             return ScreenOutcome::stay(Message::info($this->text('module.' . SshSettings::ID . '.message.nothing')));
         }
 
@@ -310,7 +317,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable
         }
 
         $this->session->add($profile);
-        $this->selected = max(0, $this->session->book()->count() - 1);
+        $this->selected = max(0, $this->reader->book()->count() - 1);
 
         return Message::info(
             $this->text('module.' . SshSettings::ID . '.message.added', ['host' => $profile->name]),
@@ -371,10 +378,10 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable
     /** @return list<TableRow> */
     private function rows(): array
     {
-        $state = $this->session->state();
+        $state = $this->reader->session();
         $rows = [];
 
-        foreach ($this->session->book()->all() as $profile) {
+        foreach ($this->reader->book()->all() as $profile) {
             $stage = $state->concerns($profile) ? $state->stage : SessionStage::Idle;
 
             $rows[] = new TableRow(
@@ -413,7 +420,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable
     {
         $this->clampSelection();
 
-        return $this->session->book()->at($this->selected);
+        return $this->reader->book()->at($this->selected);
     }
 
     private function select(int $delta): ScreenOutcome
@@ -423,7 +430,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable
 
     private function putSelection(int $index): ScreenOutcome
     {
-        $count = $this->session->book()->count();
+        $count = $this->reader->book()->count();
 
         if ($count === 0) {
             $this->selected = 0;
@@ -438,7 +445,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable
 
     private function clampSelection(): void
     {
-        $count = $this->session->book()->count();
+        $count = $this->reader->book()->count();
         $this->selected = $count === 0 ? 0 : max(0, min($this->selected, $count - 1));
     }
 

@@ -11,6 +11,7 @@ use LightManager\Application\Module\ModuleSettingsTab;
 use LightManager\Application\Module\ModuleShortcut;
 use LightManager\Application\Module\NeedsTick;
 use LightManager\Application\Module\ProvidesCommands;
+use LightManager\Application\Module\ProvidesQueries;
 use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Module\RequiresEnvironment;
 use LightManager\Application\Port\SettingsPort;
@@ -33,7 +34,12 @@ use LightManager\Module\Ssh\Presentation\Command\DisconnectCommand;
 use LightManager\Module\Ssh\Presentation\Command\DownloadCommand;
 use LightManager\Module\Ssh\Presentation\Command\HostsCommand;
 use LightManager\Module\Ssh\Presentation\Command\UploadCommand;
+use LightManager\Module\Ssh\Presentation\Query\EntriesQuery;
+use LightManager\Module\Ssh\Presentation\Query\HostsQuery;
+use LightManager\Module\Ssh\Presentation\Query\SessionQuery;
+use LightManager\Module\Ssh\Presentation\Query\TransferQuery;
 use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Cli\Query\CoreReader;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
 
@@ -67,6 +73,7 @@ final class SshModule implements
     RequiresEnvironment,
     ProvidesSettingsTab,
     ProvidesCommands,
+    ProvidesQueries,
     ProvidesHelpTab,
     ProvidesScreen,
     NeedsTick,
@@ -99,6 +106,8 @@ final class SshModule implements
     private ?RemoteTransfer $transfers = null;
 
     private ?LocalPlace $place = null;
+
+    private ?SshQueries $reader = null;
 
     /**
      * @param ?SshSessionPort $sessions wstrzyknięcie istnieje dla testów, które nie mają
@@ -184,21 +193,43 @@ final class SshModule implements
         return $this->commands ??= $this->assemble();
     }
 
+    /**
+     * Cztery źródła danych tego modułu — **cała jego cena w kroku 54**.
+     *
+     * Zdolność deklaruje się osobno, jak `ProvidesCommands` i `DeclaresEvents`,
+     * bo nie wymienia ani jednego typu z `Presentation` (kryterium podziału
+     * z D38 P2). Miara druga kroku 54 brzmi: „jeśli dopisanie kwerend do gotowego
+     * modułu kosztuje więcej niż jedną zdolność, mechanizm z kroku 53 wyszedł
+     * źle" — tutaj kosztowało tyle i ani grama więcej.
+     */
+    public function queries(): array
+    {
+        return [
+            new HostsQuery($this->session()),
+            new SessionQuery($this->session()),
+            new EntriesQuery($this->browser(), $this->translator),
+            new TransferQuery($this->transfers(), $this->translator),
+        ];
+    }
+
     public function screen(): SshScreen
     {
         return $this->screen ??= new SshScreen(
             $this->session(),
             $this->browser(),
-            new HostsScreen($this->session(), $this->flow(), $this->translator),
+            new HostsScreen($this->session(), $this->flow(), $this->translator, $this->reader()),
             new RemoteScreen(
                 $this->browser(),
                 $this->translator,
                 new ChangeModuleSettingUseCase($this->settings, $this->translator),
                 $this->state,
                 $this->transfers(),
+                $this->reader(),
+                new CoreReader($this->state->queries()),
             ),
             $this->state,
             $this->local(),
+            $this->reader(),
         );
     }
 
@@ -217,6 +248,7 @@ final class SshModule implements
             $this->local(),
             $this->translator,
             $this->state->events(),
+            $this->reader(),
         );
     }
 
@@ -227,6 +259,20 @@ final class SshModule implements
     private function local(): LocalPlace
     {
         return $this->place ??= new LocalPlace();
+    }
+
+    /**
+     * Fasada odczytu — **jedna na moduł** (krok 53, D92 nr 3; ten moduł dostał ją
+     * w kroku 54).
+     *
+     * Jedna, bo dwie znaczyłyby dwa miejsca rozpakowujące ładunek kwerendy, a więc
+     * dwie prawdy o tym, co jest w panelu. Powstaje leniwie, jak wszystko w tym
+     * module: rejestr kwerend musi być wypełniony **zanim** ktokolwiek zapyta,
+     * a wypełnia go `Bootstrap` po zbudowaniu rejestru modułów.
+     */
+    private function reader(): SshQueries
+    {
+        return $this->reader ??= new SshQueries($this->state->queries());
     }
 
     /**
@@ -313,7 +359,7 @@ final class SshModule implements
      */
     private function flow(): ConnectFlow
     {
-        return $this->flow ??= new ConnectFlow($this->session(), $this->translator);
+        return $this->flow ??= new ConnectFlow($this->session(), $this->reader(), $this->translator);
     }
 
     /** @return list<CommandInterface> */
@@ -322,8 +368,8 @@ final class SshModule implements
         $session = $this->session();
 
         return [
-            new ConnectCommand($session, $this->flow(), $this->translator),
-            new DisconnectCommand($session, $this->translator),
+            new ConnectCommand($this->reader(), $this->flow(), $this->translator),
+            new DisconnectCommand($session, $this->reader(), $this->translator),
             new HostsCommand(),
             new DownloadCommand($this->transfers(), $this->translator),
             new UploadCommand($this->transfers(), $this->translator),

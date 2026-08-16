@@ -65,15 +65,69 @@ final class QueryIsTheOnlyReadPathTest extends TestCase
         '$this->state->checksum()' => 'FileInfoQueries::checksum()',
         '$this->state->diskUsage()' => 'FileInfoQueries::diskUsage()',
         '$this->state->preview()' => 'FileInfoQueries::preview()',
+
+        // Moduł sesji zdalnej (krok 54). Czynności zostają wolne: `enter()`,
+        // `goUp()`, `refresh()`, `open()`, `close()`, `useFilter()`, `putCursor()`.
+        '$this->session->book()' => 'SshQueries::book()',
+        '$this->session->state()' => 'SshQueries::session()',
+        '$this->session->location()' => 'SshQueries::hostBook()->location',
+        '$this->browser->state()' => 'SshQueries::remote()',
+        '$this->browser->entries()' => 'SshQueries::remote()->entries',
+        '$this->browser->cursor()' => 'SshQueries::remote()->cursor',
+        '$this->browser->count()' => 'SshQueries::remote()->count()',
+        '$this->browser->selected()' => 'SshQueries::selected()',
+        '$this->browser->path()' => 'SshQueries::path()',
+        '$this->browser->host()' => 'SshQueries::host()',
+        '$this->browser->filter()' => 'SshQueries::remote()->filter',
+        '$this->browser->showsHidden()' => 'SshQueries::remote()->showsHidden',
+        '$this->browser->hasListing()' => 'SshQueries::hasListing()',
+        '$this->browser->directory()' => 'SshQueries::remote()',
+
+        // Moduł Dockera (krok 54). Czynności zostają wolne: `refresh()`,
+        // `remove()`, `begin()`, `narrowTo()`, `moveTo()`, `tick()`, `stop()`.
+        '$this->images->entries()' => 'DockerQueries::images()->entries',
+        '$this->images->selected()' => 'DockerQueries::images()->selected()',
+        '$this->images->cursor()' => 'DockerQueries::images()->cursor',
+        '$this->images->isLoaded()' => 'DockerQueries::images()->loaded',
+        '$this->images->problemKey()' => 'DockerQueries::images()->problemKey',
+        '$this->containers->entries()' => 'DockerQueries::containers()->entries',
+        '$this->containers->selected()' => 'DockerQueries::containers()->selected()',
+        '$this->containers->cursor()' => 'DockerQueries::containers()->cursor',
+        '$this->containers->isLoaded()' => 'DockerQueries::containers()->loaded',
+        '$this->containers->problemKey()' => 'DockerQueries::containers()->problemKey',
+        '$this->containers->project()' => 'DockerQueries::containers()->project',
+        '$this->containers->projects()' => 'DockerQueries::containers()->projects',
+        '$this->compose->state()' => 'DockerQueries::compose()',
+
+        // Moduł Kubernetesa (krok 54). Czynności zostają wolne: `begin()`,
+        // `load()`, `useContext()`, `useNamespace()`, `advance()`, `stop()`.
+        '$this->cluster->stage()' => 'KubernetesQueries::cluster()->stage',
+        '$this->cluster->versions()' => 'KubernetesQueries::cluster()->versions',
+        '$this->cluster->contexts()' => 'KubernetesQueries::contexts()->contexts',
+        '$this->cluster->problemKey()' => 'KubernetesQueries::cluster()->problemKey',
+        '$this->cluster->problemParameters()' => 'KubernetesQueries::cluster()->problemParameters',
+        '$this->cache->rowsOf(' => 'KubernetesQueries::rowsOf()',
+        '$this->cache->knows(' => 'KubernetesQueries::knows()',
+        '$this->catalog->groups()' => 'KubernetesQueries::groups()',
+        '$this->catalog->kindsOf(' => 'KubernetesQueries::kindsOf()',
+        '$this->catalog->find(' => 'KubernetesQueries::findKind()',
     ];
 
-    /** Katalogi objęte regułą — rdzeń i trzy moduły, którym krok 53 dowiózł kwerendy. */
+    /**
+     * Katalogi objęte regułą — rdzeń i **wszystkie sześć modułów**.
+     *
+     * Trzy pierwsze dostały kwerendy w kroku 53, trzy kolejne w 54 — i od tego
+     * kroku w aplikacji nie ma już modułu zwolnionego z reguły.
+     */
     private const WATCHED = [
         'src/Presentation/Cli/Screen',
         'src/Presentation/Ui/Overlay',
         'src/Module/Browser/Presentation',
         'src/Module/FileInfo/Presentation',
         'src/Module/Audio/Presentation',
+        'src/Module/Ssh/Presentation',
+        'src/Module/Docker/Presentation',
+        'src/Module/Kubernetes/Presentation',
     ];
 
     /** Kto czyta stan z urzędu: fasada, kwerenda i sam obiekt stanu. */
@@ -105,6 +159,9 @@ final class QueryIsTheOnlyReadPathTest extends TestCase
             'src/Module/Browser/Presentation/BrowserQueries.php',
             'src/Module/FileInfo/Presentation/FileInfoQueries.php',
             'src/Module/Audio/Presentation/AudioQueries.php',
+            'src/Module/Ssh/Presentation/SshQueries.php',
+            'src/Module/Docker/Presentation/DockerQueries.php',
+            'src/Module/Kubernetes/Presentation/KubernetesQueries.php',
             'src/Presentation/Cli/Query/CoreReader.php',
         ];
 

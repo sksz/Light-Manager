@@ -20,6 +20,7 @@ use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntry;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntryType;
 use LightManager\Module\Ssh\Presentation\Component\RemoteSize;
 use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Cli\Query\CoreReader;
 use LightManager\Presentation\Ui\Component\Align;
 use LightManager\Presentation\Ui\Component\Column;
 use LightManager\Presentation\Ui\Component\Label;
@@ -90,12 +91,20 @@ final class RemoteScreen
      */
     private int $lastCapacity = 1;
 
+    /**
+     * @param RemoteBrowser $browser **wyłącznie do czynności** — wejścia do katalogu,
+     *                               wyjścia wyżej, odświeżenia, filtra, kursora
+     *                               i ukrytych. Odczyt idzie przez `$reader`
+     *                               (krok 53, D92 nr 3)
+     */
     public function __construct(
         private readonly RemoteBrowser $browser,
         private readonly TranslatorPort $translator,
         private readonly ChangeModuleSettingUseCase $changeSetting,
         private readonly LoopState $state,
         private readonly RemoteTransfer $transfers,
+        private readonly SshQueries $reader,
+        private readonly CoreReader $core,
     ) {
         $this->window = new ScrollWindow();
         $this->window->useContext(self::ID);
@@ -110,9 +119,9 @@ final class RemoteScreen
      */
     public function header(): string
     {
-        $state = $this->browser->state();
-        $path = $this->browser->path()->value ?? '';
-        $host = $this->browser->host()?->label() ?? '';
+        $state = $this->reader->remote();
+        $path = $this->reader->path()->value ?? '';
+        $host = $this->reader->host()?->label() ?? '';
 
         if ($state->stage === ListingStage::Listing) {
             return $this->text('module.' . SshSettings::ID . '.remote.reading', [
@@ -130,7 +139,7 @@ final class RemoteScreen
     /** @return list<Primitive> */
     public function draw(Rect $bounds): array
     {
-        $entries = $this->browser->entries();
+        $entries = $this->reader->remote()->entries;
 
         if ($entries === []) {
             return $this->nothing($bounds);
@@ -139,11 +148,11 @@ final class RemoteScreen
         // Okno przewijania pamięta wycinek **pod kluczem katalogu**, więc wejście
         // w podkatalog i powrót zastają listę tam, gdzie się ją zostawiło —
         // ta sama zasada, co w liście lokalnej od kroku 18.
-        $this->window->useContext(self::ID . ':' . ($this->browser->path()->value ?? ''));
+        $this->window->useContext(self::ID . ':' . ($this->reader->path()->value ?? ''));
 
         $count = count($entries);
         $capacity = Table::capacityOf($bounds, withHeader: true);
-        $cursor = $this->browser->cursor();
+        $cursor = $this->reader->remote()->cursor;
         $offset = $this->window->keepVisible($cursor, $count, $capacity);
         $this->lastCapacity = max(1, $capacity);
 
@@ -167,7 +176,7 @@ final class RemoteScreen
      */
     private function nothing(Rect $bounds): array
     {
-        $state = $this->browser->state();
+        $state = $this->reader->remote();
 
         $sentence = match (true) {
             $state->stage === ListingStage::Listing => $this->text('module.' . SshSettings::ID . '.remote.wait'),
@@ -175,7 +184,7 @@ final class RemoteScreen
                 $state->problemKey ?? 'module.' . SshSettings::ID . '.listing.failed',
                 $state->problemParameters,
             ),
-            !$this->browser->filter()->isEmpty() => $this->text('module.' . SshSettings::ID . '.remote.noMatch'),
+            !$this->reader->remote()->filter->isEmpty() => $this->text('module.' . SshSettings::ID . '.remote.noMatch'),
             default => $this->text('module.' . SshSettings::ID . '.remote.empty'),
         };
 
@@ -236,7 +245,7 @@ final class RemoteScreen
 
         ];
 
-        if (!$this->browser->filter()->isEmpty()) {
+        if (!$this->reader->remote()->filter->isEmpty()) {
             $bindings[] = KeyBinding::of(
                 [Key::Escape],
                 'module.' . SshSettings::ID . '.remote.key.clear',
@@ -255,7 +264,7 @@ final class RemoteScreen
     public function handle(KeyPress $key): ScreenOutcome
     {
         if ($key->key === Key::Character && $key->raw === '/' && !$key->ctrl && !$key->alt) {
-            return ScreenOutcome::opens(new RemoteFilterOverlay($this->browser, $this->translator));
+            return ScreenOutcome::opens(new RemoteFilterOverlay($this->browser, $this->translator, $this->reader));
         }
 
         if ($key->key === Key::Character && $key->raw === 'h' && $key->ctrl) {
@@ -272,7 +281,7 @@ final class RemoteScreen
             Key::PageUp => $this->moved(-$this->lastCapacity),
             Key::PageDown => $this->moved($this->lastCapacity),
             Key::Home => $this->put(0),
-            Key::End => $this->put($this->browser->count() - 1),
+            Key::End => $this->put($this->reader->remote()->count() - 1),
             Key::Enter => $this->enter(),
             Key::Backspace => $this->goUp(),
             Key::F5 => $this->transfers->downloadPrompt(),
@@ -295,7 +304,7 @@ final class RemoteScreen
             return ScreenOutcome::stay();
         }
 
-        $entry = $this->browser->selected();
+        $entry = $this->reader->selected();
 
         return ScreenOutcome::stay($entry === null
             ? null
@@ -334,7 +343,7 @@ final class RemoteScreen
         $this->browser->toggleHidden();
 
         [$settings, $message] = $this->changeSetting->shift(
-            $this->state->settings(),
+            $this->core->settings(),
             SshSettings::ID,
             self::hiddenDeclaration(),
             1,
@@ -342,7 +351,7 @@ final class RemoteScreen
         $this->state->applySettings($settings);
 
         return ScreenOutcome::stay($message ?? Message::info($this->text(
-            $this->browser->showsHidden()
+            $this->reader->remote()->showsHidden
                 ? 'module.' . SshSettings::ID . '.remote.hidden.on'
                 : 'module.' . SshSettings::ID . '.remote.hidden.off',
         )));
@@ -361,7 +370,7 @@ final class RemoteScreen
     /** `Esc` zdejmuje filtr, a przy pustym filtrze **nie zużywa klawisza** — zamyka ekran. */
     private function clearFilter(): ScreenOutcome
     {
-        if ($this->browser->filter()->isEmpty()) {
+        if ($this->reader->remote()->filter->isEmpty()) {
             return ScreenOutcome::close();
         }
 
@@ -449,7 +458,7 @@ final class RemoteScreen
      */
     private function marksIn(RemoteEntry $entry): array
     {
-        $filter = $this->browser->filter();
+        $filter = $this->reader->remote()->filter;
 
         if ($filter->isEmpty()) {
             return [];

@@ -11,6 +11,7 @@ use LightManager\Application\Module\ModuleSettingsTab;
 use LightManager\Application\Module\ModuleShortcut;
 use LightManager\Application\Module\NeedsTick;
 use LightManager\Application\Module\ProvidesCommands;
+use LightManager\Application\Module\ProvidesQueries;
 use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Module\RequiresEnvironment;
 use LightManager\Application\Port\SettingsPort;
@@ -28,8 +29,15 @@ use LightManager\Module\Kubernetes\Application\ResourceDetail;
 use LightManager\Module\Kubernetes\Infrastructure\KubectlService;
 use LightManager\Module\Kubernetes\Presentation\Command\ApplyCommand;
 use LightManager\Module\Kubernetes\Presentation\Command\ContextCommand;
+use LightManager\Module\Kubernetes\Presentation\Command\DeployImageCommand;
 use LightManager\Module\Kubernetes\Presentation\Command\GetCommand;
 use LightManager\Module\Kubernetes\Presentation\Command\NamespaceCommand;
+use LightManager\Module\Kubernetes\Presentation\Query\ClusterQuery;
+use LightManager\Module\Kubernetes\Presentation\Query\ContextsQuery;
+use LightManager\Module\Kubernetes\Presentation\Query\DeploymentsQuery;
+use LightManager\Module\Kubernetes\Presentation\Query\KindsQuery;
+use LightManager\Module\Kubernetes\Presentation\Query\NamespacesQuery;
+use LightManager\Module\Kubernetes\Presentation\Query\ResourcesQuery;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
@@ -62,6 +70,7 @@ final class KubernetesModule implements
     RequiresEnvironment,
     ProvidesSettingsTab,
     ProvidesCommands,
+    ProvidesQueries,
     ProvidesHelpTab,
     ProvidesScreen,
     NeedsTick,
@@ -93,6 +102,10 @@ final class KubernetesModule implements
     private ?ResourceCache $cache = null;
 
     private ?ResourceDetail $detail = null;
+
+    private ?KubernetesQueries $reader = null;
+
+    private ?DeployImageFlow $deploy = null;
 
     private ?LogStream $logs = null;
 
@@ -178,6 +191,7 @@ final class KubernetesModule implements
             new ContextCommand($this->screen()),
             new NamespaceCommand($this->screen()),
             new ApplyCommand($this->screen(), $this->actions()),
+            new DeployImageCommand($this->deployFlow()),
         ];
     }
 
@@ -193,6 +207,7 @@ final class KubernetesModule implements
             $this->session(),
             $this->translator,
             $this->state,
+            $this->reader(),
         );
     }
 
@@ -266,6 +281,55 @@ final class KubernetesModule implements
     private function session(): ClusterSession
     {
         return $this->session ??= new ClusterSession();
+    }
+
+    /**
+     * Fasada odczytu — **jedna na moduł** (krok 53, D92 nr 3; ten moduł dostał ją
+     * w kroku 54).
+     */
+    private function reader(): KubernetesQueries
+    {
+        return $this->reader ??= new KubernetesQueries($this->state->queries());
+    }
+
+    /**
+     * Choreografia `k8s.deploy-image` — **jedna na moduł**, jak wszystko, co ma
+     * dwa wejścia (11n).
+     *
+     * Dostaje **oba rejestry rdzenia**, i to jest cała jej cena: przez rejestr
+     * kwerend pyta o cudze dane, przez rejestr komend zamawia cudze czynności.
+     * Ani jednego typu z modułu Dockera nie widzi (15g).
+     */
+    private function deployFlow(): DeployImageFlow
+    {
+        return $this->deploy ??= new DeployImageFlow(
+            $this->state->queries(),
+            $this->state->commands(),
+            $this->reader(),
+            $this->actions(),
+            $this->translator,
+            $this->settings,
+        );
+    }
+
+    /**
+     * Sześć źródeł danych tego modułu — **najwięcej w kroku i najwięcej
+     * w aplikacji**.
+     *
+     * `k8s.deployments` jest wśród nich tą, na której stoi ostatni etap czynności
+     * `k8s.deploy-image`: oddaje wdrożenia wraz z **nazwą kontenera**, bo bez niej
+     * `kubectl set image` nie ma czego podmienić.
+     */
+    public function queries(): array
+    {
+        return [
+            new ContextsQuery($this->cluster()),
+            new ClusterQuery($this->cluster()),
+            new NamespacesQuery($this->session(), $this->cache()),
+            new KindsQuery($this->catalog()),
+            new ResourcesQuery($this->catalog(), $this->cache()),
+            new DeploymentsQuery($this->catalog(), $this->cache()),
+        ];
     }
 
     private function cluster(): ClusterState

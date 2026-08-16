@@ -47,6 +47,7 @@ final class ConnectFlow
 {
     public function __construct(
         private readonly SshSession $session,
+        private readonly SshQueries $reader,
         private readonly TranslatorPort $translator,
     ) {
     }
@@ -114,7 +115,7 @@ final class ConnectFlow
      */
     private function workProgress(): WorkProgress
     {
-        $state = $this->session->state();
+        $state = $this->reader->session();
 
         return new WorkProgress(
             running: $state->isWorking(),
@@ -125,7 +126,7 @@ final class ConnectFlow
     /** Co po skończonej pracy — trzy wyjścia, bo tyle ma stan portu. */
     private function finished(HostProfile $profile): OverlayOutcome
     {
-        $state = $this->session->state();
+        $state = $this->reader->session();
 
         if ($state->stage === SessionStage::AwaitingApproval) {
             return OverlayOutcome::replace($this->fingerprintQuestion($profile));
@@ -158,7 +159,7 @@ final class ConnectFlow
     {
         $lines = [];
 
-        foreach ($this->session->state()->fingerprints as $fingerprint) {
+        foreach ($this->reader->session()->fingerprints as $fingerprint) {
             $lines[] = $fingerprint->describe();
         }
 

@@ -919,6 +919,58 @@ rdzeń rozdaje **bez pytania**, a `core.context`, `browser.cwd` i
 `browser.selection` są tym samym oglądanym przez kanał — z jedną różnicą, która
 uzasadnia ich istnienie: kontekst mówi o panelu **czynnym**, kwerenda o dowolnym.
 
+**Zasięg domknięty w kroku 54.** Kwerendy mają odtąd **wszystkie sześć modułów**
+— `ssh` cztery, `docker` pięć, `k8s` sześć — a strażnik
+`QueryIsTheOnlyReadPathTest` nie zna ani jednego zwolnienia. Dopisanie ich do
+gotowych modułów kosztowało **jedną zdolność na moduł** i ani jednej linii
+w `Application/Query/`; to była druga miara tamtego kroku i sprawdza się ją
+`git diff`em na katalogu mechanizmu, a nie na słowo. Trzy rzeczy wyszły przy tym
+na jaw i obowiązują przy każdej następnej kwerendzie:
+
+- **Odpowiedź asynchroniczna niesie etap w każdym wierszu**, a pusta lista dostaje
+  wiersz z samym etapem (`ssh.entries`, `k8s.resources`, `docker.images`).
+  Bez tego „czytam z sieci", „nie ma nic" i „nikt jeszcze nie pytał" wyglądają dla
+  obcego modułu identycznie — a różnią się tym, czy warto poczekać, czy coś
+  zrobić. Ostatni z tych trzech stanów wykrył dopiero test czynności
+  `k8s.deploy-image`: moduł Dockera pyta demona o obrazy wtedy, gdy ktoś na nie
+  patrzy, więc czynność uruchomiona wcześniej zastawała pustkę.
+- **Fasada oddaje migawkę, a nie obiekt roboczy.** Obiekt roboczy musiałby wracać
+  jako `null`owalny (przy module wyłączonym nie ma czego oddać), a wtedy każde
+  miejsce odczytu powtarzałoby obsługę braku — czyli dokładnie to, przed czym
+  broni `QueryRegistry::ask()`.
+- **Materiał uwierzytelnienia nie wchodzi do wierszy.** Odcisk klucza i ścieżka
+  klucza prywatnego zostają poza `ssh.hosts`, a adres serwera poza `k8s.cluster`:
+  „dana pierwotna" nie znaczy „wszystka", a wiersze widzi każdy.
+
+#### Moduł zamawia cudzą czynność (od kroku 54)
+
+Kwerenda mówi, ale **nie robi**. Czynność przechodząca przez dwa moduły —
+`k8s.deploy-image`, dla której cała Faza XVIII ma trzy kroki zamiast dwóch —
+potrzebowała przez to trzeciego kanału i pokazała **lukę zapisaną w regułach od
+kroku 53**: reguła 15g mówiła „moduł zna nazwę cudzej komendy", ale nic nie
+dawało modułowi rejestru komend, więc nazwa była bezużyteczna. Nikt tego nie
+zauważył, bo pierwszy odbiorca powstał dopiero teraz.
+
+`LoopState::commands()` jest odtąd **trzecim rejestrem** obok zdarzeń i kwerend,
+z tego samego rachunku: stan pętli dostaje każdy moduł. Rejestr **wchodzi
+wypełniony** (`useCommands()` w `Bootstrapie`, przed składaniem modułów), a o okno
+pyta się **zdolności komendy** (`OpensOverlay`), nie rejestru — tą samą linią, co
+okno komend i menu.
+
+Całość składa się w zdanie: **komenda robi, zdarzenie ogłasza, kwerenda mówi co
+wyszło.** Czynność `k8s.deploy-image` zna moduł Dockera z **trzech napisów**
+(`docker.images`, `docker.build`, `docker.push`) i ani jednego typu; pilnuje tego
+`NoModuleKnowsAnotherModuleTest`, chodzący po przestrzeniach nazw, a nie po
+treści wywołań.
+
+Praca cudza trwa przy tym minutami, więc czekanie na nią jest **oknem pracy
+pytającym kwerendą raz na takt** — `RunsWork` z kroku 41 pasuje tu bez zmiany,
+choć powstało dla pracy własnej. `Esc` porzuca **czekanie, nie pracę**: ta należy
+do tamtego modułu i trwa u niego dalej. Warunkiem tego zdania była zmiana
+wewnątrz modułu Dockera — budowa i wypychanie posuwają się odtąd **taktem
+modułu**, a nie własnym oknem, bo stos okien ma jedno piętro i praca posuwana
+przez własne okno stawała, gdy cokolwiek innego zajęło ekran.
+
 #### Jeden ekran, dwa panele (od kroku 24)
 
 Podział ekranu **nie znosi zasady „jeden ekran naraz”** i to jest jego
@@ -1196,7 +1248,10 @@ weszło do zakresu) i **zdolność `Application\Module\RequiresEnvironment`** �
 powód odrzucenia w rejestrze i pierwszy zależny od maszyny, na której aplikacja
 stoi. Czwarta zmiana doszła w trakcie i wynikła z obejrzenia okna:
 **`ConfirmOverlay` zawija długie pytanie zamiast je ucinać**, bo odcisk SHA256
-ucięty w połowie nie jest odciskiem.
+ucięty w połowie nie jest odciskiem. Samo łamanie po słowach mieszka od poprawki
+z 2026-08-16 w `Label::wrap()`, obok `fit()` i `fitEnd()` — wyszło z okna
+z chwilą, gdy o tę samą regułę zapytał drugi wołający (zdanie stanu w ekranie
+klastra); oknu została jego własna granica sześciu wierszy.
 
 **Bez klienta OpenSSH moduł znika ze spisu wraz z powodem** — inaczej niż moduł
 dźwięku, który bez rozszerzenia zostaje na pustym obiekcie. Różnica jest

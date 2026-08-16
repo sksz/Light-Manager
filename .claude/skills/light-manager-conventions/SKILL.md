@@ -605,6 +605,22 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     (`DockerCatalogPort`, `LogReaderPort`, `BuildReaderPort`), bo stan listy jest
     daną warstwy `Application` i nie ma prawa znać ani jednej klasy stamtąd
     (reguła 4).
+    **Krok 54 dokłada wypychanie do rejestru i przenosi budowę do taktu**
+    (D94). `docker push` idzie **gniazdem**, a nie klientem: zasób w API jest,
+    więc powód, którym broni się wyjątek compose, tu nie zachodzi. Trzy rzeczy
+    o tym wywołaniu: **płynie** (odpowiedź to strumień zdań o warstwach, a limit
+    zwykłego wywołania urwałby je w połowie), niesie **`X-Registry-Auth`** złożony
+    z pozycji ustawień modułu — demon nie czyta `~/.docker/config.json`, bo to plik
+    **klienta** — a nagłówek jest base64 **wedle URL i bez dopełnienia**
+    (`RegistryAuth`); zwykły `base64_encode()` daje napis, który demon odrzuca
+    z `401`. Nazwa i etykieta idą **osobno** (`/images/<nazwa>/push?tag=<etykieta>`),
+    a rozdziela je ostatni dwukropek **stojący po ostatnim ukośniku** — inaczej
+    port rejestru (`localhost:5000/…`) wygląda jak etykieta. Budowę i wypychanie
+    posuwa odtąd **takt modułu**, nie ich własne okna: stos okien ma jedno piętro,
+    więc praca posuwana wyłącznie przez własne okno stawała, gdy cokolwiek innego
+    zajęło ekran — a to czyniło niewykonalnym „`Esc` przerywa czekanie, nie
+    budowę". Okna są odtąd obserwatorami, a zdarzenia ogłasza takt przez
+    `takeFinished()`.
 11u. **Zamawiając pracę tłową, powiedz, czym jest jej wypis** (krok 52, D91 nr 12).
     `Application\Dto\OutputShape` ma dwie wartości i **przeciwne** reguły wobec
     granicy bufora: `Result` (domyślny) zbiera do granicy i **odrzuca nadmiar** —
@@ -635,6 +651,15 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     zamaskowane** w liście, w opisie i w YAML-u; odsłania jeden klucz `x`, a zmiana
     idzie `kubectl patch --type=merge -p` — argumentem, bo potomek nie dostaje
     wejścia (ta sama reguła unieważnia `apply -f -`).
+    **Krok 54 dokłada czwartą czynność: podmianę obrazu we wdrożeniu.** Idzie
+    `kubectl set image`, a **nie** `patch`, i to jest różnica ratująca dane:
+    `--type=merge` podmienia **całą tablicę** kontenerów, więc wdrożenie o dwóch
+    kontenerach straciłoby jeden. Kontener wskazuje się **nazwą** — i to dlatego
+    kwerenda `k8s.deployments` oddaje wiersz na kontener, a nie na wdrożenie.
+    Obrazy czyta się z JSON-a, który `get -o json` **już przyniósł**
+    (`ResourceJsonParser::imagesOf()`, dwa kształty naraz: `spec.containers`
+    poda i `spec.template.spec.containers` wszystkiego, co pody tworzy), więc
+    kwerenda nie kosztuje ani jednego wywołania.
 11w. **Dane czyta się przez rejestr kwerend — i nie ma drugiej drogi** (krok 53,
     D92). `Application\Query\QueryRegistry` jest **jedynym** wejściem do danych:
     także dla rdzenia i także dla modułu czytającego **własny** stan. Zdanie
@@ -661,6 +686,42 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     czytający oba języki. Zdanie „kontekst mówi, gdzie użytkownik stoi; kwerenda
     mówi, co u mnie jest" rozważano i **odwołano** (D92 nr 8): skoro drugiej drogi
     do danej nie ma, `core.context` i `browser.cwd` są kanałem, a nie powtórką.
+    **Krok 54 domyka zasięg: kwerendy mają wszystkie sześć modułów** (`ssh` 4,
+    `docker` 5, `k8s` 6), a strażnik `QueryIsTheOnlyReadPathTest` nie zna już
+    ani jednego zwolnienia. Dopisanie kwerend do gotowego modułu kosztowało
+    **jedną zdolność** i ani jednej linii w `Application/Query/` — to była druga
+    miara tamtego kroku i została spełniona maszynowo. Trzy rzeczy warte
+    zapamiętania przy dopisywaniu następnych: **odpowiedź asynchroniczna niesie
+    etap w każdym wierszu**, a pusta lista dostaje wiersz z samym etapem
+    (`ssh.entries`, `k8s.resources`, `docker.images`) — inaczej „czytam", „nie ma
+    nic" i „nikt jeszcze nie pytał" wyglądają dla obcego identycznie; **fasada
+    oddaje migawkę, nie obiekt roboczy**, bo obiekt roboczy musiałby być
+    `null`owalny i rozsiewałby obsługę braku po wszystkich odczytach; a **pole,
+    którego wydanie obcemu byłoby oddaniem materiału uwierzytelnienia, do wierszy
+    nie wchodzi** (odcisk klucza i ścieżka klucza prywatnego w `ssh.hosts`, adres
+    serwera w `k8s.cluster`).
+11x. **Moduł zamawia cudzą czynność rejestrem komend ze stanu pętli** (krok 54,
+    D94). `LoopState::commands()` jest **trzecim rejestrem** w tym miejscu, po
+    zdarzeniach i kwerendach, i stoi tam z tego samego rachunku: stan pętli
+    dostaje każdy moduł, więc zamówienie nie kosztuje argumentu w `Bootstrapie`.
+    Powód, dla którego wszedł, był **luką, a nie nową funkcją**: reguła 15g mówiła
+    od kroku 53 „moduł zna nazwę cudzej komendy", ale sama nazwa jest bezużyteczna,
+    dopóki nie ma czego o nią zapytać — a pierwszy odbiorca (`k8s.deploy-image`)
+    powstał dopiero w kroku 54. Rejestr **wchodzi wypełniony** (`useCommands()`
+    w `Bootstrapie`, przed składaniem modułów) i tę kolejność musi powtórzyć każdy
+    zestaw testowy. O okno pyta się **zdolności komendy** (`OpensOverlay`), a nie
+    rejestru — tak samo, jak robią to okno komend i menu. Zdanie całości:
+    **komenda robi, zdarzenie ogłasza, kwerenda mówi co wyszło.**
+11y. **Pozycja ustawień z sekretem zasłania wartość** (krok 54, D94 nr 7).
+    `ModuleSetting::secret()` to **znacznik przy rodzaju `Text`, a nie piąty
+    rodzaj** — rodzaj kosztowałby nową gałąź rysowania, nową gałąź klawiszy
+    i nowy przypadek w `valueFrom()`, a maskowanie nie zmienia niczego poza tym,
+    co widać. Zasłona ma **stałą długość**, bo liczba gwiazdek równa liczbie
+    znaków mówi o sekrecie tyle, ile mówić nie musi, i pada w **dwóch** miejscach:
+    przy edycji (`TextInput` umie to od kroku 48) i w wierszu listy. **Nie jest
+    szyfrowaniem i nie udaje go** — wartość leży w `settings.json` jawnie, więc
+    znacznik broni przed spojrzeniem, nie przed odczytem pliku. Pierwszy
+    użytkownik: token rejestru obrazów z uprawnieniem `write:packages`.
 11. **Nowy element interfejsu to nowy komponent w `Presentation/Ui/Component`**,
     a nie nowa metoda w rendererze. Komponent oddaje prymitywy z ról motywu i
     prostokątów w siatce znakowej — pikseli nie zna. Słownik prymitywów jest
@@ -725,6 +786,14 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     niezarejestrowany w rejestrze kwerend **nie widzi własnych danych** — dotyczy
     to także testów składających moduł samodzielnie, które muszą powtórzyć
     `useModules()` z `Bootstrapu`.
+    **Krok 54 dokłada czwarte zdanie i pierwszego odbiorcę w kodzie**:
+    czynność przechodząca przez dwa moduły (`k8s.deploy-image`) zna cudzy moduł
+    z **trzech napisów** — `docker.images`, `docker.build`, `docker.push` — i ani
+    jednego typu. Pilnuje tego `NoModuleKnowsAnotherModuleTest`, który chodzi po
+    przestrzeniach nazw, a nie po treści wywołań: zakazane jest tu **samo
+    wymienienie typu**, więc widać je w `use` (różnica wobec
+    `QueryIsTheOnlyReadPathTest`, gdzie zakazane jest czytanie obiektem, który
+    wolno trzymać).
 
 15b. **Reguła 15 ma dokładnie jeden wyjątek i jest on nazwany: zapis na dysk**
     (krok 41, D66/D75). Rdzeń ma port operacji na plikach

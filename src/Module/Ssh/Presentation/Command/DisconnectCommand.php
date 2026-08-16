@@ -11,6 +11,7 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\Ssh\Application\SshSession;
 use LightManager\Module\Ssh\Application\SshSettings;
+use LightManager\Module\Ssh\Presentation\SshQueries;
 
 /**
  * `ssh.disconnect` — zamyka sesję (krok 48).
@@ -26,6 +27,7 @@ final class DisconnectCommand implements CommandInterface
 {
     public function __construct(
         private readonly SshSession $session,
+        private readonly SshQueries $reader,
         private readonly TranslatorPort $translator,
     ) {
     }
@@ -47,7 +49,7 @@ final class DisconnectCommand implements CommandInterface
 
     public function execute(CommandInput $input): CommandOutcome
     {
-        $state = $this->session->state();
+        $state = $this->reader->session();
 
         if (!$state->isConnected() || $state->host === null) {
             return CommandOutcome::done(Message::info(

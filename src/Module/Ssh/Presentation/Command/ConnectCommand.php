@@ -12,10 +12,10 @@ use LightManager\Application\Command\SuggestionSource;
 use LightManager\Application\Command\SuggestsArguments;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Domain\ValueObject\Message;
-use LightManager\Module\Ssh\Application\SshSession;
 use LightManager\Module\Ssh\Application\SshSettings;
 use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
 use LightManager\Module\Ssh\Presentation\ConnectFlow;
+use LightManager\Module\Ssh\Presentation\SshQueries;
 use LightManager\Presentation\Ui\Command\OpensOverlay;
 use LightManager\Presentation\Ui\OverlayOutcome;
 
@@ -41,7 +41,7 @@ final class ConnectCommand implements CommandInterface, SuggestsArguments, Opens
     private const ARGUMENT = 'host';
 
     public function __construct(
-        private readonly SshSession $session,
+        private readonly SshQueries $reader,
         private readonly ConnectFlow $flow,
         private readonly TranslatorPort $translator,
     ) {
@@ -76,7 +76,7 @@ final class ConnectCommand implements CommandInterface, SuggestsArguments, Opens
 
         $matching = [];
 
-        foreach ($this->session->book()->names() as $name) {
+        foreach ($this->reader->book()->names() as $name) {
             if ($prefix === '' || stripos($name, $prefix) === 0) {
                 $matching[] = $name;
             }
@@ -117,6 +117,6 @@ final class ConnectCommand implements CommandInterface, SuggestsArguments, Opens
 
     private function profileFrom(CommandInput $input): ?HostProfile
     {
-        return $this->session->book()->find(trim($input->text(self::ARGUMENT)));
+        return $this->reader->book()->find(trim($input->text(self::ARGUMENT)));
     }
 }

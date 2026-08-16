@@ -56,6 +56,7 @@ return [
 
     // Nagłówek i wersje.
     'module.k8s.header.place' => 'Kontekst {context}, przestrzeń {namespace}',
+    'module.k8s.header.noPlace' => 'Brak wybranego klastra',
     'module.k8s.version.skew' => '— uwaga: klient {client}, serwer {server}',
 
     // Panele i postacie ekranu.
@@ -205,10 +206,39 @@ return [
     'module.k8s.command.context' => 'Wybierz klaster (kontekst kubectl)',
     'module.k8s.command.namespace' => 'Zmień przestrzeń nazw',
     'module.k8s.command.apply' => 'Zastosuj plik manifestu w klastrze',
+    // Czynność `k8s.deploy-image` (krok 54).
+    'module.k8s.command.deployImage' => 'Wdróż obraz kontenera w klastrze',
+    'module.k8s.setting.buildWaitSeconds' => 'Limit czekania na budowę (s)',
+    'module.k8s.deploy.pickImage' => 'Który obraz wdrożyć',
+    'module.k8s.deploy.pickDeployment' => 'Gdzie wdrożyć {tag}',
+    'module.k8s.deploy.buildNew' => '— zbuduj nowy obraz —',
+    'module.k8s.deploy.waiting' => 'Przygotowywanie {tag}',
+    'module.k8s.deploy.stage' => 'czekam na moduł Dockera…',
+    'module.k8s.deploy.building' => 'Budowa zamówiona — wróć tu, gdy się skończy.',
+    'module.k8s.deploy.noDocker' => 'Moduł Dockera jest wyłączony albo nieobecny — nie ma kogo zapytać o obrazy.',
+    'module.k8s.deploy.imagesNotRead' => 'Moduł Dockera nie zna jeszcze obrazów — otwórz jego ekran (Ctrl+O, F3) i wróć tutaj.',
+    'module.k8s.deploy.noDeployments' => 'Klaster nie ma wdrożeń do pokazania — otwórz ekran klastra (Ctrl+K) i wczytaj je.',
+    'module.k8s.deploy.timedOut' => 'Upłynął limit czekania. Praca trwa dalej w module Dockera.',
+    'module.k8s.deploy.abandoned' => 'Wdrażanie przerwane. Praca modułu Dockera idzie dalej.',
+    'module.k8s.deploy.pushFailed' => 'Obraz nie trafił do rejestru — bez tego klaster go nie pobierze.',
+    'module.k8s.deploy.pushRefused' => 'Rejestr nie przyjął obrazu: {reason}',
+    'module.k8s.deploy.applying' => 'Podmiana obrazu w {deployment} na {tag} zamówiona.',
+    'module.k8s.action.done.setImage' => 'Obraz podmieniony w: {name}',
+
     'module.k8s.command.noKind' => 'Klaster nie zna rodzaju „{kind}”.',
     'module.k8s.command.noCatalog' => 'Spis rodzajów jeszcze nie przyszedł — otwórz ekran klastra (Ctrl+K).',
     'module.k8s.argument.kind' => 'rodzaj',
     'module.k8s.argument.path' => 'ścieżka',
+
+    // Kwerendy modułu (krok 54).
+    'module.k8s.query.contexts' => 'konteksty z kubeconfig wraz z bieżącym',
+    'module.k8s.query.cluster' => 'wersja klastra i klienta oraz etap sesji',
+    'module.k8s.query.namespaces' => 'przestrzenie nazw znane sesji',
+    'module.k8s.query.kinds' => 'rodzaje zasobów zgłoszone przez klaster',
+    'module.k8s.query.resources' => 'wiersze zasobu wskazanego rodzaju wraz z etapem',
+    'module.k8s.query.deployments' => 'wdrożenia wraz z obrazem każdego kontenera',
+    'module.k8s.query.unknownKind' => 'Klaster nie zna takiego rodzaju zasobu.',
+    'module.k8s.query.noDeployments' => 'Spis rodzajów jeszcze nie przyszedł albo klaster nie zna wdrożeń.',
 
     // Zdarzenia.
     'module.k8s.event.applied' => 'Klaster: zastosowano plik',

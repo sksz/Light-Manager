@@ -515,7 +515,70 @@ z czynnością `k8s.deploy-image`).
 | 51 | Moduł `docker`: kontenery, obrazy, logi, budowanie i compose | [51-modul-docker.md](archiwum/51-modul-docker.md) | 20, 21, 23, 24, 26, 27, 28, 29, 41, 45, 46 | Opus | xhigh | Ukończony |
 | 52 | Moduł `k8s`: konteksty, zasoby klastra i logi | [52-modul-kubernetes.md](archiwum/52-modul-kubernetes.md) | 20, 21, 22, 24, 26, 27, 28, 29, 31⁴, 45, 46, 51 | Opus | high | Ukończony z zastrzeżeniem |
 | 53 | Kwerendy: mechanizm, okno i wszystkie źródła danych rdzenia oraz trzech modułów | [53-kwerendy-miedzymodulowe.md](archiwum/53-kwerendy-miedzymodulowe.md) | 19, 20, 21, 24, 25, 26, 27, 43, 45, 46, 47 | Opus³ | xhigh | Ukończony |
-| 54 | Kwerendy modułów Fazy XVII i XVIII: obraz zbudowany Dockerem ląduje w klastrze | [54-kwerendy-modulow-kontenerowych.md](54-kwerendy-modulow-kontenerowych.md) | 23, 32, 41, 42, 46, 47, 48, 49, 50, 51, 52, 53 | Opus⁵ | xhigh | Nie rozpoczęty |
+| 54 | Kwerendy modułów Fazy XVII i XVIII: obraz zbudowany Dockerem ląduje w klastrze | [54-kwerendy-modulow-kontenerowych.md](archiwum/54-kwerendy-modulow-kontenerowych.md) | 23, 32, 41, 42, 46, 47, 48, 49, 50, 51, 52, 53 | Opus⁵ | xhigh | Ukończony |
+
+### Faza XIX — Wskaźnik: mysz, zaznaczanie i schowek
+
+Faza **zarysowana i rozpisana 2026-08-16**, na polecenie użytkownika. Aplikacja
+przyjmuje po raz pierwszy **wskaźnik**, a nie tylko klawiaturę — kliknięcie
+stawia kursor, przeciągnięcie zaznacza treść, a zaznaczone da się skopiować do
+schowka systemowego i wkleić z powrotem.
+
+Trzy rzeczy z tytułu są **trzema mechanizmami**, nie jedną funkcją. Mysz otwiera
+**słownik wejścia** po raz pierwszy od kroku 44 i nie mieści się w `KeyPress`,
+który niesie znak i trzy znaczniki. Zaznaczanie treści musi zrobić **aplikacja
+sama**, bo klatka jest bitmapą (Sixel) albo prymitywami OpenGL — zaznaczenie po
+stronie terminala złapałoby piksele, a nie tekst. Schowek ma **trzy różne drogi
+w trzech torach** i żadna nie jest wspólna: OSC 52, `glfwSetClipboardString()`,
+`xclip`.
+
+**Zarys pękł na trzy kroki przy rozpisywaniu** ([00-decyzje.md](00-decyzje.md),
+D95): powodem było rozstrzygnięcie nr 3, które dało myszy **komplet czynności** —
+kursor, ognisko, kółko, prawy przycisk, podwójne kliknięcie, granicę podziału,
+stopkę i zakładki. Jeden krok na mechanizm, każdy z własnym pomiarem i własnym
+rozliczeniem; **kolejność 55 → 56 → 57 jest obowiązkowa**, bo dwa późniejsze
+stoją na słowniku wejścia i na zdolności `AcceptsPointer` z pierwszego.
+
+Faza rozstrzygnęła przy tym dwie rzeczy, których zarys nie przewidywał, i obie
+mają cenę wypisaną wprost. **Schowek idzie w całości przez OSC 52, więc
+`GetSelection` i `SetSelection` wracają na listę dozwolonych operacji
+w `bin/run.sh`** — lista powstała w kroku 34 jako świadome zawężenie, a jej
+poszerzenie pozwala aplikacji działającej w terminalu **przeczytać cudzy
+schowek**. Cena zamienia się na trzy zobowiązania w zakresie kroku 57: czyta się
+wyłącznie na polecenie użytkownika, treść ma jedno miejsce docelowe, a `run.sh`
+tłumaczy zmianę. **Krok 56 jest ponadto jawnym wyjątkiem od reguły 13** (D95
+nr 9): dowozi zaznaczenie, którego nie ma gdzie skopiować, bo schowek przychodzi
+dopiero krok później. Zamiana kolejności usuwała ten dług bez żadnego kosztu
+i została odrzucona świadomie — dług ma przez to właściciela i termin, jak
+`ProgressBar` w kroku 23.
+
+Trzecia rzecz jest znaleziskiem z pomiaru, nie z przeglądu: **tryb surowy
+zostawia włączone `isig` i `iexten`** (sprawdzone w prawdziwym pty: `intr = ^C`,
+`lnext = ^V`). `Ctrl`+`Alt`+`c` wysyła przez to `ESC` + `0x03`, a sterownik tty
+zamienia `0x03` na SIGINT **zanim aplikacja cokolwiek przeczyta** — czyli skrót
+zamyka program. Klawiszami schowka zostały `Alt`+`c` i `Alt`+`v`, a reguła 11j
+(modyfikatory rozłączne) wyszła z fazy **nietknięta**.
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 55 | Mysz: wskaźnik wchodzi do słownika wejścia | [55-mysz-wskaznik.md](55-mysz-wskaznik.md) | 6, 9, 14, 15, 18, 19, 21, 24, 32, 33, 34, 35, 40 | Fable⁶ | xhigh | Nie rozpoczęty |
+| 56 | Zaznaczanie treści: klatka uczy się mówić, co na niej pisze | [56-zaznaczanie-tresci.md](56-zaznaczanie-tresci.md) | 8, 13, 18, 30, 35, 38, 55 | Opus⁷ | xhigh | Nie rozpoczęty |
+| 57 | Schowek systemowy: trzy tory, dwie drogi, jedno miejsce | [57-schowek.md](57-schowek.md) | 6, 7, 14, 15, 19, 32, 33, 34, 43, 48, 55, 56 | Opus⁷ | high | Nie rozpoczęty |
+
+⁶ Przydział **potwierdzony 2026-08-16** (D95): zachodzi warunek z przypisów
+¹ i ² — krok zmienia słownik wejścia (`InputPort` przestaje oddawać `KeyPress`)
+i dotyka wszystkich trzech torów naraz, bo raportowanie myszy włącza się także
+w torze tekstowym (D95 nr 7). Zapowiadany wariant tańszy (`Opus / high` przy
+zakresie zawężonym do schowka bez myszy) **odpadł** wraz z rozstrzygnięciem nr 3.
+
+⁷ Kroki 56 i 57 **nie spełniają** warunku z przypisów ¹ i ²: słownik wejścia
+rośnie w nich najwyżej o **postać zdarzenia** (`ClipboardText`), nigdy
+o modyfikator ani klawisz, a słownik prymitywów zostaje zamknięty — zaznaczenie
+rysuje się `TextMark`ami z kroku 30, więc trzej tłumacze zostają nietknięci.
+Wysiłek kroku 56 trzyma **rachunek na ścieżce klatki** (warstwa tekstowa wychodzi
+z renderera tekstowego do wspólnego miejsca, więc rozlicza się trzema osiami
+pomiaru); kroku 57 — **asynchroniczność odczytu** (terminal odpowiada na wejściu
+klatkę później albo nie odpowiada wcale).
 
 ⁴ Zależność **dopisana 2026-08-16**, na starcie kroku ([00-decyzje.md](00-decyzje.md),
 D91 nr 3): rozstrzygnięcie użytkownika postawiło w lewym panelu **drzewo grup API
@@ -548,6 +611,230 @@ tłumacza słownika prymitywów.
 co w kroku 53**, i z tego samego powodu: prymitywów nie przybywa, słownik
 wejścia nie rośnie, trzy renderery zostają nietknięte. Wysiłek trzyma
 choreografia czynności przechodzącej przez dwa moduły i pracę trwającą minuty.
+
+### Faza XX — Wiele miejsc: środowiska Dockera, klastry Kubernetesa i rejestry obrazów
+
+Faza **zaplanowana 2026-08-16**, na polecenie użytkownika
+([00-decyzje.md](00-decyzje.md), D96). Odwraca założenie, które oba moduły
+kontenerowe wniosły ze sobą i które w krokach 51–52 było uczciwym zawężeniem:
+**miejsce, z którym moduł rozmawia, jest jedno i wpisane w kod**. Docker ma
+ścieżkę gniazda jako stałą klasy, k8s — jeden kontekst zapamiętany w pozycji
+ustawień, a rejestr obrazów wszedł w kroku 54 jako trzy pozycje, bo tyle
+wystarczyło, żeby obraz trafił do klastra. Faza zamienia każdą z tych trzech
+rzeczy w **spis prowadzony przez użytkownika** i dokłada drogi, którymi da się
+sięgnąć poza własną maszynę.
+
+Trzy kroki po jednej rzeczy każdy (D96 nr 1), rytmem Faz VII, XIV i XVII; krok
+60 stoi ostatni, bo konsumuje oba poprzednie. Faza jest **łańcuchem**: bez
+książki środowisk nie ma gdzie trzymać rejestrów (jeden plik stanu, jeden
+zapis), a bez wybranego klastra nie ma gdzie założyć sekretu.
+
+**Rdzeń faza kosztuje zero zmian** i to jest jej osobne kryterium: książki, drogi
+transportu i rozmowa z rejestrem są własnością modułów, a wszystko, czego
+potrzebują od rdzenia — port pracy tłowej (26, 51), kwerendy (53, 54), komendy,
+zdarzenia (46) i okna (28, 32) — stoi tam od dawna. Jedno miejsce jest wyjątkiem
+nazwanym z góry: w kroku 59 wzorzec książki wpisów stanie **po raz trzeci**, co
+z reguły 15e uruchamia przegląd „czy to nadal powtórzenie, czy już wspólne
+miejsce" — obowiązek postawienia pytania, nie automatyczną przeprowadzkę.
+
+Zdalny demon Dockera idzie **dwiema drogami naraz** (D96 nr 2) — tunelem gniazda
+przez `ssh -L` i po TCP z TLS-em klienta — a rodzaj jest daną wpisu. Zyskiem,
+dla którego tak wybrano, jest to, że **kod rozmowy z demonem zostaje jeden**:
+ramkowanie logów, strumień budowy i `X-Registry-Auth` nie zmieniają się o linię.
+Odrzucono za to `docker -H ssh://` przez klienta, i to twardo: listy zdalne
+szłyby wtedy inną drogą niż lokalne, czyli powstałaby druga droga do tej samej
+danej.
+
+Wpisy mają **dwa źródła** (D96 nr 3): cudze pliki są czytane (`docker context
+ls`, `kubeconfig` wraz z `KUBECONFIG`), a książka modułu dokłada to, czego tamte
+nie niosą. Do cudzych plików moduł nadal **nie pisze** — zdanie z kroków 51 i 52
+zostaje w mocy.
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 58 | Środowiska Dockera: jeden demon przestaje być założeniem | [58-srodowiska-dockera.md](58-srodowiska-dockera.md) | 14, 15, 24, 26, 27, 28, 30, 32, 40, 45, 46, 48, 51, 53, 54 | Opus⁸ | xhigh | Nie rozpoczęty |
+| 59 | Klastry Kubernetesa: połączenie przestaje być jednym kontekstem | [59-klastry-kubernetesa.md](59-klastry-kubernetesa.md) | 14, 15, 22, 24, 27, 28, 31, 48, 52, 53, 54, 58 | Opus⁸ | high | Nie rozpoczęty |
+| 60 | Rejestry obrazów: książka, zawartość i sekret w klastrze | [60-rejestry-obrazow.md](60-rejestry-obrazow.md) | 19, 27, 28, 32, 48, 51, 52, 53, 54, 58, 59 | Opus⁸ | xhigh | Nie rozpoczęty |
+
+⁸ Warunek `Fable` z przypisów ¹ i ² **nie zachodzi w żadnym z trzech kroków**:
+prymitywów nie przybywa, słownik wejścia nie rośnie, trzej tłumacze zostają
+nietknięci. Wysiłek kroku 58 trzymają **dwie drogi transportu naraz** wraz
+z przestawieniem reguły odrzucania modułu (11s) i pracą tłową, która przeżywa
+swój uchwyt; kroku 60 — **dwa moduły naraz** i rozmówca, którego aplikacja nie
+miała (rejestr HTTP z uwierzytelnieniem dwustopniowym). Krok 59 jest z tej trójki
+**najlżejszy i taki ma być**: nowej drogi nie wnosi, a jego ciężar leży
+w przeliczeniu tożsamości miejsca przez cztery klasy stanu naraz.
+
+### Faza XXI — Dokumentacja: podręcznik, przewodnik, onboarding i obrona przed rozjazdem
+
+Faza **zaplanowana 2026-08-16**, na polecenie użytkownika
+([00-decyzje.md](00-decyzje.md), D97). Dokumentacji jest dziś **12 797 wierszy**
+i jest zorganizowana wokół **historii projektu**, a nie wokół czytelnika:
+największy dokument to dziennik decyzji (7405 wierszy), a `README.md` odpowiada
+naraz na dwa różne pytania — jak używać i jak rozwijać. Nie ma ani jednego
+wiersza onboardingu, ani jednego przewodnika „jak dodać X" i **ani jednego
+diagramu**.
+
+Pięć kroków (D97 nr 1): **61** porządek i granice, **62** podręcznik
+użytkownika, **63** dokumentacja dewelopera, **64** onboarding, **65** diagramy
+i pilnowanie. Krok 61 stoi pierwszy z powodu mechanicznego — cztery pozostałe
+muszą wiedzieć, gdzie pisać; krok 65 ostatni, bo testy nie mają czego pilnować,
+dopóki nie ma tekstu. Onboarding dostał **własny krok**, bo jest ścieżką
+przechodzoną raz, a przewodnik referencją, do której się wraca.
+
+Faza **nie dotyka ścieżki klatki ani razu** i jest przez to drugą taką
+w projekcie po XII: reguła 17 nie zachodzi w krokach 61–64 w ogóle, a kod
+produkcyjny powstaje **wyłącznie w kroku 65** i jest kodem testów. Rdzeń
+aplikacji nie rośnie o nic; rosną `Makefile` (cel `docs-check`), drzewo
+analizowane PHPStanem (`examples/`) i zestaw `tests/Documentation/`.
+
+Dwie rzeczy przesądziły o kształcie fazy, obie policzone w repozytorium. **Do
+`docs/architecture.md` wskazuje 51 plików, z czego 40 leży w archiwum** — czyli
+w dokumentach zamkniętych, których nie wolno przepisywać; dlatego dokument
+źródłowy **zostaje pod swoim adresem** i staje się spisem rozdziałów, a rozdziały
+przenoszą się do `docs/architektura/`. **Materiał na spisy i scenariusze już
+istnieje**: 167 wywołań `KeyBinding::`, 41 kwerend, ~32 komendy, 6 modułów, 29
+celów `make` i 26 nazwanych przebiegów funkcjonalnych, z których każdy jest
+zapisaną drogą użytkownika.
+
+Dokumentacja powstaje **dwujęzycznie** (D97 nr 3) — podręcznik, przewodniki
+i onboarding po polsku i po angielsku; architektura, dziennik i plany zostają
+jednojęzyczne, bo są dokumentami pracy nad projektem, nie dokumentami projektu.
+Diagramy idą **mermaidem**, każdy ze zdaniem mówiącym to samo słowami (D97 nr 2)
+— bo aplikacja sama jest programem terminalowym i czytelnik ma prawo czytać
+dokumentację w `less`.
+
+Miarą całej fazy jest zdanie sprawdzalne próbą: **usunięcie jednego
+`KeyBinding`u z kodu czerwieni bramkę jakości, dopóki podręcznik nie zostanie
+poprawiony** (D97 nr 4 i 5).
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 61 | Porządek: jedno źródło, dwa języki, jedna konwencja rysunku | [61-porzadek-dokumentacji.md](61-porzadek-dokumentacji.md) | 4, 15, 39 | Opus⁹ | high | Nie rozpoczęty |
+| 62 | Podręcznik użytkownika: od pierwszego uruchomienia do scenariuszy | [62-podrecznik-uzytkownika.md](62-podrecznik-uzytkownika.md) | 14, 15, 38, 40, 61 | Opus⁹ | xhigh | Nie rozpoczęty |
+| 63 | Dokumentacja dewelopera: mapa kodu i przewodniki „jak dodać X" | [63-dokumentacja-dewelopera.md](63-dokumentacja-dewelopera.md) | 18, 19, 20, 21, 26, 38, 39, 53, 54, 61, 62 | Opus⁹ | xhigh | Nie rozpoczęty |
+| 64 | Onboarding: pierwsze trzydzieści minut w projekcie | [64-onboarding.md](64-onboarding.md) | 39, 61, 62, 63 | Opus⁹ | high | Nie rozpoczęty |
+| 65 | Diagramy i pilnowanie: dokumentacja, która czerwieni bramkę, gdy kłamie | [65-diagramy-i-pilnowanie.md](65-diagramy-i-pilnowanie.md) | 15, 38, 40, 53, 54, 61, 62, 63, 64 | Opus⁹ | high | Nie rozpoczęty |
+
+⁹ Warunek `Fable` z przypisów ¹ i ² **nie zachodzi w żadnym z pięciu kroków**:
+prymitywów nie przybywa, słownik wejścia nie rośnie, trzej tłumacze zostają
+nietknięci — a cztery pierwsze kroki nie dotykają kodu aplikacji w ogóle.
+Wysiłek `xhigh` w krokach 62 i 63 trzyma **objętość podwojona przez parę
+językową** wraz z wymaganiem, żeby spisy zgadzały się ze 167 wiązaniami
+w kodzie, a przewodniki były sprawdzone **wykonaniem**, nie przeczytaniem.
+Krok 64 jest najmniejszy objętościowo i **najdroższy w sprawdzeniu**: weryfikuje
+go przejście ścieżki przez kogoś innego niż autor.
+
+### Fazy XXII–XXIV — Zarządzanie aplikacjami, projektami i zespołem (zarys)
+
+Trzy fazy **zarysowane 2026-08-16**, na polecenie użytkownika
+([00-decyzje.md](00-decyzje.md), D98), z przeglądu pytania „czego brakuje, żeby
+aplikacja pomagała prowadzić projekt, a nie tylko oglądać pliki". Odpowiedzią
+jest **dziesięć modułów** — i to jest największa jednorazowa rozbudowa spisu
+w historii projektu, bo dziś modułów jest sześć.
+
+**Są to zarysy, a nie plany**, i różnica jest zapisana w każdym z dziesięciu
+plików: żaden nie ma rozstrzygnięć startowych, tabeli plików ani kryteriów
+ukończenia — ma za to **cel, zarys zakresu, stan zastany sprawdzony na maszynie
+i spis pytań do rozstrzygnięcia**. Precedens jest z Fazy XIX, gdzie zarys
+powstał przed rozpisaniem i przed D95; różnica polega na tym, że tam zarys był
+jeden na fazę, a tu jest **jeden na krok** (D98 nr 2).
+
+**Podział na fazy idzie wedle poziomów wartości** (D98 nr 1), a nie wedle osi
+tematycznej: XXII to trzy pozycje o najlepszym stosunku wartości do rozmiaru,
+mające odbiorcę już w kodzie; XXIII — cztery, które wymagają rozstrzygnięć,
+zanim powstanie pierwsza linia; XXIV — trzy o największym zakresie albo
+najdalszym odbiorcy. Kolejność wykonania pokrywa się z kolejnością wartości.
+
+**Rdzeń kosztują zero zmian — wszystkie dziesięć.** To jest osobne kryterium
+całej trójki i jej najmocniejszy argument: mechanizmy, których te moduły
+potrzebują, stoją w rdzeniu od dawna — praca tłowa równoległa (26, 51), takt
+modułu (45), zdarzenia (46), kwerendy (53, 54), tabela (27), drzewo (31), widok
+tekstu (29), filtr (30), okna (28, 32) i sekret w ustawieniach (54). Każdy
+moduł kosztuje **jedną pozycję na liście w `Bootstrapie`** (reguła 15).
+
+Trzy rzeczy przecinają wszystkie dziesięć kroków i **rozstrzygają się raz, przed
+pierwszym z nich, a nie w każdym z osobna** (D98 nr 4):
+
+- **Gdzie mieszka sekret.** `ModuleSetting::secret()` (krok 54, D94 nr 7)
+  maskuje wartość **w interfejsie**, a plik ustawień ma tryb `0600` — czyli
+  token leży w nim jawnym tekstem, tak samo jak w `~/.docker/config.json`. Czy
+  to wystarcza, dotyczy naraz kroków **69**, **70** i **73**.
+- **Biblioteka w procesie kontra proces potomny.** Załadowane są `pdo_pgsql`,
+  `pdo_mysql`, `pgsql`, `mysqli`, `mongodb`, `amqp` i `ssh2` — wszystkie kuszą
+  tym samym, czym `ext-ssh2` przed **D87**: wywołaniem blokującym bez limitu
+  czasu. Drogą domyślną zostaje proces potomny; wywołanie w procesie wymaga
+  uzasadnienia, nie odwrotnie.
+- **Wzorzec książki wpisów.** Po krokach 58 i 59 stoi trzy razy i uruchamia
+  przegląd z reguły 15e **w kroku 59**; kroki **73**, **70** i ewentualnie
+  **69** postawiłyby go po raz czwarty, piąty i szósty — czyli mają wynik tamtego
+  przeglądu **zastosować**, a nie powtórzyć rachunek od zera.
+
+#### Faza XXII — Praca nad projektem: repozytorium, zadania, zależności
+
+Trzy moduły bez sieci rozległej, bez sekretu i bez cudzego systemu po drugiej
+stronie. **Krok 66 stoi pierwszy z powodu mechanicznego**, nie z sympatii: jego
+kwerendy są zależnością kroków 69 i 74, a `git.head` jest tą daną, po którą
+sięgnąłby `docker.build`, żeby znakować obraz wersją źródła — czyli łańcuch
+z kroku 54 odwrócony.
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 66 | Moduł `git`: repozytorium przestaje być niewidzialne | [66-modul-git.md](66-modul-git.md) | 20, 21, 24, 26, 27, 28, 29, 30, 31, 32, 51, 53, 54 | Opus¹⁰ | xhigh | Zarys |
+| 67 | Moduł `runner`: zadania projektu uruchamiane stamtąd, gdzie się stoi | [67-modul-runner.md](67-modul-runner.md) | 20, 21, 24, 26, 29, 30, 32, 46, 51, 53 | Opus¹⁰ | high | Zarys |
+| 68 | Moduł `deps`: zależności projektu i to, co w nich przeterminowane | [68-modul-deps.md](68-modul-deps.md) | 20, 21, 26, 27, 30, 53 | Opus¹⁰ | medium | Zarys |
+
+¹⁰ Warunek `Fable` z przypisów ¹ i ² **nie zachodzi w żadnym z dziesięciu kroków
+Faz XXII–XXIV**: prymitywów nie przybywa, słownik wejścia nie rośnie, trzej
+tłumacze zostają nietknięci, a rdzeń nie rośnie o ani jedną linię poza pozycją
+w `Bootstrapie`. Wysiłek jest przy tym **wstępny** — potwierdza się go przy
+rozpisaniu kroku, bo zarys nie zna jeszcze zakresu rozstrzygniętego przez
+użytkownika. Rozpiętość `medium`–`xhigh` bierze się z powierzchni modułu, nie
+z ryzyka dla rdzenia: `xhigh` dostają kroki 66, 69 i 73 (odpowiednio: cztery
+widoki z sześcioma czynnościami, nowy rodzaj rozmówcy wraz z rozstrzygnięciem
+o sekretach, dwa silniki baz danych i dostęp do danych produkcyjnych), `medium`
+— kroki 68, 72 i 75, w których nie ma ani sieci rozległej, ani stanu trwałego.
+
+#### Faza XXIII — Zespół i cudze systemy
+
+Cztery moduły, z których trzy pierwsze **rozmawiają z czymś spoza maszyny albo
+zmieniają coś widocznego poza aplikacją**, a czwarty domyka fazę najtańszą
+pozycją całej propozycji. Faza jest tą, w której zapada rozstrzygnięcie
+o sekretach — dlatego krok **69** stoi na jej początku mimo największego
+zakresu: pozostałe dwa moduły z tokenem czekają na jego odpowiedź.
+
+Krok 69 jest przy tym jedynym, który odpowiada na oś **„zespół deweloperski"**
+wprost, i ma **najwięcej pytań otwartych z dziesięciu**. Jedno z nich jest
+środowiskowe i sprawdzone: **`gh` ani `glab` nie ma na maszynie**, więc droga
+przez cudzego klienta znaczy zależność ogłoszoną zdolnością `RequiresEnvironment`
+(krok 48), a droga własna — rozmowę HTTP wzorowaną na kroku 60, nie na 51.
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 69 | Moduł `forge`: PR-y, zgłoszenia i przeglądy zespołu | [69-modul-forge.md](69-modul-forge.md) | 20, 26, 27, 28, 29, 30, 48, 53, 54, 60, 66 | Opus¹⁰ | xhigh | Zarys |
+| 70 | Moduł `http`: endpointy aplikacji i pytanie „czy to jeszcze żyje" | [70-modul-http.md](70-modul-http.md) | 20, 26, 27, 29, 45, 46, 51, 53 | Opus¹⁰ | high | Zarys |
+| 71 | Moduł `services`: jednostki systemd i ich dziennik | [71-modul-services.md](71-modul-services.md) | 20, 22, 26, 27, 28, 29, 30, 48, 51, 53 | Opus¹⁰ | high | Zarys |
+| 72 | Moduł `env`: pliki środowiskowe i różnica, której nikt nie widzi | [72-modul-env.md](72-modul-env.md) | 20, 21, 24, 27, 29, 30, 41, 53 | Opus¹⁰ | medium | Zarys |
+
+#### Faza XXIV — Uruchomione aplikacje i obraz zespołu
+
+Trzy moduły domykające propozycję: największy zakresem (**73**), pierwszy
+zbudowany w całości na cudzych kwerendach (**74**) i najbardziej samodzielny
+z dziesięciu (**75**).
+
+Krok **74** jest z nich najciekawszy dla architektury, a nie dla użytkownika:
+**nie ma własnego źródła danych w ogóle** — wkład liczy z `git.log` (krok 66),
+a czas życia próśb o scalenie z `forge.pulls` (krok 69). Byłby przez to
+pierwszym prawdziwym sprawdzianem zdania z reguły 15g: **moduł pytający musi
+umieć żyć bez odpowiedzi.** Ma też jedyne w całej trójce pytanie nietechniczne —
+liczy pracę imiennie, więc zarys nie domyka się bez odpowiedzi, po co te liczby
+są pokazywane.
+
+| # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
+|---|------|------|-----------|-------|---------|--------|
+| 73 | Moduł `db`: bazy danych, do których zagląda się w trakcie pracy | [73-modul-db.md](73-modul-db.md) | 20, 26, 27, 29, 30, 31, 48, 53, 54, 58, 59 | Opus¹⁰ | xhigh | Zarys |
+| 74 | Moduł `team`: obraz zespołu policzony z tego, co już jest zapisane | [74-modul-team.md](74-modul-team.md) | 27, 30, 53, 54, 66, 69 | Opus¹⁰ | high | Zarys |
+| 75 | Moduł `procs`: procesy i odpowiedź na pytanie „co zajęło ten port" | [75-modul-procs.md](75-modul-procs.md) | 20, 26, 27, 28, 30, 53 | Opus¹⁰ | medium | Zarys |
 
 ### Dokumenty towarzyszące (praca projektowa)
 
@@ -1048,16 +1335,134 @@ tej listy). Łańcuchami są ponadto Fazy XV (45–46) i XVII (48–50). Poza pr
     Reguły 15 **nie odwołuje**: moduł nadal sięga wyłącznie do rdzenia, a nowe
     jest to, czym rdzeń oddaje odpowiedź.
 
+- **55–57** (Faza XIX) są **łańcuchem**, i to łańcuchem ściślejszym niż Fazy XV
+  i XVII: tam kolejność wynikała z tego, że bez sesji nie ma czego czytać, tutaj
+  dwa późniejsze kroki **nie mają czym zacząć** — `PointerEvent`, rozpoznanie
+  przeciągnięcia i zdolność `AcceptsPointer` powstają w kroku 55.
+  - **55** (mysz) zależy od **06** twardo i podwójnie: tryb surowy jest miejscem,
+    w którym włącza się raportowanie myszy, a **gwarancja przywrócenia terminala**
+    jest jedynym powodem, dla którego wolno je włączyć — raportowanie niezdjęte
+    przy wyjściu zostawia terminal sypiący sekwencjami długo po zamknięciu
+    aplikacji. Od **40** zależy inaczej niż wszystkie pozostałe kroki: bierze
+    stamtąd nie kod, tylko **odpowiedź na to samo pytanie**. Krok 40 ustalił, że
+    ogniska nie da się odkryć, bo drzewa komponentów nie ma (11a, 11p) — a „co
+    jest pod kursorem" jest dokładnie tym samym pytaniem, więc odpowiedź jest ta
+    sama: deklaracja. Od **24** bierze podział i **jedyną zmianę stanu, jaką
+    wnosi poza wejściem** (`SplitState` zaczyna pamiętać proporcję, a nie tylko
+    stronę), od **32** menu pod prawym przyciskiem, od **33** regułę, że
+    współrzędne przelicza się rozmiarem z bieżącej klatki, od **34 i 35** metrykę
+    komórki w torze okienkowym, od **21** pierwszego odbiorcę.
+  - **56** (zaznaczanie treści) zależy od **55** całkowicie oraz od **08, 13
+    i 35** — to one są powodem, dla którego zaznaczanie w ogóle jest trudne:
+    klatka jest bitmapą albo prymitywami, więc terminal złapałby piksele. Od
+    **30** bierze `TextMark`, czyli kształt, którym da się narysować zaznaczenie
+    **bez otwierania zamkniętego słownika prymitywów**, a od **38** porównanie
+    zrzutów — jedyny uczciwy sprawdzian rzeczy, która jest widoczna.
+  - **57** (schowek) zależy od **56** (zaznaczenie jako źródło treści) i od **55**
+    w roli **sprawdzianu**: odpowiedź terminala ze schowkiem wchodzi jako trzecia
+    postać `InputEvent`, więc nadtyp z tamtego kroku dostaje drugiego użytkownika.
+    Od **07** bierze wzorzec rozmowy z terminalem (pytanie, rozbiór odpowiedzi,
+    `pushBackBytes()` dla bajtów cudzej odpowiedzi), od **33** jego drugi
+    precedens, od **34** listę `disallowedWindowOps` wraz z powodem jej
+    zawężenia, od **19** pole tekstowe jako pierwszego odbiorcę wklejania, od
+    **43** nazwy zaznaczonych wpisów jako drugie źródło treści, od **32** pozycje
+    w menu, od **48** zdolność `RequiresEnvironment` dla komendy, której nie ma
+    czym wykonać.
+- **58–60** (Faza XX) są **łańcuchem**, i to z powodu prostszego niż w Fazie XIX:
+  nie chodzi o mechanizm, którego nie ma, tylko o **jeden dokument i jedno
+  miejsce**. Książka rejestrów mieszka w tym samym pliku stanu, co książka
+  środowisk (dwa niezależne zapisy jednego pliku to wyścig przy pierwszym
+  zapisie z dwóch miejsc naraz), a sekret rejestru zakłada się **w wybranym
+  klastrze**, więc bez kroku 59 nie ma go gdzie położyć. Faza stoi poza Fazą XIX
+  zupełnie — kroki 55–60 nie mają ani jednej wspólnej zależności i wolno je
+  wykonać w dowolnej kolejności względem siebie.
+  - **58** (środowiska Dockera) zależy od **51** całkowicie, a od **48**
+    w sposób, który warto nazwać: bierze stamtąd **dwa wzorce naraz** —
+    książkę wpisów w pliku stanu modułu i `ssh -M -N -f` jako proces, który się
+    demonizuje i którego uchwyt gaśnie. Modułu Ssh **nie dotyka** (reguła 15);
+    dane hosta bierze kwerendą `ssh.hosts` z kroku **54**, czyli trzema napisami
+    i ani jednym typem (15g). Od **26 i 51** bierze port pracy tłowej z kilkoma
+    pracami naraz, od **45** takt (tunel trzeba posunąć i zauważyć, że wstał), od
+    **24, 27, 28, 30, 32 i 40** klocki ekranu spisu.
+  - **59** (klastry k8s) zależy od **52** całkowicie i od **58** kolejnością, nie
+    kodem: to tam wzorzec książki staje po raz drugi, a **przegląd reguły 15e**
+    (trzecie powtórzenie) rozstrzyga się dopiero tutaj. Od **53 i 54** bierze
+    kwerendy, które zmieniają treść (`k8s.cluster` i `k8s.contexts` dostają nazwę
+    wpisu), od **31** drzewo, którego klucze trzeba przeliczyć, od **22** sekcje
+    opisu, od **14** migrację dwóch pozycji ustawień do książki.
+  - **60** (rejestry) zależy od **54** jako jego dokończenie — `RegistryAuth`,
+    `docker.push` i `k8s.deploy-image` powstały tam z jednym rejestrem i bez
+    `imagePullSecret` (D94 nr 3). Od **58** bierze plik stanu i jeden port
+    zapisu, od **59** klaster, w którym powstaje sekret, od **51** rozmowę
+    nieblokującą jako wzór dla rozmowy z rejestrem, od **48** zakaz podawania
+    poświadczeń wierszem polecenia. Jest to **drugi krok w projekcie dotykający
+    dwóch modułów naraz** — po 54, i tą samą drogą: komendą, kwerendą
+    i zdarzeniem, nigdy typem.
+
+- **61–65** (Faza XXI) są **łańcuchem**, i jest to łańcuch innego rodzaju niż
+  wszystkie poprzednie: nie brakuje w nim mechanizmu, tylko **miejsca i języka**.
+  Krok 61 rozstrzyga, gdzie mieszka który rodzaj tekstu, jak wygląda diagram
+  i czym jest przykład — więc każdy krok pisany przed nim trafiałby w próżnię;
+  krok 65 pilnuje tego, co napisały cztery poprzednie, więc przed nimi nie ma
+  czego pilnować. Faza stoi **poza Fazami XIX i XX zupełnie** — nie ma z nimi ani
+  jednej wspólnej zależności technicznej i wolno ją wykonać przed nimi, po nich
+  albo pomiędzy. Jedna zależność jest za to **odwrotna i nazwana w D97**: reguła
+  utrzymania z kroku 61 obowiązuje wszystkie kroki wykonane po nim, także te
+  z Faz XIX i XX.
+  - **61** (porządek) zależy od **04** — to tamten krok ustanowił dzisiejszy
+    układ (architektura + Skill + wskaźnik w `CLAUDE.md`), a ten go **nie
+    odwołuje**, tylko dopisuje brakującą granicę pierwszeństwa. Od **39** bierze
+    rozumowanie „plik, o którym dokumenty milczą, przegrywa z nawykiem"
+    zastosowane do samych dokumentów, od **15** — precedens pary językowej
+    utrzymywanej w jednym repozytorium.
+  - **62** (podręcznik) zależy od **61** całkowicie, a od **38** materiałem:
+    26 nazwanych przebiegów funkcjonalnych to gotowe drogi użytkownika, z których
+    wywodzi się sześć scenariuszy. Od **40** bierze podział klawiszy **wedle
+    miejsca** — stopka pokazuje go dziś w działaniu, więc podręcznik musi
+    powtórzyć ten sam układ, a nie wymyślić drugi. Od **14 i 15** ustawienia
+    i języki interfejsu.
+  - **63** (przewodnik) zależy od **62** kolejnością: to tam README zaczyna
+    chudnąć, a tu kończy — żeby żaden fragment nie zniknął po drodze. Od **20,
+    21, 19, 26, 18, 27–31, 53 i 54** bierze wszystko, o czym przewodniki mają
+    opowiedzieć, a od **39** — wejścia procesów, bez których workflow byłby listą
+    poleceń do przepisania.
+  - **64** (onboarding) zależy od **63** w sposób, który warto nazwać: kończy się
+    **wskazaniem** właściwego przewodnika, a nie powtórzeniem go. Od **39** bierze
+    `make check-env`, `make install` i `make qa` jako gotowe przystanki ścieżki.
+  - **65** (pilnowanie) zależy od **61–64** wszystkimi naraz, a od **15 i 40**
+    wzorcem: test czytający **oba** katalogi napisów i `StatusHintsFlowTest`
+    porównujący deklarację z rzeczywistością to dwaj strażnicy, na których wzoruje
+    się siedmiu nowych. Od **53 i 54** bierze rejestry jako źródło spisów.
+
+- **66–75** (Fazy XXII–XXIV) **łańcuchem nie są** — i to jest ich cecha
+  wyróżniająca, nie niedopatrzenie. Dziesięć modułów zależy od rdzenia, a nie od
+  siebie nawzajem, więc wolno je wykonywać w dowolnej kolejności i pojedynczo.
+  Wyjątki są **trzy i wszystkie idą przez kwerendy**, nigdy przez typ:
+  - **74** (`team`) zależy od **66** treścią — bez `git.log` nie ma czego
+    liczyć — i od **69** częścią treści; jest jedynym modułem projektu **bez
+    własnego źródła danych**.
+  - **69** (`forge`) zależy od **66** wiedzą o gałęzi i zatwierdzeniu katalogu,
+    a od **60** wzorem rozmowy HTTP z uwierzytelnieniem.
+  - **73** (`db`) i ewentualnie **70** oraz **69** zależą od **59** *wynikiem
+    przeglądu reguły 15e* — to jest zależność od **rozstrzygnięcia**, nie od
+    kodu, i pierwsza taka w całym grafie.
+
+  Numeracja odwzorowuje przez to **kolejność wartości**, a nie wymuszoną
+  kolejność wykonania (D98 nr 1). Fazy stoją **poza Fazami XIX, XX i XXI
+  zupełnie**: jedyne wskazania idą do **60** (wzór rozmowy HTTP) i do **59**
+  (wynik przeglądu 15e), a żaden z dziesięciu kroków nie potrzebuje myszy,
+  schowka ani dokumentacji, żeby powstać.
+
 Żaden krok nie da się sensownie zacząć przed ukończeniem swoich zależności
 z tabel powyżej.
 
 ## Gdzie leżą pliki kroków
 
 Katalog `docs/plans/` trzyma **wyłącznie kroki, przed którymi jeszcze praca**:
-nierozpoczęte, w toku i zablokowane. Kroki ukończone przenoszą się do
-[archiwum/](archiwum/) — dziś jest ich 47 z 53, więc bez tego podziału lista
-tego, co zostało do zrobienia (kroki **48–50**, Faza XVII, i **51–53**, Faza
-XVIII) ginęłaby w historii projektu.
+zarysy, nierozpoczęte, w toku i zablokowane. Kroki ukończone przenoszą się do
+[archiwum/](archiwum/) — dziś jest ich 54 z 75, więc bez tego podziału lista
+tego, co zostało do zrobienia (kroki **55–57**, Faza XIX, **58–60**, Faza XX,
+**61–65**, Faza XXI, i **66–75**, Fazy XXII–XXIV) ginęłaby w historii projektu.
 
 Trzy rzeczy, które przy tym **nie** zmieniają miejsca, bo są dokumentami
 żywymi, a nie zamkniętymi: ten indeks, [00-decyzje.md](00-decyzje.md) i tabele
@@ -1069,10 +1474,16 @@ z nich.
 
 ## Śledzenie postępu
 
+**Zarys** jest stanem wcześniejszym niż „nie rozpoczęty" i wszedł do słownika
+2026-08-16 wraz z krokami **66–75** ([00-decyzje.md](00-decyzje.md), D98 nr 2):
+krok ma cel, zarys zakresu, stan zastany i spis pytań, ale **nie ma
+rozstrzygnięć startowych ani planu** — więc nie da się go zacząć, dopóki nie
+zostanie rozpisany. Rozpisanie zamienia jego status na „nie rozpoczęty".
+
 Każdy plik kroku ma sekcje `## Status` i `## Dziennik realizacji`. Po
 zakończeniu pracy nad krokiem:
 
-1. Zaktualizuj `## Status` w pliku kroku (Nie rozpoczęty / W toku /
+1. Zaktualizuj `## Status` w pliku kroku (Zarys / Nie rozpoczęty / W toku /
    Zablokowany / Ukończony).
 2. Dopisz wpis w `## Dziennik realizacji` tego kroku (co zrobiono, jakie
    odstępstwa od planu).
@@ -1122,8 +1533,15 @@ zakończeniu pracy nad krokiem:
 - Widok kosza i jego opróżnianie — wyłączone z kroku 44 (kosz jest katalogiem,
   więc `browser.jump` dowozi go za darmo)
 - Prawa dostępu i właściciel (`chmod`, `chown`) — wyłączone z kroku 41
-- Zdarzenia myszy w oknie GLFW — wyłączone z kroków 34–35 (aplikacja nie ma
-  słownika zdarzeń myszy w żadnej warstwie; osobna decyzja, jeśli w ogóle)
+- ~~Zdarzenia myszy w oknie GLFW~~ — wyłączone z kroków 34–35 (aplikacja nie ma
+  słownika zdarzeń myszy w żadnej warstwie; osobna decyzja, jeśli w ogóle).
+  Decyzja zapadła 2026-08-16 (D95): wskaźnik wchodzi jako **Faza XIX**, kroki
+  **55–57**, i to nie tylko w oknie — słownik zdarzeń jest wspólny dla trzech
+  torów (`InputEvent`)
+- ~~Zaznaczanie treści klatki i schowek systemowy~~ — niemożliwe, dopóki klatka
+  jest bitmapą, a aplikacja nie zna myszy; weszły do planu jako kroki **56 i 57**
+  (D95). Schowek wymagał przy tym cofnięcia zawężenia z kroku 34 —
+  `GetSelection` i `SetSelection` wracają na listę dozwolonych operacji
 - Przeliczenie komórki przez skalę treści (HiDPI) — wyłączone z kroku 37
   (rozstrzygnięcie nr 4, D67): maszyna projektu ma skalę 1.0, więc kodu nie ma
   na czym sprawdzić. Odczytana wartość jest już widoczna w zakładce „Aplikacja”
@@ -1170,10 +1588,21 @@ zakończeniu pracy nad krokiem:
   przejęciem połączenia i terminalem w terminalu
 - Sieci, wolumeny i statystyki Dockera (`/stats`) — wyłączone z kroku **51**, bo
   nie mają odbiorcy (reguła 13)
-- Rejestry obrazów (`docker login`, `push`, `pull`) — wyłączone z kroku **51**;
-  wchodzą wyłącznie wtedy, gdy krok **53** wybierze wypchnięcie do rejestru jako
-  drogę udostępnienia obrazu klastrowi
-- Swarm, konteksty Dockera i demony zdalne po TCP/TLS — wyłączone z kroku **51**
+- ~~Rejestry obrazów (`docker login`, `push`, `pull`)~~ — wyłączone z kroku
+  **51**; wypchnięcie weszło z krokiem **54** (jeden rejestr, trzy pozycje
+  ustawień), a spis rejestrów wraz z pobraniem, widokiem zawartości i sekretem
+  w klastrze wszedł do planu jako krok **60** (D96). `docker login` zostaje
+  wykluczony na trwałe: demon nie czyta `~/.docker/config.json`
+- ~~Konteksty Dockera i demony zdalne po TCP/TLS~~ — wyłączone z kroku **51**,
+  weszły do planu jako krok **58** (D96 nr 2 i 3): konteksty klienta są
+  **czytane**, a demon zdalny osiągalny dwiema drogami (tunel gniazda przez
+  `ssh -L`, TCP z TLS-em klienta). **Swarm zostaje wykluczony** — nie ma
+  odbiorcy (reguła 13)
+- ~~Wiele klastrów Kubernetesa i własne pliki `kubeconfig`~~ — moduł z kroku
+  **52** prowadził jeden kontekst zapamiętany w ustawieniach; spis klastrów
+  wszedł do planu jako krok **59** (D96). Pisanie do `kubeconfig` zostaje
+  wykluczone: wybór zrobiony w menadżerze plików nie zmienia tego, co użytkownik
+  zastanie w swoim terminalu
 - Zdarzenia demona Dockera (`GET /events`) jako źródło odświeżania list —
   wyłączone z kroku **51**: trzeci strumień do rozebrania, a odświeżanie na
   żądanie może wystarczyć

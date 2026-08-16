@@ -126,14 +126,15 @@ final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFram
         private readonly BuildFlow $builds,
         private readonly TranslatorPort $translator,
         private readonly LoopState $state,
+        private readonly DockerQueries $reader,
     ) {
         $this->containerWindow = new ScrollWindow();
         $this->containerWindow->useContext(self::ID . ':containers');
         $this->imageWindow = new ScrollWindow();
         $this->imageWindow->useContext(self::ID . ':images');
 
-        $this->containerPane = new ContainerPane($containers, $translator, $this->containerWindow);
-        $this->imagePane = new ImagePane($images, $translator, $this->imageWindow);
+        $this->containerPane = new ContainerPane($reader, $translator, $this->containerWindow);
+        $this->imagePane = new ImagePane($reader, $translator, $this->imageWindow);
         $this->logPane = new LogPane($logs, $translator);
     }
 
@@ -323,7 +324,7 @@ final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFram
 
     private function handleContainers(KeyPress $key): ScreenOutcome
     {
-        $container = $this->containers->selected();
+        $container = $this->reader->containers()->selected();
 
         if ($key->key === Key::Enter && $container !== null) {
             $this->logs->open($container);
@@ -356,7 +357,7 @@ final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFram
             return $this->confirmRemoval($container);
         }
 
-        return $this->moveCursor($key, $this->containers->cursor(), count($this->containers->entries()), true);
+        return $this->moveCursor($key, $this->reader->containers()->cursor, count($this->reader->containers()->entries), true);
     }
 
     private function handleImages(KeyPress $key): ScreenOutcome
@@ -371,7 +372,7 @@ final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFram
             return $this->builds->start($this->contextPath);
         }
 
-        $image = $this->images->selected();
+        $image = $this->reader->images()->selected();
 
         if ($image !== null && ($key->key === Key::F8 || $key->key === Key::Delete)) {
             $label = $image->label();
@@ -389,7 +390,7 @@ final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFram
             ));
         }
 
-        return $this->moveCursor($key, $this->images->cursor(), count($this->images->entries()), false);
+        return $this->moveCursor($key, $this->reader->images()->cursor, count($this->reader->images()->entries), false);
     }
 
     private function handleLogs(KeyPress $key): ScreenOutcome
@@ -496,13 +497,13 @@ final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFram
      */
     private function cycleProject(): ScreenOutcome
     {
-        $projects = $this->containers->projects();
+        $projects = $this->reader->containers()->projects;
 
         if ($projects === []) {
             return ScreenOutcome::stay(Message::info($this->text('compose.noProjects')));
         }
 
-        $current = $this->containers->project();
+        $current = $this->reader->containers()->project;
         $position = $current === null ? -1 : (int) array_search($current, $projects, true);
         $next = $projects[$position + 1] ?? null;
 
@@ -578,7 +579,7 @@ final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFram
      */
     private function headerText(): string
     {
-        $compose = $this->compose->state();
+        $compose = $this->reader->compose();
 
         if ($compose->isWorking() && $compose->action !== null) {
             return $this->translator->translate($compose->action->labelKey());
@@ -592,7 +593,7 @@ final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFram
             return $this->text('logs.header', ['name' => $this->logs->containerName()]);
         }
 
-        $project = $this->containers->project();
+        $project = $this->reader->containers()->project;
 
         if ($this->view === DockerView::Containers && $project !== null) {
             return $this->text('compose.narrowed', ['project' => $project]);
@@ -636,7 +637,7 @@ final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFram
     /** Zdanie i zdarzenie po pracy compose — wynik zabierany raz, jak przy czynności. */
     private function reportCompose(): void
     {
-        $state = $this->compose->state();
+        $state = $this->reader->compose();
 
         if ($state->stage === ComposeStage::Idle || $state->isWorking() || $state->action === null) {
             return;

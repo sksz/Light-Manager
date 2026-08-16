@@ -25,6 +25,9 @@ enum ClusterAction: string
     /** Zmiana wartości, dodanie klucza albo skasowanie klucza w sekrecie. */
     case PatchSecret = 'patchSecret';
 
+    /** Podmiana obrazu kontenera we wdrożeniu — ostatni etap `k8s.deploy-image` (krok 54). */
+    case SetImage = 'setImage';
+
     public function isDestructive(): bool
     {
         return $this === self::Delete;
@@ -42,6 +45,11 @@ enum ClusterAction: string
             self::Apply => KubernetesEvent::Applied,
             self::Delete => KubernetesEvent::Deleted,
             self::PatchSecret => KubernetesEvent::SecretChanged,
+            // Podmiana obrazu **jest zastosowaniem zmiany w klastrze**, więc
+            // ogłasza się tym samym zdarzeniem, co `apply`. Osobne zdarzenie
+            // wymagałoby rozszerzenia zamkniętego słownika (11o''), a odbiorca
+            // i tak nie odróżniłby jednego od drugiego inaczej niż nazwą.
+            self::SetImage => KubernetesEvent::Applied,
         };
     }
 

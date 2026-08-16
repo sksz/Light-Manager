@@ -127,11 +127,57 @@ final class BuildFlow
         );
     }
 
-    /** Kawałek pracy na takt — pakowanie albo czytanie strumienia budowy. */
-    private function step(): WorkProgress
+    /**
+     * Posunięcie budowy o takt — **wołane przez moduł, nie przez okno** (krok 54,
+     * D94 nr 5).
+     *
+     * Do kroku 54 budowę posuwało wyłącznie okno postępu przez `RunsWork`, a stos
+     * okien ma jedno piętro — więc budowa **stawała**, gdy jej okno ustąpiło
+     * miejsca czemukolwiek innemu. Dla użytkownika Dockera było to niewidoczne
+     * (okno stoi, dopóki nie skończy), ale czyniło niewykonalnym zdanie z planu
+     * kroku 54: „`Esc` przerywa czekanie, nie budowę". Czynność `k8s.deploy-image`
+     * pokazuje **własne** okno czekania, więc okna budowy nie ma wtedy na ekranie
+     * w ogóle.
+     *
+     * Zdarzenia ogłasza odtąd **to miejsce**, a nie domknięcie okna, i mechanizm
+     * na to czekał od kroku 51: `takeFinished()` oddaje etap **raz**, więc
+     * publikacja nie powtórzy się trzydzieści razy na sekundę.
+     *
+     * Trzy reguły taktu z 11o' są tu spełnione: tani (bez okna to jedno
+     * `match` i wyjście), niczego nie wymusza, nie rzuca — bo port nie rzuca
+     * przez granicę.
+     */
+    public function advance(): void
     {
         $this->work->tick();
 
+        $stage = $this->work->takeFinished();
+
+        if ($stage === null) {
+            return;
+        }
+
+        if ($stage === BuildStage::Done) {
+            $this->state->events()->publish(DockerEvent::BuildFinished->value);
+            // Lista obrazów odświeża się **po udanej budowie** i jest to jedyna
+            // droga, którą nowy obraz pojawi się na ekranie bez czekania na zegar.
+            $this->images->refresh();
+
+            return;
+        }
+
+        $this->state->events()->publish(DockerEvent::BuildFailed->value);
+    }
+
+    /**
+     * Kawałek pracy na takt — **odczyt, nie posunięcie** (krok 54).
+     *
+     * Okno pozostaje `RunsWork`, bo dzięki temu **zamyka się samo**, kiedy budowa
+     * się skończy; posuwanie przeszło do taktu modułu. Gdyby okno posuwało pracę
+     * nadal, ta szłaby w klatce, w której okno stoi, **dwa razy**.
+     */
+    private function step(): WorkProgress
+    {
         return $this->progressOf();
     }
 
@@ -156,25 +202,21 @@ final class BuildFlow
     }
 
     /**
-     * Koniec pracy: zdanie do paska stanu i zdarzenie.
+     * Koniec pracy widziany przez okno: **samo zdanie do paska stanu**.
      *
-     * Lista obrazów odświeża się **po udanej budowie** i jest to jedyna droga,
-     * którą nowy obraz pojawi się na ekranie bez czekania na zegar.
+     * Zdarzenie i odświeżenie listy przeszły do `advance()` (D94 nr 5), bo budowa
+     * kończy się także wtedy, gdy tego okna nie ma na ekranie. Etap czytamy przez
+     * `stage()`, a nie `takeFinished()` — ten drugi został już odebrany przez takt
+     * i oddaje `null`, bo z definicji odpowiada **raz**.
      */
     private function finish(): OverlayOutcome
     {
-        $stage = $this->work->takeFinished();
         $reference = $this->work->tag();
         $tag = $reference === null ? '' : $reference->value;
 
-        if ($stage === BuildStage::Done) {
-            $this->state->events()->publish(DockerEvent::BuildFinished->value);
-            $this->images->refresh();
-
+        if ($this->work->stage() === BuildStage::Done) {
             return OverlayOutcome::close(Message::info($this->text('build.done', ['tag' => $tag])));
         }
-
-        $this->state->events()->publish(DockerEvent::BuildFailed->value);
 
         return OverlayOutcome::close(Message::error($this->translator->translate(
             $this->work->problemKey() ?? 'module.' . DockerSettings::ID . '.build.failed',
@@ -187,7 +229,10 @@ final class BuildFlow
      *
      * Zdarzenie idzie **to samo, co przy niepowodzeniu**, i jest to zgodne
      * z granicą z kroku 50: przerwanie przez użytkownika jest niepowodzeniem
-     * pracy, a nie osobnym rodzajem zdarzenia.
+     * pracy, a nie osobnym rodzajem zdarzenia. Publikuje je **to miejsce**, a nie
+     * `advance()`, i jest to jedyny wyjątek od D94 nr 5: `stop()` sprowadza etap
+     * do `Idle`, którego `takeFinished()` z definicji nie zgłasza — bo praca
+     * przerwana nie jest pracą zakończoną.
      */
     private function cancel(): Message
     {

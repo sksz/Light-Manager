@@ -21,7 +21,7 @@
 > Ciężar tego rozstrzygnięcia kazał krok podzielić: **tutaj zostaje mechanizm,
 > okno, rdzeń i trzy moduły sprzed Fazy XVIII**, a kwerendy `ssh`, `docker`
 > i `k8s` wraz z czynnością `k8s.deploy-image` przechodzą do
-> [kroku 54](../54-kwerendy-modulow-kontenerowych.md).
+> [kroku 54](54-kwerendy-modulow-kontenerowych.md).
 
 ## Status
 
@@ -262,7 +262,7 @@ opisem z obu katalogów napisów ma się zmieścić, a pilnuje tego test czytaj�
 ## Poza zakresem
 
 - **Kwerendy `ssh`, `docker` i `k8s` oraz czynność `k8s.deploy-image`** —
-  [krok 54](../54-kwerendy-modulow-kontenerowych.md).
+  [krok 54](54-kwerendy-modulow-kontenerowych.md).
 - **Kwerendy zmieniające cokolwiek** — to są komendy (reguła nr 1).
 - **Kwerendy asynchroniczne, kolejki, obietnice** — kwerenda odpowiada w klatce
   albo oddaje stan pracy.
