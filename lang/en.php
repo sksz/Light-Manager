@@ -46,6 +46,7 @@ return [
     'settings.key.windowRows' => 'Window rows (windowed mode)',
     'settings.key.backgroundOutputKib' => 'Memory for background job output',
     'settings.key.backgroundJobs' => 'Concurrent background jobs',
+    'settings.key.mouse' => 'Mouse',
     'settings.language.auto' => 'Automatic',
     'settings.language.pl' => 'Polski',
     'settings.language.en' => 'English',

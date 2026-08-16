@@ -345,6 +345,10 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     prawa złapać `Shift`a** — `F8` i `Shift`+`F8` znaczą od kroku 44 dwie różne
     rzeczy, z których jedna jest nieodwracalna. W ekranie rozstrzygaj `Shift`
     **przed** gałęziami klawiszy (wzorzec `BrowserScreen::shifted()`).
+    **Modyfikatory wskaźnika są tymi samymi trzema** (krok 55) i to jedyne, co
+    ta reguła o nim mówi: rozłączności nie ma tam gdzie zastosować, bo wskaźnik
+    nie ma ani litery, ani nazwy — oba protokoły podają wszystkie trzy
+    niezależnie i tak też stoją w `PointerEvent`.
 11k. **Słownik prymitywów otwarto raz i ma osiem kształtów** (krok 30, D59).
     Ósmy to `TextMark` — **napis na własnym tle**, dla dopasowania filtra. Zgoda
     użytkownika (D48) dotyczyła otwarcia, nie kształtu, a kształt rozstrzygnął
@@ -731,6 +735,51 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     rdzenia (krok 21: `PathLine`, `PreviewBox`); tą samą zasadą okno nakładane
     znające stan modułu leży w jego `Presentation/Overlay` (krok 30:
     `FilterOverlay`).
+11z. **Trafienie wskaźnika deklaruje ekran, a nie odkrywa rdzeń** (krok 55, D95
+    nr 2). Powód jest **ten sam**, dla którego ognisko deklaruje się w regule
+    11p, i nie jest to naśladownictwo: aplikacja nie ma zachowanego drzewa
+    komponentów (11a), więc „co leży pod kursorem” jest tak samo niewykonalne,
+    jak było „co ma ognisko”. `Presentation\Ui\AcceptsPointer::pointer()`
+    dostaje `PointerEvent` i oddaje `ScreenOutcome`; okno nakładane ma bliźniaczą
+    `AcceptsPointerInOverlay` (różni się **wyłącznie** typem odpowiedzi, bo okno
+    umie rzeczy, których ekran nie umie). Ekran deklarujący zdolność **pamięta
+    prostokąt z ostatniego rysowania** i sam tłumaczy współrzędne na własne
+    pojęcia; rdzeń mapy trafień **nie prowadzi** — z jednym nazwanym wyjątkiem,
+    którym jest **stopka**, czyli jedyna rzecz, którą rdzeń w klatce rysuje sam
+    (`HintTarget` w `LoopState`). Zobowiązanie jest obustronne i pilnuje go
+    `tests/Functional/PointerTruthTest.php`: **każde miejsce deklarowane
+    w `focus()` musi dać się kliknąć**, bo mysz działająca w połowie ekranu jest
+    niewidoczna, dopóki ktoś nie kliknie.
+    **Współrzędne są w komórkach, nigdy w pikselach** — `Rect` jest jedynym
+    układem komponentów (krok 18), a przeliczenie należy do infrastruktury:
+    w terminalu robi je protokół SGR (kolumna i wiersz od jedynki — parser
+    odejmuje ją raz), w oknie — `GlfwPointerMapper` metryką czcionki.
+    Trzy czynności rdzenia **zamieniają się z powrotem w naciśnięcie** i wracają
+    do `InputHandler::handle()`: kliknięcie w podpowiedź stopki to jej klawisz,
+    podwójne kliknięcie to `Enter`, prawy przycisk to `F9`. Dwie drogi do tej
+    samej czynności rozjeżdżają się przy pierwszej poprawce (krok 32).
+    Raportowanie włącza się **razem z trybem surowym** i schodzi **tą samą
+    trzytorową gwarancją**, co ustawienia terminala (krok 06) — raportowanie
+    niezdjęte przy wyjściu zostawia użytkownikowi terminal sypiący sekwencjami
+    przy każdym ruchu myszy. Tryb to `1000`+`1002`+`1006`: **`1002`, a nie
+    `1003`** (ruch tylko przy wciśniętym przycisku — inaczej zalew zdarzeń bez
+    odbiorcy) i **`1006` obowiązkowo** (bez SGR współrzędna urywa się na 223.
+    kolumnie). Tor okienkowy odrzuca ruch bez przycisku **w wywołaniu
+    zwrotnym**, żeby zachowywał się tak samo, a nie podobnie. Mysz jest
+    **przełącznikiem ustawień rdzenia** (`SettingKey::Mouse`, domyślnie
+    włączony), działającym **w locie** — pytanie pada raz na takt w `GameLoop`,
+    przez `InputPort::useMouseReporting()`.
+    Kółko przewija o **trzy wiersze i nie rusza kursora**, a to znaczy, że
+    `ScrollWindow` **odczepia się** od kursora (`scrollBy()`) i przyczepia z
+    powrotem, gdy numer kursora się zmieni. Bez odczepienia `keepVisible()`
+    ściągałby okno w tej samej klatce, w której kółko je przesunęło — bo panel
+    listowy woła je przy każdym rysowaniu.
+    Granica podziału przestaje być liczona, a zaczyna być **pamiętana**:
+    `SplitState` niesie proporcję, chwyta granicę (dwie stykające się obwódki),
+    ścina ją do 20–80% i **zapisuje po zwolnieniu przycisku**, a nie w trakcie
+    przeciągania (reguła kroku 37 o rozmiarze okna). Pozycja ustawień należy do
+    **modułu** (reguła 11c), a jej deklaracja i wiązanie stoją raz w rdzeniu
+    (`Presentation\Cli\SplitSetting`).
 12. **Ekran rysuje dwie strefy, nie jedną** (krok 21, D42; krok 47, D78):
     `header()` oddaje `?ScreenZone` — klucz etykiety obwódki plus komponent
     z treścią — a `null` znaczy „strefa nie powstaje, jej wiersze idą do środka”.

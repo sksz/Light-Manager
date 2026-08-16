@@ -53,6 +53,7 @@ use LightManager\Module\Browser\Presentation\Query\TreeQuery;
 use LightManager\Module\Browser\Presentation\Query\UndoQuery;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Cli\Query\CoreReader;
+use LightManager\Presentation\Cli\SplitSetting;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
 use LightManager\Presentation\Ui\ScreenInterface;
@@ -90,6 +91,9 @@ final class BrowserModule implements
 {
     /** „Browser” — litera `b` jest wolna: `0x02` nie znaczy w trybie surowym nic. */
     private const SHORTCUT = 'b';
+
+    /** Domyślny podział paneli: po połowie (krok 55). */
+    private const SPLIT_PERCENT = 50;
 
     private ?CoreReader $core = null;
 
@@ -177,6 +181,15 @@ final class BrowserModule implements
             BrowserScreen::SCROLL_MARGIN,
             new BrowserTree($first, $branches, $this->state, $this->translator, BrowserScreen::SCROLL_MARGIN),
             new BrowserTree($second, $branches, $this->state, $this->translator, BrowserScreen::SCROLL_MARGIN),
+            // Proporcja podziału przeżywa uruchomienie (krok 55): wczytuje się
+            // z ustawień modułu, a przeciągnięcie granicy myszą zapisuje ją tam
+            // z powrotem — raz, po zwolnieniu przycisku.
+            SplitSetting::state(
+                BrowserSettings::ID,
+                self::SPLIT_PERCENT,
+                $this->state,
+                new ChangeModuleSettingUseCase($this->settings, $this->translator),
+            ),
         );
 
         // Wpisy ukryte przełącza od kroku 32 jedna klasa dla dwóch wejść: kropki
@@ -371,7 +384,13 @@ final class BrowserModule implements
 
     public function settingsTab(): ModuleSettingsTab
     {
-        return new ModuleSettingsTab($this->nameKey(), BrowserSettings::declarations());
+        return new ModuleSettingsTab($this->nameKey(), [
+            ...BrowserSettings::declarations(),
+            // Proporcja podziału stoi w zakładce modułu, a jej deklaracja
+            // powstaje w rdzeniu (krok 55): pozycja należy do modułu (reguła 11c),
+            // ale mechanizm jest wspólny dla pięciu ekranów z podziałem.
+            SplitSetting::declaration(BrowserSettings::ID, self::SPLIT_PERCENT),
+        ]);
     }
 
     /**

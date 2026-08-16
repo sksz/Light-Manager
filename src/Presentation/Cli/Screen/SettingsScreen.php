@@ -7,6 +7,9 @@ namespace LightManager\Presentation\Cli\Screen;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Dto\Language;
+use LightManager\Application\Dto\PointerAction;
+use LightManager\Application\Dto\PointerButton;
+use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Dto\SettingKey;
 use LightManager\Application\Dto\Settings;
 use LightManager\Application\Dto\SettingsCursor;
@@ -26,6 +29,7 @@ use LightManager\Application\UseCase\RestoreDefaultSettingsUseCase;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Cli\Query\CoreReader;
+use LightManager\Presentation\Ui\AcceptsPointer;
 use LightManager\Presentation\Ui\Component\Button;
 use LightManager\Presentation\Ui\Component\Choice;
 use LightManager\Presentation\Ui\Component\Label;
@@ -41,6 +45,7 @@ use LightManager\Presentation\Ui\FocusHint;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\Overlay\ConfirmOverlay;
 use LightManager\Presentation\Ui\OverlayOutcome;
+use LightManager\Presentation\Ui\PointerRow;
 use LightManager\Presentation\Ui\Resettable;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
@@ -67,8 +72,19 @@ use LightManager\Presentation\Ui\ScrollWindow;
  * a nie w `TextInput` — pole wyszło z kroku 19 jako komponent bez trybów i
  * dokładanie mu ich teraz kazałoby oknu komend trzymać je stale włączone.
  */
-final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
+final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus, AcceptsPointer
 {
+    /**
+     * Ile wierszy nad treścią zajmuje oprawa: pasek zakładek i odstęp pod nim.
+     *
+     * Stała, a nie liczba wpisana w dwóch miejscach — `draw()` układa nią
+     * szczeliny, a wskaźnik odejmuje ją od wiersza, w który trafił (krok 55).
+     */
+    private const CHROME_ROWS = 2;
+
+    /** Prostokąt z ostatniego rysowania — pamięć wymagana przez `AcceptsPointer` (krok 55). */
+    private ?Rect $lastBounds = null;
+
     private SettingsCursor $cursor;
 
     /**
@@ -178,6 +194,7 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
      */
     public function draw(Rect $bounds): array
     {
+        $this->lastBounds = $bounds;
         $tab = $this->cursor->activeTab();
         $slots = [
             Slot::fixed(new Tabs($this->tabLabels(), $this->cursor->tab, $this->cursor->isOnTabBar()), 1),
@@ -191,7 +208,7 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
             $items[] = $this->restoreButton();
         }
 
-        $chrome = count($slots);
+        $chrome = self::CHROME_ROWS;
         $capacity = max(0, $bounds->rows - $chrome);
         $this->page = max(1, $capacity - 1);
         $this->window->useContext((string) $this->cursor->tab);
@@ -491,6 +508,66 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
      * dostaje ani liter, ani strzałek — inaczej `t` w argumentach polecenia
      * przewijałoby zakładki.
      */
+    /**
+     * Wskaźnik w ustawieniach: zakładka, pozycja i kółko (krok 55).
+     *
+     * Pole edycji **połyka wskaźnik w całości**: gdy pozycja jest w trakcie
+     * wpisywania, ognisko należy do niej, a kliknięcie gdziekolwiek indziej
+     * porzucałoby wpisany napis bez słowa.
+     *
+     * Geometria pochodzi z jednego miejsca z rysowaniem: pasek zakładek zajmuje
+     * wiersz zerowy, wiersz pierwszy jest odstępem, a treść zaczyna się od
+     * drugiego i przewija oknem — dokładnie tak, jak układa to `draw()`.
+     */
+    public function pointer(PointerEvent $event): ScreenOutcome
+    {
+        $bounds = $this->lastBounds;
+
+        if ($this->editing !== null || $bounds === null || !$event->hits($bounds)) {
+            return ScreenOutcome::stay();
+        }
+
+        if ($event->isScroll()) {
+            $this->window->scrollBy($event->scrollRows());
+
+            return ScreenOutcome::stay();
+        }
+
+        if ($event->action !== PointerAction::Press || $event->button === PointerButton::Middle) {
+            return ScreenOutcome::stay();
+        }
+
+        $tab = Tabs::at($this->tabLabels(), $bounds->line(0), $event);
+
+        if ($tab !== null) {
+            $this->cursor = $this->cursor->switchedTab($tab - $this->cursor->tab);
+
+            return ScreenOutcome::stay();
+        }
+
+        return $this->pointerInItems($event, $bounds);
+    }
+
+    /** Pozycja pod wskaźnikiem — treść zaczyna się dwa wiersze pod zakładkami. */
+    private function pointerInItems(PointerEvent $event, Rect $bounds): ScreenOutcome
+    {
+        $row = PointerRow::of(
+            $event,
+            $bounds->rowsFrom(self::CHROME_ROWS, $bounds->rows - self::CHROME_ROWS),
+            $this->window->offset(),
+            false,
+            $this->itemCount(),
+        );
+
+        if ($row === null) {
+            return ScreenOutcome::stay();
+        }
+
+        $this->cursor = $this->cursor->movedBy($row - ($this->cursor->item ?? -1));
+
+        return ScreenOutcome::stay();
+    }
+
     public function handle(KeyPress $key): ScreenOutcome
     {
         if ($this->editing !== null) {
@@ -772,6 +849,7 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
                 $this->translator->number($settings->backgroundJobs),
                 $selected,
             ),
+            SettingKey::Mouse => new Toggle($label, $settings->mouse, $yes, $no, $selected),
         };
     }
 

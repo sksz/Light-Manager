@@ -6,6 +6,9 @@ namespace LightManager\Module\Browser\Presentation;
 
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\PointerAction;
+use LightManager\Application\Dto\PointerButton;
+use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
@@ -24,6 +27,8 @@ use LightManager\Module\Browser\Presentation\Component\EntryTree;
 use LightManager\Module\Browser\Presentation\Component\PathLine;
 use LightManager\Module\Browser\Presentation\Overlay\FilterOverlay;
 use LightManager\Presentation\Cli\Query\CoreReader;
+use LightManager\Presentation\Cli\SplitSetting;
+use LightManager\Presentation\Ui\AcceptsPointer;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\Split;
@@ -32,6 +37,7 @@ use LightManager\Presentation\Ui\DeclaresFocus;
 use LightManager\Presentation\Ui\DrawsOwnFrame;
 use LightManager\Presentation\Ui\FocusHint;
 use LightManager\Presentation\Ui\KeyBinding;
+use LightManager\Presentation\Ui\PointerRow;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
 use LightManager\Presentation\Ui\ScreenZone;
@@ -51,7 +57,7 @@ use LightManager\Presentation\Ui\SplitAxis;
  * `BrowserState`, bo katalog zmienia nie tylko klawisz, ale i komenda
  * `browser.jump`, a dwa miejsca publikacji rozjechałyby się o klatkę.
  */
-final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFocus
+final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFocus, AcceptsPointer
 {
     /** Ile wierszy zapasu zostawić między zaznaczeniem a krawędzią listy. */
     public const SCROLL_MARGIN = 2;
@@ -112,6 +118,16 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
      * D81 nr 9).
      */
     private const UNDO_KEY = 'u';
+
+    /** Domyślny podział paneli w procentach — ten sam, którym `BrowserModule` opisuje pozycję. */
+    private const SPLIT_PERCENT = 50;
+
+    /**
+     * Prostokąt z ostatniego rysowania — pamięć wymagana przez `AcceptsPointer`
+     * (krok 55, reguła 11z). `null` do pierwszej klatki: kliknięcie przed nią
+     * nie ma prawa się zdarzyć, ale nie ma też czego trafić.
+     */
+    private ?Rect $lastBounds = null;
 
     public function __construct(
         private readonly BrowserPanes $panes,
@@ -290,11 +306,155 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
 
     public function draw(Rect $bounds): array
     {
+        // Prostokąt z ostatniego rysowania — jedyna pamięć, jaką reguła 11z
+        // przewiduje dla trafienia wskaźnika. Rdzeń mapy nie prowadzi; ekran
+        // pamięta **swój** prostokąt, bo to on go dostał (krok 55).
+        $this->lastBounds = $bounds;
+
         if (!$this->splitsIn($bounds)) {
             return $this->pane($this->queries->focusesSecond() ? 1 : 0, framed: false)->draw($bounds);
         }
 
-        return (new Split($this->pane(0, framed: true), $this->pane(1, framed: true), $this->axis()))->draw($bounds);
+        return (new Split(
+            $this->pane(0, framed: true),
+            $this->pane(1, framed: true),
+            $this->axis(),
+            $this->panes->split()->fraction(),
+        ))->draw($bounds);
+    }
+
+    /**
+     * Kliknięcie, przeciągnięcie i kółko w liście plików — miara kroku 55
+     * („kliknięcie w wiersz listy stawia na nim kursor we wszystkich trzech
+     * torach”).
+     *
+     * Kolejność pytań jest kolejnością pierwszeństwa i nie wolno jej odwrócić:
+     * najpierw **granica podziału**, bo leży na styku obu paneli i kliknięcie
+     * w nią nie jest kliknięciem w żaden z nich; potem panel, bo trzeba wiedzieć,
+     * czyj jest kursor; na końcu wiersz.
+     */
+    public function pointer(PointerEvent $event): ScreenOutcome
+    {
+        $bounds = $this->lastBounds;
+
+        if ($bounds === null) {
+            return ScreenOutcome::stay();
+        }
+
+        $split = $this->splitsIn($bounds);
+
+        if ($split && $this->panes->split()->pointer($event, $bounds, $this->axis())) {
+            return ScreenOutcome::stay();
+        }
+
+        [$index, $pane] = $this->paneAt($event, $bounds, $split);
+
+        if ($pane === null) {
+            return ScreenOutcome::stay();
+        }
+
+        // Ognisko idzie za wskaźnikiem także przy kółku: przewijanie panelu,
+        // którego klawisze nie dotyczą, byłoby przewijaniem na oślep.
+        $this->panes->focusPane($index);
+        $this->panes->publishFocused();
+
+        if ($event->isScroll()) {
+            return $this->scrolled($index, $event->scrollRows());
+        }
+
+        if ($event->action !== PointerAction::Press || $event->button === PointerButton::Middle) {
+            return ScreenOutcome::stay();
+        }
+
+        return $this->queries->showsTree($index)
+            ? $this->treeCursorAt($index, $event, $pane)
+            : $this->listCursorAt($index, $event, $pane);
+    }
+
+    /**
+     * Który panel wskazano wraz z prostokątem jego **treści** (bez obwódki).
+     *
+     * Przy wyłączonym podziale panel jest jeden i jest nim ten z ogniskiem —
+     * czyli kliknięcie ogniska nie przenosi, bo nie ma dokąd.
+     *
+     * @return array{int, ?Rect}
+     */
+    private function paneAt(PointerEvent $event, Rect $bounds, bool $split): array
+    {
+        if (!$split) {
+            $index = $this->queries->focusesSecond() ? 1 : 0;
+
+            return [$index, $event->hits($bounds) ? $bounds : null];
+        }
+
+        foreach (Split::halves($bounds, $this->axis(), $this->panes->split()->fraction()) as $index => $half) {
+            if ($event->hits($half)) {
+                return [$index, Panel::inner($half)];
+            }
+        }
+
+        return [0, null];
+    }
+
+    /** Kursor listy postawiony na wskazanym wierszu. */
+    private function listCursorAt(int $index, PointerEvent $event, Rect $content): ScreenOutcome
+    {
+        $directory = $this->queries->directory($index);
+        $row = PointerRow::of(
+            $event,
+            $content,
+            $this->panes->pane($index)[1]->offset(),
+            $this->columnHeader(),
+            count($directory->entries()),
+        );
+
+        if ($row === null) {
+            return ScreenOutcome::stay();
+        }
+
+        $this->moveSelection->to($directory, $row);
+        $this->panes->pane($index)[0]->selectionChanged();
+        $this->panes->publishFocused();
+        $this->events->fire(BrowserEvent::CursorMoved);
+
+        return ScreenOutcome::stay();
+    }
+
+    /** Kursor drzewa: numer wiersza wskazuje węzeł w spłaszczonej liście (krok 31). */
+    private function treeCursorAt(int $index, PointerEvent $event, Rect $content): ScreenOutcome
+    {
+        $tree = $this->queries->treeOf($index);
+        $nodes = $tree->nodes();
+        $row = PointerRow::of($event, $content, $tree->window()->offset(), false, count($nodes));
+
+        if ($row === null) {
+            return ScreenOutcome::stay();
+        }
+
+        $tree->state()->moveTo($nodes[$row]->key);
+        $this->panes->publishFocused();
+        $this->events->fire(BrowserEvent::CursorMoved);
+
+        return ScreenOutcome::stay();
+    }
+
+    /**
+     * Przewinięcie kółkiem — **bez ruszania kursora**.
+     *
+     * Okno przewijania odczepia się przy tym od kursora i wraca do niego dopiero
+     * przy pierwszym ruchu klawiszem (krok 55). Bez tego odczepienia
+     * `keepVisible()` ściągałby okno z powrotem w tej samej klatce, w której
+     * kółko je przesunęło — bo panel listowy woła je przy każdym rysowaniu.
+     */
+    private function scrolled(int $index, int $rows): ScreenOutcome
+    {
+        $window = $this->queries->showsTree($index)
+            ? $this->queries->treeOf($index)->window()
+            : $this->panes->pane($index)[1];
+
+        $window->scrollBy($rows);
+
+        return ScreenOutcome::stay();
     }
 
     /**
@@ -884,8 +1044,16 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
      */
     private function splits(): bool
     {
-        $enabled = BrowserSettings::split($this->core->settings());
+        $settings = $this->core->settings();
+        $enabled = BrowserSettings::split($settings);
         $this->panes->useSplit($enabled);
+
+        // Proporcja idzie tą samą drogą i z tego samego powodu: pozycję zmienia
+        // także zakładka ustawień, a `SplitState` pomija podaną wartość
+        // w trakcie przeciągania, więc jedno nie walczy z drugim (krok 55).
+        $this->panes->split()->useFraction(
+            SplitSetting::fraction($settings, BrowserSettings::ID, self::SPLIT_PERCENT),
+        );
 
         return $enabled;
     }

@@ -47,6 +47,7 @@ return [
     'module.file-info.setting.textPreview' => 'Podgląd treści plików tekstowych',
     'module.file-info.setting.lineNumbers' => 'Numery wierszy w podglądzie',
     'module.file-info.setting.textWrap' => 'Zawijanie wierszy w podglądzie',
+    'module.file-info.setting.splitFraction' => 'Szerokość panelu opisu (%)',
 
     // Nagłówki sekcji.
     'module.file-info.section.identity' => 'TOŻSAMOŚĆ',

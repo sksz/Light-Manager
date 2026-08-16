@@ -25,6 +25,7 @@ use LightManager\Module\Audio\Presentation\AudioScreen;
 use LightManager\Module\Audio\Presentation\Query\EffectsQuery;
 use LightManager\Module\Audio\Presentation\Query\NowPlayingQuery;
 use LightManager\Module\Audio\Presentation\Query\PlaylistQuery;
+use LightManager\Presentation\Cli\Query\CoreReader;
 use LightManager\Tests\Support\InMemorySettings;
 use LightManager\Tests\Support\StubAudio;
 use LightManager\Tests\Support\StubEffectStorage;
@@ -209,6 +210,11 @@ final class AudioEffectsPanelTest extends TestCase
             new AudioQueries(self::registryOf($player, $effects)),
             new EventRegistry(),
             new StubTranslator(),
+            // Odczyt ustawień rdzenia — od kroku 55 potrzebny ekranowi na
+            // proporcję podziału, którą przeciąga się myszą. Rejestr bez
+            // kwerend rdzenia oddaje ustawienia domyślne, i to jest poprawna
+            // odpowiedź, a nie awaria (`CoreReader`).
+            new CoreReader(new QueryRegistry()),
         );
     }
 

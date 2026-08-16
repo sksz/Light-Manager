@@ -36,6 +36,7 @@ return [
     'module.file-info.setting.textPreview' => 'Preview text file content',
     'module.file-info.setting.lineNumbers' => 'Line numbers in the preview',
     'module.file-info.setting.textWrap' => 'Wrap lines in the preview',
+    'module.file-info.setting.splitFraction' => 'Description pane width (%)',
 
     'module.file-info.section.identity' => 'IDENTITY',
     'module.file-info.section.remote' => 'LOCATION',

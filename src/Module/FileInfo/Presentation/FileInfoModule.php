@@ -36,6 +36,7 @@ use LightManager\Module\FileInfo\Presentation\Query\DiskUsageQuery;
 use LightManager\Module\FileInfo\Presentation\Query\PreviewQuery;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Cli\Query\CoreReader;
+use LightManager\Presentation\Cli\SplitSetting;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
 use LightManager\Presentation\Ui\ScreenInterface;
@@ -73,6 +74,9 @@ final class FileInfoModule implements
 {
     /** „Detail information” — litera `d` jest wolna, bo `0x04` nie znaczy w trybie surowym EOF-u. */
     private const SHORTCUT = 'd';
+
+    /** Domyślny podział: opis i podgląd po połowie (krok 55). */
+    private const SPLIT_PERCENT = 50;
 
     private ?FileInfoScreen $assembled = null;
 
@@ -142,7 +146,10 @@ final class FileInfoModule implements
 
     public function settingsTab(): ModuleSettingsTab
     {
-        return new ModuleSettingsTab($this->nameKey(), FileInfoSettings::declarations());
+        return new ModuleSettingsTab($this->nameKey(), [
+            ...FileInfoSettings::declarations(),
+            SplitSetting::declaration(FileInfoSettings::ID, self::SPLIT_PERCENT),
+        ]);
     }
 
     /**
@@ -202,6 +209,12 @@ final class FileInfoModule implements
             $this->reader(),
             new CoreReader($this->state->queries()),
             $this->translator,
+            SplitSetting::state(
+                FileInfoSettings::ID,
+                self::SPLIT_PERCENT,
+                $this->state,
+                new ChangeModuleSettingUseCase($this->settings, $this->translator),
+            ),
         );
     }
 

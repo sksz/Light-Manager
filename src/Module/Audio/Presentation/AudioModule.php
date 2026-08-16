@@ -14,6 +14,7 @@ use LightManager\Application\Module\ProvidesQueries;
 use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
+use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Module\Audio\Application\AudioSettings;
 use LightManager\Module\Audio\Application\PlaylistPlayer;
 use LightManager\Module\Audio\Application\Port\AudioPort;
@@ -35,6 +36,7 @@ use LightManager\Module\Audio\Presentation\Query\NowPlayingQuery;
 use LightManager\Module\Audio\Presentation\Query\PlaylistQuery;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Cli\Query\CoreReader;
+use LightManager\Presentation\Cli\SplitSetting;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
 use LightManager\Presentation\Ui\ScreenInterface;
@@ -83,6 +85,9 @@ final class AudioModule implements
      * (`ModuleRegistry::FORBIDDEN_CHARACTERS`).
      */
     private const SHORTCUT = 'a';
+
+    /** Domyślny podział okna dźwięku: efekty i playlista po połowie (krok 55). */
+    private const SPLIT_PERCENT = 50;
 
     /** @var list<\LightManager\Application\Command\CommandInterface>|null */
     private ?array $commands = null;
@@ -153,7 +158,10 @@ final class AudioModule implements
 
     public function settingsTab(): ModuleSettingsTab
     {
-        return new ModuleSettingsTab($this->nameKey(), AudioSettings::declarations());
+        return new ModuleSettingsTab($this->nameKey(), [
+            ...AudioSettings::declarations(),
+            SplitSetting::declaration(AudioSettings::ID, self::SPLIT_PERCENT),
+        ]);
     }
 
     public function commands(): array
@@ -187,6 +195,13 @@ final class AudioModule implements
             $this->reader(),
             $this->state->events(),
             $this->translator,
+            new CoreReader($this->state->queries()),
+            SplitSetting::state(
+                AudioSettings::ID,
+                self::SPLIT_PERCENT,
+                $this->state,
+                new ChangeModuleSettingUseCase($this->settings, $this->translator),
+            ),
         );
     }
 

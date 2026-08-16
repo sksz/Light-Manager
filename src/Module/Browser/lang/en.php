@@ -53,6 +53,7 @@ return [
     'module.browser.setting.deleteToTrash' => 'Delete to trash (F8, Delete)',
     'module.browser.setting.trashDirectory' => 'Trash directory (empty: system)',
     'module.browser.setting.undoDepth' => 'Undo stack depth (F3)',
+    'module.browser.setting.splitFraction' => 'Left pane width (%)',
 
     // Column headings (step 27), shown only when the toggle above is on.
     'module.browser.column.name' => 'Name',

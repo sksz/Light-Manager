@@ -14,6 +14,14 @@ namespace LightManager\Presentation\Ui;
  * Przypięta jest dziś jedna pozycja: `F1`. Ustępuje ostatnia, bo bez niej znika
  * jedyne wskazanie, gdzie leży pełny spis klawiszy (krok 40, rozstrzygnięcie
  * nr 8).
+ *
+ * Od kroku 55 pozycja niesie obok napisu **wiązanie, z którego powstała** —
+ * i to jest cała treść zdania „pozycja stopki musi poznać swoją kolumnę”.
+ * Kliknięcie w podpowiedź zamienia się z powrotem w `KeyPress` i wraca do
+ * `InputHandler::handle()`, czyli wykonuje się **tą samą drogą co klawisz**,
+ * a nie drugą, równoległą. Wiązanie bywa puste (`null`) wyłącznie tam, gdzie
+ * pozycja powstaje z gotowego napisu, a nie z klawisza — czyli w obciążeniu
+ * pomiarowym `ScenarioFactory`, gdzie klikać nie ma kto.
  */
 final class Hint
 {
@@ -21,6 +29,7 @@ final class Hint
         public readonly string $text,
         /** Czy pozycja ustępuje dopiero wtedy, gdy nie mieści się sama jedna. */
         public readonly bool $pinned = false,
+        public readonly ?KeyBinding $binding = null,
     ) {
     }
 }

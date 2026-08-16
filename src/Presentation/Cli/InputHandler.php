@@ -7,8 +7,14 @@ namespace LightManager\Presentation\Cli;
 use Closure;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\PointerAction;
+use LightManager\Application\Dto\PointerButton;
+use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Module\ModuleInterface;
 use LightManager\Domain\Exception\DomainException;
+use LightManager\Presentation\Ui\AcceptsPointer;
+use LightManager\Presentation\Ui\AcceptsPointerInOverlay;
+use LightManager\Presentation\Ui\HintTarget;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
 use LightManager\Presentation\Ui\Overlay\MenuOverlay;
@@ -16,6 +22,7 @@ use LightManager\Presentation\Ui\OverlayInterface;
 use LightManager\Presentation\Ui\OverlayOutcome;
 use LightManager\Presentation\Ui\RunsWork;
 use LightManager\Presentation\Ui\ScreenInterface;
+use LightManager\Presentation\Ui\ScreenOutcome;
 use LightManager\Presentation\Ui\Transition;
 
 /**
@@ -42,6 +49,12 @@ use LightManager\Presentation\Ui\Transition;
 final class InputHandler
 {
     /**
+     * Rozpoznanie pary kliknięć — jedyna rzecz w obsłudze wskaźnika pytająca
+     * o czas, więc stoi w jednym miejscu, a nie w każdym ekranie z osobna.
+     */
+    private readonly PointerGestures $gestures;
+
+    /**
      * @param array<string, ScreenInterface> $modules    litera skrótu → ekran modułu;
      *                                                   mapę składa `Bootstrap`
      *                                                   z rejestru modułów
@@ -66,6 +79,7 @@ final class InputHandler
         private readonly ?Closure $fullscreen = null,
         private readonly ?MenuOverlay $menu = null,
     ) {
+        $this->gestures = new PointerGestures();
     }
 
     /**
@@ -171,6 +185,124 @@ final class InputHandler
         }
 
         return $this->toScreen($key, $state, $now);
+    }
+
+    /**
+     * Wskaźnik przechodzi przez **te same trzy piętra**, co klawisz, i w tej
+     * samej kolejności: okno nakładane → rdzeń → ekran (krok 55).
+     *
+     * Trzy czynności rdzenia zamieniają się przy tym z powrotem w naciśnięcie
+     * i wracają do `handle()` — czyli wykonują się **tą samą drogą co klawisz**,
+     * a nie drugą, równoległą. Kliknięcie w podpowiedź stopki to jej klawisz,
+     * podwójne kliknięcie to `Enter`, prawy przycisk to `F9`. Dwie drogi do tej
+     * samej czynności rozjeżdżają się przy pierwszej poprawce — to zdanie
+     * zapisał krok 32 o menu kontekstowym i obowiązuje ono dalej.
+     *
+     * @return bool czy użytkownik poprosił o zakończenie aplikacji
+     */
+    public function pointer(PointerEvent $event, LoopState $state, float $now): bool
+    {
+        $state->dismissMessageIfDue($now);
+
+        $overlay = $state->overlays()->current();
+
+        if ($overlay !== null) {
+            return $this->toOverlayPointer($overlay, $event, $state, $now);
+        }
+
+        $binding = $this->hintAt($state, $event);
+
+        if ($binding !== null) {
+            $press = $binding->press();
+
+            // Podpowiedź, która nie wisi na niczym naciskalnym, po prostu nic
+            // nie robi — kliknięcie w nią **nie schodzi** do ekranu pod spodem,
+            // bo trafiło w pasek stanu, a nie w treść.
+            return $press !== null && $this->handle($press, $state, $now);
+        }
+
+        if ($this->toScreenPointer($event, $state, $now)) {
+            return true;
+        }
+
+        if ($event->action === PointerAction::Press && $event->button === PointerButton::Right) {
+            // Kursor stanął już wyżej, w drodze przez ekran — menu dostaje
+            // zaznaczenie takie, jakie użytkownik właśnie wskazał.
+            $this->toMenu($state, $now);
+
+            return false;
+        }
+
+        if ($this->gestures->isDoubleClick($event, $now)) {
+            return $this->handle(KeyPress::special(Key::Enter, ''), $state, $now);
+        }
+
+        return false;
+    }
+
+    /**
+     * Wskaźnik oddany oknu nakładanemu.
+     *
+     * Kliknięcie **poza** oknem jest połykane niezależnie od tego, czy okno
+     * zdolność deklaruje: okno jest modalne, a kliknięcie w listę pod spodem
+     * zmieniałoby zaznaczenie, którego użytkownik w tej chwili nie widzi. Jest
+     * to ta sama reguła pierwszeństwa, którą klawisz chodzi od kroku 19 —
+     * z jedną różnicą: klawisz nieprzyjęty próbuje jeszcze klawiszy globalnych,
+     * a kliknięcie nie ma czego próbować, bo klawiszy globalnych nie da się
+     * kliknąć poza stopką, a stopka jest pod oknem.
+     */
+    private function toOverlayPointer(
+        OverlayInterface $overlay,
+        PointerEvent $event,
+        LoopState $state,
+        float $now,
+    ): bool {
+        if (!$overlay instanceof AcceptsPointerInOverlay) {
+            return false;
+        }
+
+        try {
+            $outcome = $overlay->pointer($event);
+        } catch (DomainException $exception) {
+            $state->reportProblem($this->problems->text($exception), $now);
+
+            return false;
+        }
+
+        if (!$outcome->handled) {
+            return false;
+        }
+
+        return $this->applyOverlayOutcome($outcome, $state, $now);
+    }
+
+    /** Wiązanie podpowiedzi pod wskaźnikiem — wyłącznie przy naciśnięciu lewym przyciskiem. */
+    private function hintAt(LoopState $state, PointerEvent $event): ?KeyBinding
+    {
+        if ($event->action !== PointerAction::Press || $event->button !== PointerButton::Left) {
+            return null;
+        }
+
+        return HintTarget::at($state->hintTargets(), $event);
+    }
+
+    private function toScreenPointer(PointerEvent $event, LoopState $state, float $now): bool
+    {
+        $screen = $this->screens->current();
+
+        if (!$screen instanceof AcceptsPointer) {
+            return false;
+        }
+
+        try {
+            $outcome = $screen->pointer($event);
+        } catch (DomainException $exception) {
+            $state->reportProblem($this->problems->text($exception), $now);
+
+            return false;
+        }
+
+        return $this->applyScreenOutcome($outcome, $state, $now);
     }
 
     /**
@@ -378,6 +510,14 @@ final class InputHandler
             return false;
         }
 
+        return $this->applyScreenOutcome($outcome, $state, $now);
+    }
+
+    /**
+     * @return bool czy skutek kończy aplikację
+     */
+    private function applyScreenOutcome(ScreenOutcome $outcome, LoopState $state, float $now): bool
+    {
         if ($outcome->message !== null) {
             $state->report($outcome->message, $now);
         }

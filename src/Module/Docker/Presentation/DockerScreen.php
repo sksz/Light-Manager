@@ -6,6 +6,9 @@ namespace LightManager\Module\Docker\Presentation;
 
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\PointerAction;
+use LightManager\Application\Dto\PointerButton;
+use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Module\ModuleContext;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Primitive\Primitive;
@@ -24,6 +27,9 @@ use LightManager\Module\Docker\Application\LogStream;
 use LightManager\Module\Docker\Application\Port\ComposePort;
 use LightManager\Module\Docker\Domain\ValueObject\Container;
 use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Cli\Query\CoreReader;
+use LightManager\Presentation\Cli\SplitSetting;
+use LightManager\Presentation\Ui\AcceptsPointer;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\Split;
@@ -34,12 +40,14 @@ use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\Module\ReadsContext;
 use LightManager\Presentation\Ui\Overlay\ConfirmOverlay;
 use LightManager\Presentation\Ui\OverlayOutcome;
+use LightManager\Presentation\Ui\PointerRow;
 use LightManager\Presentation\Ui\Resettable;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
 use LightManager\Presentation\Ui\ScreenZone;
 use LightManager\Presentation\Ui\ScrollWindow;
 use LightManager\Presentation\Ui\SplitAxis;
+use LightManager\Presentation\Ui\SplitState;
 
 /**
  * Ekran modułu Dockera — **jeden ekran w trzech postaciach** (krok 51).
@@ -60,9 +68,30 @@ use LightManager\Presentation\Ui\SplitAxis;
  * miałby czterdzieści kolumn, czyli mniej niż wynosi typowy wiersz wypisu
  * serwera, i zawijałby każdy z nich dwa razy.
  */
-final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFrame, Resettable, ReadsContext
+final class DockerScreen implements
+    ScreenInterface,
+    DeclaresFocus,
+    DrawsOwnFrame,
+    Resettable,
+    ReadsContext,
+    AcceptsPointer
 {
+    /** Prostokąt z ostatniego rysowania — pamięć wymagana przez `AcceptsPointer` (krok 55). */
+    private ?Rect $lastBounds = null;
+
+    /**
+     * Proporcja podziału listy i opisu (krok 55).
+     *
+     * Ogniska ten stan **nie trzyma** — w module Dockera stoi ono zawsze na
+     * liście — więc jedyne, po co tu jest, to granica dająca się przeciągnąć
+     * i jej zapis w ustawieniach modułu.
+     */
+    private readonly SplitState $split;
+
     public const ID = 'docker';
+
+    /** Domyślny podział: lista i opis po połowie (krok 55). */
+    private const SPLIT_PERCENT = 50;
 
     /**
      * Litera odświeżania — ta sama, co w ekranie zdalnym z kroku 50.
@@ -127,7 +156,12 @@ final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFram
         private readonly TranslatorPort $translator,
         private readonly LoopState $state,
         private readonly DockerQueries $reader,
+        /** Odczyt ustawień rdzenia — przez rejestr kwerend (krok 53, D92 nr 3). */
+        private readonly CoreReader $core,
+        /** Proporcja podziału z ustawień modułu wraz z jej zapisem (krok 55). */
+        ?SplitState $split = null,
     ) {
+        $this->split = $split ?? new SplitState();
         $this->containerWindow = new ScrollWindow();
         $this->containerWindow->useContext(self::ID . ':containers');
         $this->imageWindow = new ScrollWindow();
@@ -186,7 +220,7 @@ final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFram
         $primitives = [];
         $labels = [$this->labelKey(), 'module.' . DockerSettings::ID . '.detail.title'];
 
-        foreach (Split::halves($zone, SplitAxis::Vertical) as $index => $bounds) {
+        foreach (Split::halves($zone, SplitAxis::Vertical, $this->split->fraction()) as $index => $bounds) {
             // Panel z ogniskiem poznaje się po akcencie — tu ognisko stoi zawsze
             // na liście, bo opis jest widokiem, a nie miejscem, w którym da się
             // cokolwiek zrobić.
@@ -208,6 +242,7 @@ final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFram
     public function draw(Rect $bounds): array
     {
         $this->drawn = true;
+        $this->lastBounds = $bounds;
 
         if ($this->view === DockerView::Logs) {
             $this->lastCapacity = max(1, $bounds->rows);
@@ -221,7 +256,7 @@ final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFram
             return $this->drawList($bounds);
         }
 
-        [$left, $right] = Split::halves($bounds, SplitAxis::Vertical);
+        [$left, $right] = Split::halves($bounds, SplitAxis::Vertical, $this->split->fraction());
         $list = Panel::inner($left);
         $this->lastCapacity = $this->capacityOf($list);
         $primitives = $this->drawList($list);
@@ -286,6 +321,63 @@ final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFram
         $this->reportCompose();
 
         $this->drawn = false;
+    }
+
+    /**
+     * Wskaźnik w module Dockera: granica podziału, kursor listy i kółko
+     * (krok 55).
+     *
+     * Ognisko stoi tu **zawsze na liście** — opis po prawej jest widokiem, a nie
+     * miejscem, w którym da się cokolwiek zrobić (tak samo mówi `ownFrame()`) —
+     * więc kliknięcie w prawy panel nie przenosi niczego. Postać logów jest
+     * jednym panelem na całą szerokość i przewija się kółkiem.
+     */
+    public function pointer(PointerEvent $event): ScreenOutcome
+    {
+        $bounds = $this->lastBounds;
+
+        if ($bounds === null || !$event->hits($bounds)) {
+            return ScreenOutcome::stay();
+        }
+
+        if ($this->view === DockerView::Logs) {
+            if ($event->isScroll()) {
+                $this->logPane->scrollBy($event->scrollRows());
+            }
+
+            return ScreenOutcome::stay();
+        }
+
+        $split = $this->splitsIn($bounds);
+
+        if ($split && $this->split->pointer($event, $bounds, SplitAxis::Vertical)) {
+            return ScreenOutcome::stay();
+        }
+
+        $list = $split ? Panel::inner(Split::halves($bounds, SplitAxis::Vertical, $this->split->fraction())[0]) : $bounds;
+        $containers = $this->view === DockerView::Containers;
+        $window = $containers ? $this->containerWindow : $this->imageWindow;
+
+        if ($event->isScroll()) {
+            $window->scrollBy($event->scrollRows());
+
+            return ScreenOutcome::stay();
+        }
+
+        if ($event->action !== PointerAction::Press || $event->button === PointerButton::Middle) {
+            return ScreenOutcome::stay();
+        }
+
+        $state = $containers ? $this->reader->containers() : $this->reader->images();
+        $row = PointerRow::of($event, $list, $window->offset(), true, count($state->entries));
+
+        if ($row === null) {
+            return ScreenOutcome::stay();
+        }
+
+        $containers ? $this->containers->moveTo($row) : $this->images->moveTo($row);
+
+        return ScreenOutcome::stay();
     }
 
     public function handle(KeyPress $key): ScreenOutcome
@@ -565,6 +657,12 @@ final class DockerScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFram
 
     private function splitsIn(Rect $zone): bool
     {
+        // Proporcja czytana co klatkę: tę samą pozycję zmienia zakładka ustawień,
+        // a w trakcie przeciągania `SplitState` podaną wartość pomija (krok 55).
+        $this->split->useFraction(
+            SplitSetting::fraction($this->core->settings(), DockerSettings::ID, self::SPLIT_PERCENT),
+        );
+
         return $this->view !== DockerView::Logs
             && $zone->rows >= 3
             && Split::fits($zone, SplitAxis::Vertical);

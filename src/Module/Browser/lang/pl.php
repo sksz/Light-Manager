@@ -69,6 +69,7 @@ return [
     'module.browser.setting.deleteToTrash' => 'Usuwaj do kosza (F8, Delete)',
     'module.browser.setting.trashDirectory' => 'Katalog kosza (pusty: systemowy)',
     'module.browser.setting.undoDepth' => 'Głębokość stosu cofnięć (F3)',
+    'module.browser.setting.splitFraction' => 'Szerokość lewego panelu (%)',
 
     // Nagłówki kolumn listy (krok 27). Widać je wyłącznie po włączeniu
     // przełącznika „Nazwy kolumn nad listą” — sama treść kolumn mówi za siebie.

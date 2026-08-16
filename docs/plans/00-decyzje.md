@@ -114,7 +114,8 @@ Kolumna **Stan** mówi, co się z decyzją stało w kodzie:
 | [D92](#d92--kwerendy-obejmują-wszystkie-źródła-danych-rdzenia-i-sześciu-modułów-rejestr-staje-się-jedyną-drogą-odczytu-a-krok-pęka-na-dwa) | Kwerendy obejmują wszystkie źródła danych rdzenia i sześciu modułów, rejestr staje się jedyną drogą odczytu, a krok pęka na dwa | krok 53 (przez nr 2 — powstaje krok 54) | 2026-08-16 | Wdrożona |
 | [D93](#d93--trzy-poprawki-których-nie-było-w-planie-pamięć-ulotna-wycofana-czas-i-rozmiar-wracają-dla-oka) | Trzy poprawki, których nie było w planie: pamięć ulotna wycofana, czas i rozmiar wracają dla oka | krok 53 | 2026-08-16 | Wdrożona |
 | [D94](#d94--obraz-idzie-do-klastra-rejestrem-ghcr-budowa-przenosi-się-do-taktu-modułu-a-modulesetting-uczy-się-maskować) | Obraz idzie do klastra rejestrem GHCR, budowa przenosi się do taktu modułu, a `ModuleSetting` uczy się maskować | krok 54 (przez nr 7 — rdzeniowy `ModuleSetting`) | 2026-08-16 | Wdrożona |
-| [D95](#d95--wskaźnik-wchodzi-jako-wspólny-nadtyp-zdarzeń-trafienie-deklaruje-ekran-a-faza-xix-dzieli-się-na-trzy-kroki) | Wskaźnik wchodzi jako wspólny nadtyp zdarzeń, trafienie deklaruje ekran, a Faza XIX dzieli się na trzy kroki | Faza XIX — kroki 55, 56 i 57 (przez nr 9 — powstają 56 i 57) | 2026-08-16 | Czeka |
+| [D95](#d95--wskaźnik-wchodzi-jako-wspólny-nadtyp-zdarzeń-trafienie-deklaruje-ekran-a-faza-xix-dzieli-się-na-trzy-kroki) | Wskaźnik wchodzi jako wspólny nadtyp zdarzeń, trafienie deklaruje ekran, a Faza XIX dzieli się na trzy kroki | Faza XIX — kroki 55, 56 i 57 (przez nr 9 — powstają 56 i 57) | 2026-08-16 | Wdrożona w kroku 55; nr 4–6 czekają na kroki 56 i 57 |
+| [D99](#d99--rozstrzygnięcia-startowe-kroku-55-okno-odczepia-się-od-kursora-zobowiązanie-jest-ostre-a-proporcja-podziału-przeżywa-uruchomienie) | Rozstrzygnięcia startowe kroku 55: okno odczepia się od kursora, zobowiązanie jest ostre, a proporcja podziału przeżywa uruchomienie | krok 55 (przez nr 1 — rdzeniowy `ScrollWindow`; przez nr 3 — pięć modułów) | 2026-08-16 | Wdrożona |
 | [D98](#d98--dziesięć-modułów-wchodzi-jako-zarysy-podział-wedle-poziomów-wartości-jeden-plik-na-krok-trzy-pytania-przecinające-całość) | Dziesięć modułów wchodzi jako zarysy: podział wedle poziomów wartości, jeden plik na krok, trzy pytania przecinające całość | Fazy XXII–XXIV — kroki 66–75 (rozstrzygnięcia o kształcie planu, nie o modułach) | 2026-08-16 | Czeka |
 
 > **Indeks jest niekompletny od D62 wzwyż.** Wpisy **D62–D76** stoją w treści
@@ -7149,7 +7150,7 @@ pozostały bezalternatywne):
 
 ### D95 — Wskaźnik wchodzi jako wspólny nadtyp zdarzeń, trafienie deklaruje ekran, a Faza XIX dzieli się na trzy kroki
 
-**Dotyczy:** Fazy XIX w całości — kroków **55** ([55-mysz-wskaznik.md](55-mysz-wskaznik.md)),
+**Dotyczy:** Fazy XIX w całości — kroków **55** ([55-mysz-wskaznik.md](archiwum/55-mysz-wskaznik.md)),
 **56** ([56-zaznaczanie-tresci.md](56-zaznaczanie-tresci.md)) i **57**
 ([57-schowek.md](57-schowek.md)), które powstały z podziału zarysu; klas
 `Application\Dto\KeyPress`, `Application\Port\InputPort`,
@@ -7651,3 +7652,77 @@ zakres, a nie sposób wykonania:
   kroku: zarys nie zna jeszcze zakresu, który rozstrzygnie użytkownik. Warunek
   `Fable` z przypisów ¹ i ² nie zachodzi w żadnym z dziesięciu — prymitywów nie
   przybywa, słownik wejścia nie rośnie, trzej tłumacze zostają nietknięci.
+
+## Decyzje ze startu kroku 55 (2026-08-16)
+
+### D99 — Rozstrzygnięcia startowe kroku 55: okno odczepia się od kursora, zobowiązanie jest ostre, a proporcja podziału przeżywa uruchomienie
+
+**Dotyczy:** kroku **55** ([55-mysz-wskaznik.md](archiwum/55-mysz-wskaznik.md));
+klas `Presentation\Ui\ScrollWindow`, `Presentation\Ui\SplitState`,
+`Presentation\Ui\AcceptsPointer`, `Presentation\Cli\SplitSetting` oraz
+zakładek ustawień pięciu modułów (`browser`, `file-info`, `audio`, `docker`,
+`k8s`).
+
+**Data:** 2026-08-16, **na starcie kroku** — czyli inaczej niż D95, które
+powstało przy rozpisywaniu planu. Powód tej różnicy jest prosty: D95
+rozstrzygało **zakres**, a te cztery pytania wyszły dopiero z rozpoznania
+w kodzie i jedno z nich jest sprzecznością **wewnątrz samego planu**.
+
+**Co rozstrzygnęło rozpoznanie, zanim padło pierwsze pytanie:**
+
+- **Szesnaście paneli listowych woła `ScrollWindow::keepVisible($cursor, …)`
+  przy każdym rysowaniu.** Zdanie planu „kółko przewija o trzy wiersze, **bez
+  ruszania kursora**” było przez to niewykonalne bez zmiany w rdzeniu: okno
+  przesunięte kółkiem wracałoby do kursora w tej samej klatce.
+- **Zakres i kryteria ukończenia mówiły dwie różne rzeczy o tym samym.** Zakres:
+  „przeglądarka pełni, reszta co najmniej listą i kółkiem”. Kryteria: „ekran
+  obsługuje kliknięcie w **każde** miejsce, które deklaruje w `focus()`”.
+- **Ustawienia podziału należą do modułu** (reguła 11c), więc proporcja
+  zapisywana trwale znaczy **pięć** pozycji w pięciu modułach, a nie jedną.
+- **Krok 54 był już zatwierdzony przez użytkownika**, więc drzewo robocze było
+  czyste i różnica kroku 55 daje się obejrzeć osobno.
+
+**Decyzje użytkownika:**
+
+1. **Okno przewijania odczepia się od kursora.** `scrollBy()` podnosi znacznik,
+   `keepVisible()` przestaje ciągnąć okno, a przyczepienie wraca **samo**, gdy
+   podany numer kursora się zmieni. Kursor wolno wyprowadzić poza widok — jak
+   w każdym edytorze. Zyskiem jest to, że **żadne z szesnastu miejsc wołających
+   nie zmienia się o linię**. Odrzucone: kółko przesuwające kursor o trzy pozycje
+   (zero zmian w rdzeniu, ale odwołuje zdanie planu, a w przeglądarce zmienia
+   **operand operacji na plikach**) oraz wariant mieszany, w którym kółko znaczy
+   co innego nad logiem, a co innego nad listą — nie do wytłumaczenia jedną
+   regułą.
+2. **Obowiązuje zdanie ostrzejsze: kliknięcie w każde miejsce z `focus()`.**
+   `AcceptsPointer` dostaje osiem ekranów modułów plus pomoc i ustawienia, a
+   pilnuje tego `PointerTruthTest` — dla każdego ekranu zbiera miejsca osiągalne
+   `Tab`em i sprawdza, że każde da się osiągnąć kliknięciem. Odrzucone: minimum
+   poza przeglądarką, przy którym mysz działa w połowie okna i nie widać tego,
+   dopóki ktoś nie kliknie.
+3. **Proporcja podziału przeżywa uruchomienie** — jako pozycja `splitFraction`
+   w podprzestrzeni `modules.<id>`, w pięciu modułach, z przystankami co jeden
+   procent. **Wbrew rekomendacji planu**, która proponowała sesję i jedno
+   ustawienie w całym kroku. Odrzucone: proporcja ginąca z zamknięciem aplikacji.
+4. **Krok 54 zatwierdza użytkownik sam**, przed startem 55 — żeby różnica
+   każdego z kroków dała się obejrzeć osobno.
+
+**Co z tego wynika — i czego krok pilnuje:**
+
+- **Rdzeń urósł o cztery rzeczy, nie o trzy zapowiadane w D95.** Do słownika
+  wejścia, zdolności trafienia i przełącznika myszy doszło **odczepienie okna
+  przewijania** — z rozstrzygnięcia nr 1, i jest to jedyna zmiana w `ScrollWindow`
+  od kroku 18.
+- **Zdolności wskaźnika są dwie.** `AcceptsPointer` (ekran, `ScreenOutcome`)
+  i `AcceptsPointerInOverlay` (okno, `OverlayOutcome`) — plan zapowiadał jedną,
+  ale okno umie rzeczy, których ekran nie umie, a wspólna zdolność kazałaby
+  każdemu wołającemu rozstrzygać, który typ przyszedł. Precedens: `RunsWork`
+  z kroku 41.
+- **Jedyna mapa trafień w rdzeniu to stopka** i jest to granica, nie wyjątek:
+  rdzeń rysuje pasek stanu sam, więc sam go pamięta. Zdanie reguły 11z brzmi
+  **kto rysuje, ten pamięta**. Prostokąty liczą się przy tym **leniwie**, dopiero
+  przy kliknięciu — pomiar pokazał, że budowane co klatkę kosztują mierzalnie.
+- **Oś `--loop` nie odpowiada na pytanie tego kroku** i jest to zapisane
+  w dzienniku jako granica pomiaru, nie jako przeoczenie: `LoopBenchmarkRunner`
+  buduje `KeyPress` wprost, z pominięciem `InputPort`, więc ani parser SGR, ani
+  przełącznik myszy nie leżą na mierzonej ścieżce. Zapowiadany drugi przebieg
+  „z myszą wyłączoną” nie ma się przez to do czego odnieść i nie powstał.

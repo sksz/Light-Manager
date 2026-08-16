@@ -31,6 +31,7 @@ return [
     'module.audio.setting.autostart' => 'Play from startup',
     'module.audio.setting.effects' => 'Sound effects',
     'module.audio.setting.effectsVolume' => 'Effects volume (%)',
+    'module.audio.setting.splitFraction' => 'Effects pane width (%)',
 
     // The module window's top zone and the playback modes.
     'module.audio.zone.now' => 'Playback',

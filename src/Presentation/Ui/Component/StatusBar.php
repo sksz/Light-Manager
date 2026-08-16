@@ -10,6 +10,7 @@ use LightManager\Application\Ui\Primitive\Weight;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
 use LightManager\Presentation\Ui\ComponentInterface;
+use LightManager\Presentation\Ui\HintTarget;
 use LightManager\Presentation\Ui\StatusHints;
 
 /**
@@ -70,7 +71,7 @@ final class StatusBar implements ComponentInterface
             $primitives[] = new TextRun($bounds->row, $bounds->column, $message, $this->tone);
         }
 
-        foreach ($this->hints->lines($this->budgets($bounds)) as $index => $line) {
+        foreach ($this->hints->lines(self::budgets($bounds, $this->message)) as $index => $line) {
             // Wiersz bez ani jednej pozycji jest legalny i znaczy „tu się nic nie
             // zmieściło” — przy długim komunikacie podpowiedzi zaczynają się
             // dopiero w drugim wierszu. Numer wiersza pochodzi z położenia na
@@ -80,7 +81,7 @@ final class StatusBar implements ComponentInterface
             }
 
             $row = $bounds->row + $index;
-            $column = $bounds->column + $bounds->columns - mb_strlen($line);
+            $column = self::lineColumn($bounds, $line);
             $primitives[] = new TextRun($row, $column, $line, Role::Muted);
 
             if ($index === 0) {
@@ -92,14 +93,61 @@ final class StatusBar implements ComponentInterface
     }
 
     /**
+     * Prostokąty poszczególnych podpowiedzi — mapa trafień stopki (krok 55).
+     *
+     * Statyczne i tutaj, a nie w `FrameComposer`, z tego samego powodu, co
+     * `hintColumns()`: wyrównanie treści do prawej krawędzi jest własnością
+     * **tego** komponentu, a `draw()` i mapa trafień nie mają prawa liczyć go
+     * dwiema drogami. Wołający dostaje gotowe prostokąty w siatce znakowej.
+     *
+     * @return list<HintTarget>
+     */
+    public static function hintTargets(Rect $bounds, string $message, StatusHints $hints): array
+    {
+        if ($bounds->isEmpty()) {
+            return [];
+        }
+
+        $budgets = self::budgets($bounds, $message);
+        $lines = $hints->lines($budgets);
+        $targets = [];
+
+        foreach ($hints->placements($budgets) as $placement) {
+            $line = $lines[$placement->line] ?? null;
+
+            if ($line === null || $line === '') {
+                continue;
+            }
+
+            $targets[] = new HintTarget(
+                new Rect(
+                    $bounds->row + $placement->line,
+                    self::lineColumn($bounds, $line) + $placement->offset,
+                    1,
+                    $placement->length,
+                ),
+                $placement->binding,
+            );
+        }
+
+        return $targets;
+    }
+
+    /** Pierwsza kolumna wiersza podpowiedzi: treść stopki jest wyrównana do prawej. */
+    private static function lineColumn(Rect $bounds, string $line): int
+    {
+        return $bounds->column + $bounds->columns - mb_strlen($line);
+    }
+
+    /**
      * Budżet kolumn każdego wiersza: pierwszy dzieli się z komunikatem, kolejne
      * dostają całą szerokość.
      *
      * @return list<int>
      */
-    private function budgets(Rect $bounds): array
+    private static function budgets(Rect $bounds, string $message): array
     {
-        $budgets = [self::hintColumns($bounds->columns, $this->message)];
+        $budgets = [self::hintColumns($bounds->columns, $message)];
 
         for ($row = 1; $row < $bounds->rows; ++$row) {
             $budgets[] = max(0, $bounds->columns);

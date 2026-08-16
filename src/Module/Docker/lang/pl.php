@@ -42,6 +42,7 @@ return [
     'module.docker.setting.registry' => 'Rejestr obrazów',
     'module.docker.setting.registryUser' => 'Użytkownik rejestru',
     'module.docker.setting.registryToken' => 'Token rejestru',
+    'module.docker.setting.splitFraction' => 'Szerokość listy (%)',
 
     // Nazwy postaci ekranu — widać je w etykiecie strefy.
     'module.docker.view.containers' => 'KONTENERY',

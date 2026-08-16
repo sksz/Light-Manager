@@ -4,6 +4,8 @@
 declare(strict_types=1);
 
 use LightManager\Application\Dto\Key;
+use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\PointerEvent;
 use LightManager\Domain\ValueObject\RendererMode;
 use LightManager\Infrastructure\Imagick\ImagickCapabilityService;
 use LightManager\Infrastructure\Support\InfrastructureException;
@@ -22,7 +24,8 @@ require $autoload;
 
 echo 'Podgląd wejścia terminala — naciskaj klawisze, wyjście: q albo Ctrl+C.' . PHP_EOL;
 echo 'Każda sekwencja escape (strzałki, Home/End, PageUp/PageDown) powinna dać ' . PHP_EOL;
-echo 'dokładnie jeden wiersz, a nie serię pojedynczych znaków.' . PHP_EOL . PHP_EOL;
+echo 'dokładnie jeden wiersz, a nie serię pojedynczych znaków.' . PHP_EOL;
+echo 'Mysz jest raportowana w trybie SGR — klikaj, przeciągaj i kręć kółkiem.' . PHP_EOL . PHP_EOL;
 
 try {
     $terminal = TerminalService::getInstance();
@@ -48,17 +51,44 @@ while (true) {
         break;
     }
 
-    $press = $terminal->readKey();
+    $event = $terminal->readEvent();
 
-    if ($press === null) {
+    if ($event === null) {
         usleep(2000);
 
         continue;
     }
 
-    printf('%-12s bajty: %s%s', $press->key->name, bin2hex($press->raw), PHP_EOL);
+    // Wskaźnik od kroku 55: raportowanie SGR włącza się razem z trybem surowym,
+    // więc podgląd pokazuje je bez ani jednego przełącznika. To jedyny sposób,
+    // żeby zobaczyć, czy sekwencja niepełna czeka na resztę, czy rozsypuje się
+    // na osobne znaki — i dlatego stoi tutaj, a nie w doraźnym skrypcie
+    // (reguła 18).
+    if ($event instanceof PointerEvent) {
+        printf(
+            '%-12s wiersz: %-3d kolumna: %-3d przycisk: %-6s%s%s',
+            $event->action->name,
+            $event->row,
+            $event->column,
+            $event->button->name,
+            $event->ctrl || $event->alt || $event->shift ? ' modyfikatory: ' . implode('+', array_keys(array_filter([
+                'Ctrl' => $event->ctrl,
+                'Alt' => $event->alt,
+                'Shift' => $event->shift,
+            ]))) : '',
+            PHP_EOL,
+        );
 
-    if ($press->key === Key::Character && $press->raw === 'q') {
+        continue;
+    }
+
+    if (!$event instanceof KeyPress) {
+        continue;
+    }
+
+    printf('%-12s bajty: %s%s', $event->key->name, bin2hex($event->raw), PHP_EOL);
+
+    if ($event->key === Key::Character && $event->raw === 'q') {
         break;
     }
 }

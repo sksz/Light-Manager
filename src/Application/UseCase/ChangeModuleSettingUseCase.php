@@ -65,6 +65,23 @@ final class ChangeModuleSettingUseCase
     }
 
     /**
+     * Wartość podana wprost — droga pozycji, którą ustawia **czynność**, a nie
+     * strzałka ani pole tekstowe (krok 55: proporcja podziału po przeciągnięciu
+     * granicy myszą).
+     *
+     * Wartość przechodzi przez `valueFrom()`, więc spoza listy wraca do
+     * domyślnej — tą samą drogą, którą przechodzi wartość wczytana z pliku
+     * ruszonego ręcznie. Wołający nie ma jak podać czegoś, czego deklaracja nie
+     * przewiduje.
+     *
+     * @return array{Settings, Message|null}
+     */
+    public function put(Settings $current, string $moduleId, ModuleSetting $setting, bool|int|string $value): array
+    {
+        return $this->stored($current, $moduleId, $setting->key, $setting->valueFrom($value));
+    }
+
+    /**
      * Przełącznik „włączony” ze spisu modułów.
      *
      * Zapisuje się natychmiast, jak każde inne ustawienie, ale skutek widać

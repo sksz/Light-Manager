@@ -198,9 +198,16 @@ final class FrameComposer
 
         $status = HudLayout::contentOf($layout->status, $layout->statusIsPanel());
         $message = $state->message();
+        $text = $message === null ? '' : $message->marked();
+
+        // Składniki mapy trafień stopki — **nie sama mapa** (krok 55): jej
+        // prostokąty liczą się dopiero przy kliknięciu, bo klatek jest trzydzieści
+        // na sekundę, a kliknięć kilka na minutę. Mapa nie mówi przy tym nic
+        // o treści stref: gdzie leży wiersz listy, wie wyłącznie ekran.
+        $state->useStatusBar($status, $text, $hints);
 
         foreach ((new StatusBar(
-            $message === null ? '' : $message->marked(),
+            $text,
             $message === null ? Role::Info : self::roleOf($message->tone),
             $hints,
         ))->draw($status) as $primitive) {

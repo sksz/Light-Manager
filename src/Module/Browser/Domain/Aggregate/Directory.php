@@ -79,6 +79,22 @@ final class Directory
     }
 
     /**
+     * Ustawia zaznaczenie na wpisie o podanym numerze — droga wskaźnika
+     * (krok 55).
+     *
+     * Numer spoza listy **niczego nie zmienia**: kliknięcie poniżej ostatniego
+     * wpisu trafia w pustkę pod listą, a nie w jej koniec.
+     */
+    public function selectIndex(int $index): void
+    {
+        if ($index < 0 || $index >= count($this->entries)) {
+            return;
+        }
+
+        $this->selection = new Selection($index);
+    }
+
+    /**
      * Ustawia zaznaczenie na wpisie o podanej nazwie. Gdy takiego wpisu nie ma
      * (np. zniknął po ukryciu wpisów ukrytych) — wraca na początek listy.
      */

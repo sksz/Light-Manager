@@ -6,6 +6,9 @@ namespace LightManager\Module\Audio\Presentation;
 
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\PointerAction;
+use LightManager\Application\Dto\PointerButton;
+use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Event\EventDeclaration;
 use LightManager\Application\Event\EventRegistry;
 use LightManager\Application\Module\ModuleContext;
@@ -20,6 +23,9 @@ use LightManager\Module\Audio\Application\PlaylistPlayer;
 use LightManager\Module\Audio\Application\SoundEffects;
 use LightManager\Module\Audio\Presentation\Component\EffectList;
 use LightManager\Module\Audio\Presentation\Component\PlaylistPane;
+use LightManager\Presentation\Cli\Query\CoreReader;
+use LightManager\Presentation\Cli\SplitSetting;
+use LightManager\Presentation\Ui\AcceptsPointer;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\ListRow;
 use LightManager\Presentation\Ui\Component\Panel;
@@ -33,6 +39,7 @@ use LightManager\Presentation\Ui\FocusHint;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\Module\ReadsContext;
 use LightManager\Presentation\Ui\NeedsTime;
+use LightManager\Presentation\Ui\PointerRow;
 use LightManager\Presentation\Ui\Resettable;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
@@ -75,7 +82,8 @@ final class AudioScreen implements
     Resettable,
     NeedsTime,
     DeclaresFocus,
-    DrawsOwnFrame
+    DrawsOwnFrame,
+    AcceptsPointer
 {
     /** Znacznik utworu granego — ten sam trójkąt, którym drzewo znaczy gałąź zwiniętą. */
     private const PLAYING_MARK = TreeView::CLOSED . ' ';
@@ -86,7 +94,16 @@ final class AudioScreen implements
     /** Podział pionowy: efekty i playlista są listami, a listy czyta się w pionie. */
     private const AXIS = SplitAxis::Vertical;
 
+    /** Domyślny podział: efekty i playlista po połowie (krok 55). */
+    private const SPLIT_PERCENT = 50;
+
     private readonly ScrollWindow $window;
+
+    /**
+     * Prostokąt treści z ostatniego rysowania — bez wiersza pola tekstowego,
+     * bo to on jest tym, co wskaźnik może trafić (krok 55).
+     */
+    private ?Rect $lastBody = null;
 
     private readonly ScrollWindow $effectWindow;
 
@@ -109,10 +126,17 @@ final class AudioScreen implements
         private readonly AudioQueries $queries,
         private readonly EventRegistry $events,
         private readonly TranslatorPort $translator,
+        /** Odczyt ustawień rdzenia — przez rejestr kwerend (krok 53, D92 nr 3). */
+        private readonly CoreReader $core,
+        /**
+         * Stan podziału przychodzi z zewnątrz od kroku 55: niesie proporcję
+         * z ustawień modułu i jej zapis po przeciągnięciu granicy myszą.
+         */
+        ?SplitState $split = null,
     ) {
         $this->window = new ScrollWindow();
         $this->effectWindow = new ScrollWindow();
-        $this->split = new SplitState();
+        $this->split = $split ?? new SplitState();
         $this->context = new ModuleContext();
         // Ognisko startuje na playliście, czyli po prawej: to ona jest tym, po co
         // otwiera się to okno, a efekty przypisuje się raz na jakiś czas.
@@ -203,7 +227,7 @@ final class AudioScreen implements
         $primitives = [];
         $second = $this->split->focusesSecond();
 
-        foreach (Split::halves($zone, self::AXIS) as $index => $bounds) {
+        foreach (Split::halves($zone, self::AXIS, $this->split->fraction()) as $index => $bounds) {
             $focused = ($index === 1) === $second;
             $panel = new Panel(
                 $this->text($index === 0 ? 'zone.effects' : 'zone.playlist'),
@@ -227,6 +251,7 @@ final class AudioScreen implements
         }
 
         $body = $this->input === null ? $bounds : $bounds->rowsFrom(0, $bounds->rows - 1);
+        $this->lastBody = $body;
         $primitives = $this->body($body);
 
         if ($this->input !== null) {
@@ -255,6 +280,7 @@ final class AudioScreen implements
             $this->pane(0, framed: true),
             $this->pane(1, framed: true),
             self::AXIS,
+            $this->split->fraction(),
         ))->draw($bounds);
     }
 
@@ -286,7 +312,19 @@ final class AudioScreen implements
      */
     private function splitsIn(Rect $zone): bool
     {
-        return !$zone->isEmpty() && $zone->rows >= 3 && Split::fits($zone, self::AXIS);
+        $splits = !$zone->isEmpty() && $zone->rows >= 3 && Split::fits($zone, self::AXIS);
+
+        // `useSplit()` **nie pada** i to nie jest przeoczenie: sprowadziłoby
+        // ognisko na pierwszy panel poniżej progu szerokości, a tutaj panele są
+        // dwiema różnymi rzeczami i widać ten **z ogniskiem** (reguła 11o'').
+        //
+        // Proporcja czytana co klatkę: tę samą pozycję zmienia zakładka ustawień,
+        // a w trakcie przeciągania `SplitState` podaną wartość pomija (krok 55).
+        $this->split->useFraction(
+            SplitSetting::fraction($this->core->settings(), AudioSettings::ID, self::SPLIT_PERCENT),
+        );
+
+        return $splits;
     }
 
     /** @return list<EventDeclaration> */
@@ -448,6 +486,84 @@ final class AudioScreen implements
         }
 
         return new FocusHint('module.' . AudioSettings::ID . '.focus.playlist', $bindings);
+    }
+
+    /**
+     * Wskaźnik w oknie dźwięku: granica podziału, ognisko panelu, kursor listy
+     * i kółko (krok 55).
+     *
+     * Pole tekstowe na dole **połyka wskaźnik w całości**: gdy stoi, ognisko
+     * należy do niego, a kliknięcie w listę pod spodem przenosiłoby je bez
+     * słowa — czyli robiłoby to samo, co okno nakładane, którego rdzeń pilnuje
+     * osobno.
+     */
+    public function pointer(PointerEvent $event): ScreenOutcome
+    {
+        $bounds = $this->lastBody;
+
+        if ($this->input !== null || $bounds === null || !$event->hits($bounds)) {
+            return ScreenOutcome::stay();
+        }
+
+        $split = $this->splitsIn($bounds);
+
+        if ($split && $this->split->pointer($event, $bounds, self::AXIS)) {
+            return ScreenOutcome::stay();
+        }
+
+        [$index, $content] = $this->paneAt($event, $bounds, $split);
+
+        if ($content === null) {
+            return ScreenOutcome::stay();
+        }
+
+        $this->split->focus($index === 1);
+
+        if ($event->isScroll()) {
+            ($index === 1 ? $this->window : $this->effectWindow)->scrollBy($event->scrollRows());
+
+            return ScreenOutcome::stay();
+        }
+
+        if ($event->action !== PointerAction::Press || $event->button === PointerButton::Middle) {
+            return ScreenOutcome::stay();
+        }
+
+        return $index === 1 ? $this->playlistCursorAt($event, $content) : $this->effectCursorAt($event, $content);
+    }
+
+    /**
+     * Który panel wskazano wraz z prostokątem jego treści.
+     *
+     * @return array{int, ?Rect}
+     */
+    private function paneAt(PointerEvent $event, Rect $bounds, bool $split): array
+    {
+        if (!$split) {
+            return [$this->split->focusesSecond() ? 1 : 0, $bounds];
+        }
+
+        foreach (Split::halves($bounds, self::AXIS, $this->split->fraction()) as $index => $half) {
+            if ($event->hits($half)) {
+                return [$index, Panel::inner($half)];
+            }
+        }
+
+        return [0, null];
+    }
+
+    private function playlistCursorAt(PointerEvent $event, Rect $content): ScreenOutcome
+    {
+        $row = PointerRow::of($event, $content, $this->window->offset(), false, count($this->playlistRows()));
+
+        return $row === null ? ScreenOutcome::stay() : $this->select($row - $this->selected);
+    }
+
+    private function effectCursorAt(PointerEvent $event, Rect $content): ScreenOutcome
+    {
+        $row = PointerRow::of($event, $content, $this->effectWindow->offset(), false, count($this->declarations()));
+
+        return $row === null ? ScreenOutcome::stay() : $this->selectEffect($row - $this->effectSelected);
     }
 
     public function handle(KeyPress $key): ScreenOutcome

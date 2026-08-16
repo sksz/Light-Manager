@@ -58,6 +58,7 @@ return [
     'settings.key.windowRows' => 'Wiersze okna (tryb okienkowy)',
     'settings.key.backgroundOutputKib' => 'Pamięć na wynik pracy w tle',
     'settings.key.backgroundJobs' => 'Prace w tle naraz',
+    'settings.key.mouse' => 'Mysz',
     'settings.language.auto' => 'Automatyczny',
     'settings.language.pl' => 'Polski',
     'settings.language.en' => 'English',

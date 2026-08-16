@@ -73,4 +73,58 @@ final class ScrollWindowTest extends TestCase
         self::assertGreaterThanOrEqual($offset, 50);
         self::assertLessThanOrEqual($offset + 2, 50);
     }
+
+    /**
+     * Kółko odczepia okno od kursora (krok 55).
+     *
+     * Bez odczepienia `keepVisible()` ściągałby okno z powrotem w tej samej
+     * klatce, w której kółko je przesunęło — bo panel listowy woła je przy
+     * każdym rysowaniu, z tym samym numerem kursora.
+     */
+    public function testScrollingDetachesTheWindowFromTheCursor(): void
+    {
+        $window = new ScrollWindow();
+        $window->keepVisible(0, 100, 10);
+
+        $window->scrollBy(20);
+
+        self::assertTrue($window->isDetached());
+        self::assertSame(20, $window->keepVisible(0, 100, 10), 'okno zostaje tam, gdzie je przesunięto');
+    }
+
+    /** Kursor, który się ruszył, przyczepia okno z powrotem. */
+    public function testMovingTheCursorReattachesTheWindow(): void
+    {
+        $window = new ScrollWindow();
+        $window->keepVisible(0, 100, 10);
+        $window->scrollBy(20);
+
+        // Kursor stanął na pozycji 1, a okno stało na 20 — wraca za nim.
+        self::assertSame(1, $window->keepVisible(1, 100, 10), 'okno wróciło do kursora');
+        self::assertFalse($window->isDetached());
+    }
+
+    /** Odczepione okno nadal nie wyjeżdża poza koniec listy. */
+    public function testADetachedWindowStillStopsAtTheEndOfTheList(): void
+    {
+        $window = new ScrollWindow();
+        // Kursor musi być **znany**, zanim okno się odczepi: pierwszy odczyt
+        // z nowym numerem przyczepia je z powrotem, i tak ma być.
+        $window->keepVisible(0, 100, 10);
+        $window->scrollBy(500);
+
+        self::assertSame(90, $window->keepVisible(0, 100, 10));
+    }
+
+    /** Zmiana kontekstu przyczepia okno z powrotem — nowy katalog ogląda się od początku. */
+    public function testChangingTheContextReattachesTheWindow(): void
+    {
+        $window = new ScrollWindow();
+        $window->scrollBy(20);
+
+        $window->useContext('inny');
+
+        self::assertFalse($window->isDetached());
+        self::assertSame(0, $window->offset());
+    }
 }

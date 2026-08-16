@@ -16,6 +16,7 @@ use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Module\RequiresEnvironment;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
+use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Module\Docker\Application\BuildWork;
 use LightManager\Module\Docker\Application\ContainerList;
 use LightManager\Module\Docker\Application\DockerEvent;
@@ -43,6 +44,8 @@ use LightManager\Module\Docker\Presentation\Query\ContainersQuery;
 use LightManager\Module\Docker\Presentation\Query\ImagesQuery;
 use LightManager\Module\Docker\Presentation\Query\PushQuery;
 use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Cli\Query\CoreReader;
+use LightManager\Presentation\Cli\SplitSetting;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
 
@@ -92,6 +95,9 @@ final class DockerModule implements
      * litera modułu, ale zajęte w praktyce przez `Ctrl`+`T` przeglądarki.
      */
     private const SHORTCUT = 'o';
+
+    /** Domyślny podział: lista kontenerów i opis po połowie (krok 55). */
+    private const SPLIT_PERCENT = 50;
 
     /** @var list<CommandInterface>|null */
     private ?array $commands = null;
@@ -193,7 +199,10 @@ final class DockerModule implements
 
     public function settingsTab(): ModuleSettingsTab
     {
-        return new ModuleSettingsTab($this->nameKey(), DockerSettings::declarations());
+        return new ModuleSettingsTab($this->nameKey(), [
+            ...DockerSettings::declarations(),
+            SplitSetting::declaration(DockerSettings::ID, self::SPLIT_PERCENT),
+        ]);
     }
 
     public function events(): array
@@ -217,6 +226,13 @@ final class DockerModule implements
             $this->translator,
             $this->state,
             $this->reader(),
+            new CoreReader($this->state->queries()),
+            SplitSetting::state(
+                DockerSettings::ID,
+                self::SPLIT_PERCENT,
+                $this->state,
+                new ChangeModuleSettingUseCase($this->settings, $this->translator),
+            ),
         );
     }
 

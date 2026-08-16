@@ -7,6 +7,7 @@ namespace LightManager\Tests\Presentation\Cli;
 use Closure;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\SettingsTab;
 use LightManager\Application\Ui\Rect;
 use LightManager\Domain\ValueObject\MessageTone;
 use LightManager\Module\Browser\Application\BrowserSettings;
@@ -342,12 +343,15 @@ final class InputHandlerTest extends TestCase
         self::assertSame([], $this->app->settingsStore->saved);
     }
 
-    /** Cztery pozycje zakładki „Wygląd”, a piąte zejście staje na przycisku czynności. */
+    /**
+     * Pięć pozycji zakładki „Wygląd”, a szóste zejście staje na przycisku
+     * czynności. Pozycji było cztery do kroku 55, w którym doszła mysz.
+     */
     private function standOnRestoreButton(): void
     {
         $this->special(Key::F2);
 
-        for ($step = 0; $step < 5; ++$step) {
+        for ($step = 0; $step < count(SettingsTab::coreTabs()[0]->keys) + 1; ++$step) {
             $this->special(Key::ArrowDown);
         }
     }

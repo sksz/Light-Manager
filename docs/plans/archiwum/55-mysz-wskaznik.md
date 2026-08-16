@@ -10,9 +10,17 @@
 
 ## Status
 
-**Nie rozpoczęty.** Rozstrzygnięcia startowe: [00-decyzje.md](00-decyzje.md),
+**Ukończony 2026-08-16.** Rozstrzygnięcia startowe: [00-decyzje.md](00-decyzje.md),
 D95 — dziesięć pytań rozstrzygniętych przed pierwszą linią kodu, w tym trzy,
-których zarys nie przewidywał.
+których zarys nie przewidywał. Na starcie doszły **cztery rozstrzygnięcia
+użytkownika** (D99), z których jedno odwraca zdanie planu, a jedno wypadło
+z rozpoznania sprzecznego z nim.
+
+Miary spełnione: kliknięcie w wiersz listy stawia kursor we wszystkich trzech
+torach, raportowanie gaśnie przy każdym wyjściu, a **rdzeń nie zyskał mapy
+tego, co gdzie narysowano** — poza stopką, czyli jedyną rzeczą, którą rysuje
+sam. Czego krok nie dowiózł, stoi w dzienniku: **klatki pod XTermem nikt jeszcze
+nie oglądał**, a oś `--loop` okazała się na tę zmianę **za mało dokładna**.
 
 ## Cel
 
@@ -373,4 +381,124 @@ Pełna treść wraz z odrzuconymi alternatywami:
 
 ## Dziennik realizacji
 
-*(Krok nie rozpoczęty — wpisy pojawią się przy wykonaniu.)*
+### 2026-08-16 — wykonanie
+
+**Rozpoznanie przed pierwszą linią kodu obaliło jedno zdanie planu.** Plan
+zamawiał kółko przewijające „o trzy wiersze, **bez ruszania kursora**”, a
+w kodzie stało szesnaście paneli listowych wołających
+`ScrollWindow::keepVisible($cursor, …)` **przy każdym rysowaniu** — czyli okno
+przesunięte kółkiem wracałoby do kursora w tej samej klatce, w której je
+przesunięto. Sprzeczność poszła do użytkownika wraz z trzema wariantami i ich
+ceną; wybrany został ten, który plan miał na myśli, ale którego nie dało się
+zrobić bez zmiany w rdzeniu (D99 nr 1): **`ScrollWindow` odczepia się od
+kursora**. `scrollBy()` podnosi znacznik, `keepVisible()` przestaje ciągnąć okno,
+a przyczepienie wraca **samo**, gdy podany numer kursora się zmieni — czyli przy
+pierwszym naciśnięciu strzałki. Żadne z szesnastu miejsc wołających nie zmieniło
+się o linię, i to była cena wejścia tego wariantu.
+
+**Zobowiązanie obustronne wyszło ostrzejsze, niż zapowiadał zakres.** Plan
+pisał „przeglądarka pełni, reszta co najmniej listą i kółkiem”, a kryteria
+ukończenia — „ekran obsługuje kliknięcie w **każde** miejsce, które deklaruje
+w `focus()`”. Użytkownik wybrał zdanie ostrzejsze (D99 nr 2), więc `AcceptsPointer`
+dostało **osiem ekranów modułów plus pomoc i ustawienia**, a pilnuje tego
+`tests/Functional/PointerTruthTest.php`: dla każdego ekranu zbiera miejsca
+osiągalne `Tab`em i sprawdza, że **każde** da się osiągnąć kliknięciem. Test ma
+przy tym własne zabezpieczenie — osobne zdanie sprawdzające, że przynajmniej
+jeden ekran naprawdę ma więcej niż jedno miejsce, bo bez niego całość mogłaby
+przejść na samych wyjściach „nie ma czego porównywać”.
+
+**Proporcja podziału przeżywa uruchomienie — wbrew rekomendacji planu**
+(D99 nr 3). Plan proponował sesję, użytkownik wybrał **pozycję ustawień
+modułu**, więc krok dokłada nie jedno ustawienie rdzenia, ale jedno rdzenia
+(`mouse`) i **pięć pozycji w pięciu modułach** (`browser`, `file-info`, `audio`,
+`docker`, `k8s`) wraz z napisami w dwóch językach. Powtórzenia deklaracji nie ma:
+mechanizm stoi raz, w `Presentation\Cli\SplitSetting`, a moduł dokłada jedną
+linię do zakładki i jedną do składania ekranu — dokładnie tą samą drogą, którą
+reguła 11c każe trzymać ustawienia podziału przy module. Przystanki są **co
+jeden procent**, bo przy najwęższym dopuszczalnym podziale (72 kolumny) pięć
+procent to blisko cztery kolumny i granica skakałaby pod ręką.
+
+**Zdolności wskaźnika są dwie, nie jedna.** Plan zapowiadał, że
+`OverlayInterface` „może zadeklarować `AcceptsPointer`” — nie da się, bo ekran
+oddaje `ScreenOutcome`, a okno `OverlayOutcome`, i jedna wspólna zdolność
+kazałaby każdemu wołającemu rozstrzygać, który typ przyszedł. Powstała więc
+bliźniacza `AcceptsPointerInOverlay`, różniąca się **wyłącznie** typem
+odpowiedzi; precedens stoi w projekcie od kroku 41 (`RunsWork` jest zdolnością
+wyłącznie okna). Pierwszym i jedynym użytkownikiem jest `MenuOverlay`, i to nie
+z ozdoby: prawy przycisk otwiera menu, więc menu, którego nie da się kliknąć,
+byłoby funkcją otwieraną myszą i obsługiwaną wyłącznie klawiaturą. Kliknięcie
+w pozycję **wybiera ją i wykonuje** jednym naciśnięciem — wybór bez wykonania
+nie jest tu żadnym stanem.
+
+**Trzy czynności rdzenia zamieniają się z powrotem w naciśnięcie.** Kliknięcie
+w podpowiedź stopki wykonuje jej klawisz, podwójne kliknięcie znaczy `Enter`,
+prawy przycisk znaczy `F9` — i wszystkie trzy wracają do `InputHandler::handle()`,
+zamiast dorabiać drugą drogę do tej samej czynności. Kosztowało to jedną metodę
+w `KeyBinding` (`press()`), a oszczędziło rozjazdu, przed którym ostrzega krok 32.
+Podwójne kliknięcie wymaga przy tym **tej samej komórki**, nie tylko progu czasu:
+bez tego warunku szybko klikający użytkownik wchodziłby do katalogów, których
+nie wybrał.
+
+**Rdzeń ma dokładnie jedną mapę trafień i jest nią stopka.** Miara kroku
+mówiła o `FrameComposer` i `ComponentInterface` — oba zostały nietknięte co do
+tego, co gdzie leży. Stopkę rdzeń rysuje sam, więc sam ją pamięta, a granica
+jest ostra i zapisana w regule 11z: **kto rysuje, ten pamięta**.
+
+**Wynik:** oś `--loop` **bez regresji powyżej progu** — 0,1 ms przed i po,
++4,7% / +1,8% przy obciążeniu 0,07 (wzorzec) wobec 0,09 (teraz). Wzorzec:
+`docs/pomiary/2026-08-16-po-kroku-55-loop.json`.
+
+**Pomiar wymusił poprawkę, zanim ktokolwiek zdążył kliknąć.** Pierwsze przebiegi
+`--loop` dały konsekwentne +7% i to nie był szum: mapa trafień stopki budowała
+się **co klatkę**, a pakowanie podpowiedzi zaczęło chodzić trzy razy zamiast raz
+(`fitInOneRow()`, `draw()` i mapa). Poszły z tego dwie poprawki: `StatusHints`
+pamięta ułożenie dla zestawu budżetów, a mapa trafień powstaje **leniwie**,
+dopiero przy pytaniu — klatek jest trzydzieści na sekundę, a kliknięć kilka na
+minutę. Ta sama reguła, którą rejestr kwerend stosuje do wierszy wyniku (11w).
+
+#### Granice pomiaru — dwie i obie warte zapamiętania
+
+**Oś `--loop` nie mierzy tego, co ten krok dokłada do wejścia.**
+`LoopBenchmarkRunner` buduje `KeyPress` **wprost**, a nie przez `InputPort`, bo
+odczyt bajtów jest kosztem systemu, nie pętli (tak stoi w jego komentarzu od
+kroku 38). Nowa gałąź parsera SGR i przełącznik myszy leżą przez to **poza** tą
+osią w całości — a to znaczy, że zapowiadany „drugi przebieg z myszą wyłączoną”
+nie ma się do czego odnieść i **nie powstał**. Liczba z tej osi mówi wyłącznie
+tyle, że reszta taktu się nie zmieniła. Jest to ta sama granica, którą zapisał
+krok 45 („`--loop` nie woła taktu modułów”).
+
+**Przy 0,1 ms takt pętli jest poniżej rozdzielczości tej osi — i widać to
+w liczbach.** Powtórzenia **tego samego kodu** dawały +4,7%, +5,9%, +7,3%, a jedno
++43,1%, przy niezmiennym „Razem 0,1 ms” i rozrzucie 0,1–0,1. Rozstrzygnęło
+obciążenie, które narzędzie raportuje samo: seria przebiegów pod rząd podniosła
+je z 0,07 do 0,12 na rdzeń, a po jego opadnięciu do 0,09 ta sama różnica zeszła
+do **+3,2…+4,7%**. Wniosek na przyszłość: **oś `--loop` odróżnia zmiany rzędu
+dziesiątych części milisekundy, a nie mikrosekund**, a powtarzanie jej
+przebiegów pod rząd **psuje własny pomiar**.
+
+#### Czego krok nie dowiózł
+
+- **Klatki pod XTermem nikt jeszcze nie oglądał.** Użytkownik wybrał
+  `make probe-xterm` — podgląd surowych sekwencji — zamiast pełnej aplikacji,
+  więc sprawdzenie „kliknięcie stawia kursor w prawdziwym terminalu” i
+  „raportowanie gaśnie po `Ctrl`+`C` i po błędzie” czeka na osobne uruchomienie.
+  Dług jest ten sam, co w kroku 46, i ma tego samego właściciela: pierwszy krok,
+  który znowu otworzy XTerma.
+- **Drugiego przebiegu, z myszą wyłączoną, nie ma** — nie ma się do czego
+  odnieść, patrz pierwsza granica pomiaru wyżej. Zapowiadał go punkt 7 planu
+  i to jest jedyna pozycja z tamtego punktu, która nie powstała.
+
+#### Rzeczy, które przy okazji wyszły z kodu
+
+- **`ClusterScreen` budował okno przewijania drzewa co klatkę** (`new
+  ScrollWindow()` w `drawTree()`), bo biegło wyłącznie za kursorem. Kółko nie
+  miałoby czego przesunąć, więc okno stało się polem — z kluczem kontekstu, jak
+  każde inne.
+- **`AudioScreen` nie woła `useSplit()` i nie może zacząć** — sprowadziłoby to
+  ognisko na pierwszy panel poniżej progu szerokości, a tam panele są dwiema
+  różnymi rzeczami i widać ten **z ogniskiem** (reguła 11o''). Próba dopisania
+  tego wywołania „dla porządku” zerwała cztery przebiegi, zanim wróciła.
+- **Pozycja „Mysz” stanęła w zakładce „Wygląd”**, a nie „Zasoby”, i jest to wybór
+  z dwojga złego: nie jest ani wyglądem, ani granicą mechanizmu, ale pierwsza
+  zakładka jest tą, w której użytkownik jej poszuka — a język stoi tam z tego
+  samego powodu.

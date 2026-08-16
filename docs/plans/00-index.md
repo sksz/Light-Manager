@@ -559,9 +559,32 @@ zamienia `0x03` na SIGINT **zanim aplikacja cokolwiek przeczyta** — czyli skr�
 zamyka program. Klawiszami schowka zostały `Alt`+`c` i `Alt`+`v`, a reguła 11j
 (modyfikatory rozłączne) wyszła z fazy **nietknięta**.
 
+**Krok 55 wykonany — i to rozpoznanie przed pierwszą linią kodu obaliło zdanie
+własnego planu.** Plan zamawiał kółko przewijające „bez ruszania kursora”, a
+w kodzie stało **szesnaście** paneli listowych wołających
+`ScrollWindow::keepVisible($cursor, …)` przy każdym rysowaniu — czyli okno
+przesunięte kółkiem wracałoby do kursora w tej samej klatce. Sprzeczność poszła
+do użytkownika z trzema wariantami i ceną każdego; wybrane **odczepienie okna od
+kursora** (D99 nr 1) nie zmieniło ani jednego z tych szesnastu miejsc.
+Zobowiązanie obustronne wyszło przy tym **ostrzejsze niż zakres** (D99 nr 2):
+`AcceptsPointer` dostało osiem ekranów modułów plus pomoc i ustawienia, a pilnuje
+tego `PointerTruthTest`, który dla każdego ekranu zbiera miejsca osiągalne
+`Tab`em i sprawdza, że **każde** da się kliknąć. Proporcja podziału **przeżywa
+uruchomienie wbrew rekomendacji planu** (D99 nr 3), więc krok dokłada jedno
+ustawienie rdzenia i pięć pozycji w pięciu modułach — mechanizm stoi raz,
+w `SplitSetting`. Rdzeń wyszedł z kroku z **dokładnie jedną mapą trafień i jest
+nią stopka**, czyli jedyna rzecz, którą rysuje sam; miara „`FrameComposer`
+i `ComponentInterface` nietknięte co do tego, co gdzie leży” jest spełniona.
+Pomiar wymusił przy tym poprawkę, zanim ktokolwiek zdążył kliknąć — mapa trafień
+budowała się co klatkę, a pakowanie podpowiedzi chodziło trzy razy zamiast raz;
+oba rachunki są odtąd **leniwe**. Dwie rzeczy zapisane jako granice: **oś
+`--loop` nie mierzy tego, co ten krok dokłada do wejścia** (`LoopBenchmarkRunner`
+buduje `KeyPress` wprost, więc zapowiadany drugi przebieg z myszą wyłączoną nie
+ma się do czego odnieść) i **klatki pod XTermem nikt jeszcze nie oglądał**.
+
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 55 | Mysz: wskaźnik wchodzi do słownika wejścia | [55-mysz-wskaznik.md](55-mysz-wskaznik.md) | 6, 9, 14, 15, 18, 19, 21, 24, 32, 33, 34, 35, 40 | Fable⁶ | xhigh | Nie rozpoczęty |
+| 55 | Mysz: wskaźnik wchodzi do słownika wejścia | [55-mysz-wskaznik.md](archiwum/55-mysz-wskaznik.md) | 6, 9, 14, 15, 18, 19, 21, 24, 32, 33, 34, 35, 40 | Fable⁶ | xhigh | Ukończony z zastrzeżeniem |
 | 56 | Zaznaczanie treści: klatka uczy się mówić, co na niej pisze | [56-zaznaczanie-tresci.md](56-zaznaczanie-tresci.md) | 8, 13, 18, 30, 35, 38, 55 | Opus⁷ | xhigh | Nie rozpoczęty |
 | 57 | Schowek systemowy: trzy tory, dwie drogi, jedno miejsce | [57-schowek.md](57-schowek.md) | 6, 7, 14, 15, 19, 32, 33, 34, 43, 48, 55, 56 | Opus⁷ | high | Nie rozpoczęty |
 

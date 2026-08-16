@@ -6,6 +6,9 @@ namespace LightManager\Module\Ssh\Presentation;
 
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\PointerAction;
+use LightManager\Application\Dto\PointerButton;
+use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
@@ -17,6 +20,7 @@ use LightManager\Module\Ssh\Domain\Exception\InvalidHostProfileException;
 use LightManager\Module\Ssh\Domain\ValueObject\AuthMethod;
 use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
 use LightManager\Module\Ssh\Domain\ValueObject\HostTarget;
+use LightManager\Presentation\Ui\AcceptsPointer;
 use LightManager\Presentation\Ui\Component\Align;
 use LightManager\Presentation\Ui\Component\Column;
 use LightManager\Presentation\Ui\Component\Label;
@@ -28,6 +32,7 @@ use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\Overlay\ConfirmOverlay;
 use LightManager\Presentation\Ui\Overlay\PromptOverlay;
 use LightManager\Presentation\Ui\OverlayOutcome;
+use LightManager\Presentation\Ui\PointerRow;
 use LightManager\Presentation\Ui\Resettable;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
@@ -59,8 +64,11 @@ use LightManager\Presentation\Ui\ScrollWindow;
  * chodzi o skutki uboczne rysowania, tylko o to, że kawałek pracy trwa tyle, ile
  * trwa sieć.
  */
-final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable
+final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable, AcceptsPointer
 {
+    /** Prostokąt z ostatniego rysowania — pamięć wymagana przez `AcceptsPointer` (krok 55). */
+    private ?Rect $lastBounds = null;
+
     public const ID = 'ssh-hosts';
 
     /** Szerokość kolumny stanu — najdłuższa nazwa etapu plus oddech. */
@@ -133,6 +141,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable
 
     public function draw(Rect $bounds): array
     {
+        $this->lastBounds = $bounds;
         $book = $this->reader->book();
 
         if ($book->isEmpty()) {
@@ -172,6 +181,42 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable
     public function focus(): FocusHint
     {
         return new FocusHint('module.' . SshSettings::ID . '.focus.hosts', $this->bindings());
+    }
+
+    /**
+     * Wskaźnik na liście hostów: kółko przewija, lewy przycisk stawia kursor
+     * (krok 55).
+     *
+     * Miejsce ogniska jest tu jedno, więc kliknięcie nie ma czego przenosić —
+     * i to jest cała różnica wobec ekranów z podziałem.
+     */
+    public function pointer(PointerEvent $event): ScreenOutcome
+    {
+        $bounds = $this->lastBounds;
+
+        if ($bounds === null || !$event->hits($bounds)) {
+            return ScreenOutcome::stay();
+        }
+
+        if ($event->isScroll()) {
+            $this->window->scrollBy($event->scrollRows());
+
+            return ScreenOutcome::stay();
+        }
+
+        if ($event->action !== PointerAction::Press || $event->button === PointerButton::Middle) {
+            return ScreenOutcome::stay();
+        }
+
+        $row = PointerRow::of(
+            $event,
+            $bounds,
+            $this->window->offset(),
+            withHeader: true,
+            total: $this->reader->book()->count(),
+        );
+
+        return $row === null ? ScreenOutcome::stay() : $this->putSelection($row);
     }
 
     public function handle(KeyPress $key): ScreenOutcome

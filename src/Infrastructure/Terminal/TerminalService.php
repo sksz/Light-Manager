@@ -4,17 +4,23 @@ declare(strict_types=1);
 
 namespace LightManager\Infrastructure\Terminal;
 
-use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\InputEvent;
 use LightManager\Application\Port\InputPort;
 use LightManager\Infrastructure\Support\AbstractSingleton;
 
 /**
- * Przełącza terminal w tryb surowy i udostępnia nieblokujący odczyt klawiszy.
+ * Przełącza terminal w tryb surowy i udostępnia nieblokujący odczyt wejścia.
  *
  * Konstruktor ma efekt uboczny (wejście w tryb raw), dlatego usługa jest
  * pierwsza w kolejności bootstrapu. Przywrócenie ustawień terminala jest
  * zabezpieczone trzytorowo: obsługą sygnałów, funkcją zamknięcia procesu
  * i jawnym wywołaniem `restore()`.
+ *
+ * Od kroku 55 **czwartą rzeczą pod tą samą gwarancją jest raportowanie myszy**
+ * — i jest to jedyny powód, dla którego wolno je w ogóle włączyć. Raportowanie
+ * niezdjęte przy wyjściu zostawia użytkownikowi terminal sypiący sekwencjami
+ * przy każdym ruchu myszy: awaria widoczna długo po zamknięciu aplikacji,
+ * a niedająca się z nią powiązać.
  */
 final class TerminalService extends AbstractSingleton implements InputPort
 {
@@ -41,6 +47,23 @@ final class TerminalService extends AbstractSingleton implements InputPort
 
     private const SHOW_CURSOR = "\e[?25h";
 
+    /**
+     * Raportowanie wskaźnika: naciśnięcia i zwolnienia (`1000`), ruch
+     * **wyłącznie przy wciśniętym przycisku** (`1002`) oraz tryb SGR (`1006`).
+     *
+     * Dwa wybory warte zapamiętania. **`1002`, a nie `1003`**: raportowanie
+     * każdego ruchu wysyłałoby zdarzenie na każdą przekroczoną komórkę, czyli
+     * zalewałoby pętlę wejściem, którego nikt nie zamawiał — a jedyne, co by
+     * z tego wynikło, to podpowiedzi pod kursorem, których krok 55 nie ma
+     * w zakresie. **`1006` jest obowiązkowy**, nie dodatkowy: kodowanie domyślne
+     * zapisuje współrzędną jako bajt z przesunięciem 32, więc powyżej 223.
+     * kolumny przestaje działać.
+     */
+    private const ENABLE_MOUSE_REPORTING = "\e[?1000h\e[?1002h\e[?1006h";
+
+    /** Zdejmowanie w odwrotnej kolejności — jak przy każdym trybie prywatnym. */
+    private const DISABLE_MOUSE_REPORTING = "\e[?1006l\e[?1002l\e[?1000l";
+
     private readonly KeySequenceParser $parser;
 
     private readonly string $originalSettings;
@@ -48,6 +71,8 @@ final class TerminalService extends AbstractSingleton implements InputPort
     private bool $rawModeActive = false;
 
     private bool $alternateScreenActive = false;
+
+    private bool $mouseReportingActive = false;
 
     private bool $shutdownRequested = false;
 
@@ -75,7 +100,7 @@ final class TerminalService extends AbstractSingleton implements InputPort
         $this->registerShutdownHandler();
     }
 
-    public function readKey(): ?KeyPress
+    public function readEvent(): ?InputEvent
     {
         $this->buffer .= $this->readAvailableBytes(0);
 
@@ -92,7 +117,25 @@ final class TerminalService extends AbstractSingleton implements InputPort
 
         $this->buffer = substr($this->buffer, $parsed->consumedBytes);
 
-        return $parsed->keyPress;
+        return $parsed->event;
+    }
+
+    /**
+     * Włącza albo zdejmuje raportowanie wskaźnika — **w locie**, a nie dopiero
+     * przy następnym uruchomieniu (krok 55, punkt 6 planu).
+     *
+     * Sekwencja wyłączająca jest dokładnie tą, którą wysyła `restore()`, i to
+     * nie jest oszczędność: gdyby wyłączenie w ustawieniach szło inną drogą niż
+     * wyjście z aplikacji, jedna z nich mogłaby przestać działać niezauważenie.
+     */
+    public function useMouseReporting(bool $enabled): void
+    {
+        if ($enabled === $this->mouseReportingActive) {
+            return;
+        }
+
+        $this->mouseReportingActive = $enabled;
+        $this->write($enabled ? self::ENABLE_MOUSE_REPORTING : self::DISABLE_MOUSE_REPORTING);
     }
 
     public function shutdownRequested(): bool
@@ -244,6 +287,11 @@ final class TerminalService extends AbstractSingleton implements InputPort
     /** Idempotentne — bezpieczne do wywołania wielokrotnie i z dowolnej ścieżki wyjścia. */
     public function restore(): void
     {
+        // Raportowanie myszy schodzi **pierwsze**, przed ekranem zapasowym:
+        // sekwencja wyłączająca musi trafić na ten sam ekran, na którym
+        // włączono raportowanie, a po `1049l` terminal jest już z powrotem
+        // w historii powłoki.
+        $this->useMouseReporting(false);
         $this->leaveAlternateScreen();
 
         if (!$this->rawModeActive) {
@@ -266,12 +314,27 @@ final class TerminalService extends AbstractSingleton implements InputPort
         $this->write(self::SHOW_CURSOR . self::LEAVE_ALTERNATE_SCREEN);
     }
 
+    /**
+     * Tryb surowy wraz z raportowaniem wskaźnika.
+     *
+     * Raportowanie wchodzi **tutaj**, a nie przy pierwszym pytaniu o klatkę, bo
+     * to tryb surowy jest tym, co czyni wejście wejściem aplikacji, a nie
+     * powłoki — i bo dzięki temu dostaje je także `bin/terminal-probe`, czyli
+     * jedyne narzędzie, którym da się zobaczyć, co terminal naprawdę przysyła
+     * (reguła 18). Ustawienie użytkownika zdejmuje je zaraz potem, w `Bootstrapie`.
+     *
+     * Uwaga na tryb surowy, której krok 55 nie zmienia, a która przesądziła
+     * o klawiszach schowka w kroku 57: `isig` i `iexten` **zostają włączone**
+     * (sprawdzone w prawdziwym pty: `intr = ^C`, `lnext = ^V`). Klawiatura
+     * generuje przez to SIGINT, a `^V` połyka następny bajt.
+     */
     private function enterRawMode(): void
     {
         $this->runStty(self::RAW_MODE_SETTINGS);
         stream_set_blocking(STDIN, false);
 
         $this->rawModeActive = true;
+        $this->useMouseReporting(true);
     }
 
     private function registerSignalHandlers(): void

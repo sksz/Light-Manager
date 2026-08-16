@@ -330,6 +330,7 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
                 && in_array($value, Settings::BACKGROUND_JOBS_CHOICES, true)
                 ? $settings->withBackgroundJobs($value)
                 : null,
+            SettingKey::Mouse => is_bool($value) ? $settings->withMouse($value) : null,
         };
     }
 
@@ -383,6 +384,7 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
             SettingKey::WindowRows->value => $settings->windowRows,
             SettingKey::BackgroundOutputKib->value => $settings->backgroundOutputKib,
             SettingKey::BackgroundJobs->value => $settings->backgroundJobs,
+            SettingKey::Mouse->value => $settings->mouse,
         ];
 
         if ($settings->modules !== []) {

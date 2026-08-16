@@ -6,6 +6,7 @@ namespace LightManager\Module\Ssh\Presentation;
 
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Module\ContextEntryKind;
 use LightManager\Application\Module\ContextOrigin;
 use LightManager\Application\Module\ModuleContext;
@@ -15,6 +16,7 @@ use LightManager\Module\Ssh\Application\SshSession;
 use LightManager\Module\Ssh\Application\SshSettings;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntry;
 use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Ui\AcceptsPointer;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\DeclaresFocus;
 use LightManager\Presentation\Ui\FocusHint;
@@ -47,7 +49,7 @@ use LightManager\Presentation\Ui\ScreenZone;
  * host nie jest miejscem w drzewie plików i nie ma czego o nim powiedzieć
  * odbiorcy, który czeka na ścieżkę.
  */
-final class SshScreen implements ScreenInterface, DeclaresFocus, Resettable, ReadsContext
+final class SshScreen implements ScreenInterface, DeclaresFocus, Resettable, ReadsContext, AcceptsPointer
 {
     public const ID = 'ssh';
 
@@ -166,6 +168,17 @@ final class SshScreen implements ScreenInterface, DeclaresFocus, Resettable, Rea
     public function focus(): FocusHint
     {
         return $this->showsRemote() ? $this->remote->focus() : $this->hosts->focus();
+    }
+
+    /**
+     * Wskaźnik idzie tam, gdzie idą klawisze i gdzie stoi ognisko — do tej
+     * postaci, którą właśnie widać (krok 55). Rozdwojenie ekranu na książkę
+     * hostów i katalog zdalny jest tu tą samą jedną gałęzią, co w `draw()`,
+     * `bindings()` i `focus()`, więc trzy odpowiedzi nie mają jak się rozjechać.
+     */
+    public function pointer(PointerEvent $event): ScreenOutcome
+    {
+        return $this->showsRemote() ? $this->remote->pointer($event) : $this->hosts->pointer($event);
     }
 
     public function reset(): void

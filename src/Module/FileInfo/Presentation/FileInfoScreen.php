@@ -6,6 +6,9 @@ namespace LightManager\Module\FileInfo\Presentation;
 
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\PointerAction;
+use LightManager\Application\Dto\PointerButton;
+use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Module\ModuleContext;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Primitive\Primitive;
@@ -16,9 +19,12 @@ use LightManager\Module\FileInfo\Application\Dto\ChecksumStage;
 use LightManager\Module\FileInfo\Application\Dto\DescriptionSection;
 use LightManager\Module\FileInfo\Application\Dto\DiskUsageStage;
 use LightManager\Module\FileInfo\Application\Dto\EntryKind;
+use LightManager\Module\FileInfo\Application\FileInfoSettings;
 use LightManager\Module\FileInfo\Application\SizeText;
 use LightManager\Module\FileInfo\Presentation\Component\PreviewPane;
 use LightManager\Presentation\Cli\Query\CoreReader;
+use LightManager\Presentation\Cli\SplitSetting;
+use LightManager\Presentation\Ui\AcceptsPointer;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\ListRow;
 use LightManager\Presentation\Ui\Component\Panel;
@@ -32,6 +38,7 @@ use LightManager\Presentation\Ui\FocusHint;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\Module\ReadsContext;
 use LightManager\Presentation\Ui\NeedsTime;
+use LightManager\Presentation\Ui\PointerRow;
 use LightManager\Presentation\Ui\Resettable;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
@@ -71,8 +78,12 @@ final class FileInfoScreen implements
     Resettable,
     DrawsOwnFrame,
     NeedsTime,
-    DeclaresFocus
+    DeclaresFocus,
+    AcceptsPointer
 {
+    /** Prostokąt z ostatniego rysowania — pamięć wymagana przez `AcceptsPointer` (krok 55). */
+    private ?Rect $lastBounds = null;
+
     /**
      * Poniżej tylu kolumn wartość nie zawija się, tylko przycina.
      *
@@ -82,6 +93,9 @@ final class FileInfoScreen implements
      * opłacać.
      */
     private const WRAP_MINIMUM_COLUMNS = 16;
+
+    /** Domyślny podział: opis po lewej, podgląd po prawej, po połowie (krok 55). */
+    private const SPLIT_PERCENT = 50;
 
     private readonly ScrollWindow $window;
 
@@ -130,10 +144,15 @@ final class FileInfoScreen implements
         /** Odczyt ustawień rdzenia — przez rejestr kwerend (krok 53, D92 nr 3). */
         private readonly CoreReader $core,
         private readonly TranslatorPort $translator,
+        /**
+         * Stan podziału przychodzi z zewnątrz od kroku 55: niesie proporcję
+         * wczytaną z ustawień modułu i zapis po przeciągnięciu granicy myszą.
+         */
+        ?SplitState $split = null,
     ) {
         $this->window = new ScrollWindow();
         $this->sections = new SectionState();
-        $this->focusState = new SplitState();
+        $this->focusState = $split ?? new SplitState();
         $this->sizes = new SizeText($translator);
     }
 
@@ -233,7 +252,7 @@ final class FileInfoScreen implements
         $primitives = [];
         $labels = ['module.file-info.name', 'layout.zone.preview'];
 
-        foreach (Split::halves($zone, SplitAxis::Vertical) as $index => $bounds) {
+        foreach (Split::halves($zone, SplitAxis::Vertical, $this->focusState->fraction()) as $index => $bounds) {
             // Panel z ogniskiem poznaje się po akcencie w nawiasach i w etykiecie
             // — dokładnie tak, jak panel czynny w przeglądarce od kroku 24.
             // Bez tego przeniesienie ogniska byłoby ruchem bez śladu na ekranie.
@@ -255,6 +274,8 @@ final class FileInfoScreen implements
 
     public function draw(Rect $bounds): array
     {
+        $this->lastBounds = $bounds;
+
         // Kawałek sumy kontrolnej przypadający na tę klatkę. Stoi tutaj, bo
         // `draw()` jest jedynym wywołaniem, które na pewno przychodzi w każdej
         // klatce **i tylko wtedy, gdy ekran jest widoczny** — praca nie posuwa
@@ -270,7 +291,7 @@ final class FileInfoScreen implements
             return $this->body($bounds);
         }
 
-        [$left, $right] = Split::halves($bounds, SplitAxis::Vertical);
+        [$left, $right] = Split::halves($bounds, SplitAxis::Vertical, $this->focusState->fraction());
         $primitives = $this->body(Panel::inner($left));
 
         foreach ($this->preview->draw(Panel::inner($right)) as $primitive) {
@@ -301,7 +322,7 @@ final class FileInfoScreen implements
             return $bounds;
         }
 
-        return Panel::inner(Split::halves($bounds, SplitAxis::Vertical)[0]);
+        return Panel::inner(Split::halves($bounds, SplitAxis::Vertical, $this->focusState->fraction())[0]);
     }
 
     /**
@@ -687,6 +708,102 @@ final class FileInfoScreen implements
         ]);
     }
 
+    /**
+     * Wskaźnik w opisie pliku: granica podziału, ognisko panelu, kursor sekcji
+     * i kółko (krok 55).
+     *
+     * Sekcje mają wysokość większą niż jeden wiersz, więc numer wiersza trzeba
+     * przełożyć na numer sekcji — i robi to `sectionAt()`, tym samym rachunkiem
+     * (`SectionList::rowOf()`), którym rysuje się listę. Drugi rachunek
+     * rozjechałby się przy pierwszej sekcji, która zmieni wysokość.
+     */
+    public function pointer(PointerEvent $event): ScreenOutcome
+    {
+        $bounds = $this->lastBounds;
+
+        if ($bounds === null || !$event->hits($bounds)) {
+            return ScreenOutcome::stay();
+        }
+
+        $split = $this->splitsIn($bounds);
+
+        if ($split && $this->focusState->pointer($event, $bounds, SplitAxis::Vertical)) {
+            return ScreenOutcome::stay();
+        }
+
+        [$second, $content] = $this->paneAt($event, $bounds, $split);
+
+        if ($content === null) {
+            return ScreenOutcome::stay();
+        }
+
+        $this->focusState->focus($second);
+
+        if ($event->isScroll()) {
+            // Podgląd tekstu przewija się **linijkami panelu**, a nie wierszami
+            // pliku (reguła 11i), więc kółko woła tę samą drogę, co strzałka.
+            $second
+                ? $this->state->scrollTextRows($event->scrollRows())
+                : $this->window->scrollBy($event->scrollRows());
+
+            return ScreenOutcome::stay();
+        }
+
+        if ($second || $event->action !== PointerAction::Press || $event->button === PointerButton::Middle) {
+            return ScreenOutcome::stay();
+        }
+
+        $section = $this->sectionAt($event, $content);
+
+        return $section === null
+            ? ScreenOutcome::stay()
+            : $this->movedSection($section - $this->sections->cursor(), count($this->sections()));
+    }
+
+    /**
+     * Który panel wskazano wraz z prostokątem jego treści; przy jednym panelu
+     * kliknięcie ogniska nie przenosi, bo nie ma dokąd.
+     *
+     * @return array{bool, ?Rect}
+     */
+    private function paneAt(PointerEvent $event, Rect $bounds, bool $split): array
+    {
+        if (!$split) {
+            return [$this->focusState->focusesSecond(), $bounds];
+        }
+
+        foreach (Split::halves($bounds, SplitAxis::Vertical, $this->focusState->fraction()) as $index => $half) {
+            if ($event->hits($half)) {
+                return [$index === 1, Panel::inner($half)];
+            }
+        }
+
+        return [false, null];
+    }
+
+    /** Numer sekcji pod wskaźnikiem — sekcje bywają wyższe niż wiersz. */
+    private function sectionAt(PointerEvent $event, Rect $content): ?int
+    {
+        $list = $this->workBar() === null ? $content : $content->rowsFrom(0, $content->rows - 1);
+        $row = PointerRow::of($event, $list, $this->window->offset());
+
+        if ($row === null) {
+            return null;
+        }
+
+        $sections = $this->wrapped($this->sections(), $list->columns);
+
+        foreach ($sections as $index => $section) {
+            $first = SectionList::rowOf($sections, $index);
+
+            if ($row >= $first && $row < $first + $section->height()) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
     public function handle(KeyPress $key): ScreenOutcome
     {
         if ($key->key === Key::Escape) {
@@ -820,6 +937,12 @@ final class FileInfoScreen implements
     {
         $this->splits = $zone->rows >= 3 && Split::fits($zone, SplitAxis::Vertical);
         $this->focusState->useSplit($this->splits);
+
+        // Proporcja czytana co klatkę, bo tę samą pozycję zmienia też zakładka
+        // ustawień; w trakcie przeciągania `SplitState` ją pomija (krok 55).
+        $this->focusState->useFraction(
+            SplitSetting::fraction($this->core->settings(), FileInfoSettings::ID, self::SPLIT_PERCENT),
+        );
 
         return $this->splits;
     }

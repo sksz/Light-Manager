@@ -17,4 +17,10 @@ final class MoveSelectionUseCase
     {
         $directory->moveSelectionDown();
     }
+
+    /** Zaznaczenie postawione wprost — droga wskaźnika (krok 55). */
+    public function to(Directory $directory, int $index): void
+    {
+        $directory->selectIndex($index);
+    }
 }

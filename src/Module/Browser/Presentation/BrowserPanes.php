@@ -61,11 +61,18 @@ final class BrowserPanes
         int $scrollMargin,
         BrowserTree $firstTree,
         BrowserTree $secondTree,
+        /**
+         * Stan podziału przychodzi **z zewnątrz** od kroku 55: niesie odtąd
+         * proporcję wczytaną z ustawień modułu i zapis po przeciągnięciu granicy,
+         * a jedno i drugie zna moduł, nie panele. Domyślny — bez pamięci —
+         * zostaje dla testów składających panele samodzielnie.
+         */
+        ?SplitState $split = null,
     ) {
         $this->states = [$first, $second];
         $this->windows = [new ScrollWindow($scrollMargin), new ScrollWindow($scrollMargin)];
         $this->trees = [$firstTree, $secondTree];
-        $this->split = new SplitState();
+        $this->split = $split ?? new SplitState();
     }
 
     public function focused(): BrowserState
@@ -76,6 +83,22 @@ final class BrowserPanes
     public function focusesSecond(): bool
     {
         return $this->split->focusesSecond();
+    }
+
+    /**
+     * Stan podziału — od kroku 55 niesie także **proporcję i przeciąganie
+     * granicy**, więc ekran musi mieć do niego dostęp, a nie tylko do samego
+     * pytania o ognisko.
+     */
+    public function split(): SplitState
+    {
+        return $this->split;
+    }
+
+    /** Ognisko postawione wprost — tak działa kliknięcie w panel (krok 55). */
+    public function focusPane(int $index): void
+    {
+        $this->split->focus($index === 1);
     }
 
     /**

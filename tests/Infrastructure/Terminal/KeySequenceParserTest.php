@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace LightManager\Tests\Infrastructure\Terminal;
 
 use LightManager\Application\Dto\Key;
+use LightManager\Application\Dto\KeyPress;
 use LightManager\Infrastructure\Terminal\KeySequenceParser;
+use LightManager\Infrastructure\Terminal\ParsedKey;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -63,9 +65,9 @@ final class KeySequenceParserTest extends TestCase
         $parsed = $this->parser->parse($buffer);
 
         self::assertNotNull($parsed);
-        self::assertSame($key, $parsed->keyPress->key);
+        self::assertSame($key, $this->pressOf($parsed)->key);
         self::assertSame($consumed, $parsed->consumedBytes);
-        self::assertSame(substr($buffer, 0, $consumed), $parsed->keyPress->raw);
+        self::assertSame(substr($buffer, 0, $consumed), $this->pressOf($parsed)->raw);
     }
 
     public function testReadsPlainCharacter(): void
@@ -73,8 +75,8 @@ final class KeySequenceParserTest extends TestCase
         $parsed = $this->parser->parse('q');
 
         self::assertNotNull($parsed);
-        self::assertSame(Key::Character, $parsed->keyPress->key);
-        self::assertSame('q', $parsed->keyPress->raw);
+        self::assertSame(Key::Character, $this->pressOf($parsed)->key);
+        self::assertSame('q', $this->pressOf($parsed)->raw);
         self::assertSame(1, $parsed->consumedBytes);
     }
 
@@ -83,8 +85,8 @@ final class KeySequenceParserTest extends TestCase
         $parsed = $this->parser->parse('ą');
 
         self::assertNotNull($parsed);
-        self::assertSame(Key::Character, $parsed->keyPress->key);
-        self::assertSame('ą', $parsed->keyPress->raw);
+        self::assertSame(Key::Character, $this->pressOf($parsed)->key);
+        self::assertSame('ą', $this->pressOf($parsed)->raw);
         self::assertSame(2, $parsed->consumedBytes);
     }
 
@@ -105,9 +107,9 @@ final class KeySequenceParserTest extends TestCase
         $parsed = $this->parser->parse($buffer);
 
         self::assertNotNull($parsed);
-        self::assertSame(Key::Character, $parsed->keyPress->key);
-        self::assertSame($letter, $parsed->keyPress->raw, 'raw niesie literę, nie bajt sterujący');
-        self::assertTrue($parsed->keyPress->ctrl);
+        self::assertSame(Key::Character, $this->pressOf($parsed)->key);
+        self::assertSame($letter, $this->pressOf($parsed)->raw, 'raw niesie literę, nie bajt sterujący');
+        self::assertTrue($this->pressOf($parsed)->ctrl);
         self::assertSame(1, $parsed->consumedBytes);
     }
 
@@ -128,8 +130,8 @@ final class KeySequenceParserTest extends TestCase
         $parsed = $this->parser->parse($buffer);
 
         self::assertNotNull($parsed);
-        self::assertSame($key, $parsed->keyPress->key);
-        self::assertFalse($parsed->keyPress->ctrl, 'te bajty są klawiszem nazwanym, nie skrótem z Ctrl');
+        self::assertSame($key, $this->pressOf($parsed)->key);
+        self::assertFalse($this->pressOf($parsed)->ctrl, 'te bajty są klawiszem nazwanym, nie skrótem z Ctrl');
     }
 
     public function testPlainLetterIsNotMistakenForCtrl(): void
@@ -137,8 +139,8 @@ final class KeySequenceParserTest extends TestCase
         $parsed = $this->parser->parse('d');
 
         self::assertNotNull($parsed);
-        self::assertSame('d', $parsed->keyPress->raw);
-        self::assertFalse($parsed->keyPress->ctrl);
+        self::assertSame('d', $this->pressOf($parsed)->raw);
+        self::assertFalse($this->pressOf($parsed)->ctrl);
     }
 
     public function testConsumesOnlyFirstKeyFromLongerBuffer(): void
@@ -146,7 +148,7 @@ final class KeySequenceParserTest extends TestCase
         $parsed = $this->parser->parse("\e[Aq");
 
         self::assertNotNull($parsed);
-        self::assertSame(Key::ArrowUp, $parsed->keyPress->key);
+        self::assertSame(Key::ArrowUp, $this->pressOf($parsed)->key);
         self::assertSame(3, $parsed->consumedBytes);
     }
 
@@ -185,7 +187,7 @@ final class KeySequenceParserTest extends TestCase
         $parsed = $this->parser->parseAfterTimeout($buffer);
 
         self::assertNotNull($parsed);
-        self::assertSame($key, $parsed->keyPress->key);
+        self::assertSame($key, $this->pressOf($parsed)->key);
         self::assertSame($consumed, $parsed->consumedBytes);
     }
 
@@ -194,7 +196,7 @@ final class KeySequenceParserTest extends TestCase
         $parsed = $this->parser->parseAfterTimeout("\xC4");
 
         self::assertNotNull($parsed);
-        self::assertSame(Key::Character, $parsed->keyPress->key);
+        self::assertSame(Key::Character, $this->pressOf($parsed)->key);
         self::assertSame(1, $parsed->consumedBytes);
     }
 
@@ -212,10 +214,10 @@ final class KeySequenceParserTest extends TestCase
         $parsed = $this->parser->parse("\eq");
 
         self::assertNotNull($parsed);
-        self::assertSame(Key::Character, $parsed->keyPress->key);
-        self::assertSame('q', $parsed->keyPress->raw);
-        self::assertTrue($parsed->keyPress->alt);
-        self::assertFalse($parsed->keyPress->ctrl);
+        self::assertSame(Key::Character, $this->pressOf($parsed)->key);
+        self::assertSame('q', $this->pressOf($parsed)->raw);
+        self::assertTrue($this->pressOf($parsed)->alt);
+        self::assertFalse($this->pressOf($parsed)->ctrl);
         self::assertSame(2, $parsed->consumedBytes);
     }
 
@@ -225,7 +227,7 @@ final class KeySequenceParserTest extends TestCase
         $parsed = $this->parser->parse("\e\e");
 
         self::assertNotNull($parsed);
-        self::assertSame(Key::Escape, $parsed->keyPress->key);
+        self::assertSame(Key::Escape, $this->pressOf($parsed)->key);
         self::assertSame(1, $parsed->consumedBytes);
     }
 
@@ -235,8 +237,8 @@ final class KeySequenceParserTest extends TestCase
         $parsed = $this->parser->parseAfterTimeout("\e");
 
         self::assertNotNull($parsed);
-        self::assertSame(Key::Escape, $parsed->keyPress->key);
-        self::assertFalse($parsed->keyPress->alt);
+        self::assertSame(Key::Escape, $this->pressOf($parsed)->key);
+        self::assertFalse($this->pressOf($parsed)->alt);
         self::assertSame(1, $parsed->consumedBytes);
     }
 
@@ -272,8 +274,8 @@ final class KeySequenceParserTest extends TestCase
         $parsed = $this->parser->parse($buffer);
 
         self::assertNotNull($parsed);
-        self::assertSame($key, $parsed->keyPress->key);
-        self::assertTrue($parsed->keyPress->shift);
+        self::assertSame($key, $this->pressOf($parsed)->key);
+        self::assertTrue($this->pressOf($parsed)->shift);
         self::assertSame(strlen($buffer), $parsed->consumedBytes);
     }
 
@@ -283,8 +285,8 @@ final class KeySequenceParserTest extends TestCase
         $parsed = $this->parser->parse("\e[3;5~");
 
         self::assertNotNull($parsed);
-        self::assertSame(Key::Delete, $parsed->keyPress->key);
-        self::assertFalse($parsed->keyPress->shift);
+        self::assertSame(Key::Delete, $this->pressOf($parsed)->key);
+        self::assertFalse($this->pressOf($parsed)->shift);
     }
 
     public function testPlainSequenceDoesNotSetShift(): void
@@ -292,6 +294,19 @@ final class KeySequenceParserTest extends TestCase
         $parsed = $this->parser->parse("\e[3~");
 
         self::assertNotNull($parsed);
-        self::assertFalse($parsed->keyPress->shift);
+        self::assertFalse($this->pressOf($parsed)->shift);
+    }
+
+    /**
+     * Od kroku 55 rozbiór oddaje `InputEvent`, bo ta sama sekwencja CSI niesie
+     * w trybie SGR także kliknięcia. Testy klawiszy pytają więc najpierw, czy
+     * dostały naciśnięcie — i to samo pytanie jest ich zabezpieczeniem przed
+     * pomyłką w gałęzi wskaźnika.
+     */
+    private function pressOf(ParsedKey $parsed): KeyPress
+    {
+        self::assertInstanceOf(KeyPress::class, $parsed->event);
+
+        return $parsed->event;
     }
 }

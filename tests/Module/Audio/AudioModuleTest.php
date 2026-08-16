@@ -121,11 +121,14 @@ final class AudioModuleTest extends TestCase
                 ModuleSettingKind::Toggle,
                 ModuleSettingKind::Toggle,
                 ModuleSettingKind::Number,
+                // Proporcja podziału okna dźwięku (krok 55) — deklaracja
+                // powstaje w rdzeniu, pozycja stoi w zakładce modułu.
+                ModuleSettingKind::Number,
             ],
             array_map(static fn (ModuleSetting $setting): ModuleSettingKind => $setting->kind, $tab->settings),
         );
         self::assertSame(
-            ['mode', 'volume', 'autostart', 'effects', 'effectsVolume'],
+            ['mode', 'volume', 'autostart', 'effects', 'effectsVolume', 'splitFraction'],
             array_map(static fn (ModuleSetting $setting): string => $setting->key, $tab->settings),
         );
     }

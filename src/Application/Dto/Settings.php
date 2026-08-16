@@ -130,6 +130,7 @@ final class Settings
         public readonly int $windowRows = self::DEFAULT_WINDOW_ROWS,
         public readonly int $backgroundOutputKib = self::DEFAULT_BACKGROUND_OUTPUT_KIB,
         public readonly int $backgroundJobs = self::DEFAULT_BACKGROUND_JOBS,
+        public readonly bool $mouse = true,
     ) {
     }
 
@@ -172,6 +173,7 @@ final class Settings
             SettingKey::BackgroundJobs => $this->withBackgroundJobs(
                 self::next(self::BACKGROUND_JOBS_CHOICES, $this->backgroundJobs, $direction),
             ),
+            SettingKey::Mouse => $this->withMouse(!$this->mouse),
         };
     }
 
@@ -223,6 +225,11 @@ final class Settings
     public function withBackgroundJobs(int $backgroundJobs): self
     {
         return $this->copy(backgroundJobs: $backgroundJobs);
+    }
+
+    public function withMouse(bool $mouse): self
+    {
+        return $this->copy(mouse: $mouse);
     }
 
     /**
@@ -292,6 +299,7 @@ final class Settings
             SettingKey::WindowRows => $this->windowRows,
             SettingKey::BackgroundOutputKib => $this->backgroundOutputKib,
             SettingKey::BackgroundJobs => $this->backgroundJobs,
+            SettingKey::Mouse => $this->mouse,
         };
     }
 
@@ -327,7 +335,8 @@ final class Settings
             && $this->windowColumns === $other->windowColumns
             && $this->windowRows === $other->windowRows
             && $this->backgroundOutputKib === $other->backgroundOutputKib
-            && $this->backgroundJobs === $other->backgroundJobs;
+            && $this->backgroundJobs === $other->backgroundJobs
+            && $this->mouse === $other->mouse;
     }
 
     /**
@@ -352,6 +361,7 @@ final class Settings
         ?int $windowRows = null,
         ?int $backgroundOutputKib = null,
         ?int $backgroundJobs = null,
+        ?bool $mouse = null,
     ): self {
         return new self(
             $language ?? $this->language,
@@ -365,6 +375,7 @@ final class Settings
             $windowRows ?? $this->windowRows,
             $backgroundOutputKib ?? $this->backgroundOutputKib,
             $backgroundJobs ?? $this->backgroundJobs,
+            $mouse ?? $this->mouse,
         );
     }
 

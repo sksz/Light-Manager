@@ -47,6 +47,14 @@ namespace LightManager\Application\Dto;
  * **trzech** modułów naraz, więc granica jednego z nich nie miałaby prawa
  * rozstrzygać za pozostałe.
  */
+/**
+ * `Mouse` (krok 55, D95 nr 10) jest **jedenastym** kluczem i domyślnie
+ * włączonym. Powody wyłączenia są dwa i oba prawdziwe: terminal bez
+ * raportowania myszy (a takich jest wiele) oraz użytkownik, który woli natywne
+ * zaznaczanie terminala. Wyłączenie działa **w locie** — zdejmuje raportowanie
+ * tą samą sekwencją, którą wysyła `TerminalService::restore()` — a nie dopiero
+ * przy następnym uruchomieniu.
+ */
 enum SettingKey: string
 {
     case Language = 'language';
@@ -59,6 +67,7 @@ enum SettingKey: string
     case WindowRows = 'windowRows';
     case BackgroundOutputKib = 'backgroundOutputKib';
     case BackgroundJobs = 'backgroundJobs';
+    case Mouse = 'mouse';
 
     public function labelKey(): string
     {

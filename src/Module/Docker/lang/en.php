@@ -32,6 +32,7 @@ return [
     'module.docker.setting.registry' => 'Image registry',
     'module.docker.setting.registryUser' => 'Registry user',
     'module.docker.setting.registryToken' => 'Registry token',
+    'module.docker.setting.splitFraction' => 'List pane width (%)',
 
     'module.docker.view.containers' => 'CONTAINERS',
     'module.docker.view.images' => 'IMAGES',

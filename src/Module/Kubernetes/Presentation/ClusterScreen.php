@@ -6,6 +6,9 @@ namespace LightManager\Module\Kubernetes\Presentation;
 
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\PointerAction;
+use LightManager\Application\Dto\PointerButton;
+use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Module\ModuleContext;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Primitive\Primitive;
@@ -29,6 +32,9 @@ use LightManager\Module\Kubernetes\Domain\ValueObject\NamespaceName;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ResourceKind;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ResourceRef;
 use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Cli\Query\CoreReader;
+use LightManager\Presentation\Cli\SplitSetting;
+use LightManager\Presentation\Ui\AcceptsPointer;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\Split;
@@ -42,6 +48,7 @@ use LightManager\Presentation\Ui\Overlay\ChoiceOverlay;
 use LightManager\Presentation\Ui\Overlay\ConfirmOverlay;
 use LightManager\Presentation\Ui\Overlay\PromptOverlay;
 use LightManager\Presentation\Ui\OverlayOutcome;
+use LightManager\Presentation\Ui\PointerRow;
 use LightManager\Presentation\Ui\Resettable;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
@@ -72,9 +79,32 @@ use LightManager\Presentation\Ui\TreeState;
  * jest **pełnym** spisem klawiszy działających w tym miejscu — pilnuje tego
  * przebieg funkcjonalny wspólny dla wszystkich ekranów.
  */
-final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFrame, Resettable, ReadsContext
+final class ClusterScreen implements
+    ScreenInterface,
+    DeclaresFocus,
+    DrawsOwnFrame,
+    Resettable,
+    ReadsContext,
+    AcceptsPointer
 {
     public const ID = 'k8s';
+
+    /**
+     * Domyślny podział: drzewo węższe od listy (krok 55).
+     *
+     * Czterdzieści procent to liczba, którą krok 52 wpisał wprost w wywołania
+     * `Split::halves()` — tutaj staje się wartością domyślną pozycji ustawień,
+     * bo granicę da się odtąd przeciągnąć.
+     */
+    private const SPLIT_PERCENT = 40;
+
+    /** Prostokąt z ostatniego rysowania — pamięć wymagana przez `AcceptsPointer` (krok 55). */
+    private ?Rect $lastBounds = null;
+
+    /** Okno przewijania drzewa — pole od kroku 55, patrz `drawTree()`. */
+    private readonly ScrollWindow $treeWindow;
+
+
 
     /** Odświeżenie — ta sama litera, co w modułach Dockera i sesji zdalnej. */
     private const REFRESH_KEY = 'r';
@@ -95,6 +125,13 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
 
     private readonly SectionState $sectionState;
 
+    /**
+     * Podział drzewa i treści.
+     *
+     * Ogniska ten stan **nie rozstrzyga** — robi to `$listCursor` — więc do
+     * kroku 55 niósł wyłącznie `moveFocus()` wołane dla porządku. Od kroku 55
+     * niesie proporcję granicy, jej przeciąganie i zapis w ustawieniach modułu.
+     */
     private readonly SplitState $splitState;
 
     private readonly ScrollWindow $listWindow;
@@ -124,14 +161,20 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
         private readonly TranslatorPort $translator,
         private readonly LoopState $state,
         private readonly KubernetesQueries $reader,
+        /** Odczyt ustawień rdzenia — przez rejestr kwerend (krok 53, D92 nr 3). */
+        private readonly CoreReader $core,
+        /** Proporcja podziału z ustawień modułu wraz z jej zapisem (krok 55). */
+        ?SplitState $split = null,
     ) {
         $this->treeState = new TreeState();
         $this->treeState->useContext(self::ID);
         $this->sectionState = new SectionState();
         $this->sectionState->useContext(self::ID);
-        $this->splitState = new SplitState();
+        $this->splitState = $split ?? new SplitState();
         $this->listWindow = new ScrollWindow();
         $this->listWindow->useContext(self::ID . ':list');
+        $this->treeWindow = new ScrollWindow();
+        $this->treeWindow->useContext(self::ID . ':tree');
 
         $this->tree = new ClusterTree($cache, $this->treeState, $translator, $reader);
         $this->resources = new ResourcePane($translator, $this->listWindow, $reader);
@@ -180,7 +223,7 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
         $focusedRight = $this->listCursor !== null;
         $labels = [$this->key('panel.tree'), $this->key('panel.content')];
 
-        foreach (Split::halves($zone, SplitAxis::Vertical, 0.4) as $index => $bounds) {
+        foreach (Split::halves($zone, SplitAxis::Vertical, $this->splitState->fraction()) as $index => $bounds) {
             $focused = ($index === 1) === $focusedRight;
             $panel = new Panel(
                 $this->translator->translate($labels[$index]),
@@ -201,6 +244,7 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
     public function draw(Rect $bounds): array
     {
         $this->drawn = true;
+        $this->lastBounds = $bounds;
 
         if ($this->view === ClusterView::Logs) {
             $this->lastListCapacity = max(1, $bounds->rows);
@@ -218,7 +262,7 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
             return $this->drawTree($bounds);
         }
 
-        [$left, $right] = Split::halves($bounds, SplitAxis::Vertical, 0.4);
+        [$left, $right] = Split::halves($bounds, SplitAxis::Vertical, $this->splitState->fraction());
         $treeBounds = Panel::inner($left);
         $contentBounds = Panel::inner($right);
         $this->lastTreeCapacity = max(1, $treeBounds->rows);
@@ -445,7 +489,7 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
         $zone = $bounds;
 
         if ($this->splitsIn($bounds)) {
-            [$left] = Split::halves($bounds, SplitAxis::Vertical, 0.4);
+            [$left] = Split::halves($bounds, SplitAxis::Vertical, $this->splitState->fraction());
             $zone = Panel::inner($left);
         }
 
@@ -480,14 +524,19 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
 
         $keys = $this->tree->keys();
         $cursor = $this->treeState->indexIn($keys);
-        $window = new ScrollWindow();
-        $offset = $window->keepVisible($cursor, count($nodes), max(1, $bounds->rows));
+
+        // Okno przewijania drzewa jest **polem**, a nie zmienną lokalną, i to
+        // jest zmiana kroku 55: do niego powstawało co klatkę na nowo, bo
+        // biegło wyłącznie za kursorem — a kółko przewija bez ruszania kursora,
+        // więc musi mieć co przesunąć (reguła 11a: co przeżywa klatkę, mieszka
+        // obok komponentu).
+        $offset = $this->treeWindow->keepVisible($cursor, count($nodes), max(1, $bounds->rows));
 
         return (new TreeView(
             $nodes,
             $offset,
             $cursor,
-            $window->position(count($nodes), max(1, $bounds->rows)),
+            $this->treeWindow->position(count($nodes), max(1, $bounds->rows)),
         ))->draw($bounds);
     }
 
@@ -515,6 +564,121 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
         }
 
         return $this->resources->draw($bounds, $kind, $this->listCursor);
+    }
+
+    /**
+     * Wskaźnik w module Kubernetesa: granica podziału, ognisko panelu, kursor
+     * drzewa albo listy, kółko (krok 55).
+     *
+     * Ognisko jest tu **liczbą, a nie stroną podziału** (`$listCursor`), więc
+     * kliknięcie w prawy panel stawia je na zero, a w lewy — gasi. Zdanie to
+     * powtarza dokładnie `switchFocus()`, i to nie jest powtórzenie rachunku,
+     * tylko ta sama para przypisań: gdyby stała w jednym miejscu, klawisz `Tab`
+     * musiałby udawać kliknięcie albo odwrotnie.
+     */
+    public function pointer(PointerEvent $event): ScreenOutcome
+    {
+        $bounds = $this->lastBounds;
+
+        if ($bounds === null || !$event->hits($bounds)) {
+            return ScreenOutcome::stay();
+        }
+
+        if ($this->view === ClusterView::Logs) {
+            if ($event->isScroll()) {
+                $this->logPane->scrollBy($event->scrollRows());
+            }
+
+            return ScreenOutcome::stay();
+        }
+
+        $split = $this->splitsIn($bounds);
+
+        if ($split && $this->splitState->pointer($event, $bounds, SplitAxis::Vertical)) {
+            return ScreenOutcome::stay();
+        }
+
+        [$second, $content] = $this->paneAt($event, $bounds, $split);
+
+        if ($content === null) {
+            return ScreenOutcome::stay();
+        }
+
+        return $second ? $this->pointerInContent($event, $content) : $this->pointerInTree($event, $content);
+    }
+
+    /**
+     * Który panel wskazano wraz z prostokątem jego treści.
+     *
+     * @return array{bool, ?Rect}
+     */
+    private function paneAt(PointerEvent $event, Rect $bounds, bool $split): array
+    {
+        if (!$split) {
+            // Bez podziału widać samo drzewo — tak samo, jak przy rysowaniu.
+            return [false, $bounds];
+        }
+
+        foreach (Split::halves($bounds, SplitAxis::Vertical, $this->splitState->fraction()) as $index => $half) {
+            if ($event->hits($half)) {
+                return [$index === 1, Panel::inner($half)];
+            }
+        }
+
+        return [false, null];
+    }
+
+    private function pointerInTree(PointerEvent $event, Rect $content): ScreenOutcome
+    {
+        if ($event->isScroll()) {
+            $this->treeWindow->scrollBy($event->scrollRows());
+
+            return ScreenOutcome::stay();
+        }
+
+        if ($event->action !== PointerAction::Press || $event->button === PointerButton::Middle) {
+            return ScreenOutcome::stay();
+        }
+
+        $this->listCursor = null;
+        $keys = $this->tree->keys();
+        $row = PointerRow::of($event, $content, $this->treeWindow->offset(), false, count($keys));
+
+        if ($row !== null) {
+            $this->treeState->moveTo($keys[$row]);
+        }
+
+        return ScreenOutcome::stay();
+    }
+
+    private function pointerInContent(PointerEvent $event, Rect $content): ScreenOutcome
+    {
+        if ($event->isScroll()) {
+            $this->listWindow->scrollBy($event->scrollRows());
+
+            return ScreenOutcome::stay();
+        }
+
+        if ($event->action !== PointerAction::Press || $event->button === PointerButton::Middle) {
+            return ScreenOutcome::stay();
+        }
+
+        $kind = $this->focusedKind();
+
+        // Prawy panel bywa opisem zasobu albo zdaniem o grupie — wtedy nie ma
+        // wiersza do wskazania, a kliknięcie samo przenosi ognisko.
+        if ($kind === null || $this->openResource() !== null) {
+            $this->listCursor ??= 0;
+
+            return ScreenOutcome::stay();
+        }
+
+        $rows = count($this->reader->rowsOf($kind));
+        $row = PointerRow::of($event, $content, $this->listWindow->offset(), true, $rows);
+
+        $this->listCursor = $row ?? $this->listCursor ?? 0;
+
+        return ScreenOutcome::stay();
     }
 
     private function handleTree(KeyPress $key): ScreenOutcome
@@ -1068,6 +1232,12 @@ final class ClusterScreen implements ScreenInterface, DeclaresFocus, DrawsOwnFra
 
     private function splitsIn(Rect $zone): bool
     {
+        // Proporcja czytana co klatkę: tę samą pozycję zmienia zakładka ustawień,
+        // a w trakcie przeciągania `SplitState` podaną wartość pomija (krok 55).
+        $this->splitState->useFraction(
+            SplitSetting::fraction($this->core->settings(), self::ID, self::SPLIT_PERCENT),
+        );
+
         return $this->view !== ClusterView::Logs
             && $zone->rows >= 3
             && Split::fits($zone, SplitAxis::Vertical);

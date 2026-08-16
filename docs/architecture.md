@@ -246,7 +246,7 @@ komunikat, podgląd, tryb renderowania i położenie okna listy.
 | Prostokąt | `Rect` | Application | `Application/Ui` | Obszar w **siatce znakowej**; piksele zaczynają się dopiero w rendererze. |
 | Komponent | `ComponentInterface` | Presentation | `Presentation/Ui` | Element interfejsu, który rysuje się w zadanym prostokącie: `Panel`, `Label`, `ListView`, `SectionList`, `ProgressBar`, `Tabs`, `Choice`, `Toggle`, `Button`, `Dialog`, `StatusBar`, `ImageBox`, `TextView`, `Spacer`. |
 | Zwijana sekcja | `Section`, `SectionList` | Presentation | `Presentation/Ui/Component` | Grupa wierszy z etykietą i znacznikiem `▼`/`▶`. `Section` jest **daną** (jak `ListRow`), `SectionList` — komponentem: spłaszcza sekcje do wierszy, wycina okno i oddaje rysowanie `ListView`owi. Sekcje przewijają się **jak jedna lista**, więc wycinanie okna musi widzieć je wszystkie naraz. |
-| Podział | `Split`, `SplitAxis` | Presentation | `Presentation/Ui` | Dzieli prostokąt na dwa i oddaje je dwojgu dzieciom, wzdłuż osi pionowej albo poziomej. **Nie tworzy drugiego ekranu** — widoczny ekran jest nadal jeden, a `F1`, `F2` i skrót modułu zastępują go razem z podziałem. Progi (`MINIMUM_COLUMNS`, `MINIMUM_ROWS`) mają tę samą naturę, co progi wysokości w `HudLayout`: mówią, co się jeszcze da czytać, a nie co się mieści. |
+| Podział | `Split`, `SplitAxis` | Presentation | `Presentation/Ui` | Dzieli prostokąt na dwa i oddaje je dwojgu dzieciom, wzdłuż osi pionowej albo poziomej. **Od kroku 55 granica jest pamiętana, a nie liczona**: proporcję trzyma `SplitState`, przeciągnięcie myszą ścina ją do 20–80%, a zapis w ustawieniach modułu pada **po zwolnieniu przycisku**. **Nie tworzy drugiego ekranu** — widoczny ekran jest nadal jeden, a `F1`, `F2` i skrót modułu zastępują go razem z podziałem. Progi (`MINIMUM_COLUMNS`, `MINIMUM_ROWS`) mają tę samą naturę, co progi wysokości w `HudLayout`: mówią, co się jeszcze da czytać, a nie co się mieści. |
 | Pasek postępu | `ProgressBar` | Presentation | `Presentation/Ui/Component` | Wypełniany tor z napisem w środku, w **dwóch trybach**: postęp znany (wypełnienie od lewej plus liczba procent) i nieznany (odcinek wędrujący tam i z powrotem, **bez liczby**). Tor rysuje się rolą `Surface`, wypełnienie `Accent`, a napis zmienia rolę tam, gdzie przechodzi przez wypełnienie. |
 | Kontener | `VStack`, `Slot` | Presentation | `Presentation/Ui/Container` | Rozdziela miejsce między dzieci; `Slot` to **miara wraz z dzieckiem**. |
 | Rozdział miejsca | `Span`, `Distribution` | Presentation | `Presentation/Ui/Container` | Jedna reguła na **obie osie** (krok 27): `Span` niesie minimum, rozmiar preferowany i kolejność ustępowania, `Distribution` je dzieli. Wołają ją `VStack` (wiersze) i `Table` (kolumny). |
@@ -269,6 +269,8 @@ komunikat, podgląd, tryb renderowania i położenie okna listy.
 | Karetka | `TextInput` | Presentation | `Presentation/Ui/Component` | Miejsce wpisywania **wewnątrz** komponentu — w odróżnieniu od kursora, który wędruje **między** komponentami. |
 | Komenda | `CommandInterface` | Application | `Application/Command` | Czynność wywoływana po nazwie wraz z deklaracją argumentów. Nazwa nosi przestrzeń właściciela (`core.*`), a wynik wskazuje ekran **identyfikatorem**, bo `Application` nie widzi `ScreenInterface`. |
 | Zdolność komendy „czego dotyczę” | `AppliesToSelection` | Application | `Application/Command` | Doklejana **obok** kontraktu, wzorem `SuggestsArguments` (krok 32): `appliesTo()` mówi, dla jakiego zaznaczenia komenda ma sens, `inputFor()` składa z kontekstu jej argumenty. Komenda bez tej zdolności nie wchodzi do menu kontekstowego — i to jest właściwa domyślna odpowiedź. |
+| Wskaźnik | `PointerEvent`, `PointerButton`, `PointerAction` | Application | `Application/Dto` | Zdarzenie myszy w **siatce znakowej** (krok 55): komórka liczona od zera, przycisk (lewy, środkowy, prawy), rodzaj (naciśnięcie, zwolnienie, przeciągnięcie, kółko w górę i w dół) i te same trzy modyfikatory, co w `KeyPress`. Stoi w **jednej kolejce** z klawiszami pod wspólnym nadtypem `InputEvent`, więc kolejność kliknięcia wobec litery zachowuje się sama. Przycisków bocznych ani kółka poziomego słownik nie zna — nie mają odbiorcy (reguła 13). |
+| Trafienie wskaźnika | `AcceptsPointer`, `AcceptsPointerInOverlay` | Presentation | `Presentation/Ui` | **Deklarowane, nie odkrywane** (krok 55, D95 nr 2) — dokładnie tą samą drogą i z tego samego powodu, co ognisko: drzewa komponentów aplikacja nie przechowuje. Ekran pamięta prostokąt z ostatniego rysowania i sam tłumaczy współrzędne na własne pojęcia; rdzeń **nie ma mapy** tego, co gdzie narysowano — poza stopką, czyli jedyną rzeczą, którą rysuje sam (`HintTarget`). Zdolności są dwie, bo ekran oddaje `ScreenOutcome`, a okno nakładane `OverlayOutcome`. |
 | Menu kontekstowe | `MenuOverlay` | Presentation | `Presentation/Ui/Overlay` | **Widok na rejestr komend, nie drugi rejestr** (krok 32). Pokazuje wyłącznie te komendy, które deklarują `AppliesToSelection` i pasują do zaznaczenia; wybór wywołuje `execute()`, czyli tę samą linię, co okno komend. Składa się z `Dialog`u i `ListView` — komponentu nie dokłada. |
 
 Granica między tymi dwiema połówkami jest jednozdaniowa i wynika z reguły
@@ -285,9 +287,9 @@ mieszka **obok** komponentu, a właścicielem jest ekran:
 
 | Klasa | Katalog | Co pamięta | Od kroku |
 |---|---|---|---|
-| `ScrollWindow` | `Presentation/Ui` | Który wycinek listy jest widoczny i jak podąża za kursorem. | 18 |
+| `ScrollWindow` | `Presentation/Ui` | Który wycinek listy jest widoczny i jak podąża za kursorem. Od kroku 55 pamięta ponadto, czy **przewinięto go ręcznie**: kółko odczepia okno od kursora, a pierwszy ruch kursora przyczepia je z powrotem. | 18 |
 | `SectionState` | `Presentation/Ui` | Które sekcje są zwinięte i na której stoi kursor. | 22 |
-| `SplitState` | `Presentation/Ui` | Który panel podziału jest czynny — wraz z regułą, że wyłączony podział sprowadza ognisko na pierwszy. | 24 |
+| `SplitState` | `Presentation/Ui` | Który panel podziału jest czynny — wraz z regułą, że wyłączony podział sprowadza ognisko na pierwszy. Od kroku 55 także **proporcja granicy** i jej przeciąganie: chwyt na dwóch stykających się obwódkach, granice 20–80%, zapis w ustawieniach modułu po zwolnieniu przycisku. | 24 |
 | `TreeState` | `Presentation/Ui` | Które gałęzie drzewa są rozwinięte i na którym węźle stoi kursor. | 31 |
 
 Trzy z nich mają tę samą metodę `useContext(string)` i to nie jest przypadek:
@@ -483,7 +485,11 @@ to**: pętla, ekrany, moduły i komponenty nie wiedzą, że cokolwiek się zmien
   z pominięciem `KeySequenceParser`. Mapowanie kodów na `Key` żyje w czystym
   `GlfwKeyMapper` — bez jednego wywołania GLFW, testowalne bez okna.
   `Ctrl` i `Alt` przychodzą polem `mods`, nie bajtem sterującym ani sekwencją
-  escape.
+  escape. Od kroku 55 do **tej samej** kolejki wpadają zdarzenia wskaźnika
+  z trzech dalszych wywołań zwrotnych (przycisk, położenie, kółko), tłumaczone
+  równie czystym `GlfwPointerMapper`; ruch bez wciśniętego przycisku jest
+  odrzucany w wywołaniu zwrotnym, żeby tor okienkowy zachowywał się dokładnie
+  jak tryb `1002` w terminalu, a nie podobnie.
 - **`ViewportPort`** → `GlfwViewportService`: framebuffer podzielony przez
   komórkę zastępczą (stałą do kroku 35, w którym zastąpią ją metryki fontu).
   Rozmiar czyta się co pytanie, **bez znacznika i bez ponownego pomiaru** —
@@ -1826,7 +1832,19 @@ Zasady, których nie wolno cicho odwrócić:
 - **DTO portów**: obiekty wejścia/wyjścia portów aplikacyjnych żyją w
   `Application/Dto` (np. `KeyPress` i enum `Key` z kroku 06). Pojęcie
   techniczne warstwy dostarczania nie trafia do `Domain/ValueObject`, nawet
-  gdy formalnie jest niemutowalną wartością. `KeyPress` niesie **trzy
+  gdy formalnie jest niemutowalną wartością.
+  **Od kroku 55 słownik wejścia ma dwie postacie i wspólny nadtyp**
+  (`Application\Dto\InputEvent`, D95 nr 1): `KeyPress` — bez zmiany w polach —
+  oraz `PointerEvent` z komórką siatki znakowej, przyciskiem, rodzajem czynności
+  i tymi samymi trzema modyfikatorami. Interfejs jest **znacznikowy**, bo obie
+  postacie nie mają ani jednego wspólnego pytania; wspólny jest wyłącznie
+  **kanał**, i to on jest powodem jego istnienia: `InputPort::readEvent()`
+  oddaje jedną kolejkę, więc kolejność kliknięcia wobec klawisza jest tą,
+  w jakiej padły u użytkownika. Drugi kanał portu (`readPointer()`) byłby tańszy
+  i został odrzucony właśnie dlatego. **Współrzędne są w komórkach, nigdy
+  w pikselach** — `Rect` jest jedynym układem komponentów, a przeliczenie należy
+  do infrastruktury (protokół SGR w terminalu, `GlfwPointerMapper` w oknie).
+  `KeyPress` niesie **trzy
   modyfikatory, rozłącznie**: `ctrl` od kroku 19 (skróty modułów) i `alt` od
   kroku 29 (zawijanie wierszy w podglądzie) — oba wyłącznie przy literach —
   oraz `shift` od kroku 44 (druga droga usunięcia, zaznaczanie zakresem),

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Presentation\Ui\Component;
 
+use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Ui\Primitive\TextRun;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
@@ -33,26 +34,74 @@ final class Tabs implements ComponentInterface
 
     public function draw(Rect $bounds): array
     {
+        $primitives = [];
+
+        foreach (self::placements($this->labels, $bounds) as $index => $placement) {
+            $primitives[] = new TextRun(
+                $bounds->row,
+                $placement->column,
+                $this->labels[$index],
+                $this->roleFor($index),
+            );
+        }
+
+        return $primitives;
+    }
+
+    /**
+     * Prostokąty kolejnych zakładek — **ten sam rachunek, co rysowanie**
+     * (krok 55).
+     *
+     * Statyczne i tutaj, a nie u wołającego, z tego samego powodu, dla którego
+     * `StatusBar` oddaje prostokąty swoich podpowiedzi: odstęp między
+     * zakładkami i próg, za którym pasek się urywa, są własnością **tego**
+     * komponentu. Drugi rachunek u wołającego rozjechałby się przy pierwszej
+     * zmianie `GAP_COLUMNS`, a rozjazd byłby niewidoczny do chwili, gdy ktoś
+     * kliknie i trafi w sąsiednią zakładkę.
+     *
+     * @param list<string> $labels
+     *
+     * @return array<int, Rect> numer zakładki → jej prostokąt; zakładki, które
+     *                          się nie zmieściły, w wyniku nie stoją
+     */
+    public static function placements(array $labels, Rect $bounds): array
+    {
         if ($bounds->isEmpty()) {
             return [];
         }
 
-        $primitives = [];
+        $placements = [];
         $column = $bounds->column;
         $limit = $bounds->column + $bounds->columns;
 
-        foreach ($this->labels as $index => $label) {
+        foreach ($labels as $index => $label) {
             $width = mb_strlen($label);
 
             if ($column + $width > $limit) {
                 break;
             }
 
-            $primitives[] = new TextRun($bounds->row, $column, $label, $this->roleFor($index));
+            $placements[$index] = new Rect($bounds->row, $column, 1, $width);
             $column += $width + self::GAP_COLUMNS;
         }
 
-        return $primitives;
+        return $placements;
+    }
+
+    /**
+     * Numer zakładki pod wskaźnikiem albo `null`.
+     *
+     * @param list<string> $labels
+     */
+    public static function at(array $labels, Rect $bounds, PointerEvent $event): ?int
+    {
+        foreach (self::placements($labels, $bounds) as $index => $placement) {
+            if ($event->hits($placement)) {
+                return $index;
+            }
+        }
+
+        return null;
     }
 
     /**

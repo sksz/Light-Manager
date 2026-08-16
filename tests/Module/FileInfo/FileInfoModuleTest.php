@@ -81,6 +81,9 @@ final class FileInfoModuleTest extends TestCase
             [
                 'timeout', 'arguments', 'timeFormat', 'inode', 'checksum', 'checksumLimit',
                 'diskUsage', 'backgroundTimeout', 'textPreview', 'lineNumbers', 'textWrap',
+                // Proporcja podziału opisu i podglądu (krok 55) — deklaracja
+                // powstaje w rdzeniu, pozycja stoi w zakładce modułu (reguła 11c).
+                'splitFraction',
             ],
             $keys,
             'krok 26 domknął listę dwiema pozycjami odłożonymi w kroku 25, krok 29 dołożył podgląd tekstu, '

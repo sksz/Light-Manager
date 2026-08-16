@@ -6,6 +6,9 @@ namespace LightManager\Module\Ssh\Presentation;
 
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\PointerAction;
+use LightManager\Application\Dto\PointerButton;
+use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Module\ModuleSetting;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Primitive\Primitive;
@@ -29,6 +32,7 @@ use LightManager\Presentation\Ui\Component\TableRow;
 use LightManager\Presentation\Ui\Component\TextSpan;
 use LightManager\Presentation\Ui\FocusHint;
 use LightManager\Presentation\Ui\KeyBinding;
+use LightManager\Presentation\Ui\PointerRow;
 use LightManager\Presentation\Ui\ScreenOutcome;
 use LightManager\Presentation\Ui\ScrollWindow;
 
@@ -79,6 +83,9 @@ final class RemoteScreen
     private const REFRESH_KEY = 'r';
 
     private readonly ScrollWindow $window;
+
+    /** Prostokąt z ostatniego rysowania — pamięć wymagana przez `AcceptsPointer` (krok 55). */
+    private ?Rect $lastBounds = null;
 
     /**
      * Ile wierszy zmieściło się w ostatniej klatce — jedyna droga do „strona
@@ -139,6 +146,7 @@ final class RemoteScreen
     /** @return list<Primitive> */
     public function draw(Rect $bounds): array
     {
+        $this->lastBounds = $bounds;
         $entries = $this->reader->remote()->entries;
 
         if ($entries === []) {
@@ -259,6 +267,40 @@ final class RemoteScreen
     public function focus(): FocusHint
     {
         return new FocusHint('module.' . SshSettings::ID . '.focus.remote', $this->bindings());
+    }
+
+    /**
+     * Wskaźnik na liście zdalnej: kółko przewija, lewy przycisk stawia kursor
+     * (krok 55). Ekran ma jedno miejsce ogniska, więc kliknięcie nie ma czego
+     * przenosić.
+     */
+    public function pointer(PointerEvent $event): ScreenOutcome
+    {
+        $bounds = $this->lastBounds;
+
+        if ($bounds === null || !$event->hits($bounds)) {
+            return ScreenOutcome::stay();
+        }
+
+        if ($event->isScroll()) {
+            $this->window->scrollBy($event->scrollRows());
+
+            return ScreenOutcome::stay();
+        }
+
+        if ($event->action !== PointerAction::Press || $event->button === PointerButton::Middle) {
+            return ScreenOutcome::stay();
+        }
+
+        $row = PointerRow::of(
+            $event,
+            $bounds,
+            $this->window->offset(),
+            withHeader: true,
+            total: $this->reader->remote()->count(),
+        );
+
+        return $row === null ? ScreenOutcome::stay() : $this->put($row);
     }
 
     public function handle(KeyPress $key): ScreenOutcome

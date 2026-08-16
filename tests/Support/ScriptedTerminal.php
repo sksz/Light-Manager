@@ -4,27 +4,32 @@ declare(strict_types=1);
 
 namespace LightManager\Tests\Support;
 
-use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\InputEvent;
 use LightManager\Application\Port\InputPort;
 
 /**
- * Terminal sterowany scenariuszem: oddaje z góry zadane klawisze, a potem
+ * Terminal sterowany scenariuszem: oddaje z góry zadane zdarzenia, a potem
  * `null`. Pozwala przetestować pętlę bez dotykania prawdziwego terminala.
+ *
+ * Od kroku 55 zdarzeniem bywa też `PointerEvent` — scenariusz miesza je
+ * z klawiszami dokładnie tak, jak miesza je jedna kolejka portu.
  */
 final class ScriptedTerminal implements InputPort
 {
-    /** @var list<KeyPress|null> */
+    /** @var list<InputEvent|null> */
     private array $script;
 
     private bool $shutdownRequested = false;
+
+    private bool $mouseReporting = true;
 
     private int $shutdownAfterReads;
 
     private int $reads = 0;
 
     /**
-     * @param list<KeyPress|null> $script `null` udaje brak wejścia w danym odczycie
-     * @param int|null            $shutdownAfterReads po ilu odczytach udać sygnał zamknięcia
+     * @param list<InputEvent|null> $script `null` udaje brak wejścia w danym odczycie
+     * @param int|null              $shutdownAfterReads po ilu odczytach udać sygnał zamknięcia
      */
     public function __construct(array $script = [], ?int $shutdownAfterReads = null)
     {
@@ -32,7 +37,7 @@ final class ScriptedTerminal implements InputPort
         $this->shutdownAfterReads = $shutdownAfterReads ?? PHP_INT_MAX;
     }
 
-    public function readKey(): ?KeyPress
+    public function readEvent(): ?InputEvent
     {
         ++$this->reads;
 
@@ -46,6 +51,18 @@ final class ScriptedTerminal implements InputPort
     public function shutdownRequested(): bool
     {
         return $this->shutdownRequested;
+    }
+
+    /** Scenariusz podaje zdarzenia wprost, więc raportowania nie ma czym włączyć ani zdjąć. */
+    public function useMouseReporting(bool $enabled): void
+    {
+        $this->mouseReporting = $enabled;
+    }
+
+    /** Czy pętla poprosiła o raportowanie wskaźnika — do sprawdzenia w przebiegu. */
+    public function reportsMouse(): bool
+    {
+        return $this->mouseReporting;
     }
 
     public function reads(): int

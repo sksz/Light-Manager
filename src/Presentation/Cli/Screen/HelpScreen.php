@@ -6,12 +6,16 @@ namespace LightManager\Presentation\Cli\Screen;
 
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\PointerAction;
+use LightManager\Application\Dto\PointerButton;
+use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Module\ModuleInterface;
 use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
+use LightManager\Presentation\Ui\AcceptsPointer;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\ListRow;
 use LightManager\Presentation\Ui\Component\ListView;
@@ -62,8 +66,14 @@ use LightManager\Presentation\Ui\SectionState;
  * samego miejsca, co samo wiązanie. Część **własna** to wiersze z `helpKeys()` —
  * klucze katalogu, nie napisy, więc tłumaczą się jak reszta interfejsu.
  */
-final class HelpScreen implements ScreenInterface, Resettable
+final class HelpScreen implements ScreenInterface, Resettable, AcceptsPointer
 {
+    /** Ile wierszy nad treścią zajmuje oprawa: pasek zakładek i odstęp pod nim. */
+    private const CHROME_ROWS = 2;
+
+    /** Prostokąt z ostatniego rysowania — pamięć wymagana przez `AcceptsPointer` (krok 55). */
+    private ?Rect $lastBounds = null;
+
     private const TAB_KEYS = 0;
 
     private const TAB_ABOUT = 1;
@@ -182,7 +192,8 @@ final class HelpScreen implements ScreenInterface, Resettable
 
     public function draw(Rect $bounds): array
     {
-        $capacity = max(0, $bounds->rows - 2);
+        $this->lastBounds = $bounds;
+        $capacity = max(0, $bounds->rows - self::CHROME_ROWS);
 
         return (new VStack([
             Slot::fixed(new Tabs($this->tabLabels(), $this->tab, true), 1),
@@ -199,6 +210,37 @@ final class HelpScreen implements ScreenInterface, Resettable
             KeyBinding::of([Key::Enter], 'help.key.collapse'),
             KeyBinding::of([Key::Escape], 'help.key.back'),
         ];
+    }
+
+    /**
+     * Wskaźnik w oknie pomocy: zakładka i kółko (krok 55).
+     *
+     * Kursora ta strona nie ma poza zakładką „Sterowanie”, gdzie jest nim
+     * **sekcja** — a te bywają wyższe niż wiersz, więc kliknięcie w wiersz
+     * treści przewija zamiast wybierać. Jedyne, co da się tu wskazać
+     * jednoznacznie, to zakładka, i to ona jest miejscem, które ekran deklaruje.
+     */
+    public function pointer(PointerEvent $event): ScreenOutcome
+    {
+        $bounds = $this->lastBounds;
+
+        if ($bounds === null || !$event->hits($bounds)) {
+            return ScreenOutcome::stay();
+        }
+
+        if ($event->isScroll()) {
+            $this->window->scrollBy($event->scrollRows());
+
+            return ScreenOutcome::stay();
+        }
+
+        if ($event->action !== PointerAction::Press || $event->button === PointerButton::Middle) {
+            return ScreenOutcome::stay();
+        }
+
+        $tab = Tabs::at($this->tabLabels(), $bounds->line(0), $event);
+
+        return $tab === null ? ScreenOutcome::stay() : $this->switchedTab($tab - $this->tab);
     }
 
     public function handle(KeyPress $key): ScreenOutcome

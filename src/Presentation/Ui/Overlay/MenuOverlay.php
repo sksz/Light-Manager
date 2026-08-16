@@ -10,6 +10,9 @@ use LightManager\Application\Command\CommandRegistry;
 use LightManager\Application\Command\CommandTransition;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\PointerAction;
+use LightManager\Application\Dto\PointerButton;
+use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Event\AppEvent;
 use LightManager\Application\Event\EventRegistry;
 use LightManager\Application\Module\ModuleContext;
@@ -17,6 +20,7 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Rect;
 use LightManager\Domain\ValueObject\Message;
+use LightManager\Presentation\Ui\AcceptsPointerInOverlay;
 use LightManager\Presentation\Ui\Command\OpensOverlay;
 use LightManager\Presentation\Ui\Component\Dialog;
 use LightManager\Presentation\Ui\Component\ListRow;
@@ -24,6 +28,7 @@ use LightManager\Presentation\Ui\Component\ListView;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\OverlayInterface;
 use LightManager\Presentation\Ui\OverlayOutcome;
+use LightManager\Presentation\Ui\PointerRow;
 use LightManager\Presentation\Ui\ScrollWindow;
 
 /**
@@ -54,8 +59,11 @@ use LightManager\Presentation\Ui\ScrollWindow;
  * Komponent nie powstał tu ani jeden — okno składa się z `Dialog`u i `ListView`,
  * dokładnie tak, jak zapowiadał plan kroku.
  */
-final class MenuOverlay implements OverlayInterface
+final class MenuOverlay implements OverlayInterface, AcceptsPointerInOverlay
 {
+    /** Prostokąt listy z ostatniego rysowania — pamięć wymagana przez zdolność wskaźnika (krok 55). */
+    private ?Rect $lastList = null;
+
     private const ID = 'menu';
 
     /** Obwódka u góry, wiersz tytułu, obwódka u dołu. */
@@ -154,9 +162,8 @@ final class MenuOverlay implements OverlayInterface
     public function draw(Rect $bounds): array
     {
         $primitives = (new Dialog($this->title(), []))->draw($bounds);
-        $list = $bounds
-            ->inset(0, self::PADDING_COLUMNS)
-            ->rowsFrom(self::FIRST_ROW, $bounds->rows - self::CHROME_ROWS);
+        $list = $this->listArea($bounds);
+        $this->lastList = $list;
 
         if ($list->isEmpty()) {
             return $primitives;
@@ -176,6 +183,46 @@ final class MenuOverlay implements OverlayInterface
             KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'menu.key.pick'),
             KeyBinding::of([Key::Escape], 'menu.key.close'),
         ];
+    }
+
+    /**
+     * Wskaźnik w menu: kliknięcie w pozycję **wybiera ją i wykonuje** (krok 55).
+     *
+     * Jedno kliknięcie, a nie dwa, i to jest różnica wobec listy plików: menu
+     * otwiera się prawym przyciskiem po to, żeby coś z niego wybrać, a wybór
+     * bez wykonania nie jest tu żadnym stanem — po nim i tak trzeba nacisnąć
+     * `Enter`.
+     *
+     * Kliknięcie **poza oknem** jest połykane przez rdzeń, zanim tu dotrze
+     * (`InputHandler::toOverlayPointer()`), więc gałęzi na to nie ma.
+     */
+    public function pointer(PointerEvent $event): OverlayOutcome
+    {
+        $list = $this->lastList;
+
+        if ($list === null || $list->isEmpty()) {
+            return OverlayOutcome::ignored();
+        }
+
+        if ($event->isScroll()) {
+            $this->window->scrollBy($event->scrollRows());
+
+            return OverlayOutcome::stay();
+        }
+
+        if ($event->action !== PointerAction::Press || $event->button !== PointerButton::Left) {
+            return OverlayOutcome::ignored();
+        }
+
+        $row = PointerRow::of($event, $list, $this->window->offset(), false, count($this->items));
+
+        if ($row === null) {
+            return OverlayOutcome::stay();
+        }
+
+        $this->selected = $row;
+
+        return $this->run();
     }
 
     public function handle(KeyPress $key): OverlayOutcome
@@ -208,6 +255,17 @@ final class MenuOverlay implements OverlayInterface
         }
 
         return $items;
+    }
+
+    /**
+     * Prostokąt listy pozycji wewnątrz okna — **jeden rachunek** dla rysowania
+     * i dla trafienia wskaźnika (krok 55).
+     */
+    private function listArea(Rect $bounds): Rect
+    {
+        return $bounds
+            ->inset(0, self::PADDING_COLUMNS)
+            ->rowsFrom(self::FIRST_ROW, $bounds->rows - self::CHROME_ROWS);
     }
 
     /** @return list<Primitive> */

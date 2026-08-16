@@ -191,6 +191,7 @@ return [
     // The `k8s.deploy-image` action (step 54).
     'module.k8s.command.deployImage' => 'Deploy a container image to the cluster',
     'module.k8s.setting.buildWaitSeconds' => 'Build wait limit (s)',
+    'module.k8s.setting.splitFraction' => 'Resource tree width (%)',
     'module.k8s.deploy.pickImage' => 'Which image to deploy',
     'module.k8s.deploy.pickDeployment' => 'Where to deploy {tag}',
     'module.k8s.deploy.buildNew' => '— build a new image —',

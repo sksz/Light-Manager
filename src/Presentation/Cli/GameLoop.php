@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace LightManager\Presentation\Cli;
 
+use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Port\BackgroundPumpPort;
 use LightManager\Application\Port\InputPort;
 
@@ -53,6 +55,14 @@ final class GameLoop
         while (true) {
             $startedAt = microtime(true);
 
+            // Przełącznik myszy działa **w locie** (krok 55): pytamy źródło raz
+            // na takt, zamiast szukać miejsca, w którym ustawienie się zmienia.
+            // Pytanie jest tanie — obie implementacje wychodzą od razu, gdy stan
+            // jest już taki, jakiego chcemy — a jedno miejsce w pętli znosi całą
+            // klasę pomyłek „ustawienie zmienione trzecią drogą, o której nikt
+            // nie pamiętał”.
+            $this->source->useMouseReporting($state->settings()->mouse);
+
             if ($this->consumeInput($state, $startedAt)) {
                 break;
             }
@@ -101,16 +111,28 @@ final class GameLoop
     }
 
     /**
-     * Zbiera wszystkie klawisze, które zdążyły przyjść od poprzedniego taktu —
+     * Zbiera wszystkie zdarzenia, które zdążyły przyjść od poprzedniego taktu —
      * przy stałym takcie odczyt pojedynczego klawisza gubiłby wejście szybciej
      * piszącego użytkownika.
+     *
+     * Od kroku 55 zdarzenia są **dwojakie i stoją w jednej kolejce**, więc
+     * kolejność kliknięcia wobec klawisza jest tą, w jakiej padły u użytkownika.
+     * Rozdzielenie na dwie drogi pada tutaj i jest jedynym miejscem, w którym
+     * pętla o tej dwojakości wie: dalej, w `InputHandler`, oba przechodzą przez
+     * te same trzy piętra.
      *
      * @return bool czy padł klawisz wyjścia
      */
     private function consumeInput(LoopState $state, float $now): bool
     {
-        while (($key = $this->source->readKey()) !== null) {
-            if ($this->input->handle($key, $state, $now)) {
+        while (($event = $this->source->readEvent()) !== null) {
+            $quits = match (true) {
+                $event instanceof PointerEvent => $this->input->pointer($event, $state, $now),
+                $event instanceof KeyPress => $this->input->handle($event, $state, $now),
+                default => false,
+            };
+
+            if ($quits) {
                 return true;
             }
         }

@@ -103,6 +103,9 @@ final class BrowserModuleTest extends TestCase
                 BrowserSettings::DELETE_TO_TRASH,
                 BrowserSettings::TRASH_DIRECTORY,
                 BrowserSettings::UNDO_DEPTH,
+                // Proporcja podziału (krok 55) — deklaracja powstaje w rdzeniu,
+                // a pozycja stoi w zakładce modułu, bo tak każe reguła 11c.
+                'splitFraction',
             ],
             $keys,
         );

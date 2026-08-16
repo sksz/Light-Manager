@@ -16,6 +16,7 @@ use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Module\RequiresEnvironment;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
+use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Module\Kubernetes\Application\ApiCatalog;
 use LightManager\Module\Kubernetes\Application\ClusterActions;
 use LightManager\Module\Kubernetes\Application\ClusterSession;
@@ -39,6 +40,8 @@ use LightManager\Module\Kubernetes\Presentation\Query\KindsQuery;
 use LightManager\Module\Kubernetes\Presentation\Query\NamespacesQuery;
 use LightManager\Module\Kubernetes\Presentation\Query\ResourcesQuery;
 use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Cli\Query\CoreReader;
+use LightManager\Presentation\Cli\SplitSetting;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
 
@@ -87,6 +90,9 @@ final class KubernetesModule implements
      * słabszą **i** zaskoczyć użytkownika.
      */
     private const SHORTCUT = 'k';
+
+    /** Domyślny podział: drzewo węższe od listy zasobów (krok 55). */
+    private const SPLIT_PERCENT = 40;
 
     /** @var list<CommandInterface>|null */
     private ?array $commands = null;
@@ -176,7 +182,10 @@ final class KubernetesModule implements
 
     public function settingsTab(): ModuleSettingsTab
     {
-        return new ModuleSettingsTab($this->nameKey(), KubernetesSettings::declarations());
+        return new ModuleSettingsTab($this->nameKey(), [
+            ...KubernetesSettings::declarations(),
+            SplitSetting::declaration(ClusterScreen::ID, self::SPLIT_PERCENT),
+        ]);
     }
 
     public function events(): array
@@ -208,6 +217,13 @@ final class KubernetesModule implements
             $this->translator,
             $this->state,
             $this->reader(),
+            new CoreReader($this->state->queries()),
+            SplitSetting::state(
+                ClusterScreen::ID,
+                self::SPLIT_PERCENT,
+                $this->state,
+                new ChangeModuleSettingUseCase($this->settings, $this->translator),
+            ),
         );
     }
 

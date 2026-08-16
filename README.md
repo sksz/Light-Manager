@@ -200,6 +200,33 @@ ale nigdy nie zasłania komunikatu i nigdy nie urywa pozycji w połowie słowa.
 Pełny spis mieszka dalej na ekranie pomocy (`F1`) i nie jest tam przepisany
 ręcznie: jedno i drugie powstaje z tych samych wiązań, które klawisze obsługują.
 
+### Mysz
+
+Aplikacja przyjmuje **wskaźnik**, i to we wszystkich trzech torach — sixelowym,
+tekstowym i okienkowym. Zachowanie jest wszędzie takie samo:
+
+| Czynność | Skutek |
+|---|---|
+| Kliknięcie w wiersz listy | kursor staje na wskazanej pozycji |
+| Kliknięcie w drugi panel | ognisko przechodzi na ten panel **i** kursor staje |
+| Podwójne kliknięcie | to, co `Enter` w tym miejscu (próg 400 ms, ta sama komórka) |
+| Prawy przycisk | menu kontekstowe, po uprzednim postawieniu kursora |
+| Kółko | przewinięcie o trzy wiersze, **bez ruszania kursora** |
+| Przeciągnięcie granicy paneli | zmiana proporcji podziału; zapisuje się w ustawieniach modułu |
+| Kliknięcie w podpowiedź stopki | to samo, co jej klawisz |
+| Kliknięcie w zakładkę | przejście na tę zakładkę |
+
+Kliknięcie **poza otwartym oknem** nakładanym nie robi nic i okna nie zamyka:
+okno jest modalne, a zmiana zaznaczenia, którego w tej chwili nie widać, byłaby
+zmianą w ciemno.
+
+Mysz da się **wyłączyć** — zakładka „Wygląd" w ustawieniach (`F2`), pozycja
+„Mysz". Wyłączenie działa od razu, bez ponownego uruchomienia, i przywraca
+natywne zaznaczanie terminala. Powody, dla których warto: terminal, który
+raportowania myszy nie obsługuje, albo nawyk zaznaczania tekstu myszą. Przy
+włączonej myszy natywne zaznaczanie zostaje osiągalne pod `Shift`em — tak
+rozstrzyga to każdy emulator terminala.
+
 ### Zaznaczenie wielokrotne
 
 Spacja zaznacza wpis pod kursorem i schodzi wiersz niżej, więc ciąg plików
@@ -940,8 +967,12 @@ make probe-xterm   # to samo w XTermie z zasobami trybu graficznego
 
 Na starcie pokazuje wykryty tryb renderowania (Sixel albo fallback tekstowy),
 a potem wypisuje nazwę klawisza i jego bajty, po jednym wierszu na zdarzenie
-(sekwencja escape liczy się jako jedno zdarzenie). Wyjście: `F10` albo Ctrl+C —
-w obu przypadkach terminal wraca do stanu sprzed uruchomienia.
+(sekwencja escape liczy się jako jedno zdarzenie). **Zdarzenia myszy widać
+tak samo**: podgląd włącza raportowanie razem z trybem surowym, więc kliknięcie,
+przeciągnięcie i obrót kółka dają wiersz z wierszem, kolumną i przyciskiem — i to
+jest jedyny sposób, żeby sprawdzić, czy niepełna sekwencja czeka na resztę, czy
+rozsypuje się na osobne znaki. Wyjście: `q` albo Ctrl+C — w obu przypadkach
+terminal wraca do stanu sprzed uruchomienia.
 
 Bramka jakości i jej części składowe:
 

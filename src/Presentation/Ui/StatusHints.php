@@ -41,6 +41,15 @@ final class StatusHints
     /** Odstęp nazwy miejsca od pierwszego wiązania. */
     private const LABEL_SEPARATOR = ': ';
 
+    /**
+     * Ostatnio policzone ułożenie wraz z budżetami, dla których powstało.
+     *
+     * @var ?array{list<string>, list<HintPlacement>}
+     */
+    private ?array $fitted = null;
+
+    private ?string $fittedFor = null;
+
     /** @param list<Hint> $items pozycje w kolejności czytania */
     public function __construct(private readonly array $items = [])
     {
@@ -75,6 +84,8 @@ final class StatusHints
                     // gdy znika ostatnie wiązanie miejsca — i nigdy wcześniej.
                     (count($items) === 0 ? $translator->translate($focus->labelKey) . self::LABEL_SEPARATOR : '')
                         . self::text($binding, $translator),
+                    false,
+                    $binding,
                 );
             }
         }
@@ -86,7 +97,7 @@ final class StatusHints
                 }
 
                 $seen[] = $binding;
-                $items[] = new Hint(self::text($binding, $translator), $binding->usesKey(Key::F1));
+                $items[] = new Hint(self::text($binding, $translator), $binding->usesKey(Key::F1), $binding);
             }
         }
 
@@ -101,7 +112,7 @@ final class StatusHints
     /** Czy **wszystkie** pozycje mieszczą się w jednym wierszu tej szerokości. */
     public function fitInOneRow(int $columns): bool
     {
-        return $this->pack($this->items, [$columns]) !== null;
+        return $this->pack($this->items, [$columns], false) !== null;
     }
 
     /**
@@ -118,19 +129,72 @@ final class StatusHints
      */
     public function lines(array $budgets): array
     {
+        return $this->fit($budgets, false)[0];
+    }
+
+    /**
+     * Gdzie w wierszach paska stanęła każda pozycja — **ten sam rachunek**, co
+     * `lines()`, oglądany z drugiej strony (krok 55).
+     *
+     * Metody są dwie, ale przebieg jest jeden i to jest w tym najważniejsze:
+     * gdyby położenia liczyło osobne pakowanie, rozjechałoby się z rysowaniem
+     * przy pierwszej zmianie progu ustępowania — a rozjazd byłby niewidoczny do
+     * chwili, gdy ktoś kliknie i wykona nie ten klawisz, co widzi.
+     *
+     * @param list<int> $budgets szerokości kolejnych wierszy, w kolejności rysowania
+     *
+     * @return list<HintPlacement>
+     */
+    public function placements(array $budgets): array
+    {
+        return $this->fit($budgets, true)[1];
+    }
+
+    /**
+     * Ustępowanie i pakowanie razem: pozycje odpadają od końca dopóty, dopóki
+     * reszta nie zmieści się w podanych wierszach.
+     *
+     * @param list<int> $budgets
+     * @param bool      $withPlacements czy liczyć położenia pozycji — rachunek
+     *                                  potrzebny wyłącznie wskaźnikowi, a więc
+     *                                  kilka razy na minutę, nie trzydzieści
+     *                                  razy na sekundę
+     *
+     * @return array{list<string>, list<HintPlacement>}
+     */
+    private function fit(array $budgets, bool $withPlacements): array
+    {
+        // Pamięć **na jeden zestaw budżetów** i to nie jest optymalizacja na
+        // zapas: od kroku 55 ten sam rachunek zamawiają w jednej klatce trzy
+        // miejsca — `fitInOneRow()` przed podziałem okna, `draw()` paska stanu
+        // i mapa trafień stopki. Ustępowanie jest pętlą po pozycjach, więc trzy
+        // przebiegi to trzykrotny koszt czegoś, co ma jedną odpowiedź.
+        // Obiekt powstaje na nowo w każdej klatce (reguła 11a), więc pamięć nie
+        // ma jak się zestarzeć.
+        $key = ($withPlacements ? '+' : '-') . implode(',', $budgets);
+
+        if ($this->fitted !== null && $this->fittedFor === $key) {
+            return $this->fitted;
+        }
+
         $items = $this->items;
+        $result = [[], []];
 
         while ($items !== []) {
-            $lines = $this->pack($items, $budgets);
+            $packed = $this->pack($items, $budgets, $withPlacements);
 
-            if ($lines !== null) {
-                return $lines;
+            if ($packed !== null) {
+                $result = $packed;
+
+                break;
             }
 
             $items = self::withoutLast($items);
         }
 
-        return [];
+        $this->fittedFor = $key;
+
+        return $this->fitted = $result;
     }
 
     /**
@@ -143,22 +207,24 @@ final class StatusHints
      * @param list<Hint> $items
      * @param list<int>  $budgets
      *
-     * @return ?list<string>
+     * @return ?array{list<string>, list<HintPlacement>}
      */
-    private function pack(array $items, array $budgets): ?array
+    private function pack(array $items, array $budgets, bool $withPlacements): ?array
     {
         $lines = [];
+        $placements = [];
         $current = '';
         $budget = array_shift($budgets);
 
         if ($budget === null) {
-            return $items === [] ? [] : null;
+            return $items === [] ? [[], []] : null;
         }
 
         foreach ($items as $item) {
             $candidate = $current === '' ? $item->text : $current . self::SEPARATOR . $item->text;
 
             if (mb_strlen($candidate) <= $budget) {
+                $placements[] = $withPlacements ? self::placementOf($item, count($lines), $candidate) : null;
                 $current = $candidate;
 
                 continue;
@@ -173,13 +239,30 @@ final class StatusHints
             $lines[] = $current;
             $budget = $next;
             $current = $item->text;
+            $placements[] = $withPlacements ? self::placementOf($item, count($lines), $current) : null;
         }
 
         if ($current !== '') {
             $lines[] = $current;
         }
 
-        return $lines;
+        return [$lines, array_values(array_filter($placements))];
+    }
+
+    /**
+     * Miejsce pozycji w wierszu: koniec napisu wiersza minus długość samej
+     * pozycji. Pozycja bez wiązania (obciążenie pomiarowe) nie ma czego oddać
+     * kliknięciu, więc nie powstaje.
+     */
+    private static function placementOf(Hint $item, int $line, string $lineText): ?HintPlacement
+    {
+        if ($item->binding === null) {
+            return null;
+        }
+
+        $length = mb_strlen($item->text);
+
+        return new HintPlacement($line, mb_strlen($lineText) - $length, $length, $item->binding);
     }
 
     /**

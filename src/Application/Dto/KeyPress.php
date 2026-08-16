@@ -4,7 +4,15 @@ declare(strict_types=1);
 
 namespace LightManager\Application\Dto;
 
-final class KeyPress
+/**
+ * Naciśnięcie klawisza — pierwsza z dwóch postaci zdarzenia wejściowego.
+ *
+ * `InputEvent` doszedł w kroku 55 i **nie zmienia w tej klasie ani jednego
+ * pola**: wskaźnik wchodzi obok, jako `PointerEvent`, a nie w środku, jako
+ * pola nic nieznaczące przy 99% naciśnięć. Zdanie „`KeyPress` niesie znak
+ * i modyfikatory” zostaje przez to prawdziwe.
+ */
+final class KeyPress implements InputEvent
 {
     /**
      * @param bool $ctrl  czy znak przyszedł z wciśniętym klawiszem `Ctrl`

@@ -92,6 +92,7 @@ final class SettingsTab
             self::core('settings.tab.appearance', [
                 SettingKey::Language,
                 SettingKey::Theme,
+                SettingKey::Mouse,
                 SettingKey::WindowColumns,
                 SettingKey::WindowRows,
             ]),

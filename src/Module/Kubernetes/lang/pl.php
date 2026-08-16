@@ -209,6 +209,7 @@ return [
     // Czynność `k8s.deploy-image` (krok 54).
     'module.k8s.command.deployImage' => 'Wdróż obraz kontenera w klastrze',
     'module.k8s.setting.buildWaitSeconds' => 'Limit czekania na budowę (s)',
+    'module.k8s.setting.splitFraction' => 'Szerokość drzewa zasobów (%)',
     'module.k8s.deploy.pickImage' => 'Który obraz wdrożyć',
     'module.k8s.deploy.pickDeployment' => 'Gdzie wdrożyć {tag}',
     'module.k8s.deploy.buildNew' => '— zbuduj nowy obraz —',

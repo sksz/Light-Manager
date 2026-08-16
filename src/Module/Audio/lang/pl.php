@@ -31,6 +31,7 @@ return [
     'module.audio.setting.autostart' => 'Graj od uruchomienia',
     'module.audio.setting.effects' => 'Efekty specjalne',
     'module.audio.setting.effectsVolume' => 'Głośność efektów (%)',
+    'module.audio.setting.splitFraction' => 'Szerokość panelu efektów (%)',
 
     // Strefa górna okna modułu i tryby odtwarzania.
     'module.audio.zone.now' => 'Odtwarzanie',

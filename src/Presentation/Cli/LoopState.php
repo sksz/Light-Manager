@@ -10,7 +10,11 @@ use LightManager\Application\Event\AppEvent;
 use LightManager\Application\Event\EventRegistry;
 use LightManager\Application\Module\ModuleContext;
 use LightManager\Application\Query\QueryRegistry;
+use LightManager\Application\Ui\Rect;
 use LightManager\Domain\ValueObject\Message;
+use LightManager\Presentation\Ui\Component\StatusBar;
+use LightManager\Presentation\Ui\HintTarget;
+use LightManager\Presentation\Ui\StatusHints;
 
 /**
  * Dane przenoszone między iteracjami pętli: ustawienia, komunikat, okna
@@ -42,6 +46,13 @@ final class LoopState
 
     /** Czas rozpoczęcia bieżącej klatki — dla tego, co się zmienia samo z siebie. */
     private float $now = 0.0;
+
+    /** Prostokąt paska stanu z ostatniej klatki — bez niego nie ma czego trafić. */
+    private ?Rect $hintBounds = null;
+
+    private string $hintMessage = '';
+
+    private ?StatusHints $hintSource = null;
 
     /**
      * Kontekst sesji dla modułów: gdzie użytkownik stoi i co ma zaznaczone.
@@ -205,6 +216,45 @@ final class LoopState
     public function overlays(): OverlayStack
     {
         return $this->overlays;
+    }
+
+    /**
+     * Pasek stanu z **ostatnio złożonej klatki** — składniki, nie gotowa mapa
+     * (krok 55).
+     *
+     * Stoi tu z tego samego rachunku, co rejestry zdarzeń, kwerend i komend:
+     * `LoopState` dostają wszyscy, którzy go potrzebują — tu składający klatkę
+     * (pisze) i rozdzielający wejście (czyta) — więc `Bootstrap` nie rośnie
+     * o argument.
+     *
+     * **Prostokąty liczą się leniwie**, dopiero przy pytaniu, i to nie jest
+     * ostrożność: klatka powstaje trzydzieści razy na sekundę, a kliknięcie —
+     * kilka razy na minutę, więc mapa budowana co klatkę byłaby kilkunastoma
+     * obiektami na wyrzucenie w każdej z nich. Pomiar `--loop` pokazał ten koszt
+     * wprost, zanim ktokolwiek zdążył kliknąć. Ta sama reguła, którą rejestr
+     * kwerend stosuje do wierszy wyniku (11w).
+     */
+    public function useStatusBar(Rect $bounds, string $message, StatusHints $hints): void
+    {
+        $this->hintBounds = $bounds;
+        $this->hintMessage = $message;
+        $this->hintSource = $hints;
+    }
+
+    /**
+     * Prostokąty podpowiedzi stopki — **jedyna mapa trafień w rdzeniu**
+     * i dotycząca wyłącznie tego, co rdzeń rysuje sam; treść stref pamięta ekran
+     * (`AcceptsPointer`).
+     *
+     * @return list<HintTarget>
+     */
+    public function hintTargets(): array
+    {
+        if ($this->hintSource === null || $this->hintBounds === null) {
+            return [];
+        }
+
+        return StatusBar::hintTargets($this->hintBounds, $this->hintMessage, $this->hintSource);
     }
 
     /**

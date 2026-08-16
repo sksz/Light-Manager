@@ -148,6 +148,42 @@ final class KeyBinding
             && in_array($key->key, $this->keys, true);
     }
 
+    /**
+     * Naciśnięcie, którym to wiązanie się uruchamia (krok 55).
+     *
+     * Istnieje dla **jednej** rzeczy: kliknięcia w podpowiedź paska stanu.
+     * Kliknięcie zamienia się z powrotem w `KeyPress` i wraca do
+     * `InputHandler::handle()` — czyli wykonuje się tą samą drogą, co klawisz,
+     * a nie drugą, równoległą. Bez tego każda czynność miałaby dwa wejścia
+     * i rozjechałyby się przy pierwszej poprawce (ta sama reguła, którą krok 32
+     * zapisał dla menu kontekstowego).
+     *
+     * `null` znaczy „wiązanie nie wisi na niczym, co da się nacisnąć” — dziś
+     * niemożliwe, bo każde ma albo klawisz, albo znak; sprawdzenie zostaje, bo
+     * kontrakt konstruktora tego nie wymusza.
+     */
+    public function press(): ?KeyPress
+    {
+        $key = $this->keys[0] ?? null;
+
+        if ($key !== null) {
+            // `raw` klawisza nazwanego zostaje puste, tak samo jak w torze
+            // okienkowym (krok 34): bajtów, którymi klawisz przyszedł z terminala,
+            // nie czyta przy nich nikt.
+            return $this->shift ? KeyPress::shifted($key, '') : KeyPress::special($key, '');
+        }
+
+        if ($this->character === null) {
+            return null;
+        }
+
+        return match (true) {
+            $this->ctrl => KeyPress::ctrl($this->character),
+            $this->alt => KeyPress::alt($this->character),
+            default => KeyPress::character($this->character),
+        };
+    }
+
     /** Napis dla użytkownika: nazwy klawiszy rozdzielone ukośnikiem. */
     public function display(): string
     {

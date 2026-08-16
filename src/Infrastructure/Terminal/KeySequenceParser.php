@@ -6,16 +6,49 @@ namespace LightManager\Infrastructure\Terminal;
 
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
+use LightManager\Application\Dto\PointerAction;
+use LightManager\Application\Dto\PointerButton;
+use LightManager\Application\Dto\PointerEvent;
 
 /**
- * Zamienia surowe bajty ze STDIN na pojedyncze zdarzenia klawiszowe.
+ * Zamienia surowe bajty ze STDIN na pojedyncze zdarzenia wejściowe.
  *
  * Klasa jest czysta (bez I/O i bez stanu) — cała wiedza o sekwencjach escape
  * siedzi tutaj, dzięki czemu daje się testować bez terminala.
+ *
+ * Od kroku 55 zdarzeniem bywa też **wskaźnik**: w trybie SGR (`\e[?1006h`)
+ * terminal wysyła kliknięcia tą samą sekwencją CSI, którą wysyła strzałki,
+ * różniącą się prywatnym bajtem `<` zaraz po `ESC [`. Rozbiór jest przez to
+ * jeden, a wynik ma dwie postacie — stąd `ParsedKey` niosący `InputEvent`.
  */
 final class KeySequenceParser
 {
     private const ESCAPE = "\e";
+
+    /** Prywatny bajt otwierający sekwencję wskaźnika w trybie SGR. */
+    private const SGR_POINTER_MARKER = '<';
+
+    /**
+     * Bity pierwszego parametru sekwencji SGR.
+     *
+     * Kodowanie XTerma: dwa najniższe bity to numer przycisku, wyżej stoją
+     * modyfikatory, znacznik ruchu i kółko. `WHEEL` **zastępuje** numer
+     * przycisku — obrót niczego nie naciska — a `EXTRA_BUTTONS` oznacza
+     * przyciski boczne, których słownik nie zna (reguła 13).
+     */
+    private const SGR_BUTTON_MASK = 0b11;
+
+    private const SGR_SHIFT = 4;
+
+    private const SGR_ALT = 8;
+
+    private const SGR_CTRL = 16;
+
+    private const SGR_MOTION = 32;
+
+    private const SGR_WHEEL = 64;
+
+    private const SGR_EXTRA_BUTTONS = 128;
 
     /**
      * Bajt kończący sekwencję CSI/SS3 → klawisz.
@@ -194,6 +227,11 @@ final class KeySequenceParser
     private function parseControlSequence(string $buffer, bool $mayGrow): ?ParsedKey
     {
         $length = strlen($buffer);
+
+        if ($length > 2 && $buffer[2] === self::SGR_POINTER_MARKER) {
+            return $this->parsePointerSequence($buffer, $mayGrow);
+        }
+
         $position = 2;
         $parameters = '';
 
@@ -219,6 +257,104 @@ final class KeySequenceParser
         }
 
         return new ParsedKey(KeyPress::special($key, $raw), $consumed);
+    }
+
+    /**
+     * Wskaźnik w trybie SGR: `ESC [ < b ; x ; y M` (naciśnięcie) i `… m`
+     * (zwolnienie).
+     *
+     * Tryb SGR jest **obowiązkowy, a nie dodatkowy**, i stąd bierze się jedyna
+     * postać wskaźnika, jaką ten parser zna: kodowanie domyślne (`1000` bez
+     * `1006`) zapisuje współrzędną jako bajt z przesunięciem 32, więc powyżej
+     * 223. kolumny przestaje działać w ogóle. Okno pomiarowe projektu ma 100
+     * kolumn tylko dlatego, że tak je ustawiono w `bin/run.sh`.
+     *
+     * Współrzędne przychodzą liczone **od jedynki** i odejmuje się ją tutaj —
+     * to jest całe przeliczenie, którego wymaga rozstrzygnięcie „współrzędne
+     * w komórkach, nigdy w pikselach”. Dalej, aż po ekran, chodzi już siatka
+     * znakowa `Rect`a.
+     */
+    private function parsePointerSequence(string $buffer, bool $mayGrow): ?ParsedKey
+    {
+        $matches = [];
+
+        if (preg_match('/^\e\[<(\d+);(\d+);(\d+)([Mm])/', $buffer, $matches) !== 1) {
+            // Bajty pasujące do początku sekwencji, ale jeszcze bez końca —
+            // czekamy na resztę tą samą drogą, którą czeka strzałka. Śmieć,
+            // który nigdy się nie domknie, rozstrzyga się po upływie okna.
+            if ($mayGrow && preg_match('/^\e\[<[\d;]*$/', $buffer) === 1) {
+                return null;
+            }
+
+            return $this->loneEscape();
+        }
+
+        $flags = (int) $matches[1];
+        $column = (int) $matches[2] - 1;
+        $row = (int) $matches[3] - 1;
+        $released = $matches[4] === 'm';
+        $consumed = strlen($matches[0]);
+
+        $action = $this->pointerAction($flags, $released);
+
+        if ($action === null) {
+            // Kółko poziome i przyciski boczne: sekwencja jest poprawna, więc
+            // trzeba ją **zjeść**, a nie zostawić w buforze — ale odbiorcy nie
+            // ma (reguła 13), więc zdarzenia z niej nie powstaje.
+            return new ParsedKey(KeyPress::special(Key::Unknown, $matches[0]), $consumed);
+        }
+
+        return new ParsedKey(
+            new PointerEvent(
+                max(0, $row),
+                max(0, $column),
+                $this->pointerButton($flags),
+                $action,
+                ($flags & self::SGR_CTRL) !== 0,
+                ($flags & self::SGR_ALT) !== 0,
+                ($flags & self::SGR_SHIFT) !== 0,
+            ),
+            $consumed,
+        );
+    }
+
+    /**
+     * Rodzaj czynności wskaźnika; `null` znaczy „nie mamy na to pozycji
+     * w słowniku”.
+     *
+     * Kolejność pytań ma znaczenie: kółko **zastępuje** przycisk, więc pyta się
+     * o nie pierwsze; ruch rozpoznaje się dopiero potem, bo bit ruchu bywa
+     * ustawiony razem z numerem przycisku trzymanego w trakcie przeciągania.
+     */
+    private function pointerAction(int $flags, bool $released): ?PointerAction
+    {
+        if (($flags & self::SGR_WHEEL) !== 0) {
+            return match ($flags & self::SGR_BUTTON_MASK) {
+                0 => PointerAction::ScrollUp,
+                1 => PointerAction::ScrollDown,
+                // Kółko poziome — nie ma odbiorcy.
+                default => null,
+            };
+        }
+
+        if (($flags & self::SGR_EXTRA_BUTTONS) !== 0) {
+            return null;
+        }
+
+        if (($flags & self::SGR_MOTION) !== 0) {
+            return PointerAction::Drag;
+        }
+
+        return $released ? PointerAction::Release : PointerAction::Press;
+    }
+
+    private function pointerButton(int $flags): PointerButton
+    {
+        return match ($flags & self::SGR_BUTTON_MASK) {
+            1 => PointerButton::Middle,
+            2 => PointerButton::Right,
+            default => PointerButton::Left,
+        };
     }
 
     private function isParameterByte(string $byte): bool

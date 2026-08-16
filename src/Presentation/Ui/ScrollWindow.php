@@ -25,6 +25,26 @@ final class ScrollWindow
     private ?string $context = null;
 
     /**
+     * Czy okno zostało przesunięte **ręcznie** i ma przestać biec za kursorem
+     * (krok 55).
+     *
+     * Powód jest wymierny i wyszedł z rozpoznania przed pierwszą linią kodu:
+     * kółko ma przewijać **bez ruszania kursora**, a szesnaście paneli listowych
+     * woła `keepVisible()` w każdym rysowaniu — więc okno przesunięte kółkiem
+     * wracałoby do kursora w tej samej klatce, w której je przesunięto.
+     * Odczepienie jest jedyną drogą, która to godzi, i jest zarazem tą, którą
+     * chodzi każdy edytor: kursor wolno wyprowadzić poza widok, a pierwszy jego
+     * ruch przywraca go na oczy.
+     */
+    private bool $detached = false;
+
+    /**
+     * Kursor widziany przy poprzednim rozliczeniu — po nim poznaje się, że
+     * użytkownik ruszył go klawiszem, i przyczepia okno z powrotem.
+     */
+    private ?int $lastIndex = null;
+
+    /**
      * @param int $margin ile wierszy zapasu zostawić między kursorem a krawędzią
      *                    okna; 0 znaczy „przesuwaj dopiero, gdy kursor wyjdzie”
      */
@@ -47,6 +67,7 @@ final class ScrollWindow
         if ($this->context !== $context) {
             $this->context = $context;
             $this->offset = 0;
+            $this->detached = false;
         }
     }
 
@@ -58,6 +79,19 @@ final class ScrollWindow
      */
     public function keepVisible(?int $index, int $total, int $capacity): int
     {
+        // Kursor, który się ruszył, przyczepia okno z powrotem. Porównanie
+        // z poprzednim odczytem jest jedyną drogą, jaką ta klasa ma — o tym, że
+        // ktoś nacisnął strzałkę, dowiaduje się wyłącznie po tym, że numer
+        // przyszedł inny.
+        if ($index !== $this->lastIndex) {
+            $this->lastIndex = $index;
+            $this->detached = false;
+        }
+
+        if ($this->detached) {
+            return $this->clamp($total, $capacity);
+        }
+
         if ($capacity < 1 || $index === null || $total <= $capacity) {
             return $this->offset = 0;
         }
@@ -75,10 +109,23 @@ final class ScrollWindow
         return $this->offset = max(0, min($this->offset, $total - $capacity));
     }
 
-    /** Przewinięcie o zadaną liczbę wierszy — dolną granicę pilnujemy od razu. */
+    /**
+     * Przewinięcie o zadaną liczbę wierszy — dolną granicę pilnujemy od razu.
+     *
+     * **Odczepia okno od kursora** (krok 55): przewijanie ręczne, czy to
+     * klawiszem, czy kółkiem, jest zdaniem „chcę patrzeć tutaj”, a nie „przenieś
+     * kursor”. Przyczepienie wraca samo, gdy kursor się ruszy.
+     */
     public function scrollBy(int $delta): void
     {
+        $this->detached = true;
         $this->offset = max(0, $this->offset + $delta);
+    }
+
+    /** Czy okno stoi tam, gdzie je przesunięto, zamiast biec za kursorem. */
+    public function isDetached(): bool
+    {
+        return $this->detached;
     }
 
     /**
