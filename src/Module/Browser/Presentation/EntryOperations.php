@@ -88,7 +88,8 @@ final class EntryOperations
     private array $removalNames = [];
 
     public function __construct(
-        private readonly BrowserPanes $panes,
+        /** Odczyt danych przeglądarki — przez rejestr kwerend (krok 53, D92 nr 3). */
+        private readonly BrowserQueries $queries,
         private readonly FileOperationsPort $operations,
         private readonly PaneRefresh $refreshPanes,
         private readonly TranslatorPort $translator,
@@ -208,7 +209,7 @@ final class EntryOperations
      */
     public function createDirectory(string $value): Message
     {
-        $path = $this->panes->focused()->directory()->path();
+        $path = $this->queries->directory()->path();
 
         try {
             $name = new EntryName($value);
@@ -266,7 +267,7 @@ final class EntryOperations
                 : $this->deleting($target[0], [$name]);
         }
 
-        $operands = $this->panes->focusedOperands();
+        $operands = $this->queries->operands();
 
         if ($operands === null) {
             return OverlayOutcome::close($this->info('module.browser.problem.noSelection'));
@@ -734,7 +735,7 @@ final class EntryOperations
      */
     private function selection(): ?array
     {
-        return $this->panes->focusedSelection();
+        return $this->queries->operandsOf();
     }
 
     /**
@@ -749,7 +750,7 @@ final class EntryOperations
      */
     private function entryNamed(string $name): ?array
     {
-        $directory = $this->panes->focusedDirectory();
+        $directory = $this->queries->pointedDirectory();
 
         foreach ($directory->entries() as $entry) {
             if ($entry->name === $name) {

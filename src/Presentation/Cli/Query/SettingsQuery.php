@@ -8,6 +8,7 @@ use LightManager\Application\Command\CommandInput;
 use LightManager\Application\Dto\SettingKey;
 use LightManager\Application\Query\Generation;
 use LightManager\Application\Query\QueryInterface;
+use LightManager\Application\Query\QueryRegistry;
 use LightManager\Application\Query\QueryResult;
 use LightManager\Presentation\Cli\LoopState;
 
@@ -23,8 +24,13 @@ use LightManager\Presentation\Cli\LoopState;
  * - **pokolenie bierze się z taniego znacznika** — tutaj z tożsamości obiektu
  *   ustawień, bo `LoopState::applySettings()` wymienia go przy każdej zmianie,
  *   a porównanie wskaźników kosztuje tyle, co nic;
- * - **wiersze budują się leniwie** — `QueryResult::lazy()` — więc pytanie
- *   o pokolenie nie płaci za przejście po kluczach.
+ * - **wiersze budują się leniwie**, więc pytanie o pokolenie nie płaci za
+ *   przejście po kluczach.
+ *
+ * Ładunek typowany oddaje **cały obiekt ustawień** i to on jest drogą, którą
+ * rdzeń czyta własną konfigurację: ekran ustawień dostaje `Settings`, a nie
+ * wiersze napisów (D92 nr 3 — rejestr jest jedyną drogą odczytu **także
+ * wewnątrz rdzenia**).
  */
 final class SettingsQuery implements QueryInterface
 {
@@ -60,7 +66,7 @@ final class SettingsQuery implements QueryInterface
     {
         $settings = $this->state->settings();
 
-        return QueryResult::lazy(static function () use ($settings): array {
+        return QueryResult::owned(QueryRegistry::CORE, $settings, static function () use ($settings): array {
             $rows = [];
 
             foreach (SettingKey::cases() as $key) {

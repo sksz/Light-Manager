@@ -52,6 +52,7 @@ use LightManager\Module\Browser\Presentation\Query\SelectionQuery;
 use LightManager\Module\Browser\Presentation\Query\TreeQuery;
 use LightManager\Module\Browser\Presentation\Query\UndoQuery;
 use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Cli\Query\CoreReader;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
 use LightManager\Presentation\Ui\ScreenInterface;
@@ -89,6 +90,8 @@ final class BrowserModule implements
 {
     /** „Browser” — litera `b` jest wolna: `0x02` nie znaczy w trybie surowym nic. */
     private const SHORTCUT = 'b';
+
+    private ?CoreReader $core = null;
 
     /** @var array{BrowserScreen, list<CommandInterface>, list<QueryInterface>}|null */
     private ?array $parts = null;
@@ -132,6 +135,12 @@ final class BrowserModule implements
         return $this->parts ??= $this->assemble();
     }
 
+    /** Odczyt ustawień rdzenia — przez rejestr kwerend (krok 53, D92 nr 3). */
+    private function core(): CoreReader
+    {
+        return $this->core ??= new CoreReader($this->state->queries());
+    }
+
     /** @return array{BrowserScreen, list<CommandInterface>, list<QueryInterface>} */
     private function assemble(): array
     {
@@ -153,7 +162,7 @@ final class BrowserModule implements
         $first = new BrowserState($this->state, $opened);
         $second = new BrowserState(
             $this->state,
-            $directories->get($opened->path(), BrowserSettings::showHidden($this->state->settings())),
+            $directories->get($opened->path(), BrowserSettings::showHidden($this->core()->settings())),
         );
 
         // Drzewo powstaje **razem z panelem**, a nie przy pierwszym naciśnięciu
@@ -174,9 +183,17 @@ final class BrowserModule implements
         // na liście i komendy `browser.hidden`. Ekran i komenda dostają ten sam
         // obiekt, bo czynność jest jedna — dwa obiekty znaczyłyby dwa rachunki
         // tego samego ustawienia.
+        // Dwie fasady odczytu na cały moduł (krok 53, D92 nr 3): jedna do danych
+        // przeglądarki, druga do ustawień rdzenia. Powstają **raz**, bo dwie
+        // znaczyłyby dwa miejsca rozpakowujące ładunek kwerendy.
+        $reader = new BrowserQueries($this->state->queries(), $panes);
+        $core = $this->core();
+
         $reload = new ReloadDirectoryUseCase($directories);
         $hidden = new HiddenEntries(
             $panes,
+            $reader,
+            $core,
             $reload,
             new ChangeModuleSettingUseCase($this->settings, $this->translator),
             $this->state,
@@ -196,13 +213,28 @@ final class BrowserModule implements
         // więc dziennik ma jednego piszącego i jednego czytającego (reguła 15).
         // Głębokość pyta ustawień przy każdym zapisie, więc zmiana pozycji
         // działa od następnej operacji.
-        $journal = new UndoJournal(fn (): int => BrowserSettings::undoDepth($this->state->settings()));
-        $entries = new EntryOperations($panes, $this->operations, $refresh, $this->translator, $journal, $events);
+        $journal = new UndoJournal(fn (): int => BrowserSettings::undoDepth($this->core()->settings()));
+        $entries = new EntryOperations(
+            $reader,
+            $this->operations,
+            $refresh,
+            $this->translator,
+            $journal,
+            $events,
+        );
 
         // Dwie czynności dłuższe od klatki (krok 42) — osobno od tamtych trzech,
         // bo prowadzą pracę kawałkową z własnym stanem i własnym łańcuchem okien.
         // Odświeżenie paneli mają wspólne: dysk jest jeden, a panele te same.
-        $transfers = new EntryTransfer($panes, $this->transfers, $refresh, $this->translator, $journal, $events);
+        $transfers = new EntryTransfer(
+            $panes,
+            $reader,
+            $this->transfers,
+            $refresh,
+            $this->translator,
+            $journal,
+            $events,
+        );
 
         // Rozdroże usunięcia i wykonawca cofnięć (krok 44). `EntryTrash` dostaje
         // `EntryOperations`, bo odpowiedź „usuń trwale” na pytanie o wpis spoza
@@ -210,12 +242,12 @@ final class BrowserModule implements
         // pytaniem. `EntryUndo` dostaje `EntryTransfer`, bo cofnięcie
         // przeniesienia jest tą samą pracą kawałkową w drugą stronę.
         $trash = new EntryTrash(
-            $panes,
+            $reader,
+            $core,
             $entries,
             $this->trash,
             $this->transfers,
             $refresh,
-            $this->state,
             $this->translator,
             $journal,
             $events,
@@ -233,8 +265,8 @@ final class BrowserModule implements
         return [
             new BrowserScreen(
                 $panes,
-                new BrowserQueries($this->state->queries()),
-                $this->state,
+                $reader,
+                $core,
                 new MoveSelectionUseCase(),
                 $navigateInto,
                 new NavigateUpUseCase($directories),
@@ -247,8 +279,8 @@ final class BrowserModule implements
                 $events,
             ),
             [
-                new JumpCommand($panes, $directories, $this->translator),
-                new OpenCommand($panes, $navigateInto, $this->translator),
+                new JumpCommand($panes, $reader, $directories, $this->translator),
+                new OpenCommand($panes, $reader, $navigateInto, $this->translator),
                 new HiddenCommand($hidden, $this->translator),
                 new TreeCommand($panes),
                 new RenameCommand($entries, $this->translator),
@@ -286,7 +318,7 @@ final class BrowserModule implements
     {
         $requested = $this->startingPath ?? self::workingDirectory();
         $directory = (new OpenStartingDirectoryUseCase($directories))
-            ->execute($requested, BrowserSettings::showHidden($this->state->settings()));
+            ->execute($requested, BrowserSettings::showHidden($this->core()->settings()));
 
         if (!$directory->path()->equals($requested)) {
             $this->state->report(

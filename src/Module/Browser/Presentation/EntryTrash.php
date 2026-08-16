@@ -20,7 +20,7 @@ use LightManager\Module\Browser\Application\Undo\UndoEntry;
 use LightManager\Module\Browser\Application\Undo\UndoJournal;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Presentation\Component\EntrySize;
-use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Cli\Query\CoreReader;
 use LightManager\Presentation\Ui\Overlay\ChoiceOverlay;
 use LightManager\Presentation\Ui\Overlay\ConfirmOverlay;
 use LightManager\Presentation\Ui\Overlay\ProgressOverlay;
@@ -78,12 +78,14 @@ final class EntryTrash
     private string $firstName = '';
 
     public function __construct(
-        private readonly BrowserPanes $panes,
+        /** Odczyt danych przeglądarki — przez rejestr kwerend (krok 53, D92 nr 3). */
+        private readonly BrowserQueries $queries,
+        /** Odczyt ustawień rdzenia — przez rejestr kwerend (krok 53, D92 nr 3). */
+        private readonly CoreReader $core,
         private readonly EntryOperations $operations,
         private readonly TrashPort $trash,
         private readonly FileTransferPort $transfers,
         private readonly PaneRefresh $refresh,
-        private readonly LoopState $state,
         private readonly TranslatorPort $translator,
         private readonly UndoJournal $journal,
         private readonly BrowserEvents $events,
@@ -102,7 +104,7 @@ final class EntryTrash
      */
     public function deleteRequest(?string $name = null, bool $other = false): OverlayOutcome
     {
-        $toTrash = BrowserSettings::deleteToTrash($this->state->settings()) !== $other;
+        $toTrash = BrowserSettings::deleteToTrash($this->core->settings()) !== $other;
 
         if (!$toTrash) {
             return $this->operations->deleteRequest($name);
@@ -119,7 +121,7 @@ final class EntryTrash
                 : $this->trashRequest($target, [$name]);
         }
 
-        $operands = $this->panes->focusedOperands();
+        $operands = $this->queries->operands();
 
         if ($operands === null) {
             return OverlayOutcome::close($this->info('module.browser.problem.noSelection'));
@@ -155,7 +157,7 @@ final class EntryTrash
             return $this->foreignQuestion($directory, $names, $foreign, $trashDirectory);
         }
 
-        if (!BrowserSettings::asksBeforeDelete($this->state->settings())) {
+        if (!BrowserSettings::asksBeforeDelete($this->core->settings())) {
             return OverlayOutcome::close($this->trashNow($directory, $names, $trashDirectory));
         }
 
@@ -544,7 +546,7 @@ final class EntryTrash
     /** Katalog kosza: pozycja ustawień, a pusta — kosz środowiska graficznego. */
     private function resolvedTrashDirectory(): string
     {
-        $configured = BrowserSettings::trashDirectory($this->state->settings());
+        $configured = BrowserSettings::trashDirectory($this->core->settings());
 
         return $configured === '' ? $this->trash->defaultDirectory() : $configured;
     }
@@ -555,7 +557,7 @@ final class EntryTrash
      */
     private function entryNamed(string $name): ?Directory
     {
-        $directory = $this->panes->focusedDirectory();
+        $directory = $this->queries->pointedDirectory();
 
         foreach ($directory->entries() as $entry) {
             if ($entry->name === $name) {

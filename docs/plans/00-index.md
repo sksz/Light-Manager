@@ -514,7 +514,7 @@ z czynnością `k8s.deploy-image`).
 |---|------|------|-----------|-------|---------|--------|
 | 51 | Moduł `docker`: kontenery, obrazy, logi, budowanie i compose | [51-modul-docker.md](archiwum/51-modul-docker.md) | 20, 21, 23, 24, 26, 27, 28, 29, 41, 45, 46 | Opus | xhigh | Ukończony |
 | 52 | Moduł `k8s`: konteksty, zasoby klastra i logi | [52-modul-kubernetes.md](archiwum/52-modul-kubernetes.md) | 20, 21, 22, 24, 26, 27, 28, 29, 31⁴, 45, 46, 51 | Opus | high | Ukończony z zastrzeżeniem |
-| 53 | Kwerendy: mechanizm, okno i wszystkie źródła danych rdzenia oraz trzech modułów | [53-kwerendy-miedzymodulowe.md](53-kwerendy-miedzymodulowe.md) | 19, 20, 21, 24, 25, 26, 27, 43, 45, 46, 47 | Opus³ | xhigh | W toku |
+| 53 | Kwerendy: mechanizm, okno i wszystkie źródła danych rdzenia oraz trzech modułów | [53-kwerendy-miedzymodulowe.md](archiwum/53-kwerendy-miedzymodulowe.md) | 19, 20, 21, 24, 25, 26, 27, 43, 45, 46, 47 | Opus³ | xhigh | Ukończony |
 | 54 | Kwerendy modułów Fazy XVII i XVIII: obraz zbudowany Dockerem ląduje w klastrze | [54-kwerendy-modulow-kontenerowych.md](54-kwerendy-modulow-kontenerowych.md) | 23, 32, 41, 42, 46, 47, 48, 49, 50, 51, 52, 53 | Opus⁵ | xhigh | Nie rozpoczęty |
 
 ⁴ Zależność **dopisana 2026-08-16**, na starcie kroku ([00-decyzje.md](00-decyzje.md),

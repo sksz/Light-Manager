@@ -16,6 +16,7 @@ use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\Browser\Application\BrowserSettings;
 use LightManager\Module\Browser\Application\UseCase\NavigateIntoDirectoryUseCase;
 use LightManager\Module\Browser\Presentation\BrowserPanes;
+use LightManager\Module\Browser\Presentation\BrowserQueries;
 
 /**
  * `browser.open` — wejście do **zaznaczonego** katalogu (krok 32).
@@ -40,6 +41,8 @@ final class OpenCommand implements CommandInterface, AppliesToSelection
 {
     public function __construct(
         private readonly BrowserPanes $panes,
+        /** Odczyt danych przeglądarki — przez rejestr kwerend (krok 53, D92 nr 3). */
+        private readonly BrowserQueries $queries,
         private readonly NavigateIntoDirectoryUseCase $navigateInto,
         private readonly TranslatorPort $translator,
     ) {
@@ -77,7 +80,7 @@ final class OpenCommand implements CommandInterface, AppliesToSelection
 
         try {
             $entered = $this->navigateInto->execute(
-                $this->panes->focusedDirectory(),
+                $this->queries->pointedDirectory(),
                 $pane->showsHiddenEntries(),
             );
         } catch (DomainException) {

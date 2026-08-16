@@ -34,6 +34,7 @@ use LightManager\Module\Audio\Presentation\Query\EffectsQuery;
 use LightManager\Module\Audio\Presentation\Query\NowPlayingQuery;
 use LightManager\Module\Audio\Presentation\Query\PlaylistQuery;
 use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Cli\Query\CoreReader;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
 use LightManager\Presentation\Ui\ScreenInterface;
@@ -307,6 +308,7 @@ final class AudioModule implements
                 $this->audio ?? self::engine(),
                 new ChangeVolumeUseCase($this->settings),
                 $this->state,
+                new CoreReader($this->state->queries()),
                 $this->translator,
             ),
         ];

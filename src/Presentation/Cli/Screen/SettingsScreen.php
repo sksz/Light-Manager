@@ -25,6 +25,7 @@ use LightManager\Application\UseCase\ChangeSettingUseCase;
 use LightManager\Application\UseCase\RestoreDefaultSettingsUseCase;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Cli\Query\CoreReader;
 use LightManager\Presentation\Ui\Component\Button;
 use LightManager\Presentation\Ui\Component\Choice;
 use LightManager\Presentation\Ui\Component\Label;
@@ -110,6 +111,15 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
      */
     public function __construct(
         private readonly LoopState $state,
+        /**
+         * Odczyt ustawień — **przez rejestr kwerend** (krok 53, D92 nr 3).
+         *
+         * Stan pętli zostaje w konstruktorze, bo ekran go **zmienia**
+         * (`applySettings()` po każdej zmianie pozycji) i bo trzyma w nim
+         * komunikaty. Czytać ma jednak stąd: rdzeń nie może być jedynym miejscem
+         * zwolnionym z reguły, którą sam ustanowił dla modułów.
+         */
+        private readonly CoreReader $core,
         private readonly ChangeSettingUseCase $changeSetting,
         private readonly RestoreDefaultSettingsUseCase $restoreDefaults,
         private readonly ChangeModuleSettingUseCase $changeModuleSetting,
@@ -251,7 +261,7 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
     /** @return list<ComponentInterface> */
     private function coreRows(SettingsTab $tab): array
     {
-        $settings = $this->state->settings();
+        $settings = $this->core->settings();
         $rows = [];
 
         foreach ($tab->keys as $index => $key) {
@@ -264,7 +274,7 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
     /** @return list<ComponentInterface> */
     private function moduleRows(SettingsTab $tab): array
     {
-        $settings = $this->state->settings();
+        $settings = $this->core->settings();
         $rows = [];
 
         foreach ($tab->settings as $index => $setting) {
@@ -291,7 +301,7 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
      */
     private function moduleListRows(): array
     {
-        $rows = [$this->position($this->state->settings(), SettingKey::StartupModule, $this->cursor->item === 0)];
+        $rows = [$this->position($this->core->settings(), SettingKey::StartupModule, $this->cursor->item === 0)];
         $modules = $this->modules?->declared() ?? [];
 
         if ($modules === []) {
@@ -380,7 +390,7 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
             'settings.restore.confirm',
             [],
             function (): OverlayOutcome {
-                [$settings, $message] = $this->restoreDefaults->execute($this->state->settings());
+                [$settings, $message] = $this->restoreDefaults->execute($this->core->settings());
 
                 $this->state->applySettings($settings);
 
@@ -526,7 +536,7 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
         }
 
         $value = $setting->valueFrom(
-            $this->state->settings()->moduleValue($this->moduleId(), $setting->key),
+            $this->core->settings()->moduleValue($this->moduleId(), $setting->key),
         );
 
         $this->editing = $setting;
@@ -553,7 +563,7 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
 
         if ($key->key === Key::Enter) {
             [$settings, $message] = $this->changeModuleSetting->set(
-                $this->state->settings(),
+                $this->core->settings(),
                 $this->moduleId(),
                 $setting,
                 $input->value(),
@@ -635,7 +645,7 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
             return ScreenOutcome::stay();
         }
 
-        [$settings, $message] = $this->changeSetting->execute($this->state->settings(), $key, $direction);
+        [$settings, $message] = $this->changeSetting->execute($this->core->settings(), $key, $direction);
 
         $this->state->applySettings($settings);
 
@@ -651,7 +661,7 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
         }
 
         [$settings, $message] = $this->changeModuleSetting->shift(
-            $this->state->settings(),
+            $this->core->settings(),
             $moduleId,
             $setting,
             $direction,
@@ -687,7 +697,7 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
         }
 
         [$settings, $message] = $this->changeModuleSetting->enable(
-            $this->state->settings(),
+            $this->core->settings(),
             $module->id(),
             !($this->modules?->isEnabled($module->id()) ?? true),
         );

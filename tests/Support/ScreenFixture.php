@@ -40,6 +40,7 @@ use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Cli\ModuleTicker;
 use LightManager\Presentation\Cli\ProblemPresenter;
 use LightManager\Presentation\Cli\Query\CoreQueries;
+use LightManager\Presentation\Cli\Query\CoreReader;
 use LightManager\Presentation\Cli\Screen\HelpScreen;
 use LightManager\Presentation\Cli\Screen\SettingsScreen;
 use LightManager\Presentation\Cli\ScreenStack;
@@ -266,6 +267,7 @@ final class ScreenFixture
 
         $this->settings = new SettingsScreen(
             $this->state,
+            new CoreReader($this->state->queries()),
             new ChangeSettingUseCase($settingsStore, $themes, $translator, self::startupModules($this->modules)),
             new RestoreDefaultSettingsUseCase($settingsStore, $translator),
             new ChangeModuleSettingUseCase($settingsStore, $translator),

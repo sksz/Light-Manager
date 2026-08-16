@@ -23,7 +23,7 @@ use LightManager\Module\Browser\Presentation\Component\EntrySize;
 use LightManager\Module\Browser\Presentation\Component\EntryTree;
 use LightManager\Module\Browser\Presentation\Component\PathLine;
 use LightManager\Module\Browser\Presentation\Overlay\FilterOverlay;
-use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Cli\Query\CoreReader;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\Split;
@@ -116,7 +116,8 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
     public function __construct(
         private readonly BrowserPanes $panes,
         private readonly BrowserQueries $queries,
-        private readonly LoopState $state,
+        /** Odczyt ustawień rdzenia — przez rejestr kwerend (krok 53, D92 nr 3). */
+        private readonly CoreReader $core,
         private readonly MoveSelectionUseCase $moveSelection,
         private readonly NavigateIntoDirectoryUseCase $navigateInto,
         private readonly NavigateUpUseCase $navigateUp,
@@ -172,7 +173,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
      */
     private function directory(): Directory
     {
-        return $this->queries->directory() ?? $this->panes->focused()->directory();
+        return $this->queries->directory();
     }
 
     private function suffix(): string
@@ -185,7 +186,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
             // W drzewie liczy się **węzły**, nie wpisy katalogu: numer wpisu
             // w korzeniu nie powiedziałby nic o tym, gdzie stoi kursor po
             // rozwinięciu trzech gałęzi.
-            $tree = $this->queries->tree() ?? $this->panes->focusedTree();
+            $tree = $this->queries->treeOf();
             $index = $tree->cursorIndex();
 
             if ($index !== null) {
@@ -270,9 +271,8 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
         $primitives = [];
 
         foreach (Split::halves($zone, $this->axis()) as $index => $bounds) {
-            [$state, ] = $this->panes->pane($index);
             $focused = $this->queries->focusesSecond() === ($index === 1);
-            $path = ($this->queries->directory($index) ?? $state->directory())->path()->value;
+            $path = $this->queries->directory($index)->path()->value;
             $panel = new Panel(
                 Label::fitEnd($path, Panel::labelRoom($bounds)),
                 Role::Border,
@@ -306,11 +306,14 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
      */
     private function pane(int $index, bool $framed): ComponentInterface
     {
-        [$state, $window] = $this->panes->pane($index);
+        // Z paneli bierzemy **wyłącznie okno przewijania**: to stan między
+        // klatkami (reguła 11a), a nie dana — kwerendy go nie niosą i nieść nie
+        // mają. Wszystko, co widać w liście, przychodzi z rejestru.
+        $window = $this->panes->pane($index)[1];
 
         if ($this->queries->showsTree($index)) {
             return new EntryTree(
-                $this->queries->tree($index) ?? $this->panes->tree($index),
+                $this->queries->treeOf($index),
                 $this->translator,
                 $framed,
                 new NameFilter($this->queries->filter($index)),
@@ -318,14 +321,14 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
         }
 
         return new EntryList(
-            $this->queries->directory($index) ?? $state->directory(),
+            $this->queries->directory($index),
             $window,
             $this->translator,
             framed: $framed,
             details: $this->details(),
             header: $this->columnHeader(),
-            filter: $state->filter(),
-            marked: $state->marked(),
+            filter: new NameFilter($this->queries->filter($index)),
+            marked: $this->queries->marked($index),
         );
     }
 
@@ -701,7 +704,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
      */
     private function inTree(KeyPress $key): ScreenOutcome
     {
-        $tree = $this->queries->tree() ?? $this->panes->focusedTree();
+        $tree = $this->queries->treeOf();
 
         return match (true) {
             $key->key === Key::ArrowUp => $this->treeMoved($tree, -1),
@@ -881,7 +884,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
      */
     private function splits(): bool
     {
-        $enabled = BrowserSettings::split($this->state->settings());
+        $enabled = BrowserSettings::split($this->core->settings());
         $this->panes->useSplit($enabled);
 
         return $enabled;
@@ -890,7 +893,7 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
     /** Co robi goły klawisz usuwania — dla opisów w spisie klawiszy (krok 44). */
     private function deletesToTrash(): bool
     {
-        return BrowserSettings::deleteToTrash($this->state->settings());
+        return BrowserSettings::deleteToTrash($this->core->settings());
     }
 
     /**
@@ -902,17 +905,17 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
      */
     private function details(): bool
     {
-        return BrowserSettings::details($this->state->settings());
+        return BrowserSettings::details($this->core->settings());
     }
 
     private function columnHeader(): bool
     {
-        return BrowserSettings::columnHeader($this->state->settings());
+        return BrowserSettings::columnHeader($this->core->settings());
     }
 
     private function axis(): SplitAxis
     {
-        return BrowserSettings::splitVertical($this->state->settings())
+        return BrowserSettings::splitVertical($this->core->settings())
             ? SplitAxis::Vertical
             : SplitAxis::Horizontal;
     }

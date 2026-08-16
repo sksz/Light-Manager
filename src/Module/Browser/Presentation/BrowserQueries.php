@@ -21,16 +21,49 @@ use LightManager\Module\Browser\Presentation\Query\PaneArgument;
  */
 final readonly class BrowserQueries
 {
+    /**
+     * @param BrowserPanes $panes źródło ostatniej szansy — **wyłącznie** na wypadek
+     *                            modułu niezarejestrowanego w rejestrze kwerend
+     */
     public function __construct(
         private QueryRegistry $queries,
+        private BrowserPanes $panes,
     ) {
     }
 
-    public function directory(?int $pane = null): ?Directory
+    /**
+     * Katalog panelu.
+     *
+     * Odpowiedź jest **niepusta**, i to jest różnica warta jednego zdania:
+     * ekran rysuje listę w każdej klatce, więc `?Directory` kazałoby mu trzymać
+     * własną gałąź zapasową — czyli drugą drogę do stanu, dokładnie tę, którą ten
+     * krok znosi. Gałąź zostaje **tutaj**, w jedynym miejscu, któremu wolno znać
+     * obiekt stanu, i pada wyłącznie wtedy, gdy moduł nie został zarejestrowany
+     * w rejestrze kwerend (testy składające go samodzielnie).
+     */
+    public function directory(?int $pane = null): Directory
     {
         $payload = $this->payloadOf('entries', $pane);
 
-        return $payload instanceof Directory ? $payload : null;
+        if ($payload instanceof Directory) {
+            return $payload;
+        }
+
+        return $pane === null
+            ? $this->panes->focused()->directory()
+            : $this->panes->pane($pane)[0]->directory();
+    }
+
+    /** Drzewo panelu — z tą samą gałęzią ostatniej szansy, co katalog. */
+    public function treeOf(?int $pane = null): BrowserTree
+    {
+        $payload = $this->payloadOf('tree', $pane);
+
+        if ($payload instanceof BrowserTree) {
+            return $payload;
+        }
+
+        return $pane === null ? $this->panes->focusedTree() : $this->panes->tree($pane);
     }
 
     public function selection(?int $pane = null): ?Entry
@@ -40,18 +73,64 @@ final readonly class BrowserQueries
         return $payload instanceof Entry ? $payload : null;
     }
 
+    /**
+     * Katalog, na który panel **wskazuje** — a to w drzewie znaczy co innego niż
+     * w liście.
+     *
+     * Lista wskazuje swój własny katalog, drzewo — ten, na którym stoi kursor
+     * gałęzi (krok 31). Różnica jest widoczna dla użytkownika: `browser.open`
+     * w drzewie ma wejść tam, gdzie stoi kursor, a nie do korzenia panelu.
+     * Rachunek stoi **tutaj**, bo tutaj są obie odpowiedzi — obie przyszły
+     * z rejestru: widok z `browser.panes`, gałąź z `browser.tree`.
+     */
+    public function pointedDirectory(?int $pane = null): Directory
+    {
+        return $this->showsTree($pane)
+            ? $this->treeOf($pane)->cursorDirectory()
+            : $this->directory($pane);
+    }
+
+    /**
+     * Katalog i **nazwy**, na które ma zadziałać czynność zmieniająca dysk.
+     *
+     * Jedyne miejsce tej fasady, które **nie liczy nic samo**: reguła pustego
+     * zbioru („nic nie zaznaczono" znaczy „wpis pod kursorem", 15c) stoi od
+     * kroku 43 w `BrowserPanes::focusedOperands()` i tam ma zostać — policzona
+     * drugi raz tutaj rozjechałaby się z tamtą przy pierwszym widoku, który
+     * dojdzie po drzewie. Fasada jest po to, żeby czynności nie sięgały po nią
+     * przez stan; sam rachunek zostaje u siebie.
+     *
+     * @return ?array{Directory, list<string>}
+     */
+    public function operands(): ?array
+    {
+        return $this->panes->focusedOperands();
+    }
+
+    /**
+     * Katalog i wpis, na który panel wskazuje — para, na której pracują
+     * czynności zmieniające dysk.
+     *
+     * Chodzą razem, bo czynność potrzebuje obu naraz: wpisu, żeby wiedzieć, na
+     * czym działa, i katalogu, żeby wiedzieć gdzie. Pytanie o nie osobno mogłoby
+     * trafić na dwie różne chwile — kursor przewija się trzydzieści razy na
+     * sekundę.
+     *
+     * @return ?array{Directory, Entry}
+     */
+    public function operandsOf(?int $pane = null): ?array
+    {
+        $directory = $this->pointedDirectory($pane);
+        $entry = $directory->selectedEntry();
+
+        return $entry === null ? null : [$directory, $entry];
+    }
+
     public function marked(?int $pane = null): MarkedEntries
     {
         $payload = $this->payloadOf('marked', $pane);
 
         return $payload instanceof MarkedEntries ? $payload : new MarkedEntries();
-    }
-
-    public function tree(?int $pane = null): ?BrowserTree
-    {
-        $payload = $this->payloadOf('tree', $pane);
-
-        return $payload instanceof BrowserTree ? $payload : null;
     }
 
     /** Czy panel pokazuje drzewo zamiast listy — z wiersza `browser.panes`. */

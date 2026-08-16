@@ -9,6 +9,7 @@ use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\Browser\Application\BrowserSettings;
 use LightManager\Module\Browser\Application\UseCase\ReloadDirectoryUseCase;
 use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Cli\Query\CoreReader;
 
 /**
  * Przełączenie widoczności wpisów ukrytych — czynność, do której prowadzą **dwa
@@ -33,6 +34,10 @@ final class HiddenEntries
 {
     public function __construct(
         private readonly BrowserPanes $panes,
+        /** Odczyt danych przeglądarki — przez rejestr kwerend (krok 53, D92 nr 3). */
+        private readonly BrowserQueries $queries,
+        /** Odczyt ustawień rdzenia — przez rejestr kwerend (krok 53, D92 nr 3). */
+        private readonly CoreReader $core,
         private readonly ReloadDirectoryUseCase $reload,
         private readonly ChangeModuleSettingUseCase $changeSetting,
         private readonly LoopState $state,
@@ -51,14 +56,14 @@ final class HiddenEntries
      */
     public function flip(): ?Message
     {
-        $show = !$this->panes->focused()->showsHiddenEntries();
+        $show = !$this->queries->showsHidden();
 
         foreach ($this->panes->all() as $pane) {
             $pane->enter($this->reload->execute($pane->directory(), $show));
         }
 
         [$settings, $message] = $this->changeSetting->shift(
-            $this->state->settings(),
+            $this->core->settings(),
             BrowserSettings::ID,
             BrowserSettings::declaration(),
             1,

@@ -60,6 +60,7 @@ use LightManager\Presentation\Cli\Command\QuitCommand;
 use LightManager\Presentation\Cli\Command\ScreenCommand;
 use LightManager\Presentation\Cli\Command\SettingCommand;
 use LightManager\Presentation\Cli\Query\CoreQueries;
+use LightManager\Presentation\Cli\Query\CoreReader;
 use LightManager\Presentation\Cli\Screen\HelpScreen;
 use LightManager\Presentation\Cli\Screen\SettingsScreen;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
@@ -189,17 +190,27 @@ final class Bootstrap
         // oddaje **przyjęte**, dokładnie jak przy takcie.
         $state->events()->useModules($modules->accepted());
 
-        // Oba okna rejestru komend powstają **przed ekranami** od kroku 53:
-        // kwerendy rdzenia potrzebują gotowego rejestru komend (`core.commands`),
-        // a ekrany potrzebują gotowego rejestru kwerend, bo czytają przez niego
-        // wszystko, co pokazują. Do tego kroku kolejność była odwrotna i nic od
-        // niej nie zależało.
-        [$commands, $menu, $registry] = self::createCommandWindows($state, $settings, $translator, $modules);
+        // Kolejność od kroku 53 jest wymuszona **w trzech miejscach naraz** i każde
+        // z nich wynika z tego samego: rejestr kwerend jest jedyną drogą odczytu,
+        // więc musi stać, zanim ktokolwiek zacznie czytać.
+        //
+        // 1. Rejestr komend powstaje **pusty**, bo kwerenda `core.commands` bierze
+        //    go obiektem — komendy dopisane później są w nim widoczne same z siebie.
+        // 2. Kwerendy rdzenia wchodzą **przed modułami**, bo moduł składa się
+        //    czytając ustawienia (przeglądarka otwiera katalog startowy wedle
+        //    klucza `showHiddenEntries`), a czyta je przez `CoreReader`.
+        // 3. Kwerendy modułów wchodzą **przed oknami komend**, bo `prepare()`
+        //    liczy podpowiedzi stałe raz i już się nie odświeży.
+        $registry = new CommandRegistry();
         self::registerQueries($state, $modules, $registry);
+        $state->queries()->useModules($modules->accepted());
+
+        [$commands, $menu] = self::createCommandWindows($state, $settings, $translator, $modules, $registry);
         $commands->prepare();
 
         $settingsScreen = new SettingsScreen(
             $state,
+            new CoreReader($state->queries()),
             new ChangeSettingUseCase(
                 $settings,
                 ThemeService::getInstance(),
@@ -598,17 +609,17 @@ final class Bootstrap
      * się nie odświeżą. Komendy zmieniające ustawienia dostają stan pętli, żeby
      * zmiana obowiązywała od następnej klatki, a nie od następnego uruchomienia.
      *
-     * @return array{CommandOverlay, MenuOverlay, CommandRegistry}
+     * @return array{CommandOverlay, MenuOverlay}
      */
     private static function createCommandWindows(
         LoopState $state,
         SettingsService $settings,
         TranslatorService $translator,
         ModuleRegistry $modules,
+        CommandRegistry $registry,
     ): array {
         $themes = ThemeService::getInstance();
         $change = new ChangeSettingUseCase($settings, $themes, $translator, self::startupModules($modules));
-        $registry = new CommandRegistry();
 
         $core = [
             new ScreenCommand('core.help', 'help'),
@@ -659,20 +670,18 @@ final class Bootstrap
         // raz i już się nie odświeżą, a rejestr kwerend jest w tej chwili pusty —
         // wypełnia go `registerQueries()` linijkę dalej. Wywołanie zostało więc
         // przeniesione za nie, do `createGameLoop()`.
-        return [$overlay, new MenuOverlay($registry, $translator, $state->events()), $registry];
+        return [$overlay, new MenuOverlay($registry, $translator, $state->events())];
     }
 
     /**
-     * Rejestr kwerend: trzynaście źródeł rdzenia i kwerendy modułów przyjętych
-     * (krok 53).
+     * Trzynaście źródeł danych rdzenia (krok 53).
      *
-     * Moduły wchodzą **jedną linią**, wzorem `EventRegistry::useModules()` — więc
-     * reguła 15 zostaje policzona tak samo, jak przy zdarzeniach: dopisanie
-     * kwerend do modułu kosztuje w rdzeniu zero. Kwerendy rdzenia mają za to
-     * kolejność wymuszoną **w drugą stronę** niż wszystko inne w tej klasie:
-     * `core.commands` potrzebuje gotowego rejestru komend, a `core.queries` —
-     * rejestru, do którego właśnie jest dopisywana. To drugie jest bezpieczne,
-     * bo spis czyta się dopiero przy pytaniu, a nie przy dopisywaniu.
+     * Rejestr komend przychodzi tu **pusty** i to jest w porządku: kwerenda
+     * `core.commands` trzyma go obiektem, a spis czyta dopiero przy pytaniu —
+     * tak samo `core.queries`, dopisywana do rejestru, który właśnie wypełnia.
+     * Moduły wchodzą osobną linią w `createGameLoop()`, wzorem
+     * `EventRegistry::useModules()`: dopisanie kwerend do modułu kosztuje
+     * w rdzeniu zero.
      */
     private static function registerQueries(
         LoopState $state,
@@ -691,7 +700,6 @@ final class Bootstrap
             self::VERSION,
         ));
 
-        $queries->useModules($modules->accepted());
     }
 
     /**

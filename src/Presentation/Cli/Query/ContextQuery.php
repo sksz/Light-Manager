@@ -8,6 +8,7 @@ use LightManager\Application\Command\CommandInput;
 use LightManager\Application\Module\ModuleContext;
 use LightManager\Application\Query\Generation;
 use LightManager\Application\Query\QueryInterface;
+use LightManager\Application\Query\QueryRegistry;
 use LightManager\Application\Query\QueryResult;
 use LightManager\Presentation\Cli\LoopState;
 
@@ -65,7 +66,11 @@ final class ContextQuery implements QueryInterface
     {
         $context = $this->state->context();
 
-        return QueryResult::lazy(static fn (): array => [self::describe($context)]);
+        return QueryResult::owned(
+            QueryRegistry::CORE,
+            $context,
+            static fn (): array => [self::describe($context)],
+        );
     }
 
     /** @return array<string, string|int|bool> */

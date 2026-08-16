@@ -5782,7 +5782,7 @@ poza MVP" i wejdzie osobno, jeśli okaże się potrzebny.
 
 **Dotyczy:** kroków 51 ([51-modul-docker.md](archiwum/51-modul-docker.md)),
 52 ([52-modul-kubernetes.md](archiwum/52-modul-kubernetes.md)) i
-53 ([53-kwerendy-miedzymodulowe.md](53-kwerendy-miedzymodulowe.md)); nowych
+53 ([53-kwerendy-miedzymodulowe.md](archiwum/53-kwerendy-miedzymodulowe.md)); nowych
 katalogów `src/Module/Docker/`, `src/Module/Kubernetes/` i `src/Application/Query/`,
 **zmiany kontraktu `Application\Port\BackgroundProcessPort`**, trzech linii
 w `Presentation/Cli/Bootstrap.php`, pola `suggest` w `composer.json` oraz reguł
@@ -5918,7 +5918,7 @@ dwa kroki dowoziłyby wtedy mechanizm bez odbiorcy, wbrew regule 13.
 
 ### D86 — Kwerendy dostają wszystkie moduły, a odbiorcą tych bez konsumenta w kodzie zostaje użytkownik
 
-**Dotyczy:** kroku 53 ([53-kwerendy-miedzymodulowe.md](53-kwerendy-miedzymodulowe.md));
+**Dotyczy:** kroku 53 ([53-kwerendy-miedzymodulowe.md](archiwum/53-kwerendy-miedzymodulowe.md));
 katalogów `src/Module/Browser/`, `src/Module/FileInfo/` i `src/Module/Audio/`
 wraz z ich `lang/`; okna kwerend w `src/Presentation/Ui/Overlay/`; reguły 15
 w [SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md).
@@ -6789,7 +6789,7 @@ w środku jest nieodwracalny.
 
 ### D92 — Kwerendy obejmują wszystkie źródła danych rdzenia i sześciu modułów, rejestr staje się jedyną drogą odczytu, a krok pęka na dwa
 
-**Dotyczy:** kroku 53 ([53-kwerendy-miedzymodulowe.md](53-kwerendy-miedzymodulowe.md))
+**Dotyczy:** kroku 53 ([53-kwerendy-miedzymodulowe.md](archiwum/53-kwerendy-miedzymodulowe.md))
 i **nowego kroku 54** ([54-kwerendy-modulow-kontenerowych.md](54-kwerendy-modulow-kontenerowych.md));
 nowego katalogu `src/Application/Query/`, zdolności
 `Application\Module\ProvidesQueries`, dwóch linii w `Presentation/Cli/Bootstrap.php`
@@ -6933,3 +6933,75 @@ osobne, z własnym klawiszem** — pełny prostokąt na tabelę wyniku, ale trzy
 wejścia i ponowny rachunek modelu; **okno osobne bez klawisza** (otwierane
 komendą i pozycją menu) — bez zmiany słownika wejścia, ale z własnym scenariuszem
 pomiarowym.
+
+## Decyzje z realizacji kroku 53 (2026-08-16)
+
+### D93 — Trzy poprawki, których nie było w planie: pamięć ulotna wycofana, czas i rozmiar wracają dla oka
+
+**Dotyczy:** kroku 53 ([archiwum/53-kwerendy-miedzymodulowe.md](archiwum/53-kwerendy-miedzymodulowe.md)),
+klas `Application\Query\QueryRegistry`, `QueryInterface`, `Presentation\Cli\LoopState`
+oraz `Module\Browser\Presentation\Query\EntriesQuery`; przez rozstrzygnięcie nr 4
+także `Presentation\Cli\Query\CoreReader` i wszystkich klas czynności modułu
+przeglądarki.
+
+**Data:** 2026-08-16, w trakcie realizacji — trzy pierwsze rozstrzygnięcia zapadły
+przy odbiorze klatki i przy zielonym teście, czwarte przy pytaniu użytkownika
+„czy można zarchiwizować krok".
+
+**Rozstrzygnięcia:**
+
+1. **Kwerendy `VOLATILE` nie są pamiętane w ogóle — i wykrył to test, nie
+   przegląd.** Pierwsza wersja routingu pamiętała ich odpowiedź **na jedną
+   klatkę** (rejestr znał numer taktu z `LoopState`), co wyglądało na oszczędność
+   bez wady. Wadę pokazał `AudioModuleTest::testMusicCommandIsAToggle`: komenda
+   `audio.music` czyta stan grania, **zatrzymuje muzykę** i przy następnym
+   wywołaniu czyta znowu — a przy pamięci na klatkę drugi odczyt oddawał stan
+   sprzed pauzy, więc przełącznik wznawiał utwór zamiast go zatrzymać. Reguła
+   ogólna z tej pomyłki: **pamięć wyniku wolno trzymać wyłącznie tam, gdzie
+   źródło umie powiedzieć, że się zmieniło.** Gdzie nie umie — liczy się za
+   każdym razem, a tanie ma być samo pytanie. `LoopState` stracił przy tym
+   licznik klatek, bo przestał mieć odbiorcę (reguła 13 działa też wstecz).
+2. **Czas w wierszach kwerendy jest napisem dla oka.** `browser.entries` oddawało
+   `modified` w sekundach epoki (`1786266864`) — daną pierwotną w najczystszej
+   postaci i **nieczytelną dla człowieka**, który ogląda ją w oknie kwerend.
+   Po dwóch poprawkach zapis brzmi `2026-08-09 09:14:24`: bez przesunięcia strefy
+   i **bez litery `T`**, czyli dokładnie tak, jak podaje czas kolumna „Zmieniony"
+   na liście wpisów. Zasada, która z tego zostaje: **jedna aplikacja mówi
+   o czasie jednym głosem** — a kwerenda nie jest wyjątkiem tylko dlatego, że jej
+   drugim odbiorcą jest program.
+3. **Rozmiar także.** Pole `bytes` (`80847`) zamieniło się w `size` (`79,0 kB`),
+   liczone **`EntrySize`** — tą samą klasą, którą podają rozmiar lista wpisów
+   i drzewo (krok 31). Katalog oddaje pusty napis, a nie `0 B`, bo jego zajętości
+   nie zna nikt poza `du` (krok 26). **Cena obu poprawek jest zapisana i jest
+   realna**: napisu z jednostką nie da się porównać liczbowo, więc moduł szukający
+   „plików większych niż gigabajt" nie zrobi tego wierszem tej kwerendy. Przy
+   czasie porządek leksykograficzny ocalał, przy rozmiarze — nie. Pole liczbowe
+   dojdzie wtedy, gdy zjawi się odbiorca, który go potrzebuje, a nie na zapas.
+4. **Rdzeń przestał być zwolniony z własnej reguły.** Do tego rozstrzygnięcia
+   „rejestr jedyną drogą odczytu" obowiązywało moduły, a `SettingsScreen` czytał
+   ustawienia wprost ze stanu pętli — czyli regułę ustanowiono dla wszystkich
+   poza tym, kto ją ustanowił. Powstał `CoreReader` (czwarta fasada), a wraz
+   z nim **test-strażnik** `QueryIsTheOnlyReadPathTest`, który znalazł **piętnaście
+   odczytów z pominięciem rejestru** — w komendach, w klasach czynności i w samym
+   ekranie przeglądarki. Wszystkie zostały przepięte.
+
+**Co z tego wynika — i czego pilnują testy:**
+
+- **Test-strażnik wymienia zakazane wyrażenia z nazwy, a nie wzorcem**, bo granica
+  biegnie po **znaczeniu** metody: `focused()->enter()` jest czynnością i wolno je
+  wołać, `focused()->directory()` jest odczytem i nie wolno. Każda pozycja spisu
+  mówi, czym ją zastąpić — zakaz bez drogi wyjścia byłby zakazem nie do spełnienia.
+- **Fasada jest jedna na moduł** i to ona, a nie ekran, zna obiekt stanu. Dwa
+  miejsca rozpakowujące ładunek znaczyłyby dwie prawdy o tym, co jest w panelu.
+- **Trzy rachunki wróciły do jednego miejsca** przy okazji przepinania:
+  „drzewo zbioru nie widzi" (D80 nr 9) do `BrowserPanes::markedOf()`, „katalog
+  wskazywany" do `BrowserQueries::pointedDirectory()`, a reguła pustego zbioru
+  (15c) **została** w `BrowserPanes::focusedOperands()` i fasada wyłącznie ją
+  podaje — bo policzona drugi raz rozjechałaby się z pierwszą.
+- **Dwie zależności wypadły jako nieużywane**: `EntryOperations` i `EntryTrash`
+  przestały dotykać paneli w ogóle, a `BrowserScreen` i `EntryTrash` — stanu
+  pętli. Wykrył to PHPStan, nie przegląd.
+- **Kolejność w `Bootstrapie` jest odtąd wymuszona w trzech miejscach naraz**:
+  rejestr komend powstaje pusty (kwerenda trzyma go obiektem), kwerendy rdzenia
+  wchodzą **przed** modułami (moduł składa się, czytając ustawienia), a kwerendy
+  modułów — **przed** oknem komend (`prepare()` liczy podpowiedzi raz).

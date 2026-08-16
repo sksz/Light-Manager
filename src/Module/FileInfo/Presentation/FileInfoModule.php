@@ -35,6 +35,7 @@ use LightManager\Module\FileInfo\Presentation\Query\DescriptionQuery;
 use LightManager\Module\FileInfo\Presentation\Query\DiskUsageQuery;
 use LightManager\Module\FileInfo\Presentation\Query\PreviewQuery;
 use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Cli\Query\CoreReader;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
 use LightManager\Presentation\Ui\ScreenInterface;
@@ -199,6 +200,7 @@ final class FileInfoModule implements
             $state,
             new PreviewPane($state, $this->reader(), $this->translator),
             $this->reader(),
+            new CoreReader($this->state->queries()),
             $this->translator,
         );
     }

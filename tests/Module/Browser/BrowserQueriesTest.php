@@ -12,7 +12,6 @@ use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
 use LightManager\Module\Browser\Domain\ValueObject\Entry;
 use LightManager\Module\Browser\Domain\ValueObject\MarkedEntries;
 use LightManager\Module\Browser\Presentation\BrowserModule;
-use LightManager\Module\Browser\Presentation\BrowserQueries;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Tests\Support\InMemoryDirectoryRepository;
 use LightManager\Tests\Support\InMemorySettings;
@@ -139,11 +138,10 @@ final class BrowserQueriesTest extends TestCase
     /** Właściciel dostaje katalog obiektem, a nie wierszami. */
     public function testTheOwnerGetsTheDirectoryItself(): void
     {
-        $reader = new BrowserQueries($this->queries);
-        $directory = $reader->directory();
+        $payload = $this->queries->ask(BrowserSettings::ID . '.entries')->payloadFor(BrowserSettings::ID);
 
-        self::assertInstanceOf(Directory::class, $directory);
-        self::assertSame('/home', $directory->path()->value);
+        self::assertInstanceOf(Directory::class, $payload);
+        self::assertSame('/home', $payload->path()->value);
     }
 
     /** Obcy modułowi ładunek nie przysługuje — zostają mu wiersze. */

@@ -18,6 +18,7 @@ use LightManager\Module\Browser\Application\BrowserSettings;
 use LightManager\Module\Browser\Domain\Repository\DirectoryRepositoryInterface;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
 use LightManager\Module\Browser\Presentation\BrowserPanes;
+use LightManager\Module\Browser\Presentation\BrowserQueries;
 
 /**
  * `browser.jump <ścieżka>` — skok do wskazanego katalogu.
@@ -47,6 +48,8 @@ final class JumpCommand implements CommandInterface, SuggestsArguments
 
     public function __construct(
         private readonly BrowserPanes $panes,
+        /** Odczyt danych przeglądarki — przez rejestr kwerend (krok 53, D92 nr 3). */
+        private readonly BrowserQueries $queries,
         private readonly DirectoryRepositoryInterface $directories,
         private readonly TranslatorPort $translator,
     ) {
@@ -86,7 +89,7 @@ final class JumpCommand implements CommandInterface, SuggestsArguments
         try {
             $directory = $this->directories->get(
                 $this->resolved($value),
-                $this->panes->focused()->showsHiddenEntries(),
+                $this->queries->showsHidden(),
             );
         } catch (DomainException) {
             return CommandOutcome::stay(Message::error($this->translator->translate(
@@ -153,6 +156,6 @@ final class JumpCommand implements CommandInterface, SuggestsArguments
      */
     private function resolved(string $value): DirectoryPath
     {
-        return DirectoryPath::resolvedFrom($value, $this->panes->focused()->directory()->path());
+        return DirectoryPath::resolvedFrom($value, $this->queries->directory()->path());
     }
 }

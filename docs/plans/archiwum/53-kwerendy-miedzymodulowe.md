@@ -1,19 +1,19 @@
 # Krok 53 — Kwerendy: mechanizm, okno i wszystkie źródła danych rdzenia oraz trzech modułów
 
 > **Skąd ten krok.** Powstał 2026-08-15 razem z krokami 51 i 52, jako ostatnia
-> trzecia Fazy XVIII ([00-decyzje.md](00-decyzje.md), D85). To on jest powodem,
+> trzecia Fazy XVIII ([00-decyzje.md](../00-decyzje.md), D85). To on jest powodem,
 > dla którego faza ma trzy kroki, a nie dwa: **moduły mają się wzajemnie
 > używać**, a reguła 15 mówi, że moduł nigdy nie sięga do innego modułu.
 
 > **Uzupełniony 2026-08-15, tego samego dnia i przed pierwszą linią kodu**
-> ([00-decyzje.md](00-decyzje.md), D86). W pierwotnym brzmieniu krok wnosił
+> ([00-decyzje.md](../00-decyzje.md), D86). W pierwotnym brzmieniu krok wnosił
 > mechanizm rdzenia o zasięgu na wszystkie moduły, ale kwerendy dawał **wyłącznie
 > dwóm modułom, które sam dopiero powołuje**. Rozstrzygnięciem użytkownika
 > kwerendy dostały także `browser`, `file-info` i `audio`, a odbiorcą tych bez
 > konsumenta w kodzie został **użytkownik** — czyli krok dowozi **okno kwerend**.
 
 > **Rozszerzony i podzielony 2026-08-16, na starcie kroku**
-> ([00-decyzje.md](00-decyzje.md), D92). Trzecie rozszerzenie tego samego kroku
+> ([00-decyzje.md](../00-decyzje.md), D92). Trzecie rozszerzenie tego samego kroku
 > i najszersze z nich: kwerendę dostaje **wszystko, co da się przeczytać** —
 > rdzeń wraz z własnym samoopisem i **sześć** modułów, a nie trzy. Rejestr
 > kwerend przestaje przy tym być kanałem między modułami i staje się **jedyną
@@ -21,11 +21,12 @@
 > Ciężar tego rozstrzygnięcia kazał krok podzielić: **tutaj zostaje mechanizm,
 > okno, rdzeń i trzy moduły sprzed Fazy XVIII**, a kwerendy `ssh`, `docker`
 > i `k8s` wraz z czynnością `k8s.deploy-image` przechodzą do
-> [kroku 54](54-kwerendy-modulow-kontenerowych.md).
+> [kroku 54](../54-kwerendy-modulow-kontenerowych.md).
 
 ## Status
 
-**W toku** (rozpoczęty 2026-08-16).
+**Ukończony** (2026-08-16). Rozstrzygnięcia startowe: [00-decyzje.md](../00-decyzje.md),
+D92; poprawki z realizacji: D93.
 
 ## Cel
 
@@ -261,7 +262,7 @@ opisem z obu katalogów napisów ma się zmieścić, a pilnuje tego test czytaj�
 ## Poza zakresem
 
 - **Kwerendy `ssh`, `docker` i `k8s` oraz czynność `k8s.deploy-image`** —
-  [krok 54](54-kwerendy-modulow-kontenerowych.md).
+  [krok 54](../54-kwerendy-modulow-kontenerowych.md).
 - **Kwerendy zmieniające cokolwiek** — to są komendy (reguła nr 1).
 - **Kwerendy asynchroniczne, kolejki, obietnice** — kwerenda odpowiada w klatce
   albo oddaje stan pracy.
@@ -422,9 +423,40 @@ i `core.context` (`selectionBytes`, `selectionModifiedAt`) — **zostają danymi
 surowymi**: nie były przedmiotem rozstrzygnięcia, a zmiana ich kontraktu przy
 okazji byłaby zmianą na zapas.
 
-**Czego nadal nie ma.**
+### Domknięcie: rdzeń przestał być zwolniony z własnej reguły
 
-- **Kryterium „żaden ekran nie czyta stanu z pominięciem rejestru" nie ma
-  strażnika w postaci testu** — pilnuje go dziś przegląd i typy fasad. Test
-  mechaniczny wymagałby rozdzielenia stanu na część czytaną i zmieniającą
-  (osobny interfejs czynności), co jest zmianą wykraczającą poza ten krok.
+Przy pytaniu o archiwizację wyszło, że jedno kryterium nie jest spełnione:
+„rejestr jedyną drogą odczytu **także wewnątrz rdzenia**" obowiązywało moduły,
+a `SettingsScreen` czytał ustawienia wprost ze stanu pętli — nikt nie sprawdzał
+tego maszynowo, bo strażnika nie było. Domknięcie (D93 nr 4):
+
+- **`CoreReader`** — czwarta fasada, dla rdzenia; `core.settings` i `core.context`
+  oddają odtąd **ładunek typowany** (`Settings`, `ModuleContext`), więc ekran
+  ustawień dostaje obiekt, a nie wiersze napisów;
+- **`QueryIsTheOnlyReadPathTest`** — strażnik, który wymienia zakazane wyrażenia
+  z nazwy i mówi, czym każde zastąpić. Uruchomiony pierwszy raz znalazł
+  **piętnaście odczytów z pominięciem rejestru**: w `OpenCommand`, `JumpCommand`,
+  `VolumeCommand`, `EntryOperations`, `EntryTransfer`, `EntryTrash`,
+  `HiddenEntries`, `BrowserModule`, `BrowserScreen` i `FileInfoScreen`. Wszystkie
+  przepięte;
+- **trzy rachunki wróciły do jednego miejsca**: „drzewo zbioru nie widzi" do
+  `BrowserPanes::markedOf()`, „katalog wskazywany" (lista vs. drzewo) do
+  `BrowserQueries::pointedDirectory()`, a reguła pustego zbioru **została**
+  w `BrowserPanes::focusedOperands()`, którą fasada wyłącznie podaje;
+- **dwie zależności wypadły** jako nieużywane — `EntryOperations` i `EntryTrash`
+  nie dotykają już paneli, `BrowserScreen` i `EntryTrash` nie dotykają stanu
+  pętli. Wykrył to PHPStan;
+- **kolejność w `Bootstrapie`** jest odtąd wymuszona trzy razy: pusty rejestr
+  komend → kwerendy rdzenia → moduły → okna komend. Powód każdego kroku stoi
+  w komentarzu przy kodzie.
+
+Sprawdzone po zmianie w prawdziwej klatce: ekran ustawień czyta wartości przez
+rejestr, a zmiana języka strzałką przestawia **cały interfejs w następnej
+klatce** — czyli odczyt po zapisie w tej samej klatce działa (to jest ta sama
+pułapka, która wywróciła pamięć kwerend ulotnych, tylko od drugiej strony).
+
+Pomiar powtórzony po domknięciu: **+2,4% / +3,5%** wobec wzorca sprzed niego,
+przy porównywalnym obciążeniu maszyny (0,16 wobec 0,17 na rdzeń) — poniżej progu
+i w granicach rozrzutu taktu kosztującego 0,1 ms. Wzorzec
+`2026-08-16-po-kroku-53-loop.json` zapisany z ostatniego przebiegu, czyli
+z kodem, który poszedł do archiwum.

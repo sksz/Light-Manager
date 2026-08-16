@@ -118,6 +118,8 @@ final class EntryTransfer
 
     public function __construct(
         private readonly BrowserPanes $panes,
+        /** Odczyt danych przeglądarki — przez rejestr kwerend (krok 53, D92 nr 3). */
+        private readonly BrowserQueries $queries,
         private readonly FileTransferPort $transfers,
         private readonly PaneRefresh $refresh,
         private readonly TranslatorPort $translator,
@@ -152,7 +154,7 @@ final class EntryTransfer
 
     private function request(bool $moves, ?string $path): OverlayOutcome
     {
-        $operands = $this->panes->focusedOperands();
+        $operands = $this->queries->operands();
 
         if ($operands === null) {
             return OverlayOutcome::close($this->info('module.browser.problem.noSelection'));
@@ -211,7 +213,7 @@ final class EntryTransfer
      */
     private function start(bool $moves, string $value): OverlayOutcome
     {
-        $operands = $this->panes->focusedOperands();
+        $operands = $this->queries->operands();
 
         if ($operands === null) {
             return OverlayOutcome::close($this->info('module.browser.problem.noSelection'));
@@ -578,7 +580,7 @@ final class EntryTransfer
     {
         [$first, $second] = $this->panes->all();
 
-        return ($this->panes->focusesSecond() ? $first : $second)->directory()->path();
+        return ($this->queries->focusesSecond() ? $first : $second)->directory()->path();
     }
 
     /**

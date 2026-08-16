@@ -4,8 +4,8 @@
         "php": "8.3.11",
         "imageMagick": "ImageMagick 6.9.12-98 Q16 x86_64 18038 https://legacy.imagemagick.org",
         "font": "DejaVu-Sans-Mono",
-        "recordedAt": "2026-08-16T10:39:11+00:00",
-        "loadPerCore": 0.16
+        "recordedAt": "2026-08-16T11:26:26+00:00",
+        "loadPerCore": 0.15
     },
     "options": {
         "widthPixels": 1000,
@@ -23,23 +23,23 @@
     },
     "scenarios": {
         "background": {
-            "draw": 0.006,
-            "quantize": 0,
-            "encode": 0.078,
-            "total": 0.085,
+            "draw": 0.007,
+            "quantize": 0.001,
+            "encode": 0.082,
+            "total": 0.091,
             "bytes": 83,
             "unstable": false,
-            "cold": 0.471,
+            "cold": 0.533,
             "peakBytes": 4194304
         },
         "background-many": {
-            "draw": 0.038,
-            "quantize": 0,
-            "encode": 0.079,
-            "total": 0.117,
+            "draw": 0.039,
+            "quantize": 0.001,
+            "encode": 0.081,
+            "total": 0.121,
             "bytes": 83,
             "unstable": false,
-            "cold": 0.177,
+            "cold": 0.277,
             "peakBytes": 4194304
         }
     },

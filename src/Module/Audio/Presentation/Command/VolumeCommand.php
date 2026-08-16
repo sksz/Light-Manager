@@ -17,6 +17,7 @@ use LightManager\Module\Audio\Application\AudioSettings;
 use LightManager\Module\Audio\Application\Port\AudioPort;
 use LightManager\Module\Audio\Application\UseCase\ChangeVolumeUseCase;
 use LightManager\Presentation\Cli\LoopState;
+use LightManager\Presentation\Cli\Query\CoreReader;
 
 /**
  * `audio.volume <0–100>` — głośność muzyki (krok 36).
@@ -45,6 +46,8 @@ final class VolumeCommand implements CommandInterface, SuggestsArguments
         private readonly AudioPort $audio,
         private readonly ChangeVolumeUseCase $changeVolume,
         private readonly LoopState $state,
+        /** Odczyt ustawień rdzenia — przez rejestr kwerend (krok 53, D92 nr 3). */
+        private readonly CoreReader $core,
         private readonly TranslatorPort $translator,
     ) {
     }
@@ -92,7 +95,7 @@ final class VolumeCommand implements CommandInterface, SuggestsArguments
             ])));
         }
 
-        [$settings, $problem] = $this->changeVolume->execute($this->state->settings(), $level);
+        [$settings, $problem] = $this->changeVolume->execute($this->core->settings(), $level);
 
         $this->state->applySettings($settings);
         $this->audio->useVolume($level);

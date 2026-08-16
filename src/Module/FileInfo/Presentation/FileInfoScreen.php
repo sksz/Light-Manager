@@ -18,6 +18,7 @@ use LightManager\Module\FileInfo\Application\Dto\DiskUsageStage;
 use LightManager\Module\FileInfo\Application\Dto\EntryKind;
 use LightManager\Module\FileInfo\Application\SizeText;
 use LightManager\Module\FileInfo\Presentation\Component\PreviewPane;
+use LightManager\Presentation\Cli\Query\CoreReader;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\ListRow;
 use LightManager\Presentation\Ui\Component\Panel;
@@ -126,6 +127,8 @@ final class FileInfoScreen implements
         private readonly FileInfoState $state,
         private readonly PreviewPane $preview,
         private readonly FileInfoQueries $queries,
+        /** Odczyt ustawień rdzenia — przez rejestr kwerend (krok 53, D92 nr 3). */
+        private readonly CoreReader $core,
         private readonly TranslatorPort $translator,
     ) {
         $this->window = new ScrollWindow();
@@ -163,7 +166,7 @@ final class FileInfoScreen implements
      */
     public function header(): ScreenZone
     {
-        $context = $this->state->context();
+        $context = $this->core->context();
 
         if (!$context->hasMarked()) {
             return new ScreenZone('layout.zone.path', new Label($context->path));
