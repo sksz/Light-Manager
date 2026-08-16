@@ -5781,7 +5781,7 @@ poza MVP" i wejdzie osobno, jeśli okaże się potrzebny.
 ### D85 — Kontenery wchodzą jako Faza XVIII: dwa moduły, droga mieszana, a współpracę niosą komendy i nowe kwerendy
 
 **Dotyczy:** kroków 51 ([51-modul-docker.md](archiwum/51-modul-docker.md)),
-52 ([52-modul-kubernetes.md](52-modul-kubernetes.md)) i
+52 ([52-modul-kubernetes.md](archiwum/52-modul-kubernetes.md)) i
 53 ([53-kwerendy-miedzymodulowe.md](53-kwerendy-miedzymodulowe.md)); nowych
 katalogów `src/Module/Docker/`, `src/Module/Kubernetes/` i `src/Application/Query/`,
 **zmiany kontraktu `Application\Port\BackgroundProcessPort`**, trzech linii
@@ -6622,7 +6622,7 @@ dwóch.
 
 ### D91 — Rozstrzygnięcia startowe kroku 52: wszystkie rodzaje zasobów w drzewie, a sekret daje się zmienić
 
-**Dotyczy:** kroku 52 ([52-modul-kubernetes.md](52-modul-kubernetes.md)), nowego
+**Dotyczy:** kroku 52 ([52-modul-kubernetes.md](archiwum/52-modul-kubernetes.md)), nowego
 katalogu `src/Module/Kubernetes/`, jednej linii w
 `Presentation/Cli/Bootstrap.php`, [SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md),
 [docs/architecture.md](../architecture.md) i [docs/pomiary/README.md](../pomiary/README.md).

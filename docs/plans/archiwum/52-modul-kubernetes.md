@@ -1,7 +1,7 @@
 # Krok 52 — Moduł `k8s`: konteksty, zasoby klastra i logi
 
 > **Skąd ten krok.** Powstał 2026-08-15 razem z krokami 51 i 53 jako środkowa
-> trzecia Fazy XVIII ([00-decyzje.md](00-decyzje.md), D85). Mechanizmu rdzenia
+> trzecia Fazy XVIII ([00-decyzje.md](../00-decyzje.md), D85). Mechanizmu rdzenia
 > **nie rusza żadnego** — i to jest jego główna właściwość: bierze port
 > rozbudowany w kroku 51 i sprawdza, czy tamta zmiana wystarczy komuś, kto przy
 > niej nie stał.
@@ -9,7 +9,7 @@
 ## Status
 
 **Ukończony z zastrzeżeniem** (2026-08-16). Rozstrzygnięcia startowe zapadły
-przed pierwszą linią kodu ([00-decyzje.md](00-decyzje.md), **D91**), sprawdzenie
+przed pierwszą linią kodu ([00-decyzje.md](../00-decyzje.md), **D91**), sprawdzenie
 poszło na żywym minikube, a pomiar `--loop` — na maszynie z zatrzymanym klastrem.
 
 **Zastrzeżenie jest jedno i dotyczy rdzenia**: plan zapowiadał, że krok „nie
@@ -184,7 +184,7 @@ w jednym miejscu (reguła 11n: czynność o dwóch wejściach mieszka raz).
 
 Oś `--loop` „przed i po”. Scenariusza klatki krok nie dokłada — `Table`,
 `TextView` i sekcje są mierzone przez `columns`, `text-view` i `sections`; powód
-pominięcia idzie do [docs/pomiary/README.md](../pomiary/README.md).
+pominięcia idzie do [docs/pomiary/README.md](../../pomiary/README.md).
 
 ## Poza zakresem
 
@@ -262,7 +262,7 @@ i zmienialny** wraz z dodawaniem i kasowaniem kluczy.
 
 ### 2026-08-16 — rozstrzygnięcia, moduł, rozbudowa rdzenia
 
-**Rozstrzygnięcia startowe zapadły przed pierwszą linią kodu** ([00-decyzje.md](00-decyzje.md),
+**Rozstrzygnięcia startowe zapadły przed pierwszą linią kodu** ([00-decyzje.md](../00-decyzje.md),
 D91): siedem pytań z planu (ósme — litera — było już rozstrzygnięte w D90 nr 2)
 plus **trzy pytania, których plan nie przewidział**, a które wynikły z odpowiedzi
 na pytanie o rodzaje zasobów.
@@ -358,7 +358,7 @@ minikube (obciążenie 0,10 na rdzeń wobec 0,09 we wzorcu):
 | klatka z kompletem prac w tle | 0,1 ms | 0,1 ms | **+4,3%** |
 
 „Bez regresji powyżej progu”; wzorzec zapisany jako
-[2026-08-16-po-kroku-52-loop.json](../pomiary/2026-08-16-po-kroku-52-loop.json).
+[2026-08-16-po-kroku-52-loop.json](../../pomiary/2026-08-16-po-kroku-52-loop.json).
 Rozbudowa portu nie kosztuje przy tym mierzalnie **także dlatego, że nic w niej
 nie liczy się przy pustym zestawie prac**: kształt wypisu rozstrzyga się przy
 dokładaniu porcji, a `droppedBytes` rośnie wyłącznie przy przesuwaniu bufora.
