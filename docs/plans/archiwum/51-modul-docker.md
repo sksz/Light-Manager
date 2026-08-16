@@ -2,13 +2,13 @@
 
 > **Skąd ten krok.** Powstał 2026-08-15, na polecenie użytkownika, razem
 > z krokami 52 i 53 jako pierwsza trzecia Fazy XVIII
-> ([00-decyzje.md](00-decyzje.md), D85). Rusza przy tym **mechanizm rdzenia**:
+> ([00-decyzje.md](../00-decyzje.md), D85). Rusza przy tym **mechanizm rdzenia**:
 > prac tłowych może być odtąd kilka naraz.
 
 ## Status
 
 **Ukończony** (2026-08-16). Rozstrzygnięcia startowe zapadły 2026-08-15
-([00-decyzje.md](00-decyzje.md), D90), przed pierwszą linią kodu; pomiar i klatka
+([00-decyzje.md](../00-decyzje.md), D90), przed pierwszą linią kodu; pomiar i klatka
 pod XTermem — dzień później, na zwolnionej maszynie.
 
 ## Cel
@@ -178,7 +178,7 @@ Oś `--loop` „przed i po” **dwukrotnie**: dla samej rozbudowy portu (nikt ni
 pracuje) i dla taktu z pompowanym gniazdem oraz kilkoma pracami. Scenariusza
 klatki krok **nie dokłada** — ekran to `Table` i `TextView` w strefie środkowej,
 czyli treść mierzona przez `columns` i `text-view`; powód pominięcia idzie do
-[docs/pomiary/README.md](../pomiary/README.md).
+[docs/pomiary/README.md](../../pomiary/README.md).
 
 ## Poza zakresem
 
@@ -218,7 +218,7 @@ czyli treść mierzona przez `columns` i `text-view`; powód pominięcia idzie d
 
 ## Rozstrzygnięcia startowe (2026-08-15)
 
-Pełne uzasadnienia i odrzucone alternatywy: [00-decyzje.md](00-decyzje.md), D90.
+Pełne uzasadnienia i odrzucone alternatywy: [00-decyzje.md](../00-decyzje.md), D90.
 Osiem pytań, osiem odpowiedzi, wszystkie przed pierwszą linią kodu.
 
 1. **Ile prac tłowych naraz** → **wartość konfigurowalna**, a przekroczenie
@@ -360,8 +360,8 @@ rozrzut bez ostrzeżenia). Oś `--loop`, dwa przebiegi, tak jak żąda zakres nr
 
 | Co mierzone | Wynik |
 |---|---|
-| **przy pustym zestawie prac** — wobec wzorca po kroku 49 | **−1,1%**, bez regresji ([2026-08-16-po-kroku-51-loop.json](../pomiary/2026-08-16-po-kroku-51-loop.json)) |
-| **przy pełnym zestawie** — `background` (1 praca) wobec `background-many` (8 prac) | takt **0,084 → 0,115 ms**, faza wejścia **0,006 → 0,034 ms** ([2026-08-16-po-kroku-51-loop-prace.json](../pomiary/2026-08-16-po-kroku-51-loop-prace.json)) |
+| **przy pustym zestawie prac** — wobec wzorca po kroku 49 | **−1,1%**, bez regresji ([2026-08-16-po-kroku-51-loop.json](../../pomiary/2026-08-16-po-kroku-51-loop.json)) |
+| **przy pełnym zestawie** — `background` (1 praca) wobec `background-many` (8 prac) | takt **0,084 → 0,115 ms**, faza wejścia **0,006 → 0,034 ms** ([2026-08-16-po-kroku-51-loop-prace.json](../../pomiary/2026-08-16-po-kroku-51-loop-prace.json)) |
 
 **Cena rozbudowy portu wynosi 0,028 ms na klatkę** — tyle kosztuje `pump()`
 przechodzący po ośmiu potomkach zamiast po jednym, czyli około 4 µs na pracę.
@@ -405,4 +405,4 @@ i kontener projektu próbnego usunięte, archiwum tymczasowe skasowane przez sam
 port, aplikacja i XTerm zamknięte.
 
 Scenariusza klatki krok nie dokłada, a powód pominięcia stoi
-w [docs/pomiary/README.md](../pomiary/README.md).
+w [docs/pomiary/README.md](../../pomiary/README.md).

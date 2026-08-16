@@ -495,7 +495,7 @@ pierwsze kwerendy przeglądarki powtórzyłyby kanał stojący w rdzeniu od krok
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 51 | Moduł `docker`: kontenery, obrazy, logi, budowanie i compose | [51-modul-docker.md](51-modul-docker.md) | 20, 21, 23, 24, 26, 27, 28, 29, 41, 45, 46 | Opus | xhigh | Ukończony |
+| 51 | Moduł `docker`: kontenery, obrazy, logi, budowanie i compose | [51-modul-docker.md](archiwum/51-modul-docker.md) | 20, 21, 23, 24, 26, 27, 28, 29, 41, 45, 46 | Opus | xhigh | Ukończony |
 | 52 | Moduł `k8s`: konteksty, zasoby klastra i logi | [52-modul-kubernetes.md](52-modul-kubernetes.md) | 20, 21, 22, 24, 26, 27, 28, 29, 45, 46, 51 | Opus | high | Nie rozpoczęty |
 | 53 | Kwerendy międzymodułowe: obraz zbudowany Dockerem ląduje w klastrze | [53-kwerendy-miedzymodulowe.md](53-kwerendy-miedzymodulowe.md) | 19, 20, 21, 23, 24, 25, 26, 32, 41, 42, 43, 45, 46, 47, 51, 52 | Opus³ | xhigh | Nie rozpoczęty |
 

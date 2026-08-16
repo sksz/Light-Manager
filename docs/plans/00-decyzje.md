@@ -5779,7 +5779,7 @@ poza MVP" i wejdzie osobno, jeśli okaże się potrzebny.
 
 ### D85 — Kontenery wchodzą jako Faza XVIII: dwa moduły, droga mieszana, a współpracę niosą komendy i nowe kwerendy
 
-**Dotyczy:** kroków 51 ([51-modul-docker.md](51-modul-docker.md)),
+**Dotyczy:** kroków 51 ([51-modul-docker.md](archiwum/51-modul-docker.md)),
 52 ([52-modul-kubernetes.md](52-modul-kubernetes.md)) i
 53 ([53-kwerendy-miedzymodulowe.md](53-kwerendy-miedzymodulowe.md)); nowych
 katalogów `src/Module/Docker/`, `src/Module/Kubernetes/` i `src/Application/Query/`,
@@ -6477,7 +6477,7 @@ rdzeniowy port tłowy i działa wyłącznie na Linuksie. **Wsad `put` + `chmod`
 
 ### D90 — Rozstrzygnięcia startowe kroku 51: granica prac tłowych jest ustawieniem, demon leżący nie odrzuca modułu, a menu `F9` czeka na kwerendy
 
-**Dotyczy:** kroku 51 ([51-modul-docker.md](51-modul-docker.md)),
+**Dotyczy:** kroku 51 ([51-modul-docker.md](archiwum/51-modul-docker.md)),
 **zmiany kontraktu `Application\Port\BackgroundProcessPort`** wraz
 z `Infrastructure/Process/BackgroundProcessService.php` i nowym kluczem rdzenia,
 nowego katalogu `src/Module/Docker/`, jednej linii w
