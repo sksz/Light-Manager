@@ -158,6 +158,14 @@ return [
     'module.browser.command.open' => 'wejdź do zaznaczonego katalogu',
     'module.browser.command.hidden' => 'pokaż lub ukryj wpisy ukryte',
     'module.browser.command.tree' => 'panel jako drzewo albo lista',
+    'module.browser.query.entries' => 'wpisy katalogu widocznego w panelu',
+    'module.browser.query.selection' => 'wpis pod kursorem wraz z jego atrybutami',
+    'module.browser.query.marked' => 'nazwy i ścieżki zaznaczonych wpisów',
+    'module.browser.query.cwd' => 'ścieżki obu paneli wraz z czynnym',
+    'module.browser.query.panes' => 'układ paneli: widok, filtr, zaznaczenie',
+    'module.browser.query.tree' => 'drzewo katalogów panelu, spłaszczone',
+    'module.browser.query.undo' => 'stos operacji wraz z odwracalnością',
+    'module.browser.query.argument.pane' => 'panel (0 albo 1)',
     // Dwie komendy z argumentem — pierwsze w projekcie (krok 41). Nazwa idzie
     // w wierszu, bo komenda nie umie otworzyć okna nakładanego (D75, nr 5).
     'module.browser.command.rename' => 'zmień nazwę zaznaczonego wpisu',

@@ -10,12 +10,14 @@ use LightManager\Application\Module\ModuleInterface;
 use LightManager\Application\Module\ModuleSettingsTab;
 use LightManager\Application\Module\ModuleShortcut;
 use LightManager\Application\Module\ProvidesCommands;
+use LightManager\Application\Module\ProvidesQueries;
 use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Port\FileOperationsPort;
 use LightManager\Application\Port\FileTransferPort;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Port\TrashPort;
+use LightManager\Application\Query\QueryInterface;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\Browser\Application\BrowserEvent;
@@ -42,6 +44,13 @@ use LightManager\Module\Browser\Presentation\Command\MoveCommand;
 use LightManager\Module\Browser\Presentation\Command\OpenCommand;
 use LightManager\Module\Browser\Presentation\Command\RenameCommand;
 use LightManager\Module\Browser\Presentation\Command\TreeCommand;
+use LightManager\Module\Browser\Presentation\Query\CwdQuery;
+use LightManager\Module\Browser\Presentation\Query\EntriesQuery;
+use LightManager\Module\Browser\Presentation\Query\MarkedQuery;
+use LightManager\Module\Browser\Presentation\Query\PanesQuery;
+use LightManager\Module\Browser\Presentation\Query\SelectionQuery;
+use LightManager\Module\Browser\Presentation\Query\TreeQuery;
+use LightManager\Module\Browser\Presentation\Query\UndoQuery;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
@@ -73,6 +82,7 @@ final class BrowserModule implements
     ModuleInterface,
     ProvidesSettingsTab,
     ProvidesCommands,
+    ProvidesQueries,
     ProvidesScreen,
     ProvidesHelpTab,
     DeclaresEvents
@@ -80,7 +90,7 @@ final class BrowserModule implements
     /** „Browser” — litera `b` jest wolna: `0x02` nie znaczy w trybie surowym nic. */
     private const SHORTCUT = 'b';
 
-    /** @var array{BrowserScreen, list<CommandInterface>}|null */
+    /** @var array{BrowserScreen, list<CommandInterface>, list<QueryInterface>}|null */
     private ?array $parts = null;
 
     /**
@@ -115,14 +125,14 @@ final class BrowserModule implements
      * składany zachłannie, w konstruktorze, wypisałby użytkownikowi surowy klucz.
      * Leniwość ustawia to w jedyną kolejność, w której obie rzeczy są prawdziwe.
      *
-     * @return array{BrowserScreen, list<CommandInterface>}
+     * @return array{BrowserScreen, list<CommandInterface>, list<QueryInterface>}
      */
     private function assembled(): array
     {
         return $this->parts ??= $this->assemble();
     }
 
-    /** @return array{BrowserScreen, list<CommandInterface>} */
+    /** @return array{BrowserScreen, list<CommandInterface>, list<QueryInterface>} */
     private function assemble(): array
     {
         $directories = $this->directories ?? new FilesystemDirectoryRepository(EntryComparator::create());
@@ -223,6 +233,7 @@ final class BrowserModule implements
         return [
             new BrowserScreen(
                 $panes,
+                new BrowserQueries($this->state->queries()),
                 $this->state,
                 new MoveSelectionUseCase(),
                 $navigateInto,
@@ -245,6 +256,18 @@ final class BrowserModule implements
                 new DeleteCommand($trash, $this->translator),
                 new CopyCommand($transfers, $this->translator),
                 new MoveCommand($transfers, $this->translator),
+            ],
+            // Sześć źródeł danych (krok 53). Powstają na **tych samych** obiektach,
+            // co ekran i komendy — inaczej kwerenda odpowiadałaby o innym panelu
+            // niż ten, na który patrzy użytkownik.
+            [
+                new EntriesQuery($panes, $this->translator),
+                new SelectionQuery($panes),
+                new MarkedQuery($panes),
+                new CwdQuery($panes),
+                new PanesQuery($panes),
+                new TreeQuery($panes),
+                new UndoQuery($journal),
             ],
         ];
     }
@@ -335,6 +358,17 @@ final class BrowserModule implements
     public function commands(): array
     {
         return $this->assembled()[1];
+    }
+
+    /**
+     * Sześć źródeł danych przeglądarki (krok 53).
+     *
+     * Cztery z nich biorą numer panelu, bo ten moduł jako jedyny pokazuje dwa
+     * miejsca naraz — a `ModuleContext` mówi wyłącznie o czynnym.
+     */
+    public function queries(): array
+    {
+        return $this->assembled()[2];
     }
 
     public function screen(): ScreenInterface

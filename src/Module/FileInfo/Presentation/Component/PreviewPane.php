@@ -7,6 +7,7 @@ namespace LightManager\Module\FileInfo\Presentation\Component;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Rect;
+use LightManager\Module\FileInfo\Presentation\FileInfoQueries;
 use LightManager\Module\FileInfo\Presentation\FileInfoState;
 use LightManager\Presentation\Ui\Component\ImageBox;
 use LightManager\Presentation\Ui\Component\Label;
@@ -36,6 +37,7 @@ final class PreviewPane implements ComponentInterface
 {
     public function __construct(
         private readonly FileInfoState $state,
+        private readonly FileInfoQueries $queries,
         private readonly TranslatorPort $translator,
     ) {
     }
@@ -46,7 +48,7 @@ final class PreviewPane implements ComponentInterface
             return [];
         }
 
-        $preview = $this->state->preview();
+        $preview = $this->queries->preview();
 
         if ($preview !== null) {
             return (new ImageBox($preview->path, $preview->caption))->draw($bounds);

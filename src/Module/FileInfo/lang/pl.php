@@ -150,6 +150,10 @@ return [
 
     // Komenda modułu.
     'module.file-info.command.show' => 'pokaż opis zaznaczonego wpisu',
+    'module.file-info.query.description' => 'pełny opis zaznaczonego wpisu',
+    'module.file-info.query.preview' => 'miniatura wpisu albo powód jej braku',
+    'module.file-info.query.digest' => 'suma sha256 wraz z etapem liczenia',
+    'module.file-info.query.usage' => 'zajętość na dysku wraz z etapem pomiaru',
 
     // Własna część zakładki pomocy — to, czego z deklaracji wyczytać się nie da.
     'module.file-info.help.checksum' => 'policz sumę kontrolną',

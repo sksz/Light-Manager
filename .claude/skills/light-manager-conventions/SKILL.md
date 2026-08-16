@@ -635,6 +635,32 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     zamaskowane** w liście, w opisie i w YAML-u; odsłania jeden klucz `x`, a zmiana
     idzie `kubectl patch --type=merge -p` — argumentem, bo potomek nie dostaje
     wejścia (ta sama reguła unieważnia `apply -f -`).
+11w. **Dane czyta się przez rejestr kwerend — i nie ma drugiej drogi** (krok 53,
+    D92). `Application\Query\QueryRegistry` jest **jedynym** wejściem do danych:
+    także dla rdzenia i także dla modułu czytającego **własny** stan. Zdanie
+    trzymające podział: **komenda robi, kwerenda mówi** — co zmienia stan, jest
+    komendą i wraca `CommandOutcome`; co go czyta, jest kwerendą i wraca
+    `QueryResult`. Moduł wnosi swoje zdolnością `Application\Module\ProvidesQueries`
+    (jedna linia w rdzeniu, wzorem zdarzeń), rdzeń wylicza swoje w `CoreQueries`.
+    **Cztery reguły**: czyta i nie zmienia; nie zna wołającego; nie woła kwerendy
+    (wzorem „zdarzenie nie rodzi zdarzenia"); odpowiada w klatce albo oddaje
+    **stan pracy** (`ChecksumStage`, `DiskUsageStage`), nigdy nie czeka na jej
+    koniec. **Wynik ma dwa oblicza, nie dwa kanały**: wiersze danych pierwotnych
+    dla każdego i ładunek typowany wyłącznie dla właściciela
+    (`QueryResult::payloadFor()`), więc ekran modułu nadal rysuje z własnych typów,
+    a cudzy moduł dostaje napisy i liczby (reguła 15 nietknięta). **Rozpakowanie
+    ładunku stoi w jednej klasie na moduł** — fasadzie (`BrowserQueries`,
+    `AudioQueries`, `FileInfoQueries`); poza nią i poza samą kwerendą nikt nie
+    czyta obiektu stanu. **Routing**: tani `generation(): int` (ten sam numer =
+    ta sama odpowiedź) plus pamięć wyniku w rejestrze; wiersze budują się
+    **leniwie**. Źródło bez naturalnego licznika deklaruje `VOLATILE` i **nie jest
+    pamiętane w ogóle** — pamiętanie „na jedną klatkę" oddawało stan sprzed zmiany,
+    która padła w tej samej klatce (wykrył test przełącznika muzyki). Kwerendy
+    ogląda się w **drugim trybie okna komend** (`F12`, przełącza `Tab` przy pustym
+    polu); opis idzie przez katalog napisów jak przy komendach, a pilnuje tego test
+    czytający oba języki. Zdanie „kontekst mówi, gdzie użytkownik stoi; kwerenda
+    mówi, co u mnie jest" rozważano i **odwołano** (D92 nr 8): skoro drugiej drogi
+    do danej nie ma, `core.context` i `browser.cwd` są kanałem, a nie powtórką.
 11. **Nowy element interfejsu to nowy komponent w `Presentation/Ui/Component`**,
     a nie nowa metoda w rendererze. Komponent oddaje prymitywy z ról motywu i
     prostokątów w siatce znakowej — pikseli nie zna. Słownik prymitywów jest
@@ -689,6 +715,17 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     Dopisanie modułu ma kosztować **jedną zmianę w rdzeniu**: pozycję na liście
     w `Bootstrap`. Jeśli kosztuje więcej — to jest błąd do naprawienia, a nie
     powód, żeby dotknąć rdzenia.
+15g. **Moduł sięga po cudze dane wyłącznie nazwą kwerendy** (krok 53, D92).
+    Trzy zdania graniczne dopowiedzenia reguły 15: moduł zna **nazwę** cudzej
+    komendy i kwerendy (napis), nigdy jej typ; kwerenda oddaje obcym **dane
+    pierwotne** (precedens `ModuleContext`, D40 P5), a ładunek typowany wyłącznie
+    właścicielowi; **moduł pytający musi umieć żyć bez odpowiedzi**, bo ten drugi
+    bywa wyłączony, odrzucony albo nieobecny — `QueryRegistry::ask()` oddaje wtedy
+    wynik z powodem, nie `null` do obsłużenia w każdym miejscu z osobna. Moduł
+    niezarejestrowany w rejestrze kwerend **nie widzi własnych danych** — dotyczy
+    to także testów składających moduł samodzielnie, które muszą powtórzyć
+    `useModules()` z `Bootstrapu`.
+
 15b. **Reguła 15 ma dokładnie jeden wyjątek i jest on nazwany: zapis na dysk**
     (krok 41, D66/D75). Rdzeń ma port operacji na plikach
     (`Application\Port\FileOperationsPort` + `Infrastructure\FileSystem\FileOperationsService`),

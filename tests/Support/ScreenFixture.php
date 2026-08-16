@@ -16,10 +16,13 @@ use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Port\FileOperationsPort;
 use LightManager\Application\Port\FileTransferPort;
 use LightManager\Application\Port\TrashPort;
+use LightManager\Application\Query\QueryLineParser;
+use LightManager\Application\Query\QueryRegistry;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Application\UseCase\ChangeSettingUseCase;
 use LightManager\Application\UseCase\RestoreDefaultSettingsUseCase;
+use LightManager\Domain\ValueObject\RendererMode;
 use LightManager\Module\Audio\Presentation\AudioModule;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Domain\Repository\DirectoryRepositoryInterface;
@@ -36,6 +39,7 @@ use LightManager\Presentation\Cli\InputHandler;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Cli\ModuleTicker;
 use LightManager\Presentation\Cli\ProblemPresenter;
+use LightManager\Presentation\Cli\Query\CoreQueries;
 use LightManager\Presentation\Cli\Screen\HelpScreen;
 use LightManager\Presentation\Cli\Screen\SettingsScreen;
 use LightManager\Presentation\Cli\ScreenStack;
@@ -288,12 +292,34 @@ final class ScreenFixture
             }
         }
 
+        // Kwerendy rdzenia (krok 53) — z **tego samego** spisu, co w aplikacji:
+        // dwa wyliczenia rozjechałyby się przy pierwszej dołożonej pozycji,
+        // a test przechodziłby na spisie starszym o jedną kwerendę.
+        $this->state->queries()->add(QueryRegistry::CORE, CoreQueries::all(
+            $this->state,
+            $this->modules,
+            $this->commandRegistry,
+            $themes,
+            new FixedViewport(),
+            RendererMode::Sixel,
+            Bootstrap::VERSION,
+        ));
+
+        // Kwerendy modułów (krok 53) — tą samą jedną linią, co w `Bootstrapie`.
+        // Bez niej ekran modułu nie ma jak przeczytać własnych danych, bo odkąd
+        // rejestr jest jedyną drogą odczytu, moduł niezarejestrowany jest modułem
+        // niewidzącym.
+        $this->state->queries()->useModules($this->modules->accepted());
+
+        $lines = new CommandLineParser($translator);
         $this->commands = new CommandOverlay(
             $this->commandRegistry,
-            new CommandLineParser($translator),
+            $lines,
             new CommandHistory($history),
             $translator,
             $this->state->events(),
+            $this->state->queries(),
+            new QueryLineParser($lines, $translator),
         );
         $this->commands->prepare();
         $this->menu = new MenuOverlay($this->commandRegistry, $translator, $this->state->events());

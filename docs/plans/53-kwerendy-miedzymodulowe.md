@@ -1,4 +1,4 @@
-# Krok 53 — Kwerendy międzymodułowe: obraz zbudowany Dockerem ląduje w klastrze
+# Krok 53 — Kwerendy: mechanizm, okno i wszystkie źródła danych rdzenia oraz trzech modułów
 
 > **Skąd ten krok.** Powstał 2026-08-15 razem z krokami 51 i 52, jako ostatnia
 > trzecia Fazy XVIII ([00-decyzje.md](00-decyzje.md), D85). To on jest powodem,
@@ -8,40 +8,48 @@
 > **Uzupełniony 2026-08-15, tego samego dnia i przed pierwszą linią kodu**
 > ([00-decyzje.md](00-decyzje.md), D86). W pierwotnym brzmieniu krok wnosił
 > mechanizm rdzenia o zasięgu na wszystkie moduły, ale kwerendy dawał **wyłącznie
-> dwóm modułom, które sam dopiero powołuje** — trzy moduły, które aplikacja ma
-> dzisiaj (`browser`, `file-info`, `audio`), zostawały poza nim, a punkt *Poza
-> zakresem* mówił wprost „odbiorcy dziś nie ma". Rozstrzygnięciem użytkownika
-> kwerendy dostają **wszystkie trzy**, a odbiorcą tych bez konsumenta w kodzie
-> zostaje **użytkownik**: rozstrzygnięcie nr 7 idzie na „kwerendy widoczne",
-> czyli krok dowozi **okno kwerend**. Reguła 13 zostaje przez to spełniona bez
-> wyjątku — a wyjątek był drugim postawionym wariantem i został odrzucony.
+> dwóm modułom, które sam dopiero powołuje**. Rozstrzygnięciem użytkownika
+> kwerendy dostały także `browser`, `file-info` i `audio`, a odbiorcą tych bez
+> konsumenta w kodzie został **użytkownik** — czyli krok dowozi **okno kwerend**.
+
+> **Rozszerzony i podzielony 2026-08-16, na starcie kroku**
+> ([00-decyzje.md](00-decyzje.md), D92). Trzecie rozszerzenie tego samego kroku
+> i najszersze z nich: kwerendę dostaje **wszystko, co da się przeczytać** —
+> rdzeń wraz z własnym samoopisem i **sześć** modułów, a nie trzy. Rejestr
+> kwerend przestaje przy tym być kanałem między modułami i staje się **jedyną
+> drogą odczytu w całej aplikacji**, także wewnątrz rdzenia i wewnątrz modułu.
+> Ciężar tego rozstrzygnięcia kazał krok podzielić: **tutaj zostaje mechanizm,
+> okno, rdzeń i trzy moduły sprzed Fazy XVIII**, a kwerendy `ssh`, `docker`
+> i `k8s` wraz z czynnością `k8s.deploy-image` przechodzą do
+> [kroku 54](54-kwerendy-modulow-kontenerowych.md).
 
 ## Status
 
-**Nie rozpoczęty.** Zablokowany przez kroki 51 i 52.
+**W toku** (rozpoczęty 2026-08-16).
 
 ## Cel
 
-Moduł ma umieć **poprosić o coś, czego sam nie umie**, nie wiedząc, kto to
-zrobi — a pierwszą taką rzeczą jest obraz kontenera: zbudowany przez moduł
-Dockera, wdrożony przez moduł Kubernetesa.
+Rdzeń i każdy moduł mają **oddawać to, o czym wiedzą**, jednym kanałem — takim,
+którego użycie nie wymaga znajomości tego, kto odpowiada. Kanał jest przy tym
+**jedyny**: nie ma drugiej drogi do danej, ani dla obcego modułu, ani dla
+właściciela, ani dla rdzenia.
 
-Miarą powodzenia jest zdanie: **`k8s.deploy-image` pokazuje listę obrazów, które
-zna moduł Dockera, buduje wskazany, czeka na koniec budowy i podmienia obraz
-w wybranym wdrożeniu — a przy wyłączonym module Dockera ta sama czynność mówi,
-czego brakuje, zamiast się wywrócić.**
+Miary powodzenia są trzy:
 
-Miarą drugą, dołożoną uzupełnieniem: **każdy moduł aplikacji — także te trzy,
-które istniały przed tym krokiem — oddaje kwerendą to, o czym wie tylko on,
-a użytkownik widzi ten spis i umie go zapytać sam.** Mechanizm rdzenia, który
-umie odpowiedzieć wyłącznie na pytania dwóch modułów napisanych razem z nim, nie
-jest mechanizmem rdzenia, tylko wewnętrznym uzgodnieniem tej pary.
+1. **Każde źródło danych rdzenia i trzech modułów tego kroku ma kwerendę**,
+   a użytkownik widzi ich spis i umie zapytać sam — oknem kwerend spod `F12`.
+2. **Odczyt idzie przez rejestr także wewnątrz**: żaden ekran i żaden komponent
+   nie sięga po stan wprost. Właściciel dostaje przy tym **ładunek typowany**,
+   więc jedna droga nie znaczy rysowania z tablic napisów.
+3. **Routing nie kosztuje w klatce**: odczyt niezmienionego źródła to jedno
+   wyszukanie w tablicy, a wiersze danych pierwotnych powstają dopiero wtedy, gdy
+   ktoś o nie zapyta. Oś `--loop` bez regresji wobec wzorca po kroku 52.
 
-## Zastrzeżenie do rozstrzygnięcia na starcie — reguła 15 nie zostaje złamana, tylko dopowiedziana
+## Zastrzeżenie pierwsze — reguła 15 nie zostaje złamana, tylko dopowiedziana
 
 Reguła 15 brzmi: **moduł nigdy nie sięga do innego modułu.** Ten krok jej **nie
 odwołuje** i odwołać nie ma prawa — to ona trzyma cały podział, na którym stoi
-dziewięć modułów i cztery fazy planu.
+sześć modułów i pięć faz planu.
 
 Dopowiedzenie brzmi: moduł sięga do **rdzenia**, a rdzeń trzyma rejestr, do
 którego wpisał się ktoś inny. Dokładnie tak działa to od kroku 19 przy komendach
@@ -53,132 +61,79 @@ Granica, poza którą to przestaje być dopowiedzeniem, a staje się wyłomem, j
 częścią zakresu i ma trafić do `SKILL.md` wraz z powodem:
 
 - moduł zna **nazwę** cudzej komendy i kwerendy (napis), nigdy jej typ;
-- kwerenda oddaje **dane pierwotne** (napisy, liczby, wartości logiczne) — ta
-  sama zasada, którą kieruje się `ModuleContext` (D40 P5);
+- kwerenda oddaje obcym **dane pierwotne** (napisy, liczby, wartości logiczne) —
+  ta sama zasada, którą kieruje się `ModuleContext` (D40 P5);
+- **ładunek typowany wydaje się wyłącznie właścicielowi** — pilnuje tego
+  `QueryResult::payloadFor()` w czasie działania i test wzorem
+  `CoreKnowsNothingAboutFilesTest`;
 - moduł pytający **musi umieć żyć bez odpowiedzi**, bo ten drugi bywa wyłączony,
   odrzucony albo nieobecny.
 
-## Zastrzeżenie drugie — obraz zbudowany lokalnie nie istnieje w klastrze
+## Zastrzeżenie drugie — „jedyna droga odczytu” ma policzalną cenę
 
-To jest miejsce, w którym funkcja może wyjść atrapą, więc stoi tu wprost: obraz
-zbudowany przez lokalnego demona **nie jest widoczny dla klastra**, chyba że
-klaster używa tego samego demona. Bez rozstrzygnięcia tej rzeczy `k8s.deploy-image`
-skończy się podem w stanie `ImagePullBackOff` i będzie to wyglądało jak usterka
-aplikacji, a nie jak brakujący krok.
+Rozstrzygnięcie D92 nr 3 dotyka miejsc, których w kodzie jest dużo, i to
+w ścieżce rysowanej trzydzieści razy na sekundę. Policzone przy starcie kroku:
+**29** miejsc czyta ustawienia, **18** — kontekst sesji, **68** — stan
+przeglądarki, **23** — odtwarzacz playlisty.
 
-Trzy drogi, wszystkie do rozstrzygnięcia na starcie (nr 4):
+Cena zostaje zapłacona **konstrukcją**, a nie wyjątkiem od reguły:
 
-| Droga | Cena |
-|---|---|
-| `minikube image load <tag>` | jedno polecenie, ale wiąże funkcję z jednym rodzajem klastra |
-| wypchnięcie do rejestru (`docker push`) | działa wszędzie, ale wymaga rejestru, logowania i `imagePullPolicy` — a `push` jest **poza zakresem kroku 51** |
-| klaster dzielący demona (`kind load`, docker-desktop) | nic nie kosztuje, gdy jest; nie ma go, gdy go nie ma |
+- **znacznik pokolenia** (`generation(): int`) — rejestr przelicza wynik
+  wyłącznie po zmianie źródła; odczyt niezmienionego to jedno wyszukanie
+  w tablicy;
+- **leniwe wiersze** — dane pierwotne powstają przy pierwszym pytaniu o nie, więc
+  właściciel czytający ładunek typowany nie płaci za budowę tablic, których nikt
+  nie obejrzy;
+- **ładunek typowany dla właściciela** — `BrowserScreen` nadal dostaje
+  `Directory`, więc PHPStan `max` zostaje bez ani jednego wyciszenia.
 
-## Zastrzeżenie trzecie — kwerenda nie jest drugą drogą do `ModuleContext`
+Za to `QueryResult` **nie jest obiektem wartości w rozumieniu reguły 6**: jest
+`final`, ale nie `readonly`, bo pamięta zbudowane wiersze. Powód stoi w jego
+docblocku i w D92.
 
-To zastrzeżenie **weszło razem z uzupełnieniem** i jest jego najważniejszą
-częścią, bo bez niego pierwsze kwerendy przeglądarki powtórzyłyby kanał, który
-w rdzeniu stoi od kroku 21.
+## Zastrzeżenie trzecie — odwołane
 
-Sprawdzone w kodzie przy uzupełnianiu: `Application\Module\ModuleContext` niesie
-już **ścieżkę bieżącego miejsca, nazwę zaznaczenia, jego rodzaj oraz liczbę,
-wagę i liczbę katalogów w zaznaczeniu wielokrotnym** — wszystko jako dane
-pierwotne, publikowane przez `BrowserState` i podawane każdemu modułowi za darmo
-przez `LoopState`. Kroki 51 i 52 **już się na tym opierają**: ścieżka pliku
-`compose` i ścieżka manifestu do `apply` biorą się właśnie stamtąd.
-
-Kwerenda `browser.cwd` byłaby więc drugą drogą do danej, którą rdzeń rozdaje
-bez pytania — i drogą gorszą, bo kontekst jest w klatce zawsze, a kwerenda
-wymaga zapytania i obsłużenia braku odpowiedzi.
-
-Granica, którą krok ma zapisać w `SKILL.md` obok zdania „komenda robi, kwerenda
-mówi":
-
-> **Kontekst mówi, gdzie użytkownik stoi. Kwerenda mówi, co u mnie jest.**
-
-Kontekst niesie **jedno miejsce i jedno zaznaczenie**: ścieżkę panelu czynnego,
-ale nie drugiego; liczbę zaznaczonych wpisów, ale nie ich nazwy; wpis pod
-kursorem, ale nie zawartość katalogu. To, czego kontekst nie niesie, jest
-zakresem kwerend przeglądarki. To, co niesie, **nie ma prawa się w nich
-powtórzyć** — i pilnuje tego przegląd przy odbiorze kroku, nie test, bo powtórkę
-widać w nazwie.
+> **Odwołane 2026-08-16** (D92 nr 8). W brzmieniu z D86 mówiło: „kontekst mówi,
+> gdzie użytkownik stoi; kwerenda mówi, co u mnie jest” — czyli `browser.cwd`
+> i `browser.selection` nie powstają, bo `ModuleContext` rozdaje tę daną co
+> klatkę za darmo. Zastrzeżenie broniło jednej rzeczy: żeby nie było **dwóch
+> dróg** do tej samej danej. Po rozstrzygnięciu nr 3 druga droga nie istnieje
+> — każdy odczyt idzie rejestrem, więc kontekst przestaje być wyjątkiem od kanału
+> i staje się jednym z jego źródeł. `browser.cwd`, `browser.selection`
+> i `core.context` **powstają**. Zdanie graniczne z D86 **nie wchodzi do
+> `SKILL.md`**.
 
 ## Zależności
 
-- **Kroki 51 i 52** całkowicie: obie strony współpracy powstają tam. Ten krok
-  **nie dokłada ani jednej funkcji kontenerowej** — dokłada kanał między nimi.
-- **Krok 19** twardo i **potrójnie** (trzecia strona doszła z uzupełnieniem):
-  `CommandRegistry` jest **istniejącym** kanałem czynności (rozstrzygnięcie
-  użytkownika, D85 nr 3), `CommandInterface` — wzorem, wedle którego powstaje
-  kontrakt kwerendy, a `CommandOverlay` (`F12`) — oknem, którego drugim trybem
-  ma zostać okno kwerend (rozstrzygnięcie nr 9). `find()` już umie oddać komendę
-  po nazwie; nic w rejestrze komend zmieniać nie trzeba.
-- **Krok 46** twardo i **z trzeciej strony niż zwykle**: zdarzenia są tu
-  **spoiwem czasu**. Budowa obrazu trwa minuty, więc wołający nie może na nią
-  czekać w klatce — dowiaduje się o końcu zdarzeniem `docker.build.finished`,
-  a dopiero potem pyta kwerendą o wynik. Stąd reguła kroku: **komenda robi,
-  zdarzenie ogłasza, kwerenda mówi co wyszło.**
+- **Krok 19** twardo i **potrójnie**: `CommandRegistry` jest wzorem, wedle
+  którego powstaje rejestr kwerend, `CommandInterface` — wzorem kontraktu,
+  a `CommandOverlay` (`F12`) — oknem, którego **drugim trybem** zostaje okno
+  kwerend (D92 nr 7). W rejestrze komend nic zmieniać nie trzeba.
 - **Krok 20** — `ProvidesQueries` staje obok `ProvidesCommands`
   i `ProvidesSettingsTab` w `Application/Module`, bo nie wymienia ani jednego
   typu z `Presentation` (kryterium podziału z D38 P2).
-- **Krok 21** wzorcowo i **granicznie**: `ModuleContext` jest **precedensem na
-  dane pierwotne przechodzące między modułami** — i to on rozstrzyga zarówno, co
-  kwerendzie wolno oddać, jak i czego oddawać jej nie wolno, bo już to rozdaje
-  (zastrzeżenie trzecie).
+- **Krok 21** wzorcowo: `ModuleContext` jest precedensem na dane pierwotne
+  przechodzące między modułami — i to on rozstrzyga, co kwerenda oddaje obcym.
 - **Kroki 25 i 26** — kwerendy modułu opisu pliku oddają **stan pracy tłowej**
-  (`ChecksumStage`, `DiskUsageStage`), a nie jej wynik po czekaniu. To jest
-  jedyny w projekcie istniejący precedens na regułę nr 4 kwerendy i krok ma z
-  niego skorzystać, a nie wymyślać drugi.
-- **Krok 43** — `browser.marked` oddaje **nazwy** zaznaczonych wpisów, czyli
-  dokładnie to, czego `ModuleContext` z tamtego kroku nie niesie (niesie liczbę,
-  wagę i liczbę katalogów). Bez tej kwerendy zaznaczenie wielokrotne nie ma jak
-  dojść do żadnego modułu poza przeglądarką i opisem pliku.
-- **Krok 24** — kwerenda przeglądarki musi umieć powiedzieć o **obu panelach**,
-  bo kontekst mówi wyłącznie o czynnym; panel podaje się argumentem.
+  (`ChecksumStage`, `DiskUsageStage`), a nie jej wynik po czekaniu. To jedyny
+  w projekcie istniejący precedens na regułę nr 4 kwerendy.
+- **Krok 43** — `browser.marked` oddaje **nazwy** zaznaczonych wpisów.
+- **Krok 24** — kwerendy przeglądarki mówią o **obu panelach**; panel podaje się
+  argumentem.
 - **Krok 45** — `audio.playlist` i `audio.now-playing` czytają `PlaylistPlayer`
-  i `Playlist` stamtąd; kwerenda niczego w module dźwięku nie zmienia i nie
-  dokłada.
-- **Krok 32 i 47** — `MenuOverlay`, `ChoiceOverlay`, `OpensOverlay`: wybór obrazu
-  i wdrożenia to okna, a czynność ma trafić do menu `F9` bez zmiany w rdzeniu.
-- **Krok 23, 41 i 42** — okno pracy i postęp: czynność złożona z budowy
-  i wdrożenia ma **dwa etapy**, więc mówi o sobie tak, jak kopiowanie.
+  i `Playlist`; kwerenda niczego w module dźwięku nie zmienia i nie dokłada.
+- **Krok 46** — `EventRegistry` jest wzorem zamknięcia słownika i regułą „nie
+  rzuca, nie zna wołającego, nie rodzi siebie samego”; `core.events` oddaje ten
+  słownik jako daną.
+- **Krok 27** — wynik kwerendy w oknie rysuje się `Table`, bo `QueryResult` to
+  wiersze rekordów, a nie zdanie.
 
 ## Model i wysiłek
 
-**Opus / xhigh.**
-
-Krok wnosi **mechanizm rdzenia o zasięgu na wszystkie przyszłe moduły** — a takie
-w tym projekcie zawsze kosztowały najwięcej, bo pomyłka w kontrakcie zostaje na
-lata (tak było ze słownikiem prymitywów, zdarzeń i kontraktem modułu). Do tego
-dochodzi **choreografia**: czynność, która przechodzi przez dwa moduły, trzy
-mechanizmy rdzenia i pracę trwającą minuty, a musi zachowywać się poprawnie, gdy
-w połowie zniknie jedna ze stron.
-
-**Uzupełnienie krok powiększyło, ale progu nie przesunęło** — i to jest wniosek
-z rachunku, nie z ostrożności. Sześć kwerend na trzech istniejących modułach to
-sześć klas czytających kod, który stoi i działa; okno kwerend to `OverlayInterface`
-złożony z komponentów, które istnieją od kroku 19, i **nie dokładający ani jednego
-prymitywu** — czyli trzy renderery zostają nietknięte. Warunek, dla którego kroki
-44 i 47 poszły na `Fable / xhigh` (zmiana słownika wejścia albo kontraktu ekranu
-i wszystkich trzech tłumaczy naraz), **nie zachodzi**. Zostaje **Opus / xhigh**,
-a wraz z nim uwaga: jeśli rozstrzygnięcie nr 9 pójdzie na osobne okno z własnym
-klawiszem, rachunek trzeba przeliczyć jeszcze raz — nowy klawisz rdzenia znaczy
-trzy tory wejścia.
-
-## Stan zastany (sprawdzone przy planowaniu 2026-08-15 / do potwierdzenia na starcie kroku)
-
-| Element | Stan |
-|---|---|
-| `src/Application/Query/` | **Nie istnieje** — kwerendy są mechanizmem naprawdę nowym, nie przemianowaniem czegoś |
-| `CommandRegistry` | Ma `find(string $name): ?CommandInterface`, `all()`, `matching()`; przedrostka właściciela pilnuje przy dodawaniu. **Nic tu zmieniać nie trzeba** |
-| `CommandOutcome` | Niesie przejście, `?Message` i `?screenId` — **danych nie niesie i nieść nie ma** |
-| `EventRegistry` | Zdarzenia rdzenia i modułów, słownik zamknięty konstrukcyjnie (nazwy z enumów), publikacja nie rzuca i nie rodzi zdarzenia |
-| `ModuleContext` | Precedens: dane pierwotne przechodzą między modułami, typy modułu — nie. **Niesie już** `path`, `selection`, `kind`, `markedCount`, `markedBytes`, `markedDirectories` — i to jest granica z zastrzeżenia trzeciego |
-| `ModuleRegistry` | Wie, które moduły są przyjęte, wyłączone i odrzucone — czyli **wie, czy jest kogo pytać** |
-| `CommandOverlay` | Okno komend spod `F12`: `TextInput`, `ListView`, `ScrollWindow`, `Panel`, uzupełnianie przez `Prefix::shared`, historia przy pustym polu. **Kandydat na okno kwerend jako drugi tryb**, nie drugie okno |
-| Moduły aplikacji | Trzy: `browser` (9 komend), `file-info` (1), `audio` (4). **Żaden nie ma dziś kwerendy** i żaden nie oddaje niczego poza kontekstem sesji |
-| `FileOperationsPort` | Umie `rename`, `createDirectory`, `delete` i usuwanie kawałkowe — **listy katalogu nie umie**. Wypis katalogu należy do przeglądarki (`DirectoryRepositoryInterface` w jej `Domain`), więc `browser.entries` jest jedyną uczciwą drogą do niego dla cudzego modułu |
-| Katalogi napisów | Kwerenda widoczna dla użytkownika ma opis w `lang/{pl,en}.php` **swojego** modułu, pod przedrostkiem `module.<id>.` — jak komendy i zdarzenia |
+**Opus / xhigh.** Warunek `Fable` z przypisów planu (zmiana słownika wejścia albo
+kontraktu ekranu i trzech tłumaczy naraz) **nie zachodzi**: okno jest drugim
+trybem istniejącego, prymitywów nie przybywa, a przebudowa odczytów nie dotyka
+ani jednego renderera.
 
 ## Zakres
 
@@ -186,263 +141,290 @@ trzy tory wejścia.
 
 Nowy katalog `src/Application/Query/`:
 
-- `QueryInterface` — nazwa w przestrzeni właściciela (`docker.images`,
-  `k8s.deployments`), opis kluczem katalogu napisów, deklarowane argumenty
-  (wzorem `CommandArgument`) i wykonanie oddające **dane pierwotne**;
-- `QueryResult` — wiersze jako `list<array<string, string|int|bool>>` plus
-  ewentualny powód niepowodzenia; kwerenda **nie rzuca** (zasada portu, reguła 8);
-- `QueryRegistry` — `add(owner, queries)`, `find(name)`, `all()`, `matching()`,
-  odsiew nazw spoza przestrzeni właściciela — konstrukcyjnie to samo, co
-  `CommandRegistry`.
+- `QueryInterface` — nazwa w przestrzeni właściciela (`core.settings`,
+  `browser.entries`), opis kluczem katalogu napisów, deklarowane argumenty
+  (wzorem `CommandArgument`), **tani `generation(): int`** i wykonanie oddające
+  `QueryResult`;
+- `QueryArgument`, `QueryArgumentKind`, `QueryInput` — bliźniaczo do komend;
+- `QueryResult` — wiersze `list<array<string, string|int|bool>>` **budowane
+  leniwie**, opcjonalny ładunek typowany wydawany wyłącznie właścicielowi
+  (`payloadFor(string $owner): ?object`) i opcjonalny powód niepowodzenia;
+  kwerenda **nie rzuca** (zasada portu, reguła 8);
+- `QueryRegistry` — `add(owner, queries)`, `find(name)`, `ask(name, input)`,
+  `all()`, `matching()`, `commonPrefix()`, odsiew nazw spoza przestrzeni
+  właściciela oraz **pamięć wyniku pod kluczem `nazwa+argumenty`, unieważniana
+  znacznikiem pokolenia**;
+- `QueryRejection` — powód odrzucenia jako dana, wzorem `CommandRejection`.
 
 Zdolność `Application\Module\ProvidesQueries`.
 
 Cztery reguły, wszystkie wykonane w rejestrze albo w kontrakcie:
 
-1. **Kwerenda czyta i nie zmienia.** Co zmienia — jest komendą. Bez tego podziału
-   pierwszy moduł z kwerendą `docker.prune` uczyniłby mechanizm drugą drogą do
-   czynności.
+1. **Kwerenda czyta i nie zmienia.** Co zmienia — jest komendą.
 2. **Kwerenda nie zna wołającego** i wygląda tak samo przy zerze pytających.
-3. **Kwerenda nie woła kwerendy** — ta sama reguła, którą zdarzenia mają jako
-   „zdarzenie nie rodzi zdarzenia”, i z tego samego powodu: łańcuch zapętliłby
-   pętlę.
+   Wyjątkiem jest ładunek typowany, który jest wydawany po **nazwie
+   właściciela**, a nie po tożsamości pytającego — rejestr pytającego nadal nie
+   zna.
+3. **Kwerenda nie woła kwerendy** — jak „zdarzenie nie rodzi zdarzenia”.
 4. **Kwerenda odpowiada w klatce albo nie odpowiada wcale.** Praca dłuższa od
-   klatki idzie komendą i pracą kawałkową; kwerenda oddaje **stan tej pracy**,
-   a nie czeka na jej koniec.
+   klatki idzie komendą i pracą kawałkową; kwerenda oddaje **stan tej pracy**.
 
 ### 2. Brak odpowiedzi jest zwykłym stanem
 
 `find()` oddaje `null`, gdy moduł jest wyłączony, odrzucony albo nieobecny.
-Wołający **musi to obsłużyć zdaniem dla użytkownika**, a nie wyjątkiem — i to
-jest reguła, bez której rejestr stałby się cichą zależnością między modułami.
+Wołający **musi to obsłużyć zdaniem dla użytkownika**, a nie wyjątkiem.
 
-Widoczny skutek: czynność `k8s.deploy-image` przy wyłączonym module Dockera
-**pokazuje się w menu i mówi, czego brakuje**, zamiast znikać bez śladu
-(rozstrzygnięcie nr 3).
+### 3. Kwerendy rdzenia — źródła, które dotąd nie miały żadnego kanału
 
-### 3. Czynności przez rejestr komend
+Rdzeń nie ma dziś ani jednej kwerendy, a jego dane czyta się wprost z usług. Spis
+(przestrzeń `core.`):
 
-Wołanie cudzej czynności idzie **istniejącym** `CommandRegistry::find()` +
-`execute()` — bez nowego mechanizmu (D85 nr 3). Wynikiem jest `CommandOutcome`,
-czyli zdanie dla użytkownika; **danych stamtąd nie wyciągamy i nie dopisujemy
-mu pola** — od danych są kwerendy. To rozgraniczenie jest całą treścią
-rozstrzygnięcia użytkownika i ma zostać zapisane w `SKILL.md` jednym zdaniem:
-**komenda robi, kwerenda mówi.**
+| Kwerenda | Oddaje |
+|---|---|
+| `core.settings` | Klucze ustawień rdzenia wraz z wartościami i wartością domyślną |
+| `core.module-settings` | Ustawienia modułu podanego argumentem (podprzestrzeń `modules.<id>`) |
+| `core.modules` | Moduły: identyfikator, stan (przyjęty/wyłączony/odrzucony), skrót, powód odrzucenia |
+| `core.commands` | Spis komend: nazwa, właściciel, klucz opisu, liczba argumentów |
+| `core.queries` | Spis kwerend — samoopis rejestru, źródło listy w oknie |
+| `core.events` | Słownik zdarzeń wraz z właścicielem (krok 46) |
+| `core.jobs` | Prace tłowe: uchwyt, etap, przeczytane bajty, kod wyjścia |
+| `core.viewport` | Wiersze, kolumny, tryb renderowania, tor klatki |
+| `core.theme` | Nazwa motywu czynnego i lista nazw dostępnych |
+| `core.language` | Język czynny i lista dostępnych |
+| `core.version` | Wersja aplikacji, wersja PHP, obecność rozszerzeń |
+| `core.status` | Ostatni komunikat wraz z tonem |
+| `core.context` | Kontekst sesji (D92 nr 8 — dawne zastrzeżenie trzecie odwołane) |
 
-### 4. Kwerendy trzech istniejących modułów
+### 4. Kwerendy trzech modułów tego kroku
 
-Ta sekcja **weszła uzupełnieniem** (D86). Zasada doboru jest jedna i wynika
-z zastrzeżenia trzeciego: kwerendą zostaje **to, o czym wie tylko ten moduł,
-a czego nie niesie `ModuleContext`**.
+**Przeglądarka (`browser`)**
 
-**Przeglądarka (`browser`)** — dwie kwerendy, obie z odbiorcą w kodzie tego kroku:
+| Kwerenda | Oddaje |
+|---|---|
+| `browser.entries` | Wpisy katalogu: `name`, `kind`, `bytes`, `modified`, `hidden`; argumenty: panel, ścieżka |
+| `browser.marked` | Nazwy i ścieżki zaznaczonych wpisów |
+| `browser.cwd` | Ścieżka panelu — **obu**, nie tylko czynnego (D92 nr 8) |
+| `browser.selection` | Wpis pod kursorem wraz z rodzajem i rozmiarem |
+| `browser.panes` | Układ: podział, panel czynny, widok (lista/drzewo), filtr |
+| `browser.undo` | Stos cofnięć: czynność, cel, czy odwracalna |
+| `browser.operation` | Stan pracy na plikach: etap, postęp, cel |
 
-| Kwerenda | Oddaje | Odbiorca |
-|---|---|---|
-| `browser.entries` | Wpisy katalogu: `name`, `kind` (`file`/`dir`/`link`), `bytes`, `hidden`. Argumenty: ścieżka (domyślnie z kontekstu) i panel | Wybór manifestu i katalogu kontekstu budowy w `k8s.deploy-image` — **bez czytania systemu plików przez moduł k8s**, którego rdzeń i tak by mu nie dał (`FileOperationsPort` listy nie ma) |
-| `browser.marked` | Nazwy i ścieżki zaznaczonych wpisów | `k8s.apply` na wielu manifestach naraz: zaznaczenie z kroku 43 po raz pierwszy dochodzi do modułu spoza przeglądarki |
+**Opis pliku (`file-info`)**
 
-**Opis pliku (`file-info`)** — dwie kwerendy, obie oddające **stan pracy tłowej**,
-czyli wykonanie reguły nr 4 na istniejącym precedensie:
+| Kwerenda | Oddaje |
+|---|---|
+| `file-info.usage` | Zajętość policzoną przez `du` wraz z etapem — **nigdy nie czeka** |
+| `file-info.digest` | `sha256` wraz z etapem (`ChecksumStage`) |
+| `file-info.description` | Sekcje i wiersze opisu wpisu (rodzaj, prawa, czasy, rozmiar) |
+| `file-info.preview` | Stan podglądu: rodzaj, wymiary miniatury albo okno tekstu |
 
-| Kwerenda | Oddaje | Odbiorca |
-|---|---|---|
-| `file-info.usage` | Zajętość ścieżki policzoną przez `du` wraz z etapem (`DiskUsageStage`: `Idle`, `Running`, `Done`, `Failed`) — **nigdy nie czeka na koniec** | Okno kwerend; drugiego odbiorcę, tym razem w kodzie, stawia rozstrzygnięcie nr 10 — waga katalogu kontekstu budowy przed wysłaniem go do demona |
-| `file-info.digest` | `sha256` ścieżki wraz z etapem (`ChecksumStage`, te same cztery stany), jeśli policzony; inaczej sam etap | Okno kwerend |
+**Dźwięk (`audio`)**
 
-**Dźwięk (`audio`)** — dwie kwerendy, obie czytające `PlaylistPlayer`:
+| Kwerenda | Oddaje |
+|---|---|
+| `audio.now-playing` | Tytuł, numer pozycji, tryb, czy gra, czy silnik dostępny |
+| `audio.playlist` | Pozycje: `index`, `title`, `path`, `playable` |
+| `audio.effects` | Mapa hooków: zdarzenie → plik, przełącznik, głośność |
 
-| Kwerenda | Oddaje | Odbiorca |
-|---|---|---|
-| `audio.now-playing` | Tytuł, numer pozycji, tryb odtwarzania, czy gra, czy silnik jest dostępny | Okno kwerend |
-| `audio.playlist` | Pozycje playlisty: `index`, `title`, `path`, `playable` | Okno kwerend |
+### 5. Odczyt przez rejestr także wewnątrz
 
-Trzy rzeczy obowiązują wszystkie sześć naraz:
+Każdy moduł dostaje **typowaną fasadę czytającą przez rejestr** (`BrowserQueries`,
+`FileInfoQueries`, `AudioQueries`; rdzeń — `CoreQueries`). Fasada woła
+`QueryRegistry::ask()` i rozpakowuje ładunek właściciela **w jednym miejscu**,
+więc ekrany i komponenty zmieniają jedną linię odczytu, a nie sposób rysowania.
 
-1. **Żadna nie powtarza `ModuleContext`.** Ścieżka bieżąca, nazwa zaznaczenia
-   i liczba zaznaczonych do kwerend nie wchodzą — są w kontekście.
-2. **Żadna nie zmienia niczego.** `audio.playlist` czyta playlistę i jej nie
-   przestawia; przestawianie ma komendę od kroku 45.
-3. **Żadna nie wymusza zmiany w rdzeniu.** Moduł dokłada `ProvidesQueries` tak,
-   jak dokłada `ProvidesCommands` — `Bootstrap` nie rośnie o pozycję na moduł.
+Zakaz do zapisania w `SKILL.md` i pilnowany testem: **poza kwerendą i jej fasadą
+nikt nie trzyma referencji do obiektu stanu cudzego ani własnego modułu**.
 
-### 5. Okno kwerend: użytkownik jest odbiorcą
+### 6. Okno kwerend: drugi tryb okna komend
 
-Rozstrzygnięcie nr 7 zostało **podjęte z góry** (D86): kwerendy są widoczne dla
-użytkownika. To ono, a nie wyjątek od reguły 13, jest powodem, dla którego cztery
-z sześciu kwerend powyżej wolno napisać bez konsumenta w kodzie — **konsument
-jest, tylko siedzi przed terminalem**.
-
-Zakres okna:
-
-- **spis wszystkich kwerend** z opisem z katalogu napisów i właścicielem, tak jak
-  okno komend pokazuje wszystkie komendy przy pustym polu;
-- **wykonanie kwerendy wpisanej z argumentami** — wiersz rozbiera ten sam
-  `CommandLineParser`, bo składnia `nazwa arg arg` jest ta sama i drugiego
-  parsera projekt mieć nie będzie;
-- **pokazanie wyniku jako wierszy** — `QueryResult` niesie listę rekordów, więc
-  wynik to tabela, a nie zdanie; miejsce jej pokazania rozstrzyga nr 9;
-- **pokazanie braku wykonawcy zdaniem** — ta sama ścieżka, którą idzie czynność
-  `k8s.deploy-image` przy wyłączonym module Dockera (sekcja 2).
-
-Czego okno **nie** robi: nie zapamiętuje historii kwerend (historia jest
-własnością komend, bo tam zapisuje się czynność, a nie pytanie), nie odświeża
-wyniku samo z siebie i nie przewija się poza to, co daje `ScrollWindow`.
-
-### 6. Pierwszy odbiorca w kodzie: `k8s.deploy-image`
-
-Czynność mieszka w module Kubernetesa — bo to on kończy pracę — i przechodzi
-przez pięć etapów, z których **żaden nie zna Dockera z typu**:
-
-1. kwerenda `docker.images` → lista obrazów do wyboru (`ChoiceOverlay`);
-   pozycja „zbuduj nowy” prowadzi do etapu 2, wybór istniejącego — do 4;
-2. komenda `docker.build` z katalogiem i znacznikiem jako argumentami;
-3. czekanie na zdarzenie `docker.build.finished` albo `.failed`; okno pracy
-   pokazuje etap, `Esc` przerywa czekanie (nie budowę — ta należy do tamtego
-   modułu);
-4. udostępnienie obrazu klastrowi — wedle rozstrzygnięcia nr 4;
-5. kwerenda `k8s.deployments` → wybór wdrożenia i podmiana obrazu
-   (`kubectl set image` albo `apply`).
-
-Kwerendy dowożone przy okazji: `docker.images`, `docker.containers`,
-`k8s.deployments`, `k8s.contexts`. Każda ma **odbiorcę w tej czynności** —
-reguła 13 obowiązuje kwerendy tak samo, jak komponenty.
+- **spis wszystkich kwerend** z opisem z katalogu napisów i właścicielem;
+- **wykonanie kwerendy z argumentami** — ten sam `CommandLineParser`;
+- **wynik jako wiersze** — `Table` z kroku 27;
+- **brak wykonawcy i brak wymaganego argumentu** — zdanie, nie wyjątek;
+- **kwerenda modułu wyłączonego nie stoi w spisie** — spis jest widokiem na
+  rejestr, a nie drugą listą.
 
 ### 7. Pomiar
 
-Kwerendy są wołane **na żądanie**, nie co klatkę, więc oś `--loop` mierzy tu
-wyłącznie to, że rejestr niczego nie kosztuje przy zerze pytań — „przed i po",
-bez regresji.
+Oś `--loop` „przed i po”, punkt odniesienia:
+`docs/pomiary/2026-08-16-po-kroku-52-loop.json`. Miara jest inna niż zapowiadał
+plan: rejestr **jest** wołany w klatce, i to wielokrotnie, więc mierzy się
+**koszt routingu z pamięcią pokoleń**, a nie „zero pytań”.
 
-Scenariusza klatki krok **nie dokłada, o ile okno kwerend zostanie drugim trybem
-okna komend** (rozstrzygnięcie nr 9): scenariusz `command` w `bin/render-bench`
-rysuje wtedy tę samą klatkę, a różnica jest w treści listy, nie w kształcie.
-Wariant „osobne okno" **dokłada scenariusz** i to jest jego cena zapisana z góry,
-a nie odkryta przy odbiorze. Okna wyboru czynności `k8s.deploy-image` to
-`ChoiceOverlay` i `ProgressOverlay` — oba mają zapisane powody pominięcia od
-kroków 41 i 42.
-
-Rachunek kolumn okna kwerend przelicza się **jak w kroku 46**: najdłuższa nazwa
-kwerendy razem z najdłuższym opisem z obu katalogów napisów ma się zmieścić,
-a pilnuje tego test czytający `pl` i `en` — bo tam omal nie ucięło najdłuższej
-nazwy zdarzenia i było to widać dopiero w klatce.
+Scenariusza klatki krok nie dokłada — okno kwerend jest drugim trybem okna
+komend, więc scenariusz `command` rysuje tę samą klatkę. Rachunek kolumn okna
+przelicza się **jak w kroku 46**: najdłuższa nazwa kwerendy wraz z najdłuższym
+opisem z obu katalogów napisów ma się zmieścić, a pilnuje tego test czytający
+`pl` i `en`.
 
 ## Poza zakresem
 
+- **Kwerendy `ssh`, `docker` i `k8s` oraz czynność `k8s.deploy-image`** —
+  [krok 54](54-kwerendy-modulow-kontenerowych.md).
 - **Kwerendy zmieniające cokolwiek** — to są komendy (reguła nr 1).
 - **Kwerendy asynchroniczne, kolejki, obietnice** — kwerenda odpowiada w klatce
-  albo oddaje stan pracy. Rzecz, której nikt jeszcze nie potrzebuje.
-- **Rejestr zdolności ogólnego przeznaczenia** („moduł ogłasza, że umie X”) —
-  nazwa kwerendy wystarcza; osobna warstwa deklaracji byłaby rozwiązaniem
-  problemu, którego nie ma.
-- **Automatyczne wykrywanie, kto co umie** — wołający zna nazwę, którą wpisał
-  programista, a nie szuka wykonawcy po opisie.
-- **Rejestr obrazów i `docker push`** — wchodzi tylko wtedy, gdy rozstrzygnięcie
-  nr 4 wybierze tę drogę udostępnienia obrazu klastrowi.
-- **Kwerendy modułu `Ssh`** (`ssh.hosts`, zdalne ścieżki) — Faza XVII jest
-  **nierozpoczęta**, a wciągnięcie jej tutaj dołożyłoby kroki 48, 49 i 50 do
-  zależności i związało dwie fazy, które dziś stoją osobno. Mechanizm
-  to umożliwi, a dopisanie kwerend do gotowego modułu kosztuje jedną zdolność —
-  i to jest właśnie sprawdzian, że mechanizm wyszedł dobrze. **Wariant „wszystkie
-  trzy plus `ssh`" był postawiony użytkownikowi i został odrzucony** (D86).
-- **Kwerendy powtarzające `ModuleContext`** (`browser.cwd`, `browser.selection`)
-  — zastrzeżenie trzecie. Danych rozdawanych co klatkę nie podaje się drugi raz
-  na życzenie.
-- **Historia kwerend i zapamiętane wyniki** — okno kwerend pyta i pokazuje;
-  pamięta okno komend, bo tam pada czynność.
-- **Kwerendy w oknie kwerend zmieniające cokolwiek** — patrz reguła nr 1;
-  widoczność mechanizmu nie jest zgodą na drugą drogę do czynności.
-
-## Planowane zmiany w plikach
-
-| Plik | Warstwa | Zmiana |
-|---|---|---|
-| `Application/Query/{QueryInterface,QueryArgument,QueryResult,QueryRegistry,QueryRejection}.php` | Rdzeń/Application | **Nowe** — mechanizm |
-| `Application/Module/ProvidesQueries.php` | Rdzeń/Application | **Nowa** zdolność |
-| `Presentation/Cli/Bootstrap.php` | Rdzeń | Rejestr kwerend składany jak rejestr komend — **bez pozycji na moduł** |
-| `Presentation/Cli/LoopState.php` | Rdzeń | Dostęp do rejestru kwerend, obok rejestru zdarzeń (krok 46) |
-| `Presentation/Ui/Overlay/CommandOverlay.php` **albo** `QueryOverlay.php` | Rdzeń/Presentation | Okno kwerend: drugi tryb istniejącego okna (rekomendacja) albo osobne — rozstrzygnięcie nr 9 |
-| `Module/Docker/**` | Moduł | `ProvidesQueries`: `docker.images`, `docker.containers` |
-| `Module/Kubernetes/**` | Moduł | `ProvidesQueries`: `k8s.deployments`, `k8s.contexts`; czynność `k8s.deploy-image` wraz z oknami i czekaniem na zdarzenie |
-| `Module/Kubernetes/lang/{pl,en}.php` | Napisy | Etapy czynności, zdanie „nie ma kto zbudować obrazu” |
-| `Module/Browser/**` | Moduł | **Uzupełnienie**: `ProvidesQueries` — `browser.entries`, `browser.marked`; czytają istniejące repozytorium katalogu, niczego nie dokładają do jego dziedziny |
-| `Module/FileInfo/**` | Moduł | **Uzupełnienie**: `ProvidesQueries` — `file-info.usage`, `file-info.digest` jako **stan** pracy tłowej (`DiskUsageStage`, `ChecksumStage`) |
-| `Module/Audio/**` | Moduł | **Uzupełnienie**: `ProvidesQueries` — `audio.now-playing`, `audio.playlist`; czytają `PlaylistPlayer` |
-| `Module/{Browser,FileInfo,Audio}/lang/{pl,en}.php` | Napisy | **Uzupełnienie**: opisy sześciu kwerend w obu językach — widoczne w oknie kwerend, więc przez katalog, nie napisem w kodzie |
-| `docs/architecture.md`, `SKILL.md` | Dokumentacja | Kwerendy jako mechanizm, granica dopowiedzenia reguły 15, zdanie „komenda robi, kwerenda mówi” **oraz** „kontekst mówi gdzie stoję, kwerenda mówi co u mnie jest” |
-| testy | Testy | Rejestr kwerend (przedrostki, brak wykonawcy, kwerenda wołająca kwerendę), **dwa moduły-atrapy współpracujące bez Dockera i bez klastra**, przebieg czynności na atrapach obu portów, **kompletność opisów kwerend w obu katalogach napisów** (wzorem kroku 46) |
-
-## Do rozstrzygnięcia na starcie kroku
-
-1. **Kształt wyniku kwerendy** — wiersze danych pierwotnych (rekomendacja), czy
-   jedna wartość plus opcjonalna lista. Wynik musi udźwignąć listę obrazów
-   i pojedynczy identyfikator naraz.
-2. **Gdzie mieszka rejestr kwerend** — w `LoopState`, obok rejestru zdarzeń
-   i kontekstu sesji (rekomendacja: tak, bo wtedy `Bootstrap` rośnie o jedną
-   linię, a nie o argument przy każdym module), czy osobnym Singletonem.
-3. **Co widzi użytkownik, gdy wykonawcy nie ma** — czynność znika z menu, czy
-   stoi w nim i mówi, czego brakuje (rekomendacja: stoi i mówi).
-4. **Jak obraz trafia do klastra** — `minikube image load`, rejestr i `push`,
-   czy założenie o wspólnym demonie. Bez tego czynność jest atrapą (zastrzeżenie
-   drugie).
-5. **Czyja jest czynność `deploy-image`** — modułu Kubernetesa (rekomendacja),
-   modułu Dockera, czy trzeciego modułu spinającego. Trzeci znaczy moduł
-   istniejący wyłącznie po to, żeby znać dwa inne.
-6. **Czy czekanie na cudze zdarzenie ma limit czasu** i co się dzieje po jego
-   upływie — budowa trwa dalej u siebie, więc porzucenie czekania nie może jej
-   ubić.
-7. ~~**Czy kwerendy są widoczne dla użytkownika**~~ — **rozstrzygnięte
-   2026-08-15, przed startem kroku** (D86): **są widoczne**. Powód nie jest
-   wygodą, tylko regułą 13: cztery z sześciu kwerend istniejących modułów nie
-   mają konsumenta w kodzie, a widoczność daje im prawdziwego odbiorcę zamiast
-   wyjątku. Jak to widać — rozstrzygnięcie nr 9.
-8. **Czy kwerendy istniejących modułów wchodzą przed czynnością, czy po niej.**
-   Rekomendacja: **przed** — sześć kwerend na trzech modułach, które stoją
-   i działają, jest najtańszym sprawdzianem kontraktu; wykryta w nich wada
-   kontraktu kosztuje przeróbkę sześciu klas, a wykryta po czynności — także
-   samej czynności.
-9. **Czym jest okno kwerend** — drugim trybem okna komend spod `F12`
-   (rekomendacja: tak — te same komponenty, ten sam parser wiersza, ten sam
-   scenariusz pomiarowy `command`, a słownik wejścia nie rośnie o klawisz), czy
-   osobnym oknem. Rozstrzygnięcie obejmuje dwie rzeczy naraz: **czym przełącza
-   się tryb** i **gdzie ląduje wynik** — wiersze `QueryResult` w liście okna czy
-   w osobnym oknie tekstu.
-10. **Czy `file-info.usage` dostaje drugiego odbiorcę w kodzie** — wagę katalogu
-    kontekstu budowy pokazywaną przed wysłaniem go do demona. Rzecz jest tania
-    (kwerenda już istnieje) i chroni przed klasyczną pułapką Dockera, ale
-    dokłada etap do czynności, która ma ich pięć.
-11. **Co robi okno kwerend z kwerendą wymagającą argumentu**, którego użytkownik
-    nie podał — odmawia zdaniem czy pyta `PromptOverlay`em. Rekomendacja:
-    odmawia, tak jak okno komend przy brakującym argumencie komendy.
+  albo oddaje stan pracy.
+- **Rejestr zdolności ogólnego przeznaczenia** i **automatyczne wykrywanie, kto
+  co umie** — nazwa kwerendy wystarcza.
+- **Historia kwerend i zapamiętane wyniki** — okno pyta i pokazuje; pamięta okno
+  komend, bo tam pada czynność.
 
 ## Kryteria ukończenia
 
-- `k8s.deploy-image` przechodzi całą drogę: wybór, budowa, czekanie,
-  udostępnienie, podmiana — na prawdziwym demonie i prawdziwym klastrze
-  (minikube, po uzgodnieniu z użytkownikiem).
-- **Wyłączony moduł Dockera nie wywraca niczego**: czynność mówi, czego brakuje,
-  a aplikacja działa dalej.
-- Kwerenda spoza przestrzeni właściciela zostaje odrzucona wraz z powodem —
-  jak komenda i jak zdarzenie.
+- **Rdzeń i trzy moduły oddają komplet kwerend**, a okno kwerend pokazuje je
+  wszystkie wraz z opisami — po polsku i po angielsku.
+- **Żaden ekran ani komponent nie czyta stanu z pominięciem rejestru** — pilnuje
+  tego test.
+- **Właściciel dostaje ładunek typowany, obcy — wiersze**; próba odebrania
+  cudzego ładunku oddaje `null`.
+- Kwerenda spoza przestrzeni właściciela zostaje odrzucona wraz z powodem.
 - Kwerenda wołająca kwerendę zostaje zignorowana, a nie zapętla pętli.
-- **Wszystkie trzy moduły sprzed tego kroku oddają swoje kwerendy**, a okno
-  kwerend pokazuje **dziesięć pozycji** (sześć istniejących modułów, cztery
-  kontenerowe) wraz z opisami — po polsku i po angielsku.
-- **Kwerenda modułu wyłączonego nie stoi w oknie**, a kwerenda modułu
-  odrzuconego nie stoi tam tym bardziej — spis jest widokiem na rejestr, a nie
-  drugą listą (wzorem menu z kroku 32).
+- **Kwerenda modułu wyłączonego nie stoi w oknie.**
 - **`file-info.usage` i `file-info.digest` odpowiadają w klatce także wtedy, gdy
-  praca tłowa trwa** — oddają etap, nie czekają na koniec. Sprawdzane na katalogu
-  na tyle dużym, żeby `du` nie zdążyło; **żaden test nie mierzy czasu zegarem**.
-- **Żadna kwerenda nie oddaje danej, którą niesie `ModuleContext`** —
-  sprawdzane przeglądem sześciu nazw i ich pól przy odbiorze kroku.
-- Żaden moduł nie wymienia w kodzie **typu** innego modułu — pilnuje tego test,
-  wzorem `CoreKnowsNothingAboutFilesTest`.
-- Rejestr kwerend przy zerze pytań **nie kosztuje mierzalnie** —
-  `bin/render-bench --loop` „przed i po” bez regresji.
-- PHPStan `max`, PHP-CS-Fixer, `make qa` zielone; **żaden test nie rozmawia
-  z demonem ani z klastrem**.
+  praca tłowa trwa**; żaden test nie mierzy czasu zegarem.
+- **Odczyt niezmienionego źródła nie przelicza wyniku** — sprawdzane licznikiem
+  wywołań w atrapie kwerendy, nie zegarem.
+- `bin/render-bench --loop` „przed i po” bez regresji.
+- PHPStan `max`, PHP-CS-Fixer, `make qa` zielone.
 
 ## Dziennik realizacji
 
-_(pusty — krok nie rozpoczęty)_
+### 2026-08-16 — mechanizm, okno, rdzeń i trzy moduły
+
+**Zrobione i zielone (`make qa`: 2111 testów).**
+
+- **Mechanizm**: `src/Application/Query/` — `QueryInterface`, `QueryResult`,
+  `QueryRegistry`, `QueryLine`, `QueryLineParser`, `QueryRejection`, `Generation`,
+  `Owner`; zdolność `Application\Module\ProvidesQueries`; rejestr w `LoopState`,
+  składany jedną linią w `Bootstrapie`.
+- **Trzynaście kwerend rdzenia** (`Presentation/Cli/Query/`) wraz ze spisem
+  w `CoreQueries` — tym samym, którego używa zestaw testowy.
+- **Okno kwerend** jako drugi tryb okna komend (`F12`, `Tab` przy pustym polu).
+- **Piętnaście kwerend modułów**: `browser` (7 — wraz z `browser.tree`, która
+  doszła przy przebudowie odczytów), `file-info` (4), `audio` (3) — plus fasady
+  `BrowserQueries`, `FileInfoQueries`, `AudioQueries`.
+- **Napisy** w obu katalogach dla wszystkich kwerend i argumentów; pilnują ich
+  trzy testy (`QueryCatalogueTest`).
+- **Testy**: `QueryRegistryTest`, `QueryResultTest`, `QueryLineParserTest`,
+  `QueryWindowFlowTest`, `QueryCatalogueTest` (34 nowe przypadki).
+- **Dokumentacja**: `docs/architecture.md` (rozdział „Kwerendy: jedyna droga
+  odczytu"), `SKILL.md` (reguły 11w i 15g).
+
+**Trzy rzeczy wyszły inaczej, niż je zaplanowano.**
+
+1. **Pamięć wyniku dla kwerend ulotnych została wycofana — wymusił to test.**
+   Pierwsza wersja pamiętała odpowiedź `VOLATILE` **na jedną klatkę** (rejestr znał
+   numer taktu z `LoopState`). Wyglądało to na oszczędność, a było pułapką: odczyt
+   **po zmianie w tej samej klatce** oddawał stan sprzed niej, więc `audio.music`
+   po pauzie widziało, że nadal gra, i wznawiało utwór. Kwerendy ulotne nie są
+   odtąd pamiętane w ogóle, a `LoopState` stracił licznik klatek. Cena jest mała
+   dzięki leniwym wierszom: `ask()` zbiera kilka pól i wraca.
+2. **`browser.operation` nie powstała, bo nie ma źródła.** Stan operacji na
+   plikach żyje **wewnątrz okna**, które ją prowadzi (`RunsWork`, kroki 41–42),
+   a nie w obiekcie przeżywającym klatkę. Wystawienie go wymagałoby dorobienia
+   stanu wyłącznie po to, żeby było co przeczytać — czyli mechanizmu bez odbiorcy.
+   Prace potomne widać za to w `core.jobs`.
+3. **Podgląd tekstu został poza rejestrem — z reguły nr 1, nie z przeoczenia.**
+   `FileInfoState::textWindow()` **zmienia stan przy odczycie** (rozlicza zamówione
+   przewinięcie, przesuwa kotwicę w pliku, D60), a kwerenda czyta i nie zmienia.
+   Rzecz, która przy czytaniu przestawia to, co czyta, jest negocjacją z geometrią
+   panelu, a nie źródłem danych. Zapisane w docblocku `PreviewQuery`.
+
+**Przebudowa odczytów w `BrowserScreen` — zrobiona, i to ona dołożyła siódmą
+kwerendę.** Przez rejestr idą odtąd **wszystkie** odczyty rysowanej treści:
+ścieżka pasa, etykiety obwódek obu paneli, listy wpisów, drzewa, filtr, wpisy
+ukryte, zaznaczenie i jego podsumowanie, ognisko oraz pełna liczba wpisów
+(dołożona do `browser.panes` jako `full`, bo podsumowanie zbioru liczy katalog
+**przed** filtrem — D80 nr 4). W `BrowserPanes` zostały wyłącznie wywołania
+**zmieniające** (`enter`, `toggleMark`, `invertMarks`, `toggleTree`, `moveFocus`,
+`useSplit`, `publishFocused`, `clearFilter`, `clearMarks`, `selectionChanged`)
+oraz `ScrollWindow` panelu — a ten jest stanem między klatkami (reguła 11a),
+nie daną.
+
+Dwie rzeczy wyszły przy tym na jaw i obie zostały naprawione u źródła:
+**`browser.tree` musiała powstać**, bo widok drzewa jest osobnym źródłem danych
+(co jest rozwinięte i gdzie stoi kursor — a nie co leży w katalogu), oraz
+**reguła „drzewo zbioru nie widzi" (D80 nr 9) przeniosła się do jednego miejsca**
+— `BrowserPanes::markedOf()`, z którego korzystają i pas ścieżki, i kwerenda.
+Bez tego kwerenda odpowiadałaby inaczej niż to, co widać w klatce, i wyszło to
+w teście `MarkedEntriesFlowTest`.
+
+**Pomiar osi `--loop` — bez regresji.** Wzorzec odniesienia:
+`2026-08-16-po-kroku-52-loop.json`, nowy: `2026-08-16-po-kroku-53-loop.json`
+(60 przebiegów, 5 rozgrzewkowych).
+
+| Przebieg | Obciążenie/rdzeń | Praca w tle | Komplet prac |
+|---|---|---|---|
+| po mechanizmie i rdzeniu | 0,09 (= wzorzec) | −1,1% | −0,0% |
+| po przebudowie przeglądarki | 0,27 | **+70,2% ▲** | +9,2% |
+| powtórzony | 0,20 | −1,1% | −1,6% |
+| powtórzony, 60 przebiegów | 0,17 | −1,8% | +0,4% |
+
+**Wiersz z alarmem jest szumem i widać to z metryczki, a nie z domysłu**: takt
+pętli kosztuje **0,1 ms**, więc procent liczy się na trzeciej cyfrze znaczącej,
+a obciążenie maszyny w tamtym przebiegu było trzykrotnie wyższe od wzorcowego
+(0,27 wobec 0,09 na rdzeń) — dokładnie sytuacja, przed którą ostrzega sam
+strażnik narzędzia. Dwa powtórzenia przy niższym obciążeniu dały wartości
+w granicach ±2%, a przebieg czterokrotnie dłuższy — ±1,8%. Wzorzec zapisany
+z tego ostatniego.
+
+**Klatka obejrzana we wszystkich trzech torach** (2026-08-16, po przebudowie
+przeglądarki). Aplikacja uruchamiana wejściami projektu, okna zrzucane `xwd`
+i oglądane:
+
+| Tor | Jak uruchomiony | Co sprawdzone |
+|---|---|---|
+| Sixel | `bin/run.sh 110x34` (XTerm `-ti vt340`) | spis 17 pozycji z opisami i suwakiem, `core.viewport` jako pary `pole: wartość` (rows 34 / columns 110 / renderer Sixel — zgodne z geometrią okna), `browser.entries` jako tabela z nagłówkiem, `core.jobs` przy zerze prac → „brak danych do pokazania" |
+| Tekstowy | XTerm bez `-ti vt340`, ten sam `bin/light-manager` | `core.modules` — wszystkie sześć modułów przyjętych wraz z literami skrótów; tabela i obwódki rysują się znakami ramek |
+| Okienkowy | `bin/light-manager --window` (OpenGL) | `audio.playlist` jako rekord pól, ścieżka odmowy przy nazwie niepełnej („nieznane źródło danych: `audio.pl`") — okno zostaje otwarte, zdanie idzie do paska stanu |
+
+**Kolumny mieszczą się w 110 znakach we wszystkich trzech torach**; przy dłuższych
+nazwach plików tabela ucina wartość wielokropkiem, tak jak lista wpisów.
+**Regresji wizualnej nie ma**: `--png-compare` (Sixel) i `--window --png-compare`
+— dziewiętnaście scenariuszy po **0 różnych pikseli**; tor tekstowy pilnują złote
+klatki (`GoldenFrameTest`, 20 przypadków). `make test-functional`: 262 testy
+zielone.
+
+**Jedna niespójność wyszła dopiero z klatki i została poprawiona**: w trybie
+kwerend stopka mówiła „Esc zamknij **okno komend**", choć tytuł okna brzmiał już
+„ŹRÓDŁA DANYCH". Napis `command.key.close` jest odtąd neutralny („zamknij okno" /
+„close the window") — jeden klawisz obsługuje oba tryby, więc jego opis nie ma
+prawa nazywać jednego z nich.
+
+**Czas w wierszach kwerendy — rozstrzygnięty przy odbiorze.** `browser.entries`
+oddawało `modified` jako **liczbę sekund epoki** (`1786266864`), bo taka jest dana
+pierwotna — i taka, której człowiek w oknie kwerend nie umie przeczytać.
+Rozstrzygnięciem użytkownika pole jest odtąd **datą i godziną czasu lokalnego**:
+`2026-08-09 09:14:24`. Bez przesunięcia strefy i **bez litery `T`** — dokładnie
+w tym zapisie, którym mówi kolumna „Zmieniony" na liście wpisów obok, bo jedna
+aplikacja ma mówić o czasie jednym głosem. Napis pozostaje daną pierwotną
+i porównuje się leksykograficznie tak samo, jak liczba numerycznie; nieznany czas
+oddaje pusty napis, a nie `-1`. Pilnuje tego `BrowserQueriesTest`, a klatka pod
+XTermem potwierdziła, że dziewiętnaście znaków mieści się w kolumnie tabeli.
+
+**Rozmiar poszedł tą samą drogą, i to z tego samego powodu.** Pole `bytes`
+(`80847`) zamieniło się w `size` (`79,0 kB`): przy gigabajtach liczba bajtów jest
+nie do przeczytania, a wiersz kwerendy ogląda także człowiek. Zapis liczy
+**`EntrySize`** — ta sama klasa, którą podają rozmiar lista wpisów i drzewo
+(krok 31), więc trzeci rachunek tej samej rzeczy nie powstał. Katalog oddaje
+**pusty napis**, a nie `0 B`, bo zajętość katalogu wraz z zawartością zna
+wyłącznie `du` (krok 26) — lista wpisów robi w tym miejscu dokładnie to samo.
+
+**Cena obu poprawek jest jedna i zapisana wprost**: napisu z jednostką nie da się
+porównać liczbowo, więc moduł szukający „plików większych niż gigabajt" nie
+zrobi tego wierszem tej kwerendy. Przy czasie porządek leksykograficzny ocalał,
+przy rozmiarze — nie. Pierwszeństwo ma czytelność; pole liczbowe dojdzie wtedy,
+gdy zjawi się odbiorca, który go potrzebuje, a nie na zapas.
+
+Pozostałe pola tego rodzaju — `browser.selection` (`bytes`, `modified`)
+i `core.context` (`selectionBytes`, `selectionModifiedAt`) — **zostają danymi
+surowymi**: nie były przedmiotem rozstrzygnięcia, a zmiana ich kontraktu przy
+okazji byłaby zmianą na zapas.
+
+**Czego nadal nie ma.**
+
+- **Kryterium „żaden ekran nie czyta stanu z pominięciem rejestru" nie ma
+  strażnika w postaci testu** — pilnuje go dziś przegląd i typy fasad. Test
+  mechaniczny wymagałby rozdzielenia stanu na część czytaną i zmieniającą
+  (osobny interfejs czynności), co jest zmianą wykraczającą poza ten krok.

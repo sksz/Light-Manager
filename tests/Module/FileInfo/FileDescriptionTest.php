@@ -305,8 +305,9 @@ final class FileDescriptionTest extends TestCase
             (new Settings())->withModuleValue(FileInfoSettings::ID, FileInfoSettings::CHECKSUM, $checksumEnabled),
         );
 
+        $state = new LoopState($settings->current());
         $module = new FileInfoModule(
-            new LoopState($settings->current()),
+            $state,
             new StubTranslator(),
             $settings,
             new StubImagePreview(),
@@ -315,6 +316,11 @@ final class FileDescriptionTest extends TestCase
             $stats ?? new StubFileStat(),
             $checksums,
         );
+
+        // Kwerendy modułu w rejestrze — tak, jak robi to `Bootstrap` (krok 53).
+        // Bez tej linii ekran nie ma jak przeczytać własnego opisu, bo rejestr
+        // jest jedyną drogą odczytu.
+        $state->queries()->useModules([$module]);
 
         $screen = $module->screen();
 

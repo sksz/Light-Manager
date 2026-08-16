@@ -45,6 +45,9 @@ final class SoundEffects
 
     private ?EffectMap $map = null;
 
+    /** Licznik zmian mapy — pokolenie dla kwerendy `audio.effects` (krok 53). */
+    private int $revision = 0;
+
     /** @var array<string, float> zdarzenie → chwila ostatniego zagrania */
     private array $playedAt = [];
 
@@ -112,7 +115,23 @@ final class SoundEffects
     /** Mapa przypisań — wczytana przy pierwszym pytaniu (okno modułu, komenda). */
     public function map(): EffectMap
     {
-        return $this->map ??= $this->loaded();
+        if ($this->map === null) {
+            $this->map = $this->loaded();
+            ++$this->revision;
+        }
+
+        return $this->map;
+    }
+
+    /**
+     * Licznik zmian mapy — pokolenie dla kwerendy `audio.effects` (krok 53).
+     *
+     * Ta sama konstrukcja i ten sam powód, co przy playliście: wiersze przypisań
+     * budują się po zmianie, a nie po każdym spojrzeniu na okno.
+     */
+    public function revision(): int
+    {
+        return $this->revision;
     }
 
     /**
@@ -135,6 +154,7 @@ final class SoundEffects
         $map = $this->map();
         $map->assign($event, $path, !$this->files->exists($path));
         $this->storage->saveEffects($map);
+        ++$this->revision;
 
         return true;
     }
@@ -148,6 +168,7 @@ final class SoundEffects
         }
 
         $this->storage->saveEffects($map);
+        ++$this->revision;
 
         return true;
     }
@@ -161,6 +182,7 @@ final class SoundEffects
         }
 
         $this->storage->saveEffects($map);
+        ++$this->revision;
 
         return true;
     }
@@ -169,6 +191,7 @@ final class SoundEffects
     public function refresh(): void
     {
         $this->map()->refresh($this->files->exists(...));
+        ++$this->revision;
     }
 
     public function enabled(): bool

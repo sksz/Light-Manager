@@ -69,6 +69,18 @@ final class PlaylistPlayer
     /** Zdanie o kłopocie z plikiem playlisty — pokazuje je okno modułu, zamiast pustej listy. */
     private ?string $problem = null;
 
+    /**
+     * Licznik zmian playlisty — pokolenie dla kwerendy `audio.playlist`
+     * (krok 53).
+     *
+     * Rejestr kwerend przelicza wynik wyłącznie po zmianie tej liczby, więc
+     * ekran modułu rysujący listę trzydzieści razy na sekundę płaci za jej
+     * zbudowanie **raz na zmianę**, a nie raz na klatkę. Licznik rośnie
+     * w każdym miejscu, które listę wczytuje albo zmienia — a tych jest sześć
+     * i wszystkie prowadzą przez tę klasę.
+     */
+    private int $revision = 0;
+
     public function __construct(
         private readonly AudioPort $audio,
         private readonly PlaylistPort $storage,
@@ -107,6 +119,7 @@ final class PlaylistPlayer
         }
 
         $playlist->refresh($this->files->exists(...));
+        ++$this->revision;
 
         return $this->playlist = $playlist;
     }
@@ -237,6 +250,7 @@ final class PlaylistPlayer
         $playlist = $this->playlist();
         $playlist->add(PlaylistEntry::of($path, !$this->files->exists($path)));
         $this->storage->save($playlist);
+        ++$this->revision;
 
         return null;
     }
@@ -251,6 +265,7 @@ final class PlaylistPlayer
         }
 
         $this->storage->save($playlist);
+        ++$this->revision;
 
         return true;
     }
@@ -263,6 +278,7 @@ final class PlaylistPlayer
 
         if ($moved !== $index) {
             $this->storage->save($playlist);
+            ++$this->revision;
         }
 
         return $moved;
@@ -272,6 +288,13 @@ final class PlaylistPlayer
     public function refresh(): void
     {
         $this->playlist()->refresh($this->files->exists(...));
+        ++$this->revision;
+    }
+
+    /** Pokolenie playlisty — patrz `$revision`. */
+    public function revision(): int
+    {
+        return $this->revision;
     }
 
     /**
@@ -309,6 +332,7 @@ final class PlaylistPlayer
             $playlist->usePlaying(null);
             $this->leading = false;
             $this->playingSince = null;
+            ++$this->revision;
 
             return;
         }
@@ -344,6 +368,7 @@ final class PlaylistPlayer
             $playlist->refresh($this->files->exists(...));
             $this->leading = false;
             $this->playingSince = null;
+            ++$this->revision;
 
             return $problem;
         }
@@ -351,6 +376,7 @@ final class PlaylistPlayer
         $playlist->usePlaying($index);
         $this->leading = true;
         $this->playingSince = null;
+        ++$this->revision;
 
         return null;
     }

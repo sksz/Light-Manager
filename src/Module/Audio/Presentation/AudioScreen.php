@@ -106,6 +106,7 @@ final class AudioScreen implements
     public function __construct(
         private readonly PlaylistPlayer $player,
         private readonly SoundEffects $effects,
+        private readonly AudioQueries $queries,
         private readonly EventRegistry $events,
         private readonly TranslatorPort $translator,
     ) {
@@ -141,16 +142,20 @@ final class AudioScreen implements
      */
     public function header(): ScreenZone
     {
-        $playing = $this->player->nowPlaying();
+        // Jedno pytanie zamiast czterech (krok 53): do tego kroku pas pytał
+        // odtwarzacz osobno o pozycję, o granie i o tryb, więc trzy odpowiedzi
+        // mogły pochodzić z trzech różnych chwil.
+        $now = $this->queries->nowPlaying();
+        $entry = $now->entry;
         $left = match (true) {
-            $playing === null => $this->text('nothing'),
-            $this->player->isPlaying() => $this->text('nowPlaying', ['track' => $playing->name]),
-            default => $this->text('paused', ['track' => $playing->name]),
+            $entry === null => $this->text('nothing'),
+            $now->playing => $this->text('nowPlaying', ['track' => $entry->name]),
+            default => $this->text('paused', ['track' => $entry->name]),
         };
 
         return new ScreenZone(
             'module.' . AudioSettings::ID . '.zone.now',
-            new Label($left, $this->text('mode.' . $this->player->mode()->value)),
+            new Label($left, $this->text('mode.' . $now->mode->value)),
         );
     }
 
@@ -261,7 +266,7 @@ final class AudioScreen implements
 
             return new EffectList(
                 $this->declarations(),
-                $this->effects->map(),
+                $this->queries->effects(),
                 $this->effectWindow,
                 $this->translator,
                 $this->effectSelected,
@@ -298,12 +303,14 @@ final class AudioScreen implements
      */
     private function playlistRows(): array
     {
-        $playlist = $this->player->playlist();
+        $playlist = $this->queries->playlist();
 
         if ($playlist->isEmpty()) {
             // Powód prawdziwy wyprzedza ogólny: playlista pusta dlatego, że jej
             // pliku nie dało się przeczytać, ma o tym powiedzieć wprost.
-            return [new ListRow($this->player->problem() ?? $this->text('playlist.empty'), '', Role::Muted)];
+            $problem = $this->queries->nowPlaying()->problem;
+
+            return [new ListRow($problem ?? $this->text('playlist.empty'), '', Role::Muted)];
         }
 
         $this->clampSelection();
@@ -403,7 +410,7 @@ final class AudioScreen implements
     {
         $bindings = [KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move', 'help.key.move.short')];
 
-        if (!$this->player->playlist()->isEmpty()) {
+        if (!$this->queries->playlist()->isEmpty()) {
             $bindings[] = KeyBinding::of(
                 [Key::Enter],
                 'module.' . AudioSettings::ID . '.key.play',
@@ -427,7 +434,7 @@ final class AudioScreen implements
             'module.' . AudioSettings::ID . '.key.type.short',
         );
 
-        if (!$this->player->playlist()->isEmpty()) {
+        if (!$this->queries->playlist()->isEmpty()) {
             $bindings[] = KeyBinding::of(
                 [Key::F8, Key::Delete],
                 'module.' . AudioSettings::ID . '.key.remove',
@@ -539,7 +546,7 @@ final class AudioScreen implements
 
     private function select(int $delta): ScreenOutcome
     {
-        $total = $this->player->playlist()->count();
+        $total = $this->queries->playlist()->count();
 
         if ($total === 0) {
             return ScreenOutcome::stay();
@@ -587,7 +594,7 @@ final class AudioScreen implements
      */
     private function pause(): ScreenOutcome
     {
-        if ($this->player->isPlaying()) {
+        if ($this->queries->nowPlaying()->playing) {
             $this->player->pause();
 
             return ScreenOutcome::stay();
@@ -657,7 +664,7 @@ final class AudioScreen implements
             return ScreenOutcome::stay(Message::error($problem));
         }
 
-        $this->selected = max(0, $this->player->playlist()->count() - 1);
+        $this->selected = max(0, $this->queries->playlist()->count() - 1);
 
         return ScreenOutcome::stay(Message::info($this->text('playlist.added', ['track' => basename($path)])));
     }
@@ -722,12 +729,12 @@ final class AudioScreen implements
     {
         $declaration = $this->declarationUnderCursor();
 
-        return $declaration === null ? null : $this->effects->map()->at($declaration->name);
+        return $declaration === null ? null : $this->queries->effects()->at($declaration->name);
     }
 
     private function clampSelection(): void
     {
-        $total = $this->player->playlist()->count();
+        $total = $this->queries->playlist()->count();
         $this->selected = $total === 0 ? 0 : max(0, min($total - 1, $this->selected));
     }
 

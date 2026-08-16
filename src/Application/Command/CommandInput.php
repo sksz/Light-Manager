@@ -37,4 +37,30 @@ final class CommandInput
 
         return $value === null ? $fallback : (int) $value;
     }
+
+    /**
+     * Podpis wartości — klucz, pod którym rejestr kwerend pamięta odpowiedź
+     * (krok 53).
+     *
+     * Kolejność nazw jest ustalana sortowaniem, bo ten sam zestaw argumentów
+     * podany w innej kolejności jest tym samym pytaniem; znaki rozdzielające są
+     * spoza zakresu drukowalnego, żeby wartość ze spacją albo z równa się nie
+     * zlała się z sąsiednią.
+     */
+    public function signature(): string
+    {
+        if ($this->arguments === []) {
+            return '';
+        }
+
+        $values = $this->arguments;
+        ksort($values);
+        $parts = [];
+
+        foreach ($values as $name => $value) {
+            $parts[] = $name . "\x1e" . $value;
+        }
+
+        return implode("\x1f", $parts);
+    }
 }

@@ -8,6 +8,7 @@ use LightManager\Application\Dto\Settings;
 use LightManager\Application\Event\AppEvent;
 use LightManager\Application\Event\EventRegistry;
 use LightManager\Application\Module\ModuleContext;
+use LightManager\Application\Query\QueryRegistry;
 use LightManager\Domain\ValueObject\Message;
 
 /**
@@ -62,11 +63,23 @@ final class LoopState
      */
     private readonly EventRegistry $events;
 
+    /**
+     * Rejestr kwerend (krok 53) — **jedyna droga odczytu w tej aplikacji**.
+     *
+     * Miejsce jest tym samym rachunkiem, co przy rejestrze zdarzeń o kilka linii
+     * wyżej: `LoopState` dostaje **każdy** moduł i każdy ekran, więc pytanie
+     * o dane nie kosztuje ani jednego argumentu więcej w `Bootstrapie`. Stan go
+     * **trzyma, ale nie wypełnia** — wpisują się do niego rdzeń i moduły.
+     */
+    private readonly QueryRegistry $queries;
+
     public function __construct(
         private Settings $settings = new Settings(),
         ?EventRegistry $events = null,
+        ?QueryRegistry $queries = null,
     ) {
         $this->events = $events ?? new EventRegistry();
+        $this->queries = $queries ?? new QueryRegistry();
         $this->overlays = new OverlayStack($this->events);
         $this->context = new ModuleContext();
     }
@@ -74,6 +87,11 @@ final class LoopState
     public function events(): EventRegistry
     {
         return $this->events;
+    }
+
+    public function queries(): QueryRegistry
+    {
+        return $this->queries;
     }
 
     public function context(): ModuleContext

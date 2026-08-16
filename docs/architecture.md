@@ -863,6 +863,62 @@ więc odróżnić powodzenie od awarii, ale **nie da się odróżnić kopiowania
 usunięcia**. Efekt przypisany do „zakończonego kopiowania” wymaga, żeby to
 kopiowanie samo o sobie powiedziało (D83, rozstrzygnięcia 1–2).
 
+#### Kwerendy: jedyna droga odczytu (od kroku 53)
+
+**Komenda robi, kwerenda mówi.** Rejestr komend niesie od kroku 19 czynności,
+rejestr zdarzeń od kroku 46 — nazwane momenty, a `CommandOutcome` niesie **zdanie
+dla użytkownika**. Danej nie niósł do kroku 53 żaden z tych kanałów: „zbuduj obraz
+i podaj mi jego znacznik" nie miało czym wrócić. Kwerendy są tym kanałem —
+i od razu **jedynym**: odczyt idzie przez rejestr także wewnątrz rdzenia i wewnątrz
+modułu (D92 nr 3).
+
+`Application\Query\QueryRegistry` powtarza konstrukcję rejestru komend co do
+joty: przestrzeń nazw wymuszona (`core.*`, `<id modułu>.*`), odrzucenie z powodem
+jako dana, zbiór globalny. Moduł wnosi swoje zdolnością
+`Application\Module\ProvidesQueries`, a rdzeń wylicza swoje w jednym miejscu
+(`Presentation\Cli\Query\CoreQueries`). Rejestr mieszka w `LoopState`, obok
+rejestru zdarzeń i z tego samego powodu — więc kosztuje **jedną linię**
+w `Bootstrapie`.
+
+Cztery reguły kwerendy, wykonane w kontrakcie albo w rejestrze:
+
+1. **Czyta i nie zmienia.** Co zmienia — jest komendą. Bez tego pierwsza kwerenda
+   `docker.prune` uczyniłaby mechanizm drugą drogą do czynności.
+2. **Nie zna wołającego** i wygląda tak samo przy zerze pytających.
+3. **Nie woła kwerendy** — pytanie zadane w trakcie odpowiadania zostaje
+   odmówione, wzorem „zdarzenie nie rodzi zdarzenia".
+4. **Odpowiada w klatce albo nie odpowiada wcale.** Praca dłuższa od klatki idzie
+   komendą i pracą kawałkową, a kwerenda oddaje **stan tej pracy** — precedens
+   z kroków 25 i 26 (`ChecksumStage`, `DiskUsageStage`).
+
+**Wynik ma dwa oblicza, a nie dwa kanały.** `QueryResult` niesie wiersze danych
+pierwotnych — `list<array<string, string|int|bool>>` — dla **każdego**, oraz
+ładunek typowany wydawany **wyłącznie właścicielowi** (`payloadFor($owner)`).
+Dzięki temu jedna droga nie znaczy rysowania z tablic napisów: `BrowserScreen`
+dostaje `Directory`, a moduł Kubernetesa — napisy i liczby. Reguła 15 zostaje
+nietknięta, bo cudzy ładunek wraca jako `null`.
+
+**Routing.** Kwerenda oddaje tani `generation(): int`, a rejestr pamięta ostatnią
+odpowiedź pod kluczem `nazwa + argumenty`; dopóki pokolenie się nie zmieniło,
+odczyt kosztuje jedno wyszukanie w tablicy. Wiersze budują się **leniwie**, więc
+właściciel czytający ładunek nie płaci za tablice, których nikt nie obejrzy.
+Źródło bez naturalnego licznika deklaruje `QueryInterface::VOLATILE` i wtedy
+**nie jest pamiętane w ogóle** — poprawka wymuszona testem: odpowiedź pamiętana
+„na jedną klatkę" oddawała stan sprzed zmiany, która padła w tej samej klatce.
+
+**Widoczność.** Spis kwerend i ich wykonanie stoją w **drugim trybie okna komend**
+(`F12`, przełącza `Tab` przy pustym polu). Odpowiedź jednowierszowa pokazuje się
+jako pary `pole: wartość` (`ListRow`), wielowierszowa — jako `Table` z nagłówkiem.
+Historii kwerendy nie mają: historia zapisuje czynność, a nie pytanie.
+
+**Kontekst a kwerenda.** Zdanie rozważane przy planowaniu — „kontekst mówi, gdzie
+użytkownik stoi; kwerenda mówi, co u mnie jest" — **nie obowiązuje** (D92 nr 8).
+Broniło ono przed dwiema drogami do jednej danej, a po rozstrzygnięciu „rejestr
+jedyną drogą odczytu" drugiej drogi nie ma. `ModuleContext` zostaje jako to, co
+rdzeń rozdaje **bez pytania**, a `core.context`, `browser.cwd` i
+`browser.selection` są tym samym oglądanym przez kanał — z jedną różnicą, która
+uzasadnia ich istnienie: kontekst mówi o panelu **czynnym**, kwerenda o dowolnym.
+
 #### Jeden ekran, dwa panele (od kroku 24)
 
 Podział ekranu **nie znosi zasady „jeden ekran naraz”** i to jest jego

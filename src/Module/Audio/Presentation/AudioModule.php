@@ -10,6 +10,7 @@ use LightManager\Application\Module\ModuleSettingsTab;
 use LightManager\Application\Module\ModuleShortcut;
 use LightManager\Application\Module\NeedsTick;
 use LightManager\Application\Module\ProvidesCommands;
+use LightManager\Application\Module\ProvidesQueries;
 use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
@@ -29,6 +30,9 @@ use LightManager\Module\Audio\Presentation\Command\AddTrackCommand;
 use LightManager\Module\Audio\Presentation\Command\HookCommand;
 use LightManager\Module\Audio\Presentation\Command\MusicCommand;
 use LightManager\Module\Audio\Presentation\Command\VolumeCommand;
+use LightManager\Module\Audio\Presentation\Query\EffectsQuery;
+use LightManager\Module\Audio\Presentation\Query\NowPlayingQuery;
+use LightManager\Module\Audio\Presentation\Query\PlaylistQuery;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
@@ -64,6 +68,7 @@ final class AudioModule implements
     ModuleInterface,
     ProvidesSettingsTab,
     ProvidesCommands,
+    ProvidesQueries,
     ProvidesHelpTab,
     ProvidesScreen,
     NeedsTick,
@@ -80,6 +85,11 @@ final class AudioModule implements
 
     /** @var list<\LightManager\Application\Command\CommandInterface>|null */
     private ?array $commands = null;
+
+    /** @var list<\LightManager\Application\Query\QueryInterface>|null */
+    private ?array $queries = null;
+
+    private ?AudioQueries $reader = null;
 
     private ?PlaylistPlayer $player = null;
 
@@ -150,14 +160,45 @@ final class AudioModule implements
         return $this->commands ??= $this->assemble();
     }
 
+    /**
+     * Trzy źródła danych modułu (krok 53).
+     *
+     * Zdolność kosztuje dokładnie tyle, co `ProvidesCommands` — jedną metodę
+     * i jedną pozycję na liście interfejsów. W rdzeniu nie kosztuje **nic**:
+     * rejestr bierze kwerendy jedną linią, przechodząc po modułach przyjętych.
+     */
+    public function queries(): array
+    {
+        $player = $this->player();
+
+        return $this->queries ??= [
+            new PlaylistQuery($player),
+            new NowPlayingQuery($player),
+            new EffectsQuery($this->effects()),
+        ];
+    }
+
     public function screen(): ScreenInterface
     {
         return $this->screen ??= new AudioScreen(
             $this->player(),
             $this->effects(),
+            $this->reader(),
             $this->state->events(),
             $this->translator,
         );
+    }
+
+    /**
+     * Odczyt własnych danych — **przez rejestr, jak każdy inny** (D92 nr 3).
+     *
+     * Fasada jest jedna na moduł i to nie jest oszczędność, tylko warunek
+     * poprawności: dwie znaczyłyby dwa miejsca rozpakowujące ładunek, a trzecia
+     * prędzej czy później zaczęłaby czytać stan wprost.
+     */
+    private function reader(): AudioQueries
+    {
+        return $this->reader ??= new AudioQueries($this->state->queries());
     }
 
     /**
@@ -254,7 +295,7 @@ final class AudioModule implements
         $player = $this->player();
 
         return [
-            new MusicCommand($player, $this->translator),
+            new MusicCommand($player, $this->reader(), $this->translator),
             new AddTrackCommand($player, $this->files ?? TrackFileService::getInstance(), $this->translator),
             new HookCommand(
                 $this->effects(),

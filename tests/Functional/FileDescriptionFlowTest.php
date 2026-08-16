@@ -288,8 +288,9 @@ final class FileDescriptionFlowTest extends TestCase
 
         $settings ??= (new Settings())->withModuleValue(FileInfoSettings::ID, FileInfoSettings::DISK_USAGE, true);
 
+        $state = new LoopState($settings);
         $module = new FileInfoModule(
-            new LoopState($settings),
+            $state,
             new StubTranslator(),
             new InMemorySettings($settings),
             new StubImagePreview(),
@@ -298,6 +299,9 @@ final class FileDescriptionFlowTest extends TestCase
             $stats,
             new StubChecksums(),
         );
+
+        // Kwerendy modułu w rejestrze — tak, jak robi to `Bootstrap` (krok 53).
+        $state->queries()->useModules([$module]);
 
         $screen = $module->screen();
 

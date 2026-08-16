@@ -306,8 +306,9 @@ final class TextPreviewFlowTest extends TestCase
                 ->withModuleValue(FileInfoSettings::ID, FileInfoSettings::LINE_NUMBERS, $numbers),
         );
 
+        $state = new LoopState($settings->current());
         $module = new FileInfoModule(
-            new LoopState($settings->current()),
+            $state,
             new StubTranslator(),
             $settings,
             StubImagePreview::unreadable(),
@@ -316,6 +317,9 @@ final class TextPreviewFlowTest extends TestCase
             (new StubFileStat())->add($path),
             new StubChecksums(),
         );
+
+        // Kwerendy modułu w rejestrze — tak, jak robi to `Bootstrap` (krok 53).
+        $state->queries()->useModules([$module]);
 
         $screen = $module->screen();
 

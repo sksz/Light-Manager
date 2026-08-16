@@ -493,11 +493,29 @@ jawny wyjątek. Uzupełnienie przyniosło ponadto zdanie graniczne, bez którego
 pierwsze kwerendy przeglądarki powtórzyłyby kanał stojący w rdzeniu od kroku 21:
 **kontekst mówi, gdzie użytkownik stoi; kwerenda mówi, co u mnie jest.**
 
+**Krok 53 rozszerzono i podzielono 2026-08-16, na jego starcie** (D92) — i było
+to rozszerzenie trzecie, najszersze z trzech. Kwerendę dostaje **wszystko, co da
+się przeczytać**: rdzeń wraz z własnym samoopisem (spis komend, spis kwerend,
+słownik zdarzeń, prace tłowe, motyw, język, wersja) i **sześć** modułów, a nie
+trzy. Zmienia się przy tym sam mechanizm: rejestr kwerend przestaje być kanałem
+między modułami i staje się **jedyną drogą odczytu w całej aplikacji** — także
+wewnątrz rdzenia i wewnątrz modułu. Żeby jedna droga nie znaczyła rysowania
+z tablic napisów, `QueryResult` niesie **dwa oblicza**: wiersze danych
+pierwotnych dla obcych i ładunek typowany wydawany wyłącznie właścicielowi;
+żeby nie znaczyła regresji w klatce — rejestr pamięta wynik pod **znacznikiem
+pokolenia**, a wiersze buduje **leniwie**. Zdanie graniczne z D86 („kontekst
+mówi, gdzie użytkownik stoi") zostało przy tym **odwołane**: skoro drugiej drogi
+do danej nie ma, kontekst przestaje być wyjątkiem od kanału i staje się jednym
+z jego źródeł. Ciężar całości kazał krok podzielić na **53** (mechanizm, okno,
+rdzeń, `browser`, `file-info`, `audio`) i **54** (`ssh`, `docker`, `k8s` wraz
+z czynnością `k8s.deploy-image`).
+
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
 | 51 | Moduł `docker`: kontenery, obrazy, logi, budowanie i compose | [51-modul-docker.md](archiwum/51-modul-docker.md) | 20, 21, 23, 24, 26, 27, 28, 29, 41, 45, 46 | Opus | xhigh | Ukończony |
 | 52 | Moduł `k8s`: konteksty, zasoby klastra i logi | [52-modul-kubernetes.md](archiwum/52-modul-kubernetes.md) | 20, 21, 22, 24, 26, 27, 28, 29, 31⁴, 45, 46, 51 | Opus | high | Ukończony z zastrzeżeniem |
-| 53 | Kwerendy międzymodułowe: obraz zbudowany Dockerem ląduje w klastrze | [53-kwerendy-miedzymodulowe.md](53-kwerendy-miedzymodulowe.md) | 19, 20, 21, 23, 24, 25, 26, 32, 41, 42, 43, 45, 46, 47, 51, 52 | Opus³ | xhigh | Nie rozpoczęty |
+| 53 | Kwerendy: mechanizm, okno i wszystkie źródła danych rdzenia oraz trzech modułów | [53-kwerendy-miedzymodulowe.md](53-kwerendy-miedzymodulowe.md) | 19, 20, 21, 24, 25, 26, 27, 43, 45, 46, 47 | Opus³ | xhigh | W toku |
+| 54 | Kwerendy modułów Fazy XVII i XVIII: obraz zbudowany Dockerem ląduje w klastrze | [54-kwerendy-modulow-kontenerowych.md](54-kwerendy-modulow-kontenerowych.md) | 23, 32, 41, 42, 46, 47, 48, 49, 50, 51, 52, 53 | Opus⁵ | xhigh | Nie rozpoczęty |
 
 ⁴ Zależność **dopisana 2026-08-16**, na starcie kroku ([00-decyzje.md](00-decyzje.md),
 D91 nr 3): rozstrzygnięcie użytkownika postawiło w lewym panelu **drzewo grup API
@@ -514,6 +532,22 @@ których `ModuleContext` nie niesie) i 45 (playlista). Model **zostaje `Opus`**:
 okno jest `OverlayInterface` złożonym z komponentów kroku 19 i nie dokłada
 prymitywu, więc trzy renderery zostają nietknięte — warunek `Fable` z przypisów
 ¹ i ² nie zachodzi.
+
+**Rozszerzony i podzielony 2026-08-16, na starcie** ([00-decyzje.md](00-decyzje.md),
+D92): kwerendę dostaje **wszystko, co da się przeczytać** — rdzeń wraz
+z własnym samoopisem i sześć modułów — a rejestr staje się **jedyną drogą
+odczytu w całej aplikacji**, także wewnątrz rdzenia i modułu. Ciężar tego
+rozstrzygnięcia kazał krok podzielić: kwerendy `ssh`, `docker` i `k8s` wraz
+z czynnością `k8s.deploy-image` przeszły do **kroku 54**, a wraz z nimi cztery
+rozstrzygnięcia startowe, których dotyczą. Zależności od 32, 41, 42, 51 i 52
+poszły tam razem z czynnością; przybyła 27 (`Table` rysuje wynik kwerendy).
+Model **zostaje `Opus / xhigh`** — przebudowa odczytów nie dotyka ani jednego
+tłumacza słownika prymitywów.
+
+⁵ Krok **powstał 2026-08-16** z podziału kroku 53 (D92 nr 2). Model **ten sam,
+co w kroku 53**, i z tego samego powodu: prymitywów nie przybywa, słownik
+wejścia nie rośnie, trzy renderery zostają nietknięte. Wysiłek trzyma
+choreografia czynności przechodzącej przez dwa moduły i pracę trwającą minuty.
 
 ### Dokumenty towarzyszące (praca projektowa)
 

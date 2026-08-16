@@ -11,6 +11,7 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\Audio\Application\AudioSettings;
 use LightManager\Module\Audio\Application\PlaylistPlayer;
+use LightManager\Module\Audio\Presentation\AudioQueries;
 
 /**
  * `audio.music` — muzyka rusza i staje (krok 36).
@@ -34,6 +35,7 @@ final class MusicCommand implements CommandInterface
 {
     public function __construct(
         private readonly PlaylistPlayer $player,
+        private readonly AudioQueries $queries,
         private readonly TranslatorPort $translator,
     ) {
     }
@@ -55,7 +57,7 @@ final class MusicCommand implements CommandInterface
 
     public function execute(CommandInput $input): CommandOutcome
     {
-        if ($this->player->isPlaying()) {
+        if ($this->queries->nowPlaying()->playing) {
             $this->player->pause();
 
             return CommandOutcome::done(Message::info($this->text('stopped')));
@@ -69,7 +71,7 @@ final class MusicCommand implements CommandInterface
 
         // Nazwa pozycji, a nie cała ścieżka: pasek stanu ma jeden wiersz, a
         // użytkownik i tak wie, gdzie trzyma muzykę.
-        $playing = $this->player->nowPlaying();
+        $playing = $this->queries->nowPlaying()->entry;
 
         return CommandOutcome::done(Message::info($this->text('playing', [
             'track' => $playing === null ? '' : $playing->name,

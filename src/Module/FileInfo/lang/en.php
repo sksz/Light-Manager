@@ -123,6 +123,10 @@ return [
     'module.file-info.timedOut' => 'The "file" command did not answer within {seconds} s — aborted.',
 
     'module.file-info.command.show' => 'show the description of the selected entry',
+    'module.file-info.query.description' => 'full description of the selected entry',
+    'module.file-info.query.preview' => 'entry thumbnail or the reason there is none',
+    'module.file-info.query.digest' => 'sha256 checksum along with its stage',
+    'module.file-info.query.usage' => 'disk usage along with the stage of the measurement',
 
     'module.file-info.help.checksum' => 'compute the checksum',
     'module.file-info.help.diskUsage' => 'measure the directory disk usage',

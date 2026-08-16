@@ -268,6 +268,33 @@ final class Settings
         return $this->copy(modules: $modules);
     }
 
+    /**
+     * Wartość ustawienia rdzenia spod klucza — jedyne miejsce, które zna
+     * odwzorowanie `SettingKey` na pole (krok 53).
+     *
+     * Do tego kroku takiego odwzorowania nie było, bo każdy odbiorca sięgał po
+     * pole po nazwie; kwerenda `core.settings` oddaje **komplet**, więc musi
+     * przejść po kluczach — a `match` rozstrzygający wszystkie warianty enuma
+     * jest jedynym miejscem, które psuje się jawnie, gdy dojdzie klucz
+     * jedenasty. Podprzestrzeń modułów tędy nie przechodzi: ma własny klucz
+     * i własną kwerendę, bo jej kształt zależy od modułu, a nie od rdzenia.
+     */
+    public function valueOf(SettingKey $key): bool|int|string
+    {
+        return match ($key) {
+            SettingKey::Language => $this->language,
+            SettingKey::Theme => $this->theme,
+            SettingKey::StartupModule => $this->startupModule,
+            SettingKey::TextAntialias => $this->textAntialias,
+            SettingKey::StrokeAntialias => $this->strokeAntialias,
+            SettingKey::PaletteColors => $this->paletteColors,
+            SettingKey::WindowColumns => $this->windowColumns,
+            SettingKey::WindowRows => $this->windowRows,
+            SettingKey::BackgroundOutputKib => $this->backgroundOutputKib,
+            SettingKey::BackgroundJobs => $this->backgroundJobs,
+        };
+    }
+
     /** Wartość ustawienia modułu tak, jak leży w pliku; `null`, gdy nikt jej nie zapisał. */
     public function moduleValue(string $id, string $key): bool|int|string|null
     {

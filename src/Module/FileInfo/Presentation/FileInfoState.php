@@ -160,6 +160,9 @@ final class FileInfoState
      */
     private bool $textNumbered = true;
 
+    /** Licznik zmian opisu — pokolenie kwerend tego modułu (krok 53). */
+    private int $revision = 0;
+
     public function __construct(
         private readonly InspectSelectedEntryUseCase $inspect,
         private readonly PreviewEntryUseCase $previews,
@@ -178,6 +181,21 @@ final class FileInfoState
     public function context(): ModuleContext
     {
         return $this->context;
+    }
+
+    /**
+     * Licznik zmian opisu — pokolenie dla kwerend `file-info.description`
+     * i `file-info.preview` (krok 53).
+     *
+     * Rośnie wyłącznie tam, gdzie opis naprawdę powstaje od nowa, czyli przy
+     * zmianie zaznaczenia. Dzięki temu ekran modułu, rysowany trzydzieści razy
+     * na sekundę, płaci za rozłożenie sekcji na wiersze **raz na wpis** —
+     * a miniatura, licząca się leniwie i drogo, nie liczy się w ogóle, dopóki
+     * prawy panel o nią nie zapyta.
+     */
+    public function revision(): int
+    {
+        return $this->revision;
     }
 
     public function description(): ?EntryDescription
@@ -698,6 +716,7 @@ final class FileInfoState
         $this->rewindTextPreview();
         $this->path = $path;
         $this->description = $this->inspect->execute($context);
+        ++$this->revision;
     }
 
     /**
@@ -823,6 +842,7 @@ final class FileInfoState
         $this->path = null;
         $this->remotePath = null;
         $this->description = null;
+        ++$this->revision;
     }
 
     /**

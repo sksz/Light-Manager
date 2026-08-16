@@ -130,7 +130,21 @@ final class BrowserPanes
      */
     public function focusedMarked(): MarkedEntries
     {
-        return $this->focusShowsTree() ? MarkedEntries::none() : $this->focused()->marked();
+        return $this->markedOf($this->split->focusesSecond() ? 1 : 0);
+    }
+
+    /**
+     * Zaznaczenie wskazanego panelu — z regułą „drzewo zbioru nie widzi”
+     * (D80 nr 9) w **jednym** miejscu.
+     *
+     * Rozdzielone z `focusedMarked()` w kroku 53, bo kwerenda `browser.marked`
+     * pyta o panel podany numerem, a nie o ten z ogniskiem — i musi odpowiadać
+     * tą samą regułą, którą kieruje się pas ścieżki. Dwa rachunki tego samego
+     * rozjechałyby się przy pierwszej poprawce.
+     */
+    public function markedOf(int $index): MarkedEntries
+    {
+        return $this->showsTree($index) ? MarkedEntries::none() : $this->pane($index)[0]->marked();
     }
 
     /**

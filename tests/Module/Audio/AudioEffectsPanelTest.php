@@ -10,15 +10,21 @@ use LightManager\Application\Dto\Settings;
 use LightManager\Application\Event\EventRegistry;
 use LightManager\Application\Module\ContextEntryKind;
 use LightManager\Application\Module\ModuleContext;
+use LightManager\Application\Query\QueryRegistry;
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Primitive\TextRun;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
+use LightManager\Module\Audio\Application\AudioSettings;
 use LightManager\Module\Audio\Application\EffectAssignment;
 use LightManager\Module\Audio\Application\PlaylistEntry;
 use LightManager\Module\Audio\Application\PlaylistPlayer;
 use LightManager\Module\Audio\Application\SoundEffects;
+use LightManager\Module\Audio\Presentation\AudioQueries;
 use LightManager\Module\Audio\Presentation\AudioScreen;
+use LightManager\Module\Audio\Presentation\Query\EffectsQuery;
+use LightManager\Module\Audio\Presentation\Query\NowPlayingQuery;
+use LightManager\Module\Audio\Presentation\Query\PlaylistQuery;
 use LightManager\Tests\Support\InMemorySettings;
 use LightManager\Tests\Support\StubAudio;
 use LightManager\Tests\Support\StubEffectStorage;
@@ -188,15 +194,19 @@ final class AudioEffectsPanelTest extends TestCase
         $this->storage = new StubEffectStorage($assignments);
         $settings = new InMemorySettings(new Settings());
 
+        $player = new PlaylistPlayer(
+            $this->audio,
+            new StubPlaylistStorage([PlaylistEntry::of('/muzyka/pierwszy.mp3')]),
+            $this->files,
+            $settings,
+            new StubTranslator(),
+        );
+        $effects = new SoundEffects($this->audio, $this->storage, $this->files, $settings);
+
         return new AudioScreen(
-            new PlaylistPlayer(
-                $this->audio,
-                new StubPlaylistStorage([PlaylistEntry::of('/muzyka/pierwszy.mp3')]),
-                $this->files,
-                $settings,
-                new StubTranslator(),
-            ),
-            new SoundEffects($this->audio, $this->storage, $this->files, $settings),
+            $player,
+            $effects,
+            new AudioQueries(self::registryOf($player, $effects)),
             new EventRegistry(),
             new StubTranslator(),
         );
@@ -239,5 +249,18 @@ final class AudioEffectsPanelTest extends TestCase
         }
 
         return $texts;
+    }
+
+    /** Rejestr z kwerendami modułu — jedyna droga odczytu także w teście (krok 53). */
+    private static function registryOf(PlaylistPlayer $player, SoundEffects $effects): QueryRegistry
+    {
+        $registry = new QueryRegistry();
+        $registry->add(AudioSettings::ID, [
+            new PlaylistQuery($player),
+            new NowPlayingQuery($player),
+            new EffectsQuery($effects),
+        ]);
+
+        return $registry;
     }
 }

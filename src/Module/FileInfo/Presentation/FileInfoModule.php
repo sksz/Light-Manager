@@ -8,6 +8,7 @@ use LightManager\Application\Module\ModuleInterface;
 use LightManager\Application\Module\ModuleSettingsTab;
 use LightManager\Application\Module\ModuleShortcut;
 use LightManager\Application\Module\ProvidesCommands;
+use LightManager\Application\Module\ProvidesQueries;
 use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Port\BackgroundProcessPort;
 use LightManager\Application\Port\ImagePreviewPort;
@@ -29,6 +30,10 @@ use LightManager\Module\FileInfo\Infrastructure\FileStatService;
 use LightManager\Module\FileInfo\Infrastructure\TextPreviewService;
 use LightManager\Module\FileInfo\Presentation\Command\ShowCommand;
 use LightManager\Module\FileInfo\Presentation\Component\PreviewPane;
+use LightManager\Module\FileInfo\Presentation\Query\ChecksumQuery;
+use LightManager\Module\FileInfo\Presentation\Query\DescriptionQuery;
+use LightManager\Module\FileInfo\Presentation\Query\DiskUsageQuery;
+use LightManager\Module\FileInfo\Presentation\Query\PreviewQuery;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Module\ProvidesHelpTab;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
@@ -61,6 +66,7 @@ final class FileInfoModule implements
     ModuleInterface,
     ProvidesSettingsTab,
     ProvidesCommands,
+    ProvidesQueries,
     ProvidesScreen,
     ProvidesHelpTab
 {
@@ -68,6 +74,10 @@ final class FileInfoModule implements
     private const SHORTCUT = 'd';
 
     private ?FileInfoScreen $assembled = null;
+
+    private ?FileInfoState $inner = null;
+
+    private ?FileInfoQueries $reader = null;
 
     /**
      * `BackgroundProcessPort` stoi wśród zależności **obowiązkowych**, a nie
@@ -155,6 +165,26 @@ final class FileInfoModule implements
     }
 
     /**
+     * Cztery źródła danych modułu (krok 53): opis wpisu, miniatura oraz **stan**
+     * dwóch prac tłowych.
+     *
+     * Kwerendy powstają na tym samym stanie, co ekran, i to jest tu warunek
+     * poprawności, a nie oszczędność: dwa stany znaczyłyby dwie sumy kontrolne
+     * liczone równolegle dla tego samego pliku.
+     */
+    public function queries(): array
+    {
+        $state = $this->inner();
+
+        return [
+            new DescriptionQuery($state),
+            new PreviewQuery($state),
+            new ChecksumQuery($state),
+            new DiskUsageQuery($state),
+        ];
+    }
+
+    /**
      * Ekran wraz z całym wnętrzem modułu — przypadki użycia, stan i komponenty.
      *
      * Wszystko powstaje tutaj, a nie w `Bootstrapie`, i to jest cały sens tej
@@ -163,7 +193,31 @@ final class FileInfoModule implements
      */
     private function assemble(): FileInfoScreen
     {
-        $state = new FileInfoState(
+        $state = $this->inner();
+
+        return new FileInfoScreen(
+            $state,
+            new PreviewPane($state, $this->reader(), $this->translator),
+            $this->reader(),
+            $this->translator,
+        );
+    }
+
+    /** Odczyt własnych danych — przez rejestr kwerend (D92 nr 3). */
+    private function reader(): FileInfoQueries
+    {
+        return $this->reader ??= new FileInfoQueries($this->state->queries());
+    }
+
+    /**
+     * Stan modułu — **jeden na moduł**, wspólny dla ekranu i dla kwerend.
+     *
+     * Powstaje leniwie z tego samego powodu, co reszta modułu: napisy wchodzą do
+     * katalogu po zbudowaniu rejestru modułów.
+     */
+    private function inner(): FileInfoState
+    {
+        return $this->inner ??= new FileInfoState(
             new InspectSelectedEntryUseCase(
                 $this->inspector ?? FileInspectorService::getInstance(),
                 $this->stats ?? FileStatService::getInstance(),
@@ -181,8 +235,6 @@ final class FileInfoModule implements
             new ChangeModuleSettingUseCase($this->settings, $this->translator),
             $this->state,
         );
-
-        return new FileInfoScreen($state, new PreviewPane($state, $this->translator), $this->translator);
     }
 
     /**

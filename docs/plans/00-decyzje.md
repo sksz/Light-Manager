@@ -6784,3 +6784,152 @@ przestrzeni, ale zasoby bez przestrzeni (węzły, `PersistentVolume`, CRD) musz�
 wtedy dostać gałąź obok; odsłanianie sekretów bez maskowania — najprostsze,
 odrzucone, bo `core.dump` z kroku 38 zapisuje klatkę na dysk, a zrzut z hasłem
 w środku jest nieodwracalny.
+
+## Decyzje ze startu kroku 53 (2026-08-16)
+
+### D92 — Kwerendy obejmują wszystkie źródła danych rdzenia i sześciu modułów, rejestr staje się jedyną drogą odczytu, a krok pęka na dwa
+
+**Dotyczy:** kroku 53 ([53-kwerendy-miedzymodulowe.md](53-kwerendy-miedzymodulowe.md))
+i **nowego kroku 54** ([54-kwerendy-modulow-kontenerowych.md](54-kwerendy-modulow-kontenerowych.md));
+nowego katalogu `src/Application/Query/`, zdolności
+`Application\Module\ProvidesQueries`, dwóch linii w `Presentation/Cli/Bootstrap.php`
+i `Presentation/Cli/LoopState.php`, okna komend
+(`Presentation/Ui/Overlay/CommandOverlay.php`), **wszystkich sześciu katalogów
+w `src/Module/`** wraz z ich `lang/`, [SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md)
+i [docs/architecture.md](../architecture.md).
+
+**Data:** 2026-08-16, przed pierwszą linią kodu — na polecenie użytkownika
+(„chcę, aby wszystkie możliwe źródła danych rdzenia i modułów miały komendę
+dostępną do użycia przez inny moduł, jak i również ich użycie w ramach rdzenia
+i modułu”). Jedenaście pytań planu zadanych w dwóch turach; cztery z nich
+odłożone do kroku 54, bo wraz z podziałem przestały dotyczyć tego kroku.
+
+**To trzecie rozszerzenie tego samego kroku i najszersze z nich.** D85 dała
+kwerendy dwóm modułom kontenerowym, D86 — trzem istniejącym, ta decyzja daje je
+**rdzeniowi i wszystkim sześciu modułom naraz**, a przy okazji zmienia mechanizm
+z kanału między modułami w **jedyną drogę odczytu w całej aplikacji**.
+
+**Co rozstrzygnęło rozpoznanie w kodzie, zanim padło pierwsze pytanie.** Pięć
+faktów, wszystkie sprawdzone przy starcie:
+
+- **Tabela „stanu zastanego” w planie kroku jest w jednym wierszu nieaktualna,
+  i to w tym najważniejszym.** Plan mówi „moduły aplikacji: **trzy**”, a jest ich
+  **sześć**: kroki 48–52 dowiozły `ssh`, `docker` i `k8s`. Wraz z tym wygasł powód
+  wykluczenia zapisanego w *Poza zakresem*: „kwerendy modułu `Ssh` — Faza XVII
+  jest nierozpoczęta”. Faza jest ukończona, więc wykluczenie broniło się dziś
+  wyłącznie brzmieniem, nie racją.
+- **`src/Application/Query/` nadal nie istnieje**, a `CommandRegistry`,
+  `EventRegistry`, `ModuleContext` i `CommandOverlay` stoją nietknięte od kroków
+  19, 46, 43 i 47 — czyli wszystkie cztery wzorce do powtórzenia są gotowe
+  i żaden nie wymaga przeróbki.
+- **Rdzeń nie ma dziś ani jednej kwerendy i ani jednego miejsca, które by ją
+  udawało.** Dane rdzenia czyta się wprost z usług (`SettingsService::current()`,
+  `ThemeService::names()`, `ModuleRegistry::declared()`,
+  `BackgroundProcessService::poll()`) — czyli katalog kwerend rdzenia powstaje
+  **od zera**, w odróżnieniu od modułowych, które opakowują stan już istniejący.
+- **Koszt „jedynej drogi odczytu” jest policzalny i policzony**: 29 miejsc czyta
+  ustawienia, 18 — kontekst sesji, 68 — stan przeglądarki, 23 — odtwarzacz
+  playlisty. To są setki wywołań w ścieżce rysowanej trzydzieści razy na sekundę
+  i to one, a nie liczba klas kwerend, są prawdziwą ceną tego kroku.
+- **Środowisko dla kroku 54 jest w tym samym stanie, co przy planowaniu Fazy
+  XVIII**: Docker 27.3.1 odpowiada gniazdem, `kubectl` v1.25.2 ma jedyny kontekst
+  `ca-dev` (nieaktywny), **minikube v1.27.0 jest zatrzymany**, `kind` nie ma
+  w ogóle. Rozstrzygnięcie „jak obraz trafia do klastra” dotyczy więc maszyny,
+  która dziś klastra nie prowadzi — i to jest powód, dla którego wraz z podziałem
+  odkłada się je do kroku 54, zamiast rozstrzygać na zapas.
+
+**Decyzje użytkownika:**
+
+1. **Pełny spis źródeł, nie wybór użyteczny dla cudzego modułu.** Kwerendę
+   dostaje **wszystko, co da się przeczytać** — rdzeń wraz z własnym samoopisem
+   (spis komend, spis kwerend, słownik zdarzeń, wersja, motyw, język, ostatni
+   komunikat) i wszystkie sześć modułów. Odrzucone zostały oba progi węższe:
+   „bez samoopisu rdzenia” (~31) i „tylko to, czego może chcieć cudzy moduł”
+   (~20), czyli zasada doboru z D86 rozciągnięta na sześć modułów.
+2. **Krok pęka na dwa.** Krok 53 bierze mechanizm, okno kwerend, kwerendy
+   **rdzenia** oraz trzech modułów sprzed Fazy XVIII (`browser`, `file-info`,
+   `audio`). Nowy **krok 54** bierze kwerendy trzech modułów tej fazy (`ssh`,
+   `docker`, `k8s`) i czynność `k8s.deploy-image`. Odrzucone: jeden krok z trzema
+   etapami rozliczanymi osobno oraz jeden krok bez przystanków.
+3. **Rejestr kwerend jest jedyną drogą odczytu — także wewnątrz rdzenia
+   i wewnątrz modułu.** To jest rozstrzygnięcie najdalej idące i **odwraca
+   rekomendację postawioną w pytaniu** (kwerenda jako fasada nad odczytem
+   bezpośrednim). Wraz z nim przyszło polecenie: *„przygotuj wydajny routing
+   kwerend, aby zoptymalizować koszt odczytu”* — czyli cena z rozpoznania została
+   zauważona i ma zostać zapłacona konstrukcją, a nie wyjątkiem od reguły.
+4. **Wynik kwerendy ma dwa oblicza, a nie dwa kanały.** `QueryResult` niesie
+   wiersze danych pierwotnych **dla obcych** oraz ładunek typowany, który wydaje
+   **wyłącznie właścicielowi** (`payloadFor(owner)`). Dzięki temu jedna droga nie
+   znaczy utraty typów: `BrowserScreen` nadal dostaje `Directory`, a moduł k8s —
+   wiersze napisów. Odrzucone: „dosłownie i do końca” (rysowanie z tablic
+   napisów; przebudowa ~20 ekranów i ryzyko regresji w klatce) oraz granica przy
+   trzech gorących pętlach listowych.
+5. **Routing: znacznik pokolenia plus pamięć wyniku.** Kwerenda oddaje tani
+   `generation(): int`, a rejestr przelicza wynik **wyłącznie po zmianie
+   pokolenia**; odczyt niezmienionego źródła kosztuje jedno wyszukanie w tablicy.
+   Odrzucone: pamięć czyszczona co klatkę (katalog 5000 wpisów przeliczany 30
+   razy na sekundę mimo braku zmian) i brak pamięci w ogóle.
+6. **Kształt wyniku: wiersze rekordów plus powód niepowodzenia** — zgodnie
+   z rekomendacją planu (nr 1). Pojedyncza wartość to jeden wiersz o jednym polu.
+7. **Okno kwerend jest drugim trybem okna komend `F12`** — zgodnie z rekomendacją
+   planu (nr 9). Słownik wejścia nie rośnie o klawisz, scenariusz pomiarowy
+   `command` zostaje ten sam.
+8. **Granica „kontekst mówi gdzie stoję, kwerenda mówi co u mnie jest” znika.**
+   Powstają `browser.cwd`, `browser.selection` i `core.context`. To jest
+   **odwołanie zdania granicznego z D86** i najdalej idąca zmiana wobec obu
+   poprzednich rozszerzeń tego kroku.
+
+**Rozstrzygnięcia wzięte z rekomendacji planu, bez pytania** (bo pozostały
+bezalternatywne po decyzjach powyżej): rejestr kwerend mieszka **w `LoopState`**,
+obok rejestru zdarzeń i kontekstu sesji (nr 2) — `Bootstrap` rośnie o jedną
+linię, a nie o argument przy każdym module; kwerenda **bez wymaganego argumentu
+zostaje odmówiona zdaniem**, jak komenda (nr 11); kwerenda modułu wyłączonego
+albo odrzuconego **nie stoi w oknie**, bo spis jest widokiem na rejestr (nr 3
+w części dotyczącej tego kroku).
+
+**Odłożone do kroku 54** (wraz z całą czynnością, której dotyczą): jak obraz
+trafia do klastra (nr 4), czyja jest czynność `deploy-image` (nr 5), czy
+czekanie na cudze zdarzenie ma limit czasu (nr 6), czy `file-info.usage` dostaje
+drugiego odbiorcę w kodzie (nr 10).
+
+**Co z tego wynika — i czego kroki pilnują:**
+
+- **Reguła 15 dostaje trzecie zdanie graniczne, a traci drugie.** Zostaje
+  „komenda robi, kwerenda mówi” (D85) i dochodzi **„czyta się przez rejestr,
+  a nie przez cudzy obiekt”**. Zdanie „kontekst mówi, gdzie użytkownik stoi;
+  kwerenda mówi, co u mnie jest” (D86) **nie wchodzi do `SKILL.md`** — zostaje
+  w dzienniku jako zapis tego, co rozważono i odwołano, zanim zdążyło obowiązywać.
+- **Powód, dla którego odwołanie nie jest cofnięciem się:** D86 broniła dostępu
+  do danej rozdawanej co klatkę za darmo. Po rozstrzygnięciu nr 3 „za darmo”
+  przestaje istnieć jako osobna droga — skoro **każdy** odczyt idzie rejestrem,
+  kontekst przestaje być wyjątkiem od kanału i staje się jednym z jego źródeł.
+  Powtórki nie ma tam, gdzie nie ma dwóch dróg.
+- **Reguła 13 zostaje spełniona tak, jak ustaliła D86**: kwerendy bez konsumenta
+  w kodzie mają odbiorcę w oknie kwerend — **konsument jest, tylko siedzi przed
+  terminalem**. Rozszerzenie zasięgu na rdzeń i sześć modułów niczego tu nie
+  zmienia poza liczbą pozycji w oknie.
+- **`QueryResult` nie jest obiektem wartości w rozumieniu reguły 6** i jest to
+  odstępstwo świadome, wymuszone rozstrzygnięciem nr 3 wraz z poleceniem
+  o wydajnym routingu: wiersze powstają **leniwie**, przy pierwszym pytaniu o nie,
+  bo właściciel czytający ładunek typowany nie ma powodu płacić za budowę pięciu
+  tysięcy tablic, których nikt nie obejrzy. Klasa jest przez to `final`, ale nie
+  `readonly`; powód stoi w jej docblocku.
+- **Model kroku 53 zostaje `Opus / xhigh`.** Warunek `Fable` z przypisów planu
+  (słownik wejścia albo kontrakt ekranu i trzy renderery naraz) nie zachodzi:
+  okno jest drugim trybem istniejącego, prymitywów nie przybywa, a przebudowa
+  odczytów nie dotyka ani jednego tłumacza słownika. Krok 54 dostaje ten sam
+  przydział z tego samego powodu.
+- **Pomiar rozlicza się inaczej niż zapowiadał plan.** Zdanie „rejestr przy zerze
+  pytań nie kosztuje mierzalnie” przestało być całą miarą w chwili, w której
+  rejestr stał się jedyną drogą odczytu: pytań w klatce jest **wiele**, więc oś
+  `--loop` mierzy odtąd **koszt routingu z pamięcią pokoleń**, a punktem
+  odniesienia jest `docs/pomiary/2026-08-16-po-kroku-52-loop.json`.
+
+**Odrzucone alternatywy** (poza wymienionymi przy decyzjach): **kwerendy jako
+fasada** — wariant rekomendowany w pytaniu, odrzucony przez użytkownika mimo
+zerowego ryzyka regresji, bo zostawiał dwie drogi do tej samej danej i tym samym
+nie spełniał polecenia „ich użycie w ramach rdzenia i modułu”; **okno kwerend
+osobne, z własnym klawiszem** — pełny prostokąt na tabelę wyniku, ale trzy tory
+wejścia i ponowny rachunek modelu; **okno osobne bez klawisza** (otwierane
+komendą i pozycją menu) — bez zmiany słownika wejścia, ale z własnym scenariuszem
+pomiarowym.

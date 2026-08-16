@@ -125,6 +125,7 @@ final class FileInfoScreen implements
     public function __construct(
         private readonly FileInfoState $state,
         private readonly PreviewPane $preview,
+        private readonly FileInfoQueries $queries,
         private readonly TranslatorPort $translator,
     ) {
         $this->window = new ScrollWindow();
@@ -257,7 +258,7 @@ final class FileInfoScreen implements
         // się do przodu, gdy użytkownik patrzy na co innego.
         $this->state->advance();
 
-        if ($this->state->description() === null) {
+        if ($this->queries->description() === null) {
             return (new Label($this->translator->translate('module.file-info.nothing')))
                 ->draw($this->sentenceArea($bounds));
         }
@@ -341,7 +342,7 @@ final class FileInfoScreen implements
      */
     private function workBar(): ?ProgressBar
     {
-        $checksum = $this->state->checksum();
+        $checksum = $this->queries->checksum();
 
         if ($checksum->isRunning()) {
             return new ProgressBar(
@@ -351,7 +352,7 @@ final class FileInfoScreen implements
             );
         }
 
-        if (!$this->state->diskUsage()->isRunning()) {
+        if (!$this->queries->diskUsage()->isRunning()) {
             return null;
         }
 
@@ -488,7 +489,7 @@ final class FileInfoScreen implements
      */
     private function sections(): array
     {
-        $description = $this->state->description();
+        $description = $this->queries->description();
 
         if ($description === null) {
             return [];
@@ -537,7 +538,7 @@ final class FileInfoScreen implements
      */
     private function checksumRow(): ListRow
     {
-        $checksum = $this->state->checksum();
+        $checksum = $this->queries->checksum();
 
         return match ($checksum->stage) {
             ChecksumStage::Running => new ListRow(
@@ -573,7 +574,7 @@ final class FileInfoScreen implements
      */
     private function diskUsageRow(): ListRow
     {
-        $usage = $this->state->diskUsage();
+        $usage = $this->queries->diskUsage();
         $label = $this->translator->translate('module.file-info.row.diskUsage');
 
         return match ($usage->stage) {

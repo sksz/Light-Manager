@@ -17,12 +17,20 @@ use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Event\AppEvent;
 use LightManager\Application\Event\EventRegistry;
 use LightManager\Application\Port\TranslatorPort;
+use LightManager\Application\Query\QueryInterface;
+use LightManager\Application\Query\QueryLineParser;
+use LightManager\Application\Query\QueryRegistry;
+use LightManager\Application\Query\QueryResult;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
+use LightManager\Domain\ValueObject\Message;
 use LightManager\Presentation\Ui\Command\OpensOverlay;
+use LightManager\Presentation\Ui\Component\Column;
 use LightManager\Presentation\Ui\Component\ListRow;
 use LightManager\Presentation\Ui\Component\ListView;
 use LightManager\Presentation\Ui\Component\Panel;
+use LightManager\Presentation\Ui\Component\Table;
+use LightManager\Presentation\Ui\Component\TableRow;
 use LightManager\Presentation\Ui\Component\TextInput;
 use LightManager\Presentation\Ui\HudLayout;
 use LightManager\Presentation\Ui\KeyBinding;
@@ -43,6 +51,18 @@ use LightManager\Presentation\Ui\ScrollWindow;
  * Przy pustym polu lista pokazuje **najpierw historię, potem wszystkie komendy**.
  * Dzięki temu historia nie potrzebuje własnego klawisza, a użytkownik, który nie
  * zna nazw, widzi je wszystkie od razu po `F12`.
+ *
+ * **Od kroku 53 okno ma drugi tryb: kwerendy** (D92 nr 7). Przełącza go `Tab`
+ * przy pustym polu — klawisz, który do tego kroku przy pustym polu nie znaczył
+ * nic, bo wspólnego przedrostka wszystkich nazw nie ma. Słownik wejścia nie
+ * rośnie przez to o pozycję, a scenariusz pomiarowy `command` mierzy dalej tę
+ * samą klatkę.
+ *
+ * Czym różnią się tryby: rejestrem, historią i tym, co zostaje po `Enter`.
+ * Komenda **robi** i okno się zamyka; kwerenda **mówi** i okno zostaje otwarte
+ * z odpowiedzią — jednym wierszem pokazanym jako pary `pole: wartość`, wieloma
+ * jako tabela z nagłówkiem. Historii kwerendy nie mają i mieć nie będą: historia
+ * zapisuje czynność, a nie pytanie.
  */
 final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
 {
@@ -72,9 +92,21 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
     /** @var array<string, list<string>> podpowiedzi stałe: `komenda/argument` → wartości */
     private array $fixed = [];
 
+    /** Tryb okna: czynności albo źródła danych (krok 53). */
+    private CommandWindowMode $mode = CommandWindowMode::Commands;
+
     /**
-     * @param ?EventRegistry $events `null` znaczy „nikomu nie ogłaszaj" — dla
-     *                               testów składających okno samodzielnie
+     * Odpowiedź ostatniej kwerendy — pokazywana zamiast podpowiedzi, dopóki
+     * użytkownik nie napisze czegoś nowego.
+     */
+    private ?QueryResult $result = null;
+
+    /**
+     * @param ?EventRegistry   $events      `null` znaczy „nikomu nie ogłaszaj" — dla
+     *                                      testów składających okno samodzielnie
+     * @param ?QueryRegistry   $queries     `null` znaczy „okno bez trybu kwerend"; ta sama
+     *                                      furtka i z tego samego powodu, co przy zdarzeniach
+     * @param ?QueryLineParser $queryParser rozbiór wiersza kwerendy; wymagany razem z rejestrem
      */
     public function __construct(
         private readonly CommandRegistry $registry,
@@ -82,6 +114,8 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
         private readonly CommandHistory $history,
         private readonly TranslatorPort $translator,
         private readonly ?EventRegistry $events = null,
+        private readonly ?QueryRegistry $queries = null,
+        private readonly ?QueryLineParser $queryParser = null,
     ) {
         $this->input = new TextInput();
         $this->window = new ScrollWindow();
@@ -96,17 +130,17 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
      */
     public function prepare(): void
     {
-        foreach ($this->registry->all() as $command) {
-            if (!$command instanceof SuggestsArguments) {
+        foreach ([...$this->registry->all(), ...($this->queries?->all() ?? [])] as $source) {
+            if (!$source instanceof SuggestsArguments) {
                 continue;
             }
 
-            foreach ($command->arguments() as $argument) {
+            foreach ($source->arguments() as $argument) {
                 if ($argument->suggestions !== SuggestionSource::Fixed) {
                     continue;
                 }
 
-                $this->fixed[$command->name() . '/' . $argument->name] = $command->suggestions($argument->name, '');
+                $this->fixed[$source->name() . '/' . $argument->name] = $source->suggestions($argument->name, '');
             }
         }
     }
@@ -116,13 +150,21 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
         return self::ID;
     }
 
-    /** Wejście do okna zaczyna je od pustego wiersza — jak każde otwarcie ekranu. */
+    /**
+     * Wejście do okna zaczyna je od pustego wiersza — jak każde otwarcie ekranu.
+     *
+     * Tryb wraca do czynności, bo `F12` ma znaczyć zawsze to samo: okno otwarte
+     * w trybie, w którym ktoś je zostawił kwadrans temu, byłoby oknem
+     * niespodzianką.
+     */
     public function reset(): void
     {
         $this->input->clear();
         $this->selected = 0;
         $this->picked = false;
         $this->cache = null;
+        $this->result = null;
+        $this->mode = CommandWindowMode::Commands;
         $this->window->scrollBy(-PHP_INT_MAX);
     }
 
@@ -143,7 +185,7 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
         }
 
         $height = min(
-            count($this->suggestions()) + self::CHROME_ROWS,
+            $this->visibleCount() + self::CHROME_ROWS,
             max(1, intdiv($rows, 2)) + self::CHROME_ROWS,
             $bottom + 1,
         );
@@ -153,14 +195,16 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
 
     public function draw(Rect $bounds): array
     {
-        $primitives = (new Panel($this->translator->translate('layout.zone.command')))->draw($bounds);
+        $primitives = (new Panel($this->translator->translate($this->mode->titleKey())))->draw($bounds);
         $inner = Panel::inner($bounds);
 
         if ($inner->isEmpty()) {
             return $primitives;
         }
 
-        foreach ($this->drawSuggestions($inner->rowsFrom(0, $inner->rows - 1)) as $primitive) {
+        $content = $inner->rowsFrom(0, $inner->rows - 1);
+
+        foreach ($this->result === null ? $this->drawSuggestions($content) : $this->drawResult($content) as $primitive) {
             $primitives[] = $primitive;
         }
 
@@ -194,6 +238,126 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
             Key::ArrowDown => $this->pick(1),
             default => $this->toInput($key),
         };
+    }
+
+    /**
+     * Ile wierszy ma dziś treść okna: podpowiedzi albo odpowiedź kwerendy.
+     *
+     * Wysokość okna liczy się z tego samego, z czego rysuje się jego wnętrze —
+     * inaczej odpowiedź o dwunastu polach dostałaby prostokąt na trzy.
+     */
+    private function visibleCount(): int
+    {
+        if ($this->result === null) {
+            return count($this->suggestions());
+        }
+
+        $rows = $this->result->rows();
+
+        return count($rows) === 1 ? count($rows[0]) : count($rows) + 1;
+    }
+
+    /**
+     * Wartość danej pierwotnej jako napis dla oka.
+     *
+     * Liczba idzie przez `number()`, a wartość logiczna przez katalog napisów —
+     * bo „tak” i „nie” są **napisem widocznym dla użytkownika** (reguła 7),
+     * w odróżnieniu od nazwy pola, która jest daną i zostaje taka, jaka przyszła.
+     */
+    private function asText(string|int|bool $value): string
+    {
+        if (is_bool($value)) {
+            return $this->translator->translate($value ? 'settings.value.yes' : 'settings.value.no');
+        }
+
+        return is_int($value) ? $this->translator->number($value) : $value;
+    }
+
+    /**
+     * Odpowiedź kwerendy w oknie.
+     *
+     * **Jeden rekord czyta się inaczej niż wiele** i to jest cała reguła tego
+     * miejsca. Pojedynczy (kontekst, wersja, stan odtwarzania) ma kilkanaście
+     * pól i w tabeli byłby nieczytelnym paskiem, więc rozkłada się go na pary
+     * `pole: wartość` — czyli `ListRow`, dokładnie tak, jak opis pliku pokazuje
+     * etykietę z wartością (krok 27: „`ListRow` z dwoma polami zostaje, bo
+     * etykieta z wartością to nie tabela”). Wiele rekordów to `Table`
+     * z nagłówkiem, bo tam pola powtarzają się w każdym wierszu i nazwa kolumny
+     * wystarczy raz.
+     *
+     * @return list<\LightManager\Application\Ui\Primitive\Primitive>
+     */
+    private function drawResult(Rect $bounds): array
+    {
+        $rows = $this->result?->rows() ?? [];
+
+        if ($bounds->isEmpty() || $rows === []) {
+            return [];
+        }
+
+        return count($rows) === 1 ? $this->drawRecord($rows[0], $bounds) : $this->drawTable($rows, $bounds);
+    }
+
+    /**
+     * @param array<string, string|int|bool> $record
+     *
+     * @return list<\LightManager\Application\Ui\Primitive\Primitive>
+     */
+    private function drawRecord(array $record, Rect $bounds): array
+    {
+        $lines = [];
+
+        foreach ($record as $field => $value) {
+            $lines[] = new ListRow($field, $this->asText($value));
+        }
+
+        $offset = $this->window->keepVisible($this->selected, count($lines), $bounds->rows);
+        $visible = array_slice($lines, $offset, $bounds->rows);
+
+        return (new ListView(
+            $visible,
+            $this->selected - $offset,
+            $this->window->position(count($lines), min($bounds->rows, count($visible))),
+        ))->draw($bounds);
+    }
+
+    /**
+     * @param list<array<string, string|int|bool>> $rows
+     *
+     * @return list<\LightManager\Application\Ui\Primitive\Primitive>
+     */
+    private function drawTable(array $rows, Rect $bounds): array
+    {
+        $fields = array_keys($rows[0]);
+        $capacity = Table::capacityOf($bounds, true);
+        $offset = $this->window->keepVisible($this->selected, count($rows), $capacity);
+        $visible = [];
+
+        foreach (array_slice($rows, $offset, $capacity) as $row) {
+            $cells = [];
+
+            foreach ($fields as $field) {
+                $cells[] = $this->asText($row[$field] ?? '');
+            }
+
+            $visible[] = new TableRow($cells);
+        }
+
+        $columns = array_map(
+            // Nazwa pola jest **daną**, nie napisem interfejsu (reguła 7): to ten
+            // sam napis, który dostanie moduł pytający, i tłumaczenie zamieniłoby
+            // spis danych w spis etykiet nie do odszukania w kodzie.
+            static fn (string $field): Column => Column::flexible(min(mb_strlen($field), 8), label: $field),
+            $fields,
+        );
+
+        return (new Table(
+            $columns,
+            $visible,
+            $this->selected - $offset,
+            $this->window->position(count($rows), min($capacity, count($visible))),
+            true,
+        ))->draw($bounds);
     }
 
     /** @return list<\LightManager\Application\Ui\Primitive\Primitive> */
@@ -241,9 +405,24 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
         return $this->cache = $this->input->isEmpty() ? $this->emptyLineSuggestions() : $this->matchingSuggestions();
     }
 
-    /** @return list<Suggestion> */
+    /**
+     * @return list<Suggestion>
+     */
     private function emptyLineSuggestions(): array
     {
+        if ($this->mode === CommandWindowMode::Queries) {
+            // Historii tu nie ma i nie będzie: zapisuje się **czynność**, a nie
+            // pytanie. Zostaje sam spis źródeł — czyli to, po co użytkownik
+            // przełączył tryb.
+            return array_map(
+                static fn (QueryInterface $query): Suggestion => new Suggestion(
+                    $query->name(),
+                    $query->descriptionKey(),
+                ),
+                $this->queries?->all() ?? [],
+            );
+        }
+
         $suggestions = [];
 
         foreach ($this->history->entries() as $entry) {
@@ -263,6 +442,16 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
         $completion = $this->parser->completion($this->input->value());
 
         if ($completion->completesName()) {
+            if ($this->mode === CommandWindowMode::Queries) {
+                return array_map(
+                    static fn (QueryInterface $query): Suggestion => new Suggestion(
+                        $query->name(),
+                        $query->descriptionKey(),
+                    ),
+                    $this->queries?->matching($completion->prefix) ?? [],
+                );
+            }
+
             return array_map(
                 static fn (CommandInterface $command): Suggestion => new Suggestion(
                     $command->name(),
@@ -286,7 +475,9 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
      */
     private function argumentValues(string $name, int $index, string $prefix): array
     {
-        $command = $this->registry->find($name);
+        $command = $this->mode === CommandWindowMode::Queries
+            ? $this->queries?->find($name)
+            : $this->registry->find($name);
 
         if (!$command instanceof SuggestsArguments) {
             return [];
@@ -322,13 +513,16 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
         // Zmiana treści zaczyna wskazywanie od nowa: lista jest już inna.
         $this->selected = 0;
         $this->picked = false;
+        // Odpowiedź dotyczyła poprzedniego pytania, a nie tego, które właśnie
+        // powstaje — zostawiona wisiałaby pod wierszem, do którego nie należy.
+        $this->result = null;
 
         return OverlayOutcome::stay();
     }
 
     private function pick(int $delta): OverlayOutcome
     {
-        $count = count($this->suggestions());
+        $count = $this->visibleCount();
 
         if ($count === 0) {
             return OverlayOutcome::stay();
@@ -342,18 +536,20 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
 
     /**
      * `Tab` dopisuje najdłuższy wspólny przedrostek pasujących podpowiedzi —
-     * jak w powłoce. Przy pustym polu nie robi nic: lista jest wtedy spisem
-     * wszystkiego i wspólnego przedrostka nie ma.
+     * jak w powłoce. **Przy pustym polu przełącza tryb** (krok 53): do tamtego
+     * kroku nie robił wtedy nic, bo lista jest spisem wszystkiego i wspólnego
+     * przedrostka nie ma, więc klawisz był wolny i nie trzeba było otwierać
+     * słownika wejścia.
      */
     private function complete(): OverlayOutcome
     {
         if ($this->input->isEmpty()) {
-            return OverlayOutcome::stay();
+            return $this->switchMode();
         }
 
         $completion = $this->parser->completion($this->input->value());
         $common = $completion->completesName()
-            ? $this->registry->commonPrefix($completion->prefix)
+            ? $this->namesPrefix($completion->prefix)
             : Prefix::shared(array_map(
                 static fn (Suggestion $suggestion): string => $suggestion->value,
                 $this->suggestions(),
@@ -369,8 +565,43 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
         return OverlayOutcome::stay();
     }
 
+    /** Wspólny przedrostek nazw — z tego rejestru, w którego trybie stoi okno. */
+    private function namesPrefix(string $prefix): string
+    {
+        return $this->mode === CommandWindowMode::Queries
+            ? $this->queries?->commonPrefix($prefix) ?? $prefix
+            : $this->registry->commonPrefix($prefix);
+    }
+
+    /**
+     * Przełączenie trybu — czynności na źródła danych i z powrotem.
+     *
+     * Bez rejestru kwerend okno zostaje przy czynnościach i nie mówi o tym ani
+     * słowa: to jest przypadek testu składającego okno samodzielnie, a nie stan,
+     * w którym może się znaleźć użytkownik.
+     */
+    private function switchMode(): OverlayOutcome
+    {
+        if ($this->queries === null || $this->queryParser === null) {
+            return OverlayOutcome::stay();
+        }
+
+        $this->mode = $this->mode->other();
+        $this->selected = 0;
+        $this->picked = false;
+        $this->cache = null;
+        $this->result = null;
+        $this->window->scrollBy(-PHP_INT_MAX);
+
+        return OverlayOutcome::stay();
+    }
+
     private function run(): OverlayOutcome
     {
+        if ($this->mode === CommandWindowMode::Queries) {
+            return $this->askQuery();
+        }
+
         $line = $this->chosenLine();
 
         if (trim($line) === '') {
@@ -431,6 +662,55 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
         return $outcome->screenId === null
             ? OverlayOutcome::close($outcome->message)
             : OverlayOutcome::opens($outcome->screenId, $outcome->message);
+    }
+
+    /**
+     * Pytanie zadane rejestrowi kwerend — druga połowa zdania „komenda robi,
+     * kwerenda mówi”.
+     *
+     * Trzy różnice wobec wykonania komendy, wszystkie wynikające z tego samego:
+     * **okno zostaje otwarte**, bo odpowiedź ma być widoczna; **wiersz zostaje
+     * w polu**, bo o to samo pyta się zwykle drugi raz; **historia się nie
+     * zapisuje**, bo pytanie nie jest czynnością.
+     */
+    private function askQuery(): OverlayOutcome
+    {
+        $line = $this->chosenLine();
+
+        if ($this->queries === null || $this->queryParser === null || trim($line) === '') {
+            return OverlayOutcome::stay();
+        }
+
+        $parsed = $this->queryParser->parse($line, $this->queries);
+        $this->input->useValue($line);
+        $this->selected = 0;
+        $this->picked = false;
+        $this->cache = null;
+        $this->window->scrollBy(-PHP_INT_MAX);
+
+        if (!$parsed->isValid()) {
+            $this->result = null;
+
+            return OverlayOutcome::stay($parsed->problem);
+        }
+
+        /** @var QueryInterface $query */
+        $query = $parsed->query;
+        /** @var \LightManager\Application\Command\CommandInput $input */
+        $input = $parsed->input;
+        $result = $this->queries->ask($query->name(), $input);
+
+        if ($result->hasProblem()) {
+            $this->result = null;
+
+            return OverlayOutcome::stay(Message::error($this->translator->translate((string) $result->problem)));
+        }
+
+        $this->result = $result;
+
+        return $result->isEmpty()
+            ? OverlayOutcome::stay(Message::info($this->translator->translate('query.result.empty')))
+            : OverlayOutcome::stay();
     }
 
     /** Wiersz do uruchomienia: wskazana podpowiedź albo to, co wpisano. */

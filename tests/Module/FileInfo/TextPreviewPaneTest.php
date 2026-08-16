@@ -339,8 +339,9 @@ final class TextPreviewPaneTest extends TestCase
                 ->withModuleValue(FileInfoSettings::ID, FileInfoSettings::LINE_NUMBERS, $lineNumbers),
         );
 
+        $state = new LoopState($settings->current());
         $module = new FileInfoModule(
-            new LoopState($settings->current()),
+            $state,
             new StubTranslator(),
             $settings,
             $images ?? StubImagePreview::unreadable(),
@@ -350,6 +351,11 @@ final class TextPreviewPaneTest extends TestCase
             $checksums,
             $texts,
         );
+
+        // Kwerendy modułu w rejestrze — tak, jak robi to `Bootstrap` (krok 53).
+        // Bez tej linii ekran nie ma jak przeczytać własnego opisu, bo rejestr
+        // jest jedyną drogą odczytu.
+        $state->queries()->useModules([$module]);
 
         $screen = $module->screen();
 

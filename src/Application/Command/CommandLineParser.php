@@ -72,7 +72,9 @@ final class CommandLineParser
             ));
         }
 
-        return $this->bind($command, $words);
+        $bound = $this->bind($command->name(), $command->arguments(), $words);
+
+        return $bound instanceof Message ? CommandLine::problem($bound) : CommandLine::of($command, $bound);
     }
 
     /**
@@ -80,17 +82,23 @@ final class CommandLineParser
      * obecności i rodzaju. Istnienia zasobu parser nie sprawdza — o tym, czy
      * katalog da się otworzyć, wie sama komenda.
      *
-     * @param list<string> $values
+     * **Publiczne i niezależne od komendy od kroku 53**: kwerenda deklaruje
+     * argumenty tą samą klasą i przyjmuje je tą samą, więc wiąże je ten sam kod.
+     * Drugiego parsera projekt mieć nie będzie — a rozbiór skopiowany dla
+     * kwerend rozjechałby się z tym przy pierwszej poprawce składni wiersza.
+     *
+     * @param list<CommandArgument> $declared
+     * @param list<string>          $values
+     *
+     * @return Message|CommandInput powód albo wartości gotowe do użycia
      */
-    private function bind(CommandInterface $command, array $values): CommandLine
+    public function bind(string $name, array $declared, array $values): Message|CommandInput
     {
-        $declared = $command->arguments();
-
         if (count($values) > count($declared)) {
-            return CommandLine::problem(Message::error($this->translator->translate(
+            return Message::error($this->translator->translate(
                 'command.problem.extra',
-                ['name' => $command->name(), 'count' => (string) count($declared)],
-            )));
+                ['name' => $name, 'count' => (string) count($declared)],
+            ));
         }
 
         $arguments = [];
@@ -100,26 +108,26 @@ final class CommandLineParser
 
             if ($value === null || $value === '') {
                 if ($argument->required) {
-                    return CommandLine::problem(Message::error($this->translator->translate(
+                    return Message::error($this->translator->translate(
                         'command.problem.missing',
                         ['argument' => $this->translator->translate($argument->labelKey)],
-                    )));
+                    ));
                 }
 
                 continue;
             }
 
             if ($argument->kind === CommandArgumentKind::Number && !$this->isNumber($value)) {
-                return CommandLine::problem(Message::error($this->translator->translate(
+                return Message::error($this->translator->translate(
                     'command.problem.number',
                     ['argument' => $this->translator->translate($argument->labelKey), 'value' => $value],
-                )));
+                ));
             }
 
             $arguments[$argument->name] = $value;
         }
 
-        return CommandLine::of($command, new CommandInput($arguments));
+        return new CommandInput($arguments);
     }
 
     /** Liczba całkowita, ewentualnie ze znakiem — tyle, ile rdzeń potrafi sprawdzić. */

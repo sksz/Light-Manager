@@ -51,12 +51,15 @@ final class AudioModuleTest extends TestCase
 
     private StubPlaylistStorage $storage;
 
+    private ?AudioModule $module = null;
+
     protected function setUp(): void
     {
         $this->state = new LoopState(new Settings());
         $this->settings = new InMemorySettings($this->state->settings());
         $this->audio = new StubAudio();
         $this->storage = new StubPlaylistStorage([PlaylistEntry::of('a.mp3'), PlaylistEntry::of('b.mp3')]);
+        $this->module = null;
     }
 
     /**
@@ -291,9 +294,22 @@ final class AudioModuleTest extends TestCase
         self::assertSame(['a.mp3', 'b.mp3'], array_column($this->audio->played, 'path'));
     }
 
+    /**
+     * Moduł **jeden na test**, a jego kwerendy w rejestrze stanu pętli.
+     *
+     * Do kroku 53 każde wywołanie budowało nowy moduł i nic z tego nie wynikało:
+     * stan mieszkał w atrapach portów, wspólnych dla wszystkich. Odkąd odczyt
+     * idzie przez rejestr kwerend, moduł niezarejestrowany **nie ma jak
+     * przeczytać własnych danych** — dokładnie tak, jak w aplikacji, gdzie
+     * kwerendy dopisuje `Bootstrap` po przyjęciu modułu przez rejestr modułów.
+     */
     private function module(): AudioModule
     {
-        return new AudioModule(
+        if ($this->module !== null) {
+            return $this->module;
+        }
+
+        $this->module = new AudioModule(
             $this->state,
             new StubTranslator(),
             $this->settings,
@@ -301,6 +317,9 @@ final class AudioModuleTest extends TestCase
             $this->storage,
             new StubTrackFiles(hints: ['assets/audio/utwor.mp3']),
         );
+        $this->state->queries()->useModules([$this->module]);
+
+        return $this->module;
     }
 
     private function command(string $name): CommandInterface

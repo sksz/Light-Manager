@@ -18,6 +18,8 @@ use LightManager\Application\Module\ModuleRejection;
 use LightManager\Application\Module\ProvidesCommands;
 use LightManager\Application\Module\ProvidesSettingsTab;
 use LightManager\Application\Port\FrameRendererPort;
+use LightManager\Application\Query\QueryLineParser;
+use LightManager\Application\Query\QueryRegistry;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Application\UseCase\ChangeSettingUseCase;
 use LightManager\Application\UseCase\LoadSettingsUseCase;
@@ -57,6 +59,7 @@ use LightManager\Presentation\Cli\Command\FullscreenCommand;
 use LightManager\Presentation\Cli\Command\QuitCommand;
 use LightManager\Presentation\Cli\Command\ScreenCommand;
 use LightManager\Presentation\Cli\Command\SettingCommand;
+use LightManager\Presentation\Cli\Query\CoreQueries;
 use LightManager\Presentation\Cli\Screen\HelpScreen;
 use LightManager\Presentation\Cli\Screen\SettingsScreen;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
@@ -186,6 +189,15 @@ final class Bootstrap
         // oddaje **przyjęte**, dokładnie jak przy takcie.
         $state->events()->useModules($modules->accepted());
 
+        // Oba okna rejestru komend powstają **przed ekranami** od kroku 53:
+        // kwerendy rdzenia potrzebują gotowego rejestru komend (`core.commands`),
+        // a ekrany potrzebują gotowego rejestru kwerend, bo czytają przez niego
+        // wszystko, co pokazują. Do tego kroku kolejność była odwrotna i nic od
+        // niej nie zależało.
+        [$commands, $menu, $registry] = self::createCommandWindows($state, $settings, $translator, $modules);
+        self::registerQueries($state, $modules, $registry);
+        $commands->prepare();
+
         $settingsScreen = new SettingsScreen(
             $state,
             new ChangeSettingUseCase(
@@ -208,13 +220,10 @@ final class Bootstrap
             $settings,
             $translator,
             self::VERSION,
-            self::$windowed
-                ? RendererMode::OpenGl->name
-                : SixelCapabilityService::getInstance()->detect()->name,
+            self::rendererMode()->name,
             self::contentScale($translator),
         );
 
-        [$commands, $menu] = self::createCommandWindows($state, $settings, $translator, $modules);
         $floor = self::floor($modules, $state, $translator);
         $fullscreen = self::fullscreenToggle();
 
@@ -589,7 +598,7 @@ final class Bootstrap
      * się nie odświeżą. Komendy zmieniające ustawienia dostają stan pętli, żeby
      * zmiana obowiązywała od następnej klatki, a nie od następnego uruchomienia.
      *
-     * @return array{CommandOverlay, MenuOverlay}
+     * @return array{CommandOverlay, MenuOverlay, CommandRegistry}
      */
     private static function createCommandWindows(
         LoopState $state,
@@ -635,16 +644,63 @@ final class Bootstrap
         // Oba okna wykonują komendę tą samą linią, więc oba ogłaszają to samo
         // zdarzenie (krok 46) — i biorą rejestr z tego samego miejsca, co
         // wszyscy pozostali publikujący.
+        $lines = new CommandLineParser($translator);
         $overlay = new CommandOverlay(
             $registry,
-            new CommandLineParser($translator),
+            $lines,
             self::$history,
             $translator,
             $state->events(),
+            $state->queries(),
+            new QueryLineParser($lines, $translator),
         );
-        $overlay->prepare();
 
-        return [$overlay, new MenuOverlay($registry, $translator, $state->events())];
+        // `prepare()` **nie pada tutaj** od kroku 53: podpowiedzi stałe liczą się
+        // raz i już się nie odświeżą, a rejestr kwerend jest w tej chwili pusty —
+        // wypełnia go `registerQueries()` linijkę dalej. Wywołanie zostało więc
+        // przeniesione za nie, do `createGameLoop()`.
+        return [$overlay, new MenuOverlay($registry, $translator, $state->events()), $registry];
+    }
+
+    /**
+     * Rejestr kwerend: trzynaście źródeł rdzenia i kwerendy modułów przyjętych
+     * (krok 53).
+     *
+     * Moduły wchodzą **jedną linią**, wzorem `EventRegistry::useModules()` — więc
+     * reguła 15 zostaje policzona tak samo, jak przy zdarzeniach: dopisanie
+     * kwerend do modułu kosztuje w rdzeniu zero. Kwerendy rdzenia mają za to
+     * kolejność wymuszoną **w drugą stronę** niż wszystko inne w tej klasie:
+     * `core.commands` potrzebuje gotowego rejestru komend, a `core.queries` —
+     * rejestru, do którego właśnie jest dopisywana. To drugie jest bezpieczne,
+     * bo spis czyta się dopiero przy pytaniu, a nie przy dopisywaniu.
+     */
+    private static function registerQueries(
+        LoopState $state,
+        ModuleRegistry $modules,
+        CommandRegistry $commands,
+    ): void {
+        $queries = $state->queries();
+
+        $queries->add(QueryRegistry::CORE, CoreQueries::all(
+            $state,
+            $modules,
+            $commands,
+            ThemeService::getInstance(),
+            self::$windowed ? GlfwViewportService::getInstance() : TerminalSizeService::getInstance(),
+            self::rendererMode(),
+            self::VERSION,
+        ));
+
+        $queries->useModules($modules->accepted());
+    }
+
+    /**
+     * Tor, którym idzie klatka — bez pytania detektora w trybie okienkowym, bo
+     * wybór wyprzedził detekcję i DA1 nie zostało wysłane.
+     */
+    private static function rendererMode(): RendererMode
+    {
+        return self::$windowed ? RendererMode::OpenGl : SixelCapabilityService::getInstance()->detect();
     }
 
     /** @return list<string> */

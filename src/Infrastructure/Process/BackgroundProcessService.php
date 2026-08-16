@@ -153,6 +153,30 @@ final class BackgroundProcessService extends AbstractSingleton implements Backgr
         $this->jobs = [];
     }
 
+    /**
+     * Stany wszystkich prac tego uruchomienia — **odczyt, nigdy sterowanie**
+     * (krok 53, kwerenda `core.jobs`).
+     *
+     * Metody nie ma w porcie i mieć nie będzie, dokładnie z tego samego powodu,
+     * dla którego nie ma tam `stopAll()`: moduł ma prowadzić **swoją** pracę,
+     * a spis cudzych jest wiedzą rdzenia. Czyta ją jedna kwerenda rdzenia, a ta
+     * oddaje z niej etap, kod wyjścia i rozmiar wypisu — **nigdy jego treść**,
+     * bo log kontenera i listing zdalnego katalogu należą do tych, którzy je
+     * zamówili.
+     *
+     * @return array<int, BackgroundState> numer uchwytu → stan
+     */
+    public function states(): array
+    {
+        $states = [];
+
+        foreach ($this->jobs as $id => $job) {
+            $states[$id] = $job->state();
+        }
+
+        return $states;
+    }
+
     private function runningCount(): int
     {
         $running = 0;

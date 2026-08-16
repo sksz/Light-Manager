@@ -132,6 +132,14 @@ return [
     'module.browser.command.open' => 'enter the selected directory',
     'module.browser.command.hidden' => 'show or hide hidden entries',
     'module.browser.command.tree' => 'pane as a tree or as a list',
+    'module.browser.query.entries' => 'entries of the directory shown in the pane',
+    'module.browser.query.selection' => 'entry under the cursor with its attributes',
+    'module.browser.query.marked' => 'names and paths of marked entries',
+    'module.browser.query.cwd' => 'paths of both panes along with the active one',
+    'module.browser.query.panes' => 'pane layout: view, filter, marks',
+    'module.browser.query.tree' => 'flattened directory tree of the pane',
+    'module.browser.query.undo' => 'operation stack along with reversibility',
+    'module.browser.query.argument.pane' => 'pane (0 or 1)',
     // The first two commands with an argument in the project (step 41): the name
     // comes on the line, because a command cannot open an overlay (D75, no. 5).
     'module.browser.command.rename' => 'rename the selected entry',
