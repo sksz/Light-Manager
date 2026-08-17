@@ -173,6 +173,8 @@ kosztuje w terminalu.
 | `F9` | menu kontekstowe — co da się zrobić z zaznaczonym wpisem |
 | `F11` | pełny ekran — **tylko w trybie okienkowym** (`--window`) |
 | `F12` | okno komend |
+| `Alt`+`c` | skopiowanie do schowka systemowego — patrz „Schowek” |
+| `Alt`+`v` | wklejenie ze schowka do pola tekstowego z ogniskiem |
 | `Ctrl`+litera | okno modułu — `Ctrl+B` przeglądarka plików, `Ctrl+D` opis zaznaczonego pliku, `Ctrl+A` playlista |
 | `Esc` | zdjęcie filtra, a potem zaznaczenia; powrót do modułu domyślnego z każdego ekranu |
 | `F10` | wyjście (działa na każdym ekranie) |
@@ -227,6 +229,62 @@ natywne zaznaczanie terminala. Powody, dla których warto: terminal, który
 raportowania myszy nie obsługuje, albo nawyk zaznaczania tekstu myszą. Przy
 włączonej myszy natywne zaznaczanie zostaje osiągalne pod `Shift`em — tak
 rozstrzyga to każdy emulator terminala.
+
+### Schowek
+
+`Alt`+`c` kopiuje, `Alt`+`v` wkleja — w terminalu i w oknie, także wtedy, gdy
+aplikacja działa po drugiej stronie połączenia SSH.
+
+**Kopiowane jest jedno z trzech, w tej kolejności:**
+
+1. **treść zaznaczona myszą** — przeciągnięcie po klatce rysuje prostokąt
+   i aplikacja wie, co pod nim pisze, także tam, gdzie obraz jest bitmapą albo
+   rysunkiem w oknie;
+2. **ścieżki wpisów zaznaczonych** spacją (patrz niżej) — po jednej w wierszu,
+   ze ścieżką, a nie samą nazwą, żeby dały się użyć po wklejeniu;
+3. **ścieżka wpisu pod kursorem**, gdy nie ma ani zaznaczenia, ani zbioru.
+
+Pasek stanu mówi, **co** skopiowano, a nie „skopiowano” — bo po tym samym
+klawiszu trzy różne treści byłyby nierozróżnialne. Skopiować da się także treść
+okna nakładanego: `Alt`+`c` w pytaniu o nieznany klucz hosta bierze odcisk
+`SHA256:…`, a w oknie kwerend (`F12`, `Tab`) — całą odpowiedź, wierszami
+rozdzielonymi tabulatorem.
+
+**Wklejanie ma jedno miejsce docelowe: pole tekstowe z ogniskiem** — nazwa pliku,
+wzorzec filtra, wiersz komend, wartość ustawienia. `Alt`+`v` naciśnięty nad listą
+plików mówi, że nie ma gdzie wkleić, i **nie pyta terminala o zawartość
+schowka**. Treść wielowierszowa wchodzi do pola jednowierszowego z nowymi
+liniami zamienionymi na odstępy.
+
+**Gdy terminal nie oddaje zawartości schowka**, `Alt`+`v` kończy się po ćwierć
+sekundy zdaniem „Ten terminal nie oddaje zawartości schowka” — bo terminal bez
+obsługi odczytu **milczy**, zamiast odmówić. Co wtedy zrobić:
+
+- w XTermie: uruchamiać przez `make run-xterm` (`bin/run.sh` podaje potrzebne
+  zasoby) albo dodać do własnego wywołania
+  `-xrm 'XTerm*disallowedWindowOps: 1,2,3,4,5,6,7,8,9,11,13,18,19,20,21,SetWinLines,SetXprop'`
+  — z listy domyślnej muszą wypaść **oba** wpisy `GetSelection` i `SetSelection`;
+- w innych emulatorach: szukać ustawienia w rodzaju „allow OSC 52 clipboard
+  read”. Wiele terminali wyłącza **odczyt** domyślnie i jest to rozsądne —
+  pozwala on aplikacji przeczytać cudzy schowek. Aplikacja czyta go wyłącznie po
+  `Alt`+`v` albo komendzie `core.clipboard.paste`, nigdy przy starcie i nigdy
+  w tle;
+- w trybie okienkowym (`--window`) pytanie nie zachodzi: schowek odpowiada od
+  razu.
+
+
+**XTerm potrzebuje jeszcze jednego zasobu, i to dla wszystkich skrótów z `Alt`**
+(`Alt`+`c`, `Alt`+`v`, `Alt`+`z`, `Alt`+`u`): `-xrm 'XTerm*metaSendsEscape: true'`.
+Bez niego `Alt`+litera **nie dochodzi do aplikacji** — XTerm domyślnie wysyła
+wtedy jeden znak z ustawionym ósmym bitem (`Alt`+`c` przychodzi jako `ã`), czyli
+zwykłą literę, a nie skrót. `make run-xterm` podaje ten zasób sam. Inne emulatory
+(WezTerm, foot, mlterm) wysyłają `ESC`+literę domyślnie i nie wymagają niczego.
+
+Kopiowanie w terminalu jest jednostronne — potwierdzenia nie ma i mieć nie może,
+więc treść dłuższa niż 64 kB kończy się **odmową ze zdaniem**, zamiast cichym
+obcięciem w połowie. Próg jest ostrożny z rozmysłem: XTerm 390 przyjmuje
+zmierzone 256 kB, ale inne terminale i multipleksery mają własne, znacznie
+skromniejsze limity — a przekroczenie limitu nie daje błędu, tylko ciszę.
 
 ### Zaznaczenie wielokrotne
 

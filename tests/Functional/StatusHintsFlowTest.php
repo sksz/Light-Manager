@@ -22,6 +22,7 @@ use LightManager\Module\Browser\Domain\ValueObject\Entry;
 use LightManager\Module\FileInfo\Infrastructure\TextPreviewService;
 use LightManager\Presentation\Cli\FrameComposer;
 use LightManager\Presentation\Cli\InputHandler;
+use LightManager\Presentation\Ui\AcceptsPaste;
 use LightManager\Presentation\Ui\DeclaresFocus;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\Module\ReadsContext;
@@ -367,6 +368,16 @@ final class StatusHintsFlowTest extends TestCase
     /** Czy którykolwiek klawisz wiązania robi w tym miejscu cokolwiek widocznego. */
     private function reacts(ScreenInterface $screen, KeyBinding $binding): bool
     {
+        // Wklejanie jest jedynym wiązaniem miejsca, którego **nie obsługuje
+        // miejsce** (krok 57): treść schowka przychodzi zdarzeniem klatkę
+        // później, więc `Alt`+`v` prosi rdzeń, a rdzeń oddaje odpowiedź temu, kto
+        // zadeklarował `AcceptsPaste`. Pytanie „czy tu działa" znaczy tu zatem
+        // „czy to miejsce treść przyjmie" — i tak właśnie się je zadaje, zamiast
+        // zwalniać klawisz ze sprawdzenia.
+        if ($binding->alt && $binding->character === InputHandler::PASTE_CHARACTER) {
+            return $screen instanceof AcceptsPaste && $screen->paste('lm');
+        }
+
         foreach (self::pressesOf($binding) as $press) {
             $before = $this->snapshot($screen);
             $outcome = $screen->handle($press);

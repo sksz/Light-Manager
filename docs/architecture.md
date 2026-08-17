@@ -239,10 +239,10 @@ komunikat, podgląd, tryb renderowania i położenie okna listy.
 |---|---|---|---|---|
 | Klatka | `Frame` | Application | `Application/Ui` | Stos płaszczyzn w porządku nakładania — jedyne, co przechodzi przez `FrameRendererPort`. |
 | Płaszczyzna | `Plane` | Application | `Application/Ui` | Niezależnie umieszczony plan obrazu: prostokąt i lista prymitywów. Spodnia to ekran, nad nią stoją okna nakładane. Flaga `opaque` każe rendererowi **wymazać prostokąt** przed narysowaniem — bez niej okno złożone z samej obwódki przepuszcza to, co pod nim. |
-| Prymityw | `Primitive` | Application | `Application/Ui/Primitive` | Kształt gotowy do narysowania: `TextRun`, `TextMark`, `RoundRect`, `CornerBrackets`, `Bar`, `Bitmap`, `Scrollbar`. Słownik **zamknięty**; otwierany dotąd raz, w kroku 30. |
-| Podświetlenie | `TextMark` | Application | `Application/Ui/Primitive` | Napis postawiony **na własnym tle** — ósmy kształt, dołożony w kroku 30 dla dopasowania filtra (D59). Niesie sam fragment, rolę pisma i rolę tła; tło obejmuje tyle kolumn, ile fragment ma znaków. |
+| Prymityw | `Primitive` | Application | `Application/Ui/Primitive` | Kształt gotowy do narysowania: `TextRun`, `TextMark`, `RoundRect`, `CornerBrackets`, `Bar`, `Bitmap`, `Scrollbar` — **siedem**. Słownik **zamknięty**; otwierany dotąd raz, w kroku 30. Zaznaczanie treści (krok 56) go **nie otworzyło**: prostokąt zaznaczenia to `TextMark` na wiersz. |
+| Podświetlenie | `TextMark` | Application | `Application/Ui/Primitive` | Napis postawiony **na własnym tle** — kształt ostatni z siedmiu, dołożony w kroku 30 dla dopasowania filtra (D59; krok 30 nazwał go ósmym i liczba żyła błędna do kroku 56). Od kroku 56 ma drugiego użytkownika: prostokąt zaznaczenia, po jednym prymitywie na wiersz. Niesie sam fragment, rolę pisma i rolę tła; tło obejmuje tyle kolumn, ile fragment ma znaków. |
 | Zakres dopasowania | `TextSpan` | Presentation | `Presentation/Ui/Component` | Kawałek napisu — przesunięcie i długość **w znakach**. Wiersz niesie zakresy, a nie podzieloną treść: tylko komponent wie, od której kolumny zaczyna się napis i ile z niego zostanie po przycięciu. |
-| Rola koloru | `Role` | Application | `Application/Ui` | Rola motywu (tło, obwódka, akcent, …). Prymityw niesie rolę, nie kolor. Ról jest **dwanaście**: jedenaście z kroku 13 plus `Marked` z kroku 43 — pierwsza dołożona od tamtego czasu i dołożona z konieczności, nie z wygody (D80 nr 5a): zaznaczenie potrzebowało koloru odróżnialnego naraz od tekstu, akcentu (katalogi) i czerwieni, a `Warning` jest w motywie Grafit **tym samym kolorem, co akcent** (jeden nasycony kolor, D25). |
+| Rola koloru | `Role` | Application | `Application/Ui` | Rola motywu (tło, obwódka, akcent, …). Prymityw niesie rolę, nie kolor. Ról jest **trzynaście**: jedenaście z kroku 13, `Marked` z kroku 43 i `Marquee` z kroku 56 (tło prostokąta zaznaczonego wskaźnikiem — nazwa mówi o kształcie, bo `Selection` jest zajęte przez tło wiersza pod kursorem, a `Marked` przez wpisy wybrane do operacji na plikach). `Marked` — pierwsza dołożona od tamtego czasu i dołożona z konieczności, nie z wygody (D80 nr 5a): zaznaczenie potrzebowało koloru odróżnialnego naraz od tekstu, akcentu (katalogi) i czerwieni, a `Warning` jest w motywie Grafit **tym samym kolorem, co akcent** (jeden nasycony kolor, D25). |
 | Prostokąt | `Rect` | Application | `Application/Ui` | Obszar w **siatce znakowej**; piksele zaczynają się dopiero w rendererze. |
 | Komponent | `ComponentInterface` | Presentation | `Presentation/Ui` | Element interfejsu, który rysuje się w zadanym prostokącie: `Panel`, `Label`, `ListView`, `SectionList`, `ProgressBar`, `Tabs`, `Choice`, `Toggle`, `Button`, `Dialog`, `StatusBar`, `ImageBox`, `TextView`, `Spacer`. |
 | Zwijana sekcja | `Section`, `SectionList` | Presentation | `Presentation/Ui/Component` | Grupa wierszy z etykietą i znacznikiem `▼`/`▶`. `Section` jest **daną** (jak `ListRow`), `SectionList` — komponentem: spłaszcza sekcje do wierszy, wycina okno i oddaje rysowanie `ListView`owi. Sekcje przewijają się **jak jedna lista**, więc wycinanie okna musi widzieć je wszystkie naraz. |
@@ -271,6 +271,13 @@ komunikat, podgląd, tryb renderowania i położenie okna listy.
 | Zdolność komendy „czego dotyczę” | `AppliesToSelection` | Application | `Application/Command` | Doklejana **obok** kontraktu, wzorem `SuggestsArguments` (krok 32): `appliesTo()` mówi, dla jakiego zaznaczenia komenda ma sens, `inputFor()` składa z kontekstu jej argumenty. Komenda bez tej zdolności nie wchodzi do menu kontekstowego — i to jest właściwa domyślna odpowiedź. |
 | Wskaźnik | `PointerEvent`, `PointerButton`, `PointerAction` | Application | `Application/Dto` | Zdarzenie myszy w **siatce znakowej** (krok 55): komórka liczona od zera, przycisk (lewy, środkowy, prawy), rodzaj (naciśnięcie, zwolnienie, przeciągnięcie, kółko w górę i w dół) i te same trzy modyfikatory, co w `KeyPress`. Stoi w **jednej kolejce** z klawiszami pod wspólnym nadtypem `InputEvent`, więc kolejność kliknięcia wobec litery zachowuje się sama. Przycisków bocznych ani kółka poziomego słownik nie zna — nie mają odbiorcy (reguła 13). |
 | Trafienie wskaźnika | `AcceptsPointer`, `AcceptsPointerInOverlay` | Presentation | `Presentation/Ui` | **Deklarowane, nie odkrywane** (krok 55, D95 nr 2) — dokładnie tą samą drogą i z tego samego powodu, co ognisko: drzewa komponentów aplikacja nie przechowuje. Ekran pamięta prostokąt z ostatniego rysowania i sam tłumaczy współrzędne na własne pojęcia; rdzeń **nie ma mapy** tego, co gdzie narysowano — poza stopką, czyli jedyną rzeczą, którą rysuje sam (`HintTarget`). Zdolności są dwie, bo ekran oddaje `ScreenOutcome`, a okno nakładane `OverlayOutcome`. |
+| Warstwa tekstowa klatki | `FrameText` | Application | `Application/Ui` | **Drugie oblicze tej samej klatki: jej treść zapisana znakami** (krok 56). Zamienia prymitywy w siatkę znaków wraz z rolami pisma i tła — jednym przejściem, z tą samą degradacją kształtów, którą od kroku 18 miał renderer tekstowy (obwódka to znaki rysunkowe, miniatura to sam podpis, suwak i nawias narożny nie mają odpowiednika). Odpowiada na dwa pytania: **jaki znak stoi w komórce** i **jaki napis stoi w prostokącie** (wiersz po wierszu, z obcięciem spacji **z prawej** — lewe niosą kształt bloku). Rachunek jest **jeden na całą aplikację**: renderer tekstowy stoi na nim, a zaznaczanie pyta go w trzech torach naraz. |
+| Zaznaczenie treści | `SelectionState` | Presentation | `Presentation/Ui` | Prostokąt zaznaczony wskaźnikiem (krok 56) — **piąta klasa pamiętająca coś między klatkami i jedyna, której właścicielem jest rdzeń**, a nie ekran: zaznaczenie przecina panele, ekrany i okna nakładane, bo dotyczy klatki. Jest **prostokątne, nie przepływowe** (ekran to panele obok siebie, więc przepływ zabrałby obwódkę sąsiada), a kasuje się przy zmianie ekranu, otwarciu okna nakładanego i zmianie rozmiaru okna. Rysuje je `Marquee` — `TextMark` na wiersz, tło `Role::Marquee`, pismo `Role::SelectionText`. |
+| Zdolność ekranu „przeciągam sam” | `DragsOwnContent` | Presentation | `Presentation/Ui` | Ekran prowadzący **własne** przeciągnięcie — dziś granicę podziału — mówi o tym tą zdolnością, a `InputHandler` pyta o nią w jednym miejscu i wyłącznie przy przeciągnięciu (krok 56, D100 nr 2). Bez niej rdzeń nie odróżnia przeciągnięcia granicy od zaznaczania treści: obie zaczynają się naciśnięciem lewego przycisku, a `ScreenOutcome` nie mówi, czy zdarzenie zużyto. Odpowiedź jest **stanem**, bo granicę chwyta się naciśnięciem — ekran wie o niej, zanim padnie pierwsze przeciągnięcie. |
+| Treść schowka | `ClipboardText` | Application | `Application/Dto` | **Trzecia postać `InputEvent`** (krok 57) — po klawiszu i wskaźniku. Nie jest wynikiem funkcji, bo w torze terminalowym nim być nie może: `OSC 52` z pytajnikiem odpowiada **sekwencją na wejściu aplikacji**, klatkę albo dwie później, albo nie odpowiada wcale. Wpada do tej samej kolejki, co dwie pozostałe postacie, i niesie **wyłącznie treść** — kto ją odbierze, rozstrzyga się przy doręczeniu. |
+| Schowek | `ClipboardPort` | Application | `Application/Port` | Zdolność **toru wyjścia**, jak `ViewportPort` i `FrameRendererPort` (krok 57) — nie wyjątek od reguły 15, bo moduł nie ma dostępu ani do terminala, ani do okna inaczej niż portem. Dwie metody i są **asymetryczne**: `put()` odpowiada w tym samym wywołaniu (`null` albo klucz powodu odmowy), `requestText()` **nie oddaje tekstu**, tylko mówi, czy udało się zapytać. Implementacje: `TerminalClipboardService` (`OSC 52`, wspólna dla toru sixelowego i tekstowego) i `GlfwClipboardService`. |
+| Zdolność „mam co skopiować” | `CopiesContent`, `CopyContent` | Presentation | `Presentation/Ui` | Co u danego ekranu albo okna znaczy „skopiuj to, na czym stoję" (krok 57, D101 nr 1) — **drugie z trzech źródeł** kopiowania; pierwszym jest zaznaczenie klatki, trzecim ścieżka wpisu z `ModuleContext`, oba rdzeniowe. Zdolność jest **jedna dla ekranu i dla okna**, inaczej niż para `AcceptsPointer`: odpowiedź jest daną, nie skutkiem zdarzenia, więc bliźniak niósłby tę samą sygnaturę. Deklarują ją dziś `BrowserScreen` (ścieżki zaznaczonych wpisów), `ConfirmOverlay` (treść pytania) i `CommandOverlay` (odpowiedź kwerendy). |
+| Zdolność „przyjmę wklejenie” | `AcceptsPaste` | Presentation | `Presentation/Ui` | Kto ma pole tekstowe z ogniskiem (krok 57). Jest zarazem **techniczną gwarancją** zobowiązania „odczytana treść ma jedno miejsce docelowe": treść schowka wychodzi z parsera wejścia i ma **dokładnie jedną** drogę dalej, więc nie ma jak trafić do dziennika, do pliku ani do procesu potomnego. Deklaracja nie znaczy „zawsze przyjmę" — stąd odpowiedź logiczna: ekran ustawień ma pole tylko w trakcie edycji, a odmowa znaczy treść porzuconą. |
 | Menu kontekstowe | `MenuOverlay` | Presentation | `Presentation/Ui/Overlay` | **Widok na rejestr komend, nie drugi rejestr** (krok 32). Pokazuje wyłącznie te komendy, które deklarują `AppliesToSelection` i pasują do zaznaczenia; wybór wywołuje `execute()`, czyli tę samą linię, co okno komend. Składa się z `Dialog`u i `ListView` — komponentu nie dokłada. |
 
 Granica między tymi dwiema połówkami jest jednozdaniowa i wynika z reguły
@@ -291,6 +298,14 @@ mieszka **obok** komponentu, a właścicielem jest ekran:
 | `SectionState` | `Presentation/Ui` | Które sekcje są zwinięte i na której stoi kursor. | 22 |
 | `SplitState` | `Presentation/Ui` | Który panel podziału jest czynny — wraz z regułą, że wyłączony podział sprowadza ognisko na pierwszy. Od kroku 55 także **proporcja granicy** i jej przeciąganie: chwyt na dwóch stykających się obwódkach, granice 20–80%, zapis w ustawieniach modułu po zwolnieniu przycisku. | 24 |
 | `TreeState` | `Presentation/Ui` | Które gałęzie drzewa są rozwinięte i na którym węźle stoi kursor. | 31 |
+| `SelectionState` | `Presentation/Ui` | Prostokąt zaznaczony wskaźnikiem: kotwica, komórka bieżąca i znacznik trwania przeciągnięcia. **Jedyna z tej rodziny należąca do rdzenia** (`LoopState`), bo zaznaczenie dotyczy klatki, a nie treści jednego ekranu. | 56 |
+
+Piąta różni się od czterech pozostałych **właścicielem**, i to jest cała
+różnica: `SelectionState` mieszka w `LoopState`, bo prostokąt zaznaczenia
+przecina panele, ekrany i okna nakładane. Zamiast `useContext()` ma
+`useFrame(ekran, okno, wiersze, kolumny)` — pytanie „czy to nadal ta sama
+klatka”, zadawane raz na takt przez `FrameComposer`, czyli w jedynym miejscu,
+w którym widać wszystkie trzy powody skasowania naraz.
 
 Trzy z nich mają tę samą metodę `useContext(string)` i to nie jest przypadek:
 zmiana kontekstu — inny katalog, inna zakładka, inny opisywany plik — zaczyna
@@ -312,6 +327,81 @@ częściej niż lista sekcji:
 Rozwinięcia przeżywają przy tym zmianę kontekstu — kursor nie. Klucz gałęzi jest
 bezwzględny, więc po powrocie do poprzedniego korzenia znaczy dokładnie to samo,
 i na tym stoi obietnica „drzewo wraca takie, jakie się je zostawiło”.
+
+#### Schowek: odczyt, który przychodzi później (od kroku 57)
+
+Schowek systemowy jest **portem rdzenia**, a nie funkcją modułu, i to nie jest
+wyjątek od reguły 15: dostęp do schowka ma ten, kto ma dostęp do terminala albo
+do okna, a to jest tor wyjścia — dokładnie tak samo jak `ViewportPort`
+i `FrameRendererPort`. Drugiej drogi do schowka nie ma czego rozważać, bo moduł
+nie sięga do `Infrastructure` inaczej niż portem.
+
+Trudność jest w **jednej z dwóch metod portu**. Zapis kończy się w tym samym
+wywołaniu; odczyt nie ma jak, bo w torze terminalowym idzie protokołem `OSC 52`
+z pytajnikiem (`\e]52;c;?\e\\`), a ten **nie zwraca niczego**: terminal odpowiada
+sekwencją na wejściu aplikacji, klatkę albo dwie później, albo — gdy odczytu nie
+obsługuje — **nie odpowiada nic i nie mówi o tym ani słowem**. Port nazywa więc
+tę metodę `requestText()`, a nie `text()`: nazwa obiecująca zwrot wartości byłaby
+kłamstwem w jednej z dwóch implementacji, a takiego kłamstwa nie widać, dopóki
+ktoś nie uruchomi programu pod terminalem bez obsługi.
+
+Wklejenie jest przez to **zdarzeniem, które przychodzi** (`ClipboardText`, trzecia
+postać `InputEvent`), a nie wynikiem funkcji. Cztery reguły trzymają to razem:
+
+- **Prosi ten, kto ma ognisko.** `Alt`+`v` sprawdza, czy na wierzchu stoi ktoś
+  deklarujący `AcceptsPaste`; bez pola tekstowego pytanie **nie pada w ogóle**.
+- **Rdzeń pamięta prośbę, a nie proszącego** (D101 nr 2). `LoopState` trzyma
+  znacznik z terminem; odbiorcę pyta się na nowo przy doręczeniu. Wariant
+  z referencją do okna albo ekranu odrzucono: byłby pierwszą taką referencją
+  w stanie pętli i trzema miejscami, w których trzeba by ją kasować.
+- **Pytanie ma termin** (ćwierć sekundy, osiem klatek). Bez niego pole czekałoby
+  w nieskończoność na coś, co nigdy nie przyjdzie, a użytkownik zobaczyłby
+  klawisz, po którym nic się nie stało. Pytanie o wygaśnięcie pada **raz na takt**
+  w `GameLoop`, w fazie „aktualizuj stan”.
+- **Rozbiór `OSC` należy do parsera wejścia** i jest jedynym miejscem, w którym
+  `KeySequenceParser::parseAfterTimeout()` **nie rozstrzyga**: długość odpowiedzi
+  zależy od zawartości schowka, więc sekwencja niepełna czeka między taktami.
+  Wolno tak zrobić tylko wtedy, gdy w buforze stoi pełny znacznik `ESC ] 5 2 ;` —
+  bez tego warunku samo naciśnięcie `Alt`+`]` zamurowałoby całe wejście.
+
+W torze okienkowym nic z tego nie zachodzi (`glfwGetClipboardString()` oddaje
+treść od razu), ale treść **i tam wchodzi przez kolejkę zdarzeń**, a nie przez
+zwrot z wywołania — inaczej wołający musiałby wiedzieć, w którym torze działa,
+żeby wiedzieć, gdzie szukać odpowiedzi.
+
+**Trzy zobowiązania, na które zamieniła się cena tej drogi** (D95 nr 5). Żeby
+schowek w terminalu istniał, `bin/run.sh` musiał zdjąć z listy
+`disallowedWindowOps` **oba** wpisy — `SetSelection` i `GetSelection` — a drugi
+z nich pozwala aplikacji działającej w terminalu **przeczytać cudzy schowek**:
+
+1. **Czyta się wyłącznie na wyraźne polecenie użytkownika** — `Alt`+`v` albo
+   komenda `core.clipboard.paste`. Nigdy przy starcie, nigdy w takcie, nigdy
+   w rysowaniu klatki.
+2. **Odczytana treść ma jedno miejsce docelowe: pole tekstowe z ogniskiem.** To
+   zobowiązanie jest **kształtem kodu, nie obietnicą** — treść wychodzi z parsera
+   i ma dokładnie jedną drogę dalej, przez `AcceptsPaste`.
+3. **`bin/run.sh` tłumaczy, dlaczego lista się zmieniła** — oba zwężenia, z kroku
+   34 i z kroku 57, wraz z powodami. Bez tego następny czytający uzna zmianę za
+   przeoczenie i cofnie ją.
+
+**Drugi zasób XTerma, który krok 57 musiał dołożyć, jest defektem starszym od
+niego**: `metaSendsEscape: true`. Bez niego `Alt`+litera **nie dochodzi do
+aplikacji w ogóle** — domyślnie rozstrzyga `eightBitInput` i `Alt`+`c` przychodzi
+jako jeden znak drukowalny (`0x63|0x80`, czyli `ã`). Dotyczyło to od chwili
+powstania także `Alt`+`z` (krok 29) i `Alt`+`u` (krok 44); nie wyszło wcześniej,
+bo klatki pod XTermem nikt nie oglądał. Naprawa należy do **terminala, nie do
+parsera**, i nie jest to wygoda: użytkownik wpisujący `ã` w nazwę pliku wysyła
+dokładnie te same bajty, więc parser rozpoznający tę postać jako `Alt` odbierałby
+możliwość wpisywania znaków diakrytycznych.
+
+Kopiowanie ma za to **trzy źródła w ustalonej kolejności**, a rozstrzyga ją rdzeń,
+bo tylko on widzi wszystkie trzy naraz: zaznaczenie klatki (krok 56) → treść, którą
+ekran albo okno uzna za swoją (`CopiesContent`) → ścieżka wpisu pod kursorem
+z `ModuleContext`. Skrajne dwa są rdzeniowe i darmowe; środkowe jest zdolnością,
+bo nazw zaznaczonych wpisów kontekst nie niesie — ma o nich trzy liczby i ani
+jednej nazwy. Pasek stanu mówi **co** skopiowano, a nie „skopiowano": trzy różne
+treści po tym samym klawiszu są dla użytkownika nierozróżnialne, dopóki zdanie
+jest jedno.
 
 #### Ognisko deklaruje się, a nie odkrywa (od kroku 40)
 

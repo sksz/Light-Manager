@@ -10,10 +10,12 @@ use LightManager\Application\Event\AppEvent;
 use LightManager\Application\Event\EventRegistry;
 use LightManager\Application\Module\ModuleContext;
 use LightManager\Application\Query\QueryRegistry;
+use LightManager\Application\Ui\FrameText;
 use LightManager\Application\Ui\Rect;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Presentation\Ui\Component\StatusBar;
 use LightManager\Presentation\Ui\HintTarget;
+use LightManager\Presentation\Ui\SelectionState;
 use LightManager\Presentation\Ui\StatusHints;
 
 /**
@@ -38,6 +40,21 @@ final class LoopState
 
     private const SECONDS_PER_MESSAGE_WORD = 0.5;
 
+    /**
+     * Ile czekamy na odpowiedź terminala o schowku (krok 57).
+     *
+     * Termin istnieje z jednego powodu: **terminal, który odczytu nie obsługuje,
+     * nie odpowiada nic.** Ani błędu, ani pustej odpowiedzi, ani sygnału — cisza
+     * nieodróżnialna od ciszy terminala, który jeszcze nie zdążył. Bez terminu
+     * pole czekałoby w nieskończoność na coś, co nigdy nie przyjdzie, a jedyne, co
+     * użytkownik by zobaczył, to klawisz, po którym nic się nie stało.
+     *
+     * Ćwierć sekundy to osiem klatek przy trzydziestu na sekundę — z zapasem
+     * ponad „klatkę albo dwie”, o które chodzi w torze terminalowym, i wciąż
+     * poniżej progu, przy którym człowiek uznaje program za zawieszony.
+     */
+    private const CLIPBOARD_REQUEST_SECONDS = 0.25;
+
     private ?Message $message = null;
 
     private float $messageDismissableAt = 0.0;
@@ -53,6 +70,33 @@ final class LoopState
     private string $hintMessage = '';
 
     private ?StatusHints $hintSource = null;
+
+    /**
+     * Co jest zaznaczone na klatce (krok 56).
+     *
+     * Właścicielem jest **rdzeń**, a nie ekran, i to jest różnica wobec ogniska:
+     * zaznaczenie przecina panele, ekrany i okna nakładane, bo dotyczy klatki,
+     * a nie treści któregokolwiek z nich. Mieszka tu z tego samego rachunku, co
+     * trzy rejestry i mapa stopki: `LoopState` dostają wszyscy, którzy go
+     * potrzebują — składający klatkę (rysuje i kasuje) oraz rozdzielający
+     * wejście (zaznacza) — więc `Bootstrap` nie rośnie o argument.
+     */
+    private readonly SelectionState $selection;
+
+    /**
+     * Warstwa tekstowa **ostatnio złożonej klatki** — tylko wtedy, gdy jest
+     * zaznaczenie.
+     *
+     * Klatka bez zaznaczenia nie liczy jej wcale i to jest cały rachunek tego
+     * kroku na ścieżce rysowania: drugie przejście po prymitywach pada
+     * **wyłącznie** wtedy, gdy jest co z niego wziąć. Trzyma ją stan, a nie
+     * składanie klatki, bo pytanie „co jest zaznaczone” pada poza rysowaniem —
+     * dziś w pasku stanu, od kroku 57 przy kopiowaniu do schowka.
+     */
+    private ?FrameText $frameText = null;
+
+    /** Do kiedy prośba o schowek jest ważna; `0.0` znaczy „nikt nie prosił”. */
+    private float $clipboardDeadline = 0.0;
 
     /**
      * Kontekst sesji dla modułów: gdzie użytkownik stoi i co ma zaznaczone.
@@ -114,6 +158,100 @@ final class LoopState
         $this->queries = $queries ?? new QueryRegistry();
         $this->overlays = new OverlayStack($this->events);
         $this->context = new ModuleContext();
+        $this->selection = new SelectionState();
+    }
+
+    public function selection(): SelectionState
+    {
+        return $this->selection;
+    }
+
+    /**
+     * Warstwa tekstowa złożonej właśnie klatki — podaje ją `FrameComposer`,
+     * i tylko wtedy, gdy jest zaznaczenie.
+     */
+    public function useFrameText(?FrameText $text): void
+    {
+        $this->frameText = $text;
+    }
+
+    /**
+     * **Co pisze pod zaznaczeniem** — miara tego kroku i jedyne, czego krok 57
+     * będzie od niego potrzebował.
+     *
+     * Pusta lista znaczy „nie ma zaznaczenia albo nie było jeszcze klatki”:
+     * odczyt idzie z klatki **ostatnio złożonej**, bo tylko ona wie, co gdzie
+     * narysowano. Wołający ma przez to zawsze to samo, co widzi użytkownik —
+     * a nie to, co aplikacja narysowałaby, gdyby ją o to teraz poprosić.
+     *
+     * @return list<string>
+     */
+    public function selectionText(): array
+    {
+        $bounds = $this->selection->bounds();
+
+        if ($bounds === null || $this->frameText === null) {
+            return [];
+        }
+
+        return $this->frameText->textIn($bounds);
+    }
+
+    /**
+     * Prośba o zawartość schowka — **znacznik z terminem, a nie proszący**
+     * (krok 57, D101 nr 2).
+     *
+     * Stan pamięta, **że** ktoś poprosił i do kiedy odpowiedź ma sens; **kto**
+     * poprosił, nie jest tu zapisane. Wariant z referencją do okna albo ekranu
+     * rozważano i odrzucono: byłby pierwszą taką referencją w stanie pętli
+     * i trzema nowymi miejscami, w których trzeba by ją kasować — przy zamknięciu
+     * okna, przy zmianie ekranu i przy `reset()`. Zapomniane kasowanie znaczyłoby
+     * wtedy treść schowka wstawioną do pola, którego użytkownik już nie widzi,
+     * czyli dokładnie to, przed czym broni zobowiązanie „jedno miejsce docelowe”.
+     *
+     * Odbiorcę pyta się przez to **na nowo przy doręczeniu** (`AcceptsPaste`).
+     * Cena jest nazwana i przyjęta: gdyby w tej samej ćwiartce sekundy jedno pole
+     * się zamknęło, a drugie otworzyło, treść trafi do drugiego.
+     */
+    public function requestClipboard(float $now): void
+    {
+        $this->clipboardDeadline = $now + self::CLIPBOARD_REQUEST_SECONDS;
+    }
+
+    /**
+     * Zdejmuje prośbę i mówi, czy w ogóle wisiała — wołane przy **doręczeniu**
+     * treści schowka.
+     *
+     * `false` znaczy „nikt o to nie prosił albo prośba już wygasła”, czyli treść
+     * do porzucenia. Aplikacja nie czyta schowka inaczej niż na polecenie
+     * użytkownika (pierwsze z trzech zobowiązań D95 nr 5), więc odpowiedź, której
+     * nikt nie zamówił, nie ma prawa nigdzie wejść — także wtedy, gdy jest
+     * poprawną odpowiedzią poprawnego terminala.
+     */
+    public function takeClipboardRequest(): bool
+    {
+        $pending = $this->clipboardDeadline > 0.0;
+        $this->clipboardDeadline = 0.0;
+
+        return $pending;
+    }
+
+    /**
+     * Czy prośba właśnie wygasła — pytanie zadawane **raz na takt**, bo tylko
+     * takt zna czas.
+     *
+     * Zdejmuje prośbę przy odpowiedzi twierdzącej, więc zdanie „schowek
+     * nieosiągalny” pada dokładnie raz, a nie trzydzieści razy na sekundę.
+     */
+    public function clipboardRequestExpired(float $now): bool
+    {
+        if ($this->clipboardDeadline === 0.0 || $now < $this->clipboardDeadline) {
+            return false;
+        }
+
+        $this->clipboardDeadline = 0.0;
+
+        return true;
     }
 
     public function events(): EventRegistry

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Tests\Infrastructure\Terminal;
 
+use LightManager\Application\Dto\ClipboardText;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Infrastructure\Terminal\KeySequenceParser;
@@ -295,6 +296,137 @@ final class KeySequenceParserTest extends TestCase
 
         self::assertNotNull($parsed);
         self::assertFalse($this->pressOf($parsed)->shift);
+    }
+
+    /**
+     * Odpowiedź o schowku w postaci z normy (`ST` = `ESC \\`) — krok 57.
+     */
+    public function testReadsClipboardAnswerTerminatedByStringTerminator(): void
+    {
+        $parsed = $this->parser->parse("\e]52;c;" . base64_encode('lm') . "\e\\");
+
+        self::assertNotNull($parsed);
+        self::assertInstanceOf(ClipboardText::class, $parsed->event);
+        self::assertSame('lm', $parsed->event->text);
+        self::assertSame(strlen("\e]52;c;bG0=\e\\"), $parsed->consumedBytes);
+    }
+
+    /**
+     * …i w postaci starszej (`BEL`). Terminale wysyłają obie, więc parser zna
+     * obie — zgadywanie, która przyjdzie, nie ma jak się udać.
+     */
+    public function testReadsClipboardAnswerTerminatedByBell(): void
+    {
+        $parsed = $this->parser->parse("\e]52;c;" . base64_encode('lm') . "\a");
+
+        self::assertNotNull($parsed);
+        self::assertInstanceOf(ClipboardText::class, $parsed->event);
+        self::assertSame('lm', $parsed->event->text);
+    }
+
+    /** Pole wyboru schowka bywa puste albo echem `c` — jedno i drugie przyjmujemy. */
+    public function testReadsClipboardAnswerWithoutSelectionField(): void
+    {
+        foreach (["\e]52;;bG0=\e\\", "\e]52;c;bG0=\e\\", "\e]52;bG0=\e\\"] as $buffer) {
+            $parsed = $this->parser->parse($buffer);
+
+            self::assertNotNull($parsed, $buffer);
+            self::assertInstanceOf(ClipboardText::class, $parsed->event);
+            self::assertSame('lm', $parsed->event->text, $buffer);
+        }
+    }
+
+    /** Treść wielowierszowa przechodzi bez zmian — base64 nie zna wierszy. */
+    public function testReadsMultilineClipboardAnswer(): void
+    {
+        $text = "pierwszy\ndrugi\ntrzeci";
+        $parsed = $this->parser->parse("\e]52;c;" . base64_encode($text) . "\e\\");
+
+        self::assertNotNull($parsed);
+        self::assertInstanceOf(ClipboardText::class, $parsed->event);
+        self::assertSame($text, $parsed->event->text);
+    }
+
+    /** Schowek pusty jest prawdziwą odpowiedzią, nie brakiem odpowiedzi. */
+    public function testEmptyClipboardAnswerIsStillAnAnswer(): void
+    {
+        $parsed = $this->parser->parse("\e]52;c;\e\\");
+
+        self::assertNotNull($parsed);
+        self::assertInstanceOf(ClipboardText::class, $parsed->event);
+        self::assertSame('', $parsed->event->text);
+    }
+
+    /**
+     * **Sedno trudności kroku 57**: odpowiedź niepełna czeka na resztę i czeka
+     * **także po upływie okna dosłania**.
+     *
+     * To jedyne miejsce, w którym `parseAfterTimeout()` nie rozstrzyga — bo
+     * długość odpowiedzi zależy od zawartości schowka, a nie od protokołu. Bez
+     * tego wyjątku treść dłuższa od jednego odczytu rozsypywałaby się na
+     * fałszywe naciśnięcia.
+     */
+    public function testUnfinishedClipboardAnswerWaitsEvenAfterTimeout(): void
+    {
+        $partial = "\e]52;c;" . substr(base64_encode(str_repeat('x', 900)), 0, 400);
+
+        self::assertNull($this->parser->parse($partial));
+        self::assertNull($this->parser->parseAfterTimeout($partial));
+    }
+
+    /**
+     * Warunek, bez którego poprzednia reguła zamurowałaby wejście: czekamy
+     * **tylko na to, co się zapowiedziało pełnym znacznikiem**.
+     *
+     * `Alt`+`]` to dwa bajty nieodróżnialne od początku łańcucha OSC, więc bez
+     * tego warunku jedno naciśnięcie klawisza zatrzymywałoby wszystkie następne
+     * — w oczekiwaniu na zakończenie, którego nikt nie wysłał.
+     */
+    public function testAltBracketIsStillAltBracketAfterTimeout(): void
+    {
+        $parsed = $this->parser->parseAfterTimeout("\e]");
+
+        self::assertNotNull($parsed);
+        $press = $this->pressOf($parsed);
+        self::assertSame(Key::Character, $press->key);
+        self::assertSame(']', $press->raw);
+        self::assertTrue($press->alt);
+        self::assertSame(2, $parsed->consumedBytes);
+    }
+
+    /** Niepełny znacznik jeszcze może się nim stać, więc przed terminem czekamy. */
+    public function testPartialClipboardMarkerMayStillGrow(): void
+    {
+        self::assertNull($this->parser->parse("\e]5"));
+        self::assertNull($this->parser->parse("\e]52"));
+        self::assertNull($this->parser->parse("\e]52;"));
+    }
+
+    /**
+     * Ładunek, którego nie da się rozczytać, **nie jest pustym schowkiem**:
+     * sekwencję zjadamy (jest domknięta), ale zdarzenia z niej nie ma. Prośba
+     * wygaśnie po terminie i użytkownik usłyszy, że schowek jest nieosiągalny.
+     */
+    public function testUndecodableClipboardPayloadYieldsNoClipboardEvent(): void
+    {
+        $parsed = $this->parser->parse("\e]52;c;!!!nie-base64!!!\e\\");
+
+        self::assertNotNull($parsed);
+        self::assertSame(Key::Unknown, $this->pressOf($parsed)->key);
+    }
+
+    /** Odpowiedź w środku bufora nie zjada klawisza stojącego za nią. */
+    public function testClipboardAnswerConsumesOnlyItself(): void
+    {
+        $parsed = $this->parser->parse("\e]52;c;bG0=\e\\x");
+
+        self::assertNotNull($parsed);
+        self::assertInstanceOf(ClipboardText::class, $parsed->event);
+
+        $next = $this->parser->parse(substr("\e]52;c;bG0=\e\\x", $parsed->consumedBytes));
+
+        self::assertNotNull($next);
+        self::assertSame('x', $this->pressOf($next)->raw);
     }
 
     /**

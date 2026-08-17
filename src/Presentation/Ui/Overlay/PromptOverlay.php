@@ -10,6 +10,7 @@ use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Rect;
 use LightManager\Domain\ValueObject\Message;
+use LightManager\Presentation\Ui\AcceptsPaste;
 use LightManager\Presentation\Ui\Component\Dialog;
 use LightManager\Presentation\Ui\Component\TextInput;
 use LightManager\Presentation\Ui\KeyBinding;
@@ -47,7 +48,7 @@ use LightManager\Presentation\Ui\OverlayOutcome;
  * nic**: nie ma czego zatwierdzić, a wywołanie czynności z pustym napisem
  * przerzucałoby na wołającego pilnowanie rzeczy widocznej tutaj.
  */
-final class PromptOverlay implements OverlayInterface, NeedsTime
+final class PromptOverlay implements OverlayInterface, NeedsTime, AcceptsPaste
 {
     private const MARGIN_ROWS = 2;
 
@@ -156,6 +157,18 @@ final class PromptOverlay implements OverlayInterface, NeedsTime
             KeyBinding::of([Key::Escape], 'prompt.key.cancel', 'prompt.key.cancel.short'),
             ...$this->input->bindings(),
         ];
+    }
+
+    /**
+     * Treść schowka w polu nazwy (krok 57).
+     *
+     * Okno **nie ocenia** wpisanego napisu (krok 41) — i nie ocenia też
+     * wklejonego. Poprawność nazwy zna moduł, który ją przyjmie po `Enter`ze,
+     * więc wklejenie jest tu dokładnie tym, czym jest wpisanie.
+     */
+    public function paste(string $text): bool
+    {
+        return $this->input->paste($text);
     }
 
     public function handle(KeyPress $key): OverlayOutcome

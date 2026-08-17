@@ -35,6 +35,24 @@ enum Role
      * katalog. Rola bez własnego koloru nie jest rolą.
      */
     case Marked;
+    /**
+     * Tło prostokąta zaznaczonego wskaźnikiem (krok 56, D100 rozstrzygnięcie 1).
+     *
+     * Trzynasta rola — i stanęła tu z tego samego powodu, co dwunasta: nazwa,
+     * która się prosiła, była **zajęta przez inne znaczenie**. `Selection` to od
+     * kroku 13 tło wiersza pod kursorem listy, więc prostokąt przeciągnięty
+     * przez pięć wierszy wyglądałby w niej jak pięć kursorów, a nad samym
+     * kursorem nie byłoby go widać wcale. Nazwa mówi o kształcie, a nie
+     * o czynności, bo czynności zaznaczania są w tej aplikacji **dwie** i nie
+     * mają ze sobą nic wspólnego: ta rysuje prostokąt na klatce, `Marked` —
+     * wpisy wybrane do operacji na plikach.
+     *
+     * Pismo w prostokącie bierze `SelectionText`, czyli rolę, która od kroku 13
+     * znaczy dokładnie to samo („tekst zaznaczonego wiersza”) — zaznaczenie jest
+     * przez to **jednolite**: kolor katalogu ani dopasowania filtra nie
+     * przebijają się przez nie, tak jak nie przebijają się w żadnym terminalu.
+     */
+    case Marquee;
     case Info;
     case Warning;
     case Danger;

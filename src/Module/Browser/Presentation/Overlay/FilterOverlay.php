@@ -10,6 +10,7 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Rect;
 use LightManager\Module\Browser\Application\UseCase\MoveSelectionUseCase;
 use LightManager\Module\Browser\Presentation\BrowserState;
+use LightManager\Presentation\Ui\AcceptsPaste;
 use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\TextInput;
 use LightManager\Presentation\Ui\HudLayout;
@@ -45,7 +46,7 @@ use LightManager\Presentation\Ui\OverlayOutcome;
  * otwarcia**, jeśli nadal istnieje. Bez tego rozdziału „zaznaczenie przeżywa
  * filtr” znaczyłoby dwie sprzeczne rzeczy naraz.
  */
-final class FilterOverlay implements OverlayInterface, NeedsTime
+final class FilterOverlay implements OverlayInterface, NeedsTime, AcceptsPaste
 {
     private const ID = 'browser.filter';
 
@@ -148,6 +149,25 @@ final class FilterOverlay implements OverlayInterface, NeedsTime
             Key::ArrowDown => $this->moved(up: false),
             default => $this->toInput($key),
         };
+    }
+
+    /**
+     * Treść schowka w polu filtra — **wraz z zawężeniem listy** (krok 57).
+     *
+     * Filtr zakłada się przy każdej zmianie treści, nie po `Enter`ze, więc
+     * wklejenie musi zrobić to samo, co wpisanie ostatniego znaku wzorca.
+     * Gdyby tego zabrakło, wklejony wzorzec stałby w polu, a lista pokazywałaby
+     * poprzedni — rozjazd widoczny dopiero po dopisaniu litery.
+     */
+    public function paste(string $text): bool
+    {
+        if (!$this->input->paste($text)) {
+            return false;
+        }
+
+        $this->pane->useFilter($this->input->value());
+
+        return true;
     }
 
     private function cancelled(): OverlayOutcome

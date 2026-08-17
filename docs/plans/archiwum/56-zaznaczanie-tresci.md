@@ -8,8 +8,15 @@
 
 ## Status
 
-**Nie rozpoczęty.** Rozstrzygnięcia startowe: [00-decyzje.md](00-decyzje.md),
-D95 (nr 4 i nr 9 wraz z jawnym wyjątkiem od reguły 13).
+**Ukończony z zastrzeżeniem — 2026-08-16.** Zastrzeżeniem jest to samo, z czym
+krok się zaczynał i co było w nim zaplanowane: **zaznaczenia nie ma gdzie
+skopiować**, bo schowek przychodzi w kroku 57. Zaznaczenie jest do tego czasu
+niekompletne i tak też jest opisane w changelogu.
+
+Rozstrzygnięcia startowe: [00-decyzje.md](00-decyzje.md), D95 (nr 4 i nr 9 wraz
+z jawnym wyjątkiem od reguły 13) oraz **D100** — cztery rozstrzygnięcia podjęte
+na starcie, z których **dwa są sprostowaniem tego planu**, a nie wyborem między
+wariantami.
 
 ## Cel
 
@@ -255,4 +262,84 @@ z zapisem jawnego wyjątku od reguły 13 i jego terminem spłaty.
 
 ## Dziennik realizacji
 
-*(Krok nie rozpoczęty — wpisy pojawią się przy wykonaniu.)*
+### 2026-08-16 — wykonanie
+
+**Dwa zdania tego planu okazały się nieprawdziwe i obie pomyłki wyszły przed
+pierwszą linią kodu**, z rozpoznania w kodzie (D100):
+
+1. **`Role::Selection` nie jest nową rolą.** Stoi od kroku 13 i znaczy *tło
+   wiersza pod kursorem listy* — wraz z `SelectionText` i z komponentem
+   `Highlight`, który ją rysuje. Zaznaczenie dostało przez to **trzynastą rolę**
+   (`Role::Marquee`, fiolet w czterech paletach), a pismo bierze istniejące
+   `SelectionText`. Nazwa mówi o kształcie, bo obie „naturalne” były zajęte:
+   `Selection` przez kursor, `Marked` przez wpisy wybrane do operacji na plikach.
+2. **Pierwszeństwo granicy podziału nie rozstrzygało się w `InputHandler`.**
+   Plan zapowiadał „w jednym miejscu, a nie w każdym ekranie z osobna” — a
+   w kodzie rozstrzygało je **pięć ekranów**, z których każdy oddawał
+   `ScreenOutcome::stay()` niezależnie od tego, czy zdarzenie zużył. Rdzeń
+   dostał zdolność `DragsOwnContent`: ekran prowadzący własne przeciągnięcie
+   mówi o tym **stanem**, a nie skutkiem zdarzenia, bo granicę chwyta się
+   naciśnięciem — czyli ekran wie o niej, zanim padnie pierwsze przeciągnięcie.
+
+**Warstwa tekstowa wyszła z renderera z rolami, a nie z samymi znakami**
+(D100 nr 3). `FrameText` niesie znak, rolę pisma i rolę tła; renderer tekstowy
+mapuje role na kolory dopiero przy składaniu bajtów, a `CellBuffer` jest tym, co
+z jego dawnej roli zostało. Powód jest pomiarowy: sam znak znaczyłby **drugie
+przejście po prymitywach** w jedynym fragmencie kroku dotykającym gorącej
+ścieżki toru tekstowego. Rachunek jest jeden i zakaz drugiego stoi w `SKILL.md`
+(reguła 11ź) — dwie kopie rozjechałyby się przy pierwszym nowym kształcie,
+a rozjazd byłby niewidoczny.
+
+**Zaznaczenie rysuje `Marquee` — jeden `TextMark` na wiersz.** Słownik
+prymitywów wyszedł z kroku **nietknięty**, jak zapowiadało D95; dziewiąty
+kształt nie był potrzebny ani przez chwilę. Płaszczyzna `selection` powstaje
+wyłącznie wtedy, gdy zaznaczenie istnieje, a warstwa tekstowa liczy się razem
+z nią i tylko z nią.
+
+**Reguła 11k dostała sprostowaną liczbę.** Mówiła o ośmiu kształtach, a
+implementacji `Primitive` jest **siedem** — pomyłka pochodzi z kroku 30, który
+nazwał `TextMark` ósmym, i przeżyła dwadzieścia sześć kroków.
+
+#### Pomiar (maszyna zwolniona przez użytkownika, obciążenie 0,06–0,08 na rdzeń)
+
+| Oś | Wynik |
+|---|---|
+| `--loop` (wzorzec: po kroku 55) | **+1,1% … +4,1%** w trzech przebiegach, przy takcie 0,1 ms — czyli **w rozrzucie zaokrąglenia**, bez regresji powyżej progu. Klatka bez zaznaczenia płaci jedno pytanie „czy to nadal ta sama klatka” na takt. Wzorzec: `2026-08-16-po-kroku-56-loop.json` |
+| `--text` (wzorzec: po kroku 44) | **bez regresji mimo wyniesienia rachunku**: dziewiętnaście scenariuszy w przedziale −18,4% … +4,3%, a `ramki z tekstem` — czyli pełna klatka przeglądarki — **−2,4%**. Wzorzec: `2026-08-16-po-kroku-56-text.json` |
+| `--png-compare` | **dwadzieścia wzorców zgodnych co do piksela** (0,00 ‰). Przeniesienie rachunku nie zmieniło w torze sixelowym **niczego** i to jest najmocniejszy dowód, że przeprowadzka niczego nie zgubiła |
+
+**Cena samego zaznaczenia, zmierzona parą `chrome-text` → `marquee`:**
+
+| Tor | Bez zaznaczenia | Z zaznaczeniem | Różnica |
+|---|---|---|---|
+| tekstowy | 0,9 ms | 1,2 ms | **+0,3 ms** (rysowanie 0,4 → 0,6) |
+| okienkowy | 0,6 ms | 0,6 ms | **poniżej rozdzielczości pomiaru** |
+| sixelowy | 17,5 ms | 21,2 ms | **+3,7 ms**, z czego **+2,9 ms w kwantyzacji** |
+
+Ostatnia liczba jest powtórzeniem lekcji z kroku 43 (D80 nr 5a): **nowa rola
+motywu kosztuje w torze sixelowym paletę, a nie rysowanie**. Klatka
+z zaznaczeniem mieści się w budżecie taktu (33 ms), a koszt płaci się wyłącznie
+wtedy, gdy zaznaczenie widać.
+
+Wzorcowy zrzut `sixel-marquee.png` powstał po **obejrzeniu klatki w czterech
+motywach** (reguła z D80: rola dobrana znaczeniowo bez sprawdzenia palety bywa
+rolą bez koloru). Prostokąt jest widoczny w każdej: w Grafitcie i Nordyku jako
+fiolet na ciemnym tle, w Papierze jako chłodny liliowy na ciepłym beżu,
+w Indygu — najsłabszy z czterech, bo cała paleta jest niebieska, ale czytelny
+dzięki jasności. Przy okazji domknęła się luka sprzed tego kroku: wzorca
+`sixel-background-many.png` nie było od kroku 51 i `--png-save` go dopisał.
+
+#### Czego krok nie dowiózł — trzy granice zapisane wprost
+
+- **Treści okna nakładanego nie da się zaznaczyć.** Otwarcie okna kasuje
+  zaznaczenie (punkt 2 zakresu), a kliknięcie w okno zużywa okno (krok 55) —
+  więc odcisk klucza hosta i log kontenera zostają poza zasięgiem. Dług jest
+  nazwany w D100 i **nie ma właściciela**.
+- **Klatki pod XTermem nikt jeszcze nie oglądał** — tak samo, jak po kroku 55.
+  Zaznaczenie sprawdzono przebiegiem funkcjonalnym (`SelectionFlowTest`),
+  klatkami scenariusza w trzech torach i porównaniem zrzutów; **prawdziwego
+  przeciągnięcia myszą po żywym terminalu nie było**.
+- **Zaznaczenie przeżywa przewijanie** i to jest wybór, nie przeoczenie: dotyczy
+  klatki, więc treść przewinięta pod prostokątem jest nową treścią zaznaczenia.
+  Sięganie poza widok wymagałoby zaznaczenia w pojęciach ekranu — czyli innego
+  mechanizmu (punkt „Poza zakresem”).

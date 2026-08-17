@@ -836,6 +836,7 @@ final class SixelFrameEncoder
             Role::Selection => $this->theme->selection,
             Role::SelectionText => $this->theme->selectionText,
             Role::Marked => $this->theme->marked,
+            Role::Marquee => $this->theme->marquee,
             Role::Info => $this->theme->info,
             Role::Warning => $this->theme->warning,
             Role::Danger => $this->theme->danger,

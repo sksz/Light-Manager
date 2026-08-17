@@ -34,6 +34,7 @@ use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\Split;
 use LightManager\Presentation\Ui\DeclaresFocus;
+use LightManager\Presentation\Ui\DragsOwnContent;
 use LightManager\Presentation\Ui\DrawsOwnFrame;
 use LightManager\Presentation\Ui\FocusHint;
 use LightManager\Presentation\Ui\KeyBinding;
@@ -74,7 +75,8 @@ final class DockerScreen implements
     DrawsOwnFrame,
     Resettable,
     ReadsContext,
-    AcceptsPointer
+    AcceptsPointer,
+    DragsOwnContent
 {
     /** Prostokąt z ostatniego rysowania — pamięć wymagana przez `AcceptsPointer` (krok 55). */
     private ?Rect $lastBounds = null;
@@ -321,6 +323,15 @@ final class DockerScreen implements
         $this->reportCompose();
 
         $this->drawn = false;
+    }
+
+    /**
+     * Przeciągnięcie granicy podziału należy do ekranu, a nie do zaznaczania
+     * treści (krok 56) — rdzeń pyta o to raz, w `InputHandler`.
+     */
+    public function isDraggingOwn(): bool
+    {
+        return $this->split->isDragging();
     }
 
     /**

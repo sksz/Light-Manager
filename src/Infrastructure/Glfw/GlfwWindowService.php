@@ -203,7 +203,38 @@ final class GlfwWindowService extends AbstractSingleton
             max(1, $columns) * $cellWidthPixels,
             max(1, $rows) * $cellHeightPixels,
         );
+        $this->useTextCursor();
         glfwShowWindow($this->handle());
+    }
+
+    /**
+     * Kursor tekstowy nad całym oknem (krok 56, D100 rozstrzygnięcie 4).
+     *
+     * Kształt jest tu **prawdziwy, a nie ozdobny**: zaznaczyć da się każdą
+     * komórkę klatki, więc granicy „tu treść, a tu nie” po prostu nie ma — i tak
+     * samo zachowuje się każdy terminal, w którym wskaźnik nad treścią jest
+     * belką, a nie strzałką. Wchodzi w tym kroku, a nie w 55, bo dopiero teraz
+     * ma co oznaczać.
+     *
+     * Kursor jest obiektem rozszerzenia żyjącym do końca procesu, więc jego
+     * zwolnienie zamawia się **przed** zamknięciem okna (reguła 11h): destruktor
+     * wołany po `glfwTerminate()` kończy proces naruszeniem ochrony pamięci już
+     * po ostatniej linii kodu. Zamawiającym jest ten, kto tworzy — czyli to
+     * miejsce.
+     *
+     * Tory terminalowe nie mają czym tego zrobić i **nie udają**, że mają:
+     * kształt wskaźnika należy tam do emulatora, a aplikacja nie ma o nim zdania.
+     */
+    private function useTextCursor(): void
+    {
+        $cursor = glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
+        glfwSetCursor($this->handle(), $cursor);
+
+        // Zniszczenie kursora przypiętego do okna przywraca oknu kursor domyślny
+        // — GLFW nie wymaga odpinania go osobno.
+        $this->releaseBeforeClose(static function () use ($cursor): void {
+            glfwDestroyCursor($cursor);
+        });
     }
 
     /** Rozmiar okna w pikselach bez pokazywania — dla pomiaru w oknie ukrytym (krok 35). */

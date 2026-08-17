@@ -185,6 +185,24 @@ final class GlfwInputService extends AbstractSingleton implements InputPort
     }
 
     /**
+     * Zdarzenie wstawione **spoza** wywołań zwrotnych GLFW — poza kontraktem
+     * `InputPort`, wzorem `TerminalService::pushBackBytes()` (krok 57).
+     *
+     * Jedyny użytkownik: `GlfwClipboardService`. Schowek w oknie oddaje treść
+     * **synchronicznie**, więc gdyby port ją po prostu zwrócił, tor okienkowy
+     * różniłby się od terminalowego kształtem odpowiedzi, a nie tylko drogą —
+     * i cały sens portu by zniknął. Treść wchodzi przez to do tej samej kolejki,
+     * z której idą klawisze i wskaźnik, i wędruje tą samą drogą.
+     *
+     * Metoda **nie pyta o przełącznik myszy**: schowek nie jest wskaźnikiem,
+     * a prośba o niego padła z klawisza.
+     */
+    public function enqueue(InputEvent $event): void
+    {
+        $this->queue[] = $event;
+    }
+
+    /**
      * Modyfikatory dla zdarzeń, które ich nie niosą.
      *
      * Wywołanie zwrotne ruchu i kółka dostaje w PHP-GLFW same współrzędne, więc

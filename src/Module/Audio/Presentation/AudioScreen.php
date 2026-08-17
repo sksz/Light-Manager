@@ -25,6 +25,7 @@ use LightManager\Module\Audio\Presentation\Component\EffectList;
 use LightManager\Module\Audio\Presentation\Component\PlaylistPane;
 use LightManager\Presentation\Cli\Query\CoreReader;
 use LightManager\Presentation\Cli\SplitSetting;
+use LightManager\Presentation\Ui\AcceptsPaste;
 use LightManager\Presentation\Ui\AcceptsPointer;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\ListRow;
@@ -34,6 +35,7 @@ use LightManager\Presentation\Ui\Component\TextInput;
 use LightManager\Presentation\Ui\Component\TreeView;
 use LightManager\Presentation\Ui\ComponentInterface;
 use LightManager\Presentation\Ui\DeclaresFocus;
+use LightManager\Presentation\Ui\DragsOwnContent;
 use LightManager\Presentation\Ui\DrawsOwnFrame;
 use LightManager\Presentation\Ui\FocusHint;
 use LightManager\Presentation\Ui\KeyBinding;
@@ -83,7 +85,9 @@ final class AudioScreen implements
     NeedsTime,
     DeclaresFocus,
     DrawsOwnFrame,
-    AcceptsPointer
+    AcceptsPointer,
+    DragsOwnContent,
+    AcceptsPaste
 {
     /** Znacznik utworu granego — ten sam trójkąt, którym drzewo znaczy gałąź zwiniętą. */
     private const PLAYING_MARK = TreeView::CLOSED . ' ';
@@ -396,6 +400,21 @@ final class AudioScreen implements
      * Panele są osobnymi miejscami z innego powodu: ten sam `F8` znaczy w jednym
      * „usuń pozycję z playlisty", a w drugim „zabierz zdarzeniu plik".
      */
+    /**
+     * Treść schowka w polu na ścieżkę utworu — **tylko wtedy, gdy pole stoi**
+     * (krok 57).
+     *
+     * Deklaracja zdolności nie znaczy „zawsze przyjmę”: pole powstaje pod `F7`
+     * i ginie po `Enter`ze albo `Esc`, a poza nim ekran jest listą, do której
+     * wklejać nie ma czego. Odmowa jest przez to zwykłym stanem, nie awarią —
+     * i to ona sprawia, że `Alt`+`v` naciśnięty nad playlistą nie czyta cudzego
+     * schowka.
+     */
+    public function paste(string $text): bool
+    {
+        return $this->input?->paste($text) ?? false;
+    }
+
     public function focus(): FocusHint
     {
         if ($this->input !== null) {
@@ -486,6 +505,15 @@ final class AudioScreen implements
         }
 
         return new FocusHint('module.' . AudioSettings::ID . '.focus.playlist', $bindings);
+    }
+
+    /**
+     * Przeciągnięcie granicy podziału należy do ekranu, a nie do zaznaczania
+     * treści (krok 56) — rdzeń pyta o to raz, w `InputHandler`.
+     */
+    public function isDraggingOwn(): bool
+    {
+        return $this->split->isDragging();
     }
 
     /**

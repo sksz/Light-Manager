@@ -17,6 +17,7 @@ use LightManager\Application\Module\ModuleRegistry;
 use LightManager\Application\Module\ModuleRejection;
 use LightManager\Application\Module\ProvidesCommands;
 use LightManager\Application\Module\ProvidesSettingsTab;
+use LightManager\Application\Port\ClipboardPort;
 use LightManager\Application\Port\FrameRendererPort;
 use LightManager\Application\Query\QueryLineParser;
 use LightManager\Application\Query\QueryRegistry;
@@ -35,6 +36,7 @@ use LightManager\Infrastructure\Diagnostics\TrackImageGrabbers;
 use LightManager\Infrastructure\FileSystem\FileOperationsService;
 use LightManager\Infrastructure\FileSystem\FileTransferService;
 use LightManager\Infrastructure\FileSystem\XdgTrashService;
+use LightManager\Infrastructure\Glfw\GlfwClipboardService;
 use LightManager\Infrastructure\Glfw\GlfwInputService;
 use LightManager\Infrastructure\Glfw\GlfwViewportService;
 use LightManager\Infrastructure\Glfw\GlfwWindowService;
@@ -46,6 +48,7 @@ use LightManager\Infrastructure\Rendering\OpenGlFrameRenderer;
 use LightManager\Infrastructure\Rendering\RendererService;
 use LightManager\Infrastructure\Rendering\ThemeService;
 use LightManager\Infrastructure\Terminal\SixelCapabilityService;
+use LightManager\Infrastructure\Terminal\TerminalClipboardService;
 use LightManager\Infrastructure\Terminal\TerminalService;
 use LightManager\Infrastructure\Terminal\TerminalSizeService;
 use LightManager\Module\Audio\Presentation\AudioModule;
@@ -54,6 +57,7 @@ use LightManager\Module\Docker\Presentation\DockerModule;
 use LightManager\Module\FileInfo\Presentation\FileInfoModule;
 use LightManager\Module\Kubernetes\Presentation\KubernetesModule;
 use LightManager\Module\Ssh\Presentation\SshModule;
+use LightManager\Presentation\Cli\Command\ClipboardCommand;
 use LightManager\Presentation\Cli\Command\DumpFrameCommand;
 use LightManager\Presentation\Cli\Command\FullscreenCommand;
 use LightManager\Presentation\Cli\Command\QuitCommand;
@@ -262,6 +266,31 @@ final class Bootstrap
 
         self::reportModuleProblems($modules, $state, $translator);
 
+        $input = new InputHandler(
+            $screens,
+            $help,
+            $settingsScreen,
+            self::problemPresenter(),
+            $translator,
+            $commands,
+            self::moduleScreens($modules),
+            $fullscreen,
+            $menu,
+            self::clipboard(),
+        );
+
+        // Komendy schowka wchodzą do rejestru **po** rozdzielaczu wejścia, a nie
+        // razem z pozostałymi komendami rdzenia, i jest to kolejność wymuszona:
+        // obie wracają do `InputHandler`a udając naciśnięcie (krok 57), a ten
+        // powstaje dopiero tutaj, bo bierze w konstruktorze oba okna rejestru.
+        // Późna rejestracja niczego nie psuje — rejestr dokłada i sortuje na
+        // nowo, a `prepare()` liczy podpowiedzi **argumentów**, których te dwie
+        // komendy nie mają.
+        $registry->add(CommandRegistry::CORE, [
+            ClipboardCommand::copy($input, $state, $translator),
+            ClipboardCommand::paste($input, $state, $translator),
+        ]);
+
         // Jedyne miejsce, w którym tory się różnią: te same trzy porty, inne
         // implementacje. Pętla, ekrany, moduły i komponenty nie wiedzą,
         // że cokolwiek się zmieniło — to jest miara powodzenia kroku 34.
@@ -283,16 +312,7 @@ final class Bootstrap
                 ],
             ),
             $screens,
-            new InputHandler(
-                $screens,
-                $help,
-                $settingsScreen,
-                self::problemPresenter(),
-                $commands,
-                self::moduleScreens($modules),
-                $fullscreen,
-                $menu,
-            ),
+            $input,
             $state,
             // Takt modułów (krok 45). Rejestr oddaje **przyjęte** moduły, więc
             // wyłączony i odrzucony taktu nie dostaje — a odsiew tych, które
@@ -316,6 +336,22 @@ final class Bootstrap
      *
      * @return ?Closure(): bool
      */
+    /**
+     * Schowek środowiska graficznego — **ta sama para portów, inne
+     * implementacje**, jak przy wejściu, widoku i rendererze (krok 57).
+     *
+     * Ta klasa jest jedynym miejscem wymieniającym obie nazwy usług, dokładnie
+     * tak samo jak przy `fullscreenToggle()` poniżej: `InputHandler` zna wyłącznie
+     * `ClipboardPort`, więc nie wie, czy treść idzie sekwencją `OSC 52`, czy
+     * wywołaniem GLFW — i nie ma powodu wiedzieć.
+     */
+    private static function clipboard(): ClipboardPort
+    {
+        return self::$windowed
+            ? GlfwClipboardService::getInstance()
+            : TerminalClipboardService::getInstance();
+    }
+
     private static function fullscreenToggle(): ?Closure
     {
         if (!self::$windowed) {

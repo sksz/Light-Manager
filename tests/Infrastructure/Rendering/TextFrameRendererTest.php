@@ -4,29 +4,28 @@ declare(strict_types=1);
 
 namespace LightManager\Tests\Infrastructure\Rendering;
 
+use LightManager\Application\Ui\Frame;
+use LightManager\Application\Ui\Plane;
+use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Primitive\TextMark;
 use LightManager\Application\Ui\Primitive\TextRun;
+use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
 use LightManager\Infrastructure\Rendering\AnsiPalette;
-use LightManager\Infrastructure\Rendering\CellBuffer;
 use LightManager\Infrastructure\Rendering\TextFrameRenderer;
 use LightManager\Infrastructure\Rendering\Theme;
 use LightManager\Infrastructure\Rendering\ThemeService;
 use LightManager\Tests\Support\ResetsSingletons;
 use PHPUnit\Framework\TestCase;
-use ReflectionMethod;
 
 /**
- * Degradacja kształtów w siatce znakowej — krok 30.
+ * Co zostało rendererowi tekstowemu po kroku 56: **paleta i bajty**.
  *
- * Renderer tekstowy pisze na terminal, więc całej klatki nie da się tu złożyć;
- * da się za to sprawdzić **rozbiór pojedynczego prymitywu na komórki**, i to jest
- * dokładnie to, o co pyta kryterium kroku 30: czy ósmy prymityw ma w trybie
- * zapasowym odpowiednik.
- *
- * Ma, i to lepszy niż nawias narożny czy suwak, które w siatce znakowej znikają:
- * podświetlenie schodzi do **dwóch atrybutów tej samej komórki** — tła i koloru
- * pisma — więc dopasowanie widać co do znaku tak samo, jak w torze graficznym.
+ * Degradacja kształtów w siatce znakowej wyszła stąd do
+ * `Application\Ui\FrameText` wraz z rachunkiem (i wraz z testem, który jej
+ * pilnuje) — tu zostaje pytanie, na które odpowiada wyłącznie ten tor: czy rola
+ * zamienia się na właściwy kod ANSI i czy kod pada tylko tam, gdzie rola się
+ * zmienia.
  */
 final class TextFrameRendererTest extends TestCase
 {
@@ -37,21 +36,22 @@ final class TextFrameRendererTest extends TestCase
         $this->resetSingleton(ThemeService::class);
     }
 
-    /** Tło pod fragmentem obejmuje tyle komórek, ile fragment ma znaków. */
-    public function testHighlightPaintsBackgroundAndForegroundOfItsCells(): void
+    /**
+     * Dopasowanie filtra: para kodów na początku fragmentu i powrót do koloru
+     * napisu tuż za nim — czyli atrybut kończy się dokładnie tam, gdzie kończy
+     * się fragment.
+     */
+    public function testAHighlightBecomesAPairOfCodesAndEndsWithItsFragment(): void
     {
-        $buffer = new CellBuffer(1, 10);
-
-        $this->draw($buffer, new TextRun(0, 0, 'plik.txt', Role::Text));
-        $this->draw($buffer, new TextMark(0, 0, 'pli', Role::Background, Role::Accent));
-
-        $line = $buffer->toAnsi(new AnsiPalette(true));
         $palette = new AnsiPalette(true);
         $theme = Theme::grafit();
+        $line = self::ansi(
+            $palette,
+            $theme,
+            new TextRun(0, 0, 'plik.txt', Role::Text),
+            new TextMark(0, 0, 'pli', Role::Background, Role::Accent),
+        );
 
-        // Dopasowanie zaczyna się od pary kodów: tło akcentu i pismo w kolorze
-        // tła. Reszta wiersza wraca do zwykłego koloru pisma — czyli atrybut
-        // kończy się dokładnie tam, gdzie kończy się fragment.
         self::assertStringContainsString(
             $palette->background($theme->accent) . $palette->foreground($theme->background) . 'pli',
             $line,
@@ -60,45 +60,59 @@ final class TextFrameRendererTest extends TestCase
     }
 
     /**
-     * Fragment **nie zmienia treści komórki**, tylko jej atrybuty.
+     * **Trzynasta rola ma swój kolor w każdej z czterech palet** i jest to
+     * sprawdzenie z lekcji kroku 43 (D80): rola dobrana znaczeniowo bez
+     * sprawdzenia palety bywa rolą bez koloru.
      *
-     * To jest granica degradacji: gdyby renderer tekstowy pisał w miejsce
-     * dopasowania cokolwiek innego niż to, co tam stoi, tryb zapasowy pokazywałby
-     * inny plik niż tryb graficzny.
+     * Prostokąt zaznaczenia musi się odróżniać naraz od **dwóch** rzeczy — od
+     * tła wiersza pod kursorem i od tła paneli — bo z pierwszym myli się co do
+     * znaczenia, a w drugim znika.
      */
-    public function testHighlightLeavesTheGlyphsWhereTheyWere(): void
+    public function testTheMarqueeHasItsOwnColourInEveryPalette(): void
     {
-        $withMark = new CellBuffer(1, 10);
-        $plain = new CellBuffer(1, 10);
-
-        foreach ([$withMark, $plain] as $buffer) {
-            $this->draw($buffer, new TextRun(0, 0, 'plik.txt', Role::Text));
+        foreach ([Theme::grafit(), Theme::nordyk(), Theme::papier(), Theme::indygo()] as $theme) {
+            self::assertNotSame($theme->selection, $theme->marquee, 'zaznaczenie ≠ kursor listy');
+            self::assertNotSame($theme->surface, $theme->marquee, 'zaznaczenie ≠ tło panelu');
+            self::assertNotSame($theme->background, $theme->marquee, 'zaznaczenie ≠ tło klatki');
+            self::assertMatchesRegularExpression('/^#[0-9a-f]{6}$/', $theme->marquee);
         }
+    }
 
-        $this->draw($withMark, new TextMark(0, 0, 'pli', Role::Background, Role::Accent));
+    /** Zaznaczenie w siatce znakowej: tło trzynastej roli, pismo — roli zaznaczonego wiersza. */
+    public function testTheMarqueePaintsTheCellsItCovers(): void
+    {
+        $palette = new AnsiPalette(true);
+        $theme = Theme::grafit();
+        $line = self::ansi(
+            $palette,
+            $theme,
+            new TextRun(0, 0, 'plik.txt', Role::Text),
+            new TextMark(0, 2, 'ik.t', Role::SelectionText, Role::Marquee),
+        );
 
-        $strip = static fn (string $line): string => (string) preg_replace('/\e\[[0-9;]*m/', '', $line);
-
-        self::assertSame(
-            $strip($plain->toAnsi(new AnsiPalette(true))),
-            $strip($withMark->toAnsi(new AnsiPalette(true))),
+        self::assertStringContainsString(
+            $palette->background($theme->marquee) . $palette->foreground($theme->selectionText) . 'ik.t',
+            $line,
         );
     }
 
     /** Prymityw poza siatką nie wywraca bufora — jak każdy inny. */
-    public function testHighlightOutsideTheGridIsIgnored(): void
+    public function testAPrimitiveOutsideTheGridIsIgnored(): void
     {
-        $buffer = new CellBuffer(1, 4);
+        $line = self::ansi(
+            new AnsiPalette(true),
+            Theme::grafit(),
+            new TextMark(9, 9, 'pli', Role::Background, Role::Accent),
+        );
 
-        $this->draw($buffer, new TextMark(9, 9, 'pli', Role::Background, Role::Accent));
-
-        self::assertStringNotContainsString('pli', $buffer->toAnsi(new AnsiPalette(true)));
+        self::assertStringNotContainsString('pli', $line);
     }
 
-    private function draw(CellBuffer $buffer, TextMark|TextRun $primitive): void
+    private static function ansi(AnsiPalette $palette, Theme $theme, Primitive ...$primitives): string
     {
-        $renderer = new TextFrameRenderer(new AnsiPalette(true));
-        $method = new ReflectionMethod($renderer, 'draw');
-        $method->invoke($renderer, $buffer, $primitive);
+        $frame = new Frame([new Plane('content', new Rect(0, 0, 1, 10), array_values($primitives))]);
+        $renderer = new TextFrameRenderer($palette);
+
+        return $renderer->encode($renderer->composeBuffer($frame, $theme, 1, 10));
     }
 }

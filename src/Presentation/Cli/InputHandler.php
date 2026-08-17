@@ -5,15 +5,23 @@ declare(strict_types=1);
 namespace LightManager\Presentation\Cli;
 
 use Closure;
+use LightManager\Application\Dto\ClipboardText;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Dto\PointerAction;
 use LightManager\Application\Dto\PointerButton;
 use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Module\ModuleInterface;
+use LightManager\Application\Port\ClipboardPort;
+use LightManager\Application\Port\TranslatorPort;
 use LightManager\Domain\Exception\DomainException;
+use LightManager\Domain\ValueObject\Message;
+use LightManager\Presentation\Ui\AcceptsPaste;
 use LightManager\Presentation\Ui\AcceptsPointer;
 use LightManager\Presentation\Ui\AcceptsPointerInOverlay;
+use LightManager\Presentation\Ui\CopiesContent;
+use LightManager\Presentation\Ui\CopyContent;
+use LightManager\Presentation\Ui\DragsOwnContent;
 use LightManager\Presentation\Ui\HintTarget;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
@@ -23,6 +31,7 @@ use LightManager\Presentation\Ui\OverlayOutcome;
 use LightManager\Presentation\Ui\RunsWork;
 use LightManager\Presentation\Ui\ScreenInterface;
 use LightManager\Presentation\Ui\ScreenOutcome;
+use LightManager\Presentation\Ui\SelectionState;
 use LightManager\Presentation\Ui\Transition;
 
 /**
@@ -49,6 +58,24 @@ use LightManager\Presentation\Ui\Transition;
 final class InputHandler
 {
     /**
+     * Litery schowka: `Alt`+`c` kopiuje, `Alt`+`v` wkleja (krok 57, D95 nr 8).
+     *
+     * Publiczne, bo komenda schowka wraca tutaj **udając naciśnięcie** — tak jak
+     * kliknięcie w podpowiedź stopki wraca klawiszem tej podpowiedzi (krok 55).
+     * Dwie drogi do tej samej czynności rozjeżdżają się przy pierwszej poprawce
+     * (krok 32), więc droga jest jedna, a litera stoi w jednym miejscu.
+     *
+     * `Ctrl`+`c` odpada **dwukrotnie i oba powody są w kodzie**: `Ctrl`+litera
+     * należy w całości do skrótów modułów (krok 20), a tryb surowy zostawia
+     * włączone `isig`, więc `^C` staje się SIGINT-em, **zanim aplikacja
+     * cokolwiek przeczyta**. `Ctrl`+`Alt`+`v` dokłada trzeci: `^V` to `lnext`,
+     * który przy włączonym `iexten` połyka następny bajt.
+     */
+    public const COPY_CHARACTER = 'c';
+
+    public const PASTE_CHARACTER = 'v';
+
+    /**
      * Rozpoznanie pary kliknięć — jedyna rzecz w obsłudze wskaźnika pytająca
      * o czas, więc stoi w jednym miejscu, a nie w każdym ekranie z osobna.
      */
@@ -74,10 +101,20 @@ final class InputHandler
         private readonly ScreenInterface $help,
         private readonly ScreenInterface $settings,
         private readonly ProblemPresenter $problems,
+        /**
+         * Napis o liczbie zaznaczonych wierszy (krok 56) — jedyne, co ta klasa
+         * mówi użytkownikowi wprost, a nie skutkiem czynności.
+         */
+        private readonly TranslatorPort $translator,
         private readonly ?OverlayInterface $commands = null,
         private readonly array $modules = [],
         private readonly ?Closure $fullscreen = null,
         private readonly ?MenuOverlay $menu = null,
+        /**
+         * Schowek środowiska graficznego albo `null`, gdy tor go nie ma (krok 57).
+         * Implementację wybiera `Bootstrap`, jak przy pozostałych portach toru.
+         */
+        private readonly ?ClipboardPort $clipboard = null,
     ) {
         $this->gestures = new PointerGestures();
     }
@@ -107,6 +144,13 @@ final class InputHandler
             KeyBinding::of([Key::F9], 'help.key.menu'),
             KeyBinding::of([Key::F12], 'help.key.commands'),
             KeyBinding::of([Key::F10], 'help.key.quit'),
+            // Kopiowanie jest klawiszem **rdzenia**, bo zaznaczenie klatki jest
+            // własnością rdzenia (reguła 11ź) i pierwsze źródło treści leży
+            // w `LoopState`, nie w ekranie. Wklejanie stoi za to w spisie
+            // **miejsca** (`TextInput::bindings()`), bo bez pola tekstowego nie
+            // ma czego zrobić, a reguła 11p obowiązuje w obie strony — krok 57,
+            // D101 nr 3.
+            KeyBinding::alt(self::COPY_CHARACTER, 'clipboard.key.copy'),
         ];
 
         if ($windowed) {
@@ -159,6 +203,17 @@ final class InputHandler
     public function handle(KeyPress $key, LoopState $state, float $now): bool
     {
         $state->dismissMessageIfDue($now);
+
+        // Klawisze schowka stoją **przed** oknem nakładanym, a nie za nim, i nie
+        // jest to kwestia porządku, tylko konieczność: klawisz przepuszczony
+        // przez okno trafia do klawiszy globalnych, a te **zamykają okno**
+        // (`toOverlay()`, krok 19). `Alt`+`v` w polu filtra zamykałby przez to
+        // filtr, do którego miał wkleić wzorzec. Piętra dla nich nie ma, bo nie
+        // ma czego rozstrzygać: żadne okno i żaden ekran nie chce tych dwóch
+        // liter dla siebie, a wklejanie i tak wraca do tego, kto ma ognisko.
+        if ($this->toClipboard($key, $state, $now)) {
+            return false;
+        }
 
         $overlay = $state->overlays()->current();
 
@@ -225,6 +280,8 @@ final class InputHandler
             return true;
         }
 
+        $this->select($event, $state, $now);
+
         if ($event->action === PointerAction::Press && $event->button === PointerButton::Right) {
             // Kursor stanął już wyżej, w drodze przez ekran — menu dostaje
             // zaznaczenie takie, jakie użytkownik właśnie wskazał.
@@ -238,6 +295,229 @@ final class InputHandler
         }
 
         return false;
+    }
+
+    /**
+     * Treść schowka doręczana temu, kto o nią prosił — **trzecia postać
+     * zdarzenia wejściowego** (krok 57).
+     *
+     * Metoda stoi obok `handle()` i `pointer()`, bo jest trzecią drogą tej samej
+     * kolejki. Różni się od nich jedną rzeczą: nie ma pięter. Treść schowka nie
+     * wędruje przez okno, rdzeń i ekran, bo nie jest niczyim klawiszem — idzie
+     * wprost do tego, kto zadeklarował `AcceptsPaste`, i do nikogo poza nim.
+     *
+     * Dwa warunki, oba obowiązkowe i oba porzucają treść bez śladu:
+     * **ktoś musiał poprosić** (`takeClipboardRequest()` — odpowiedź niezamówiona
+     * nie ma prawa nigdzie wejść) i **musi być komu doręczyć** (pole zamknięte
+     * w międzyczasie znaczy treść porzuconą, nie treść wstawioną gdziekolwiek
+     * indziej).
+     */
+    public function clipboard(ClipboardText $event, LoopState $state, float $now): void
+    {
+        if (!$state->takeClipboardRequest()) {
+            return;
+        }
+
+        if ($event->isEmpty()) {
+            $state->report(Message::warning($this->translator->translate('clipboard.empty')), $now);
+
+            return;
+        }
+
+        $this->pasteTarget($state)?->paste($event->text);
+    }
+
+    /**
+     * Wygasła prośba o schowek — pytanie zadawane **raz na takt** z `GameLoop`,
+     * wzorem `advanceWork()` (krok 57).
+     *
+     * Stoi tutaj, a nie w pętli, bo zdanie do powiedzenia bierze się z katalogu
+     * napisów, a pętla katalogu nie zna. Powód, dla którego to pytanie w ogóle
+     * istnieje: terminal bez obsługi `OSC 52` **milczy** — więc bez terminu
+     * użytkownik zobaczyłby klawisz, po którym nic się nie stało, i nie miałby
+     * skąd wiedzieć, że to nie aplikacja zawiniła.
+     */
+    public function expireClipboardRequest(LoopState $state, float $now): void
+    {
+        if ($state->clipboardRequestExpired($now)) {
+            $state->report(Message::warning($this->translator->translate('clipboard.unreachable')), $now);
+        }
+    }
+
+    /**
+     * `Alt`+`c` i `Alt`+`v` — dwie litery, które nie schodzą do okna ani do
+     * ekranu.
+     *
+     * @return bool czy klawisz był klawiszem schowka
+     */
+    private function toClipboard(KeyPress $key, LoopState $state, float $now): bool
+    {
+        if ($this->clipboard === null || $key->key !== Key::Character || !$key->alt) {
+            return false;
+        }
+
+        return match ($key->raw) {
+            self::COPY_CHARACTER => $this->copy($state, $now),
+            self::PASTE_CHARACTER => $this->askForClipboard($state, $now),
+            default => false,
+        };
+    }
+
+    /**
+     * Kopiowanie: **trzy źródła w ustalonej kolejności i trzy różne zdania**
+     * (punkt 5 zakresu kroku, D101 nr 1).
+     *
+     * Kolejność rozstrzyga rdzeń, bo tylko on widzi wszystkie trzy naraz:
+     * **zaznaczenie klatki** (krok 56) → **to, co ekran albo okno uzna za swoją
+     * treść** (`CopiesContent`) → **ścieżka wpisu pod kursorem** z kontekstu
+     * sesji (krok 49). Dwa skrajne źródła są rdzeniowe i darmowe; środkowe jest
+     * zdolnością, bo nazw zaznaczonych wpisów kontekst nie niesie — ma o nich
+     * trzy liczby i ani jednej nazwy.
+     *
+     * Zdanie mówi **co** skopiowano, a nie „skopiowano”: trzy różne źródła po tym
+     * samym klawiszu są dla użytkownika nierozróżnialne, dopóki zdanie jest jedno.
+     */
+    private function copy(LoopState $state, float $now): bool
+    {
+        $content = $this->copyable($state);
+
+        if ($content === null) {
+            $state->report(Message::warning($this->translator->translate('clipboard.nothing')), $now);
+
+            return true;
+        }
+
+        $problem = $this->clipboard?->put($content->text);
+
+        $state->report(
+            $problem === null ? $content->announcement : Message::error($this->translator->translate($problem)),
+            $now,
+        );
+
+        return true;
+    }
+
+    private function copyable(LoopState $state): ?CopyContent
+    {
+        $selection = $state->selectionText();
+
+        if ($selection !== []) {
+            return new CopyContent(
+                implode("\n", $selection),
+                Message::info($this->translator->plural('clipboard.copied.selection', count($selection))),
+            );
+        }
+
+        $own = $this->topmost($state);
+        $content = $own instanceof CopiesContent ? $own->copyable() : null;
+
+        if ($content !== null) {
+            return $content;
+        }
+
+        $path = $state->context()->selectionPath();
+
+        return $path === null ? null : new CopyContent(
+            $path,
+            Message::info($this->translator->translate('clipboard.copied.path', ['path' => $path])),
+        );
+    }
+
+    /**
+     * Prośba o zawartość schowka — **wyłącznie stąd i z komendy**, czyli
+     * wyłącznie z polecenia użytkownika (pierwsze z trzech zobowiązań D95 nr 5).
+     */
+    private function askForClipboard(LoopState $state, float $now): bool
+    {
+        if ($this->pasteTarget($state) === null) {
+            // Bez pola tekstowego nie ma po co pytać — a nawet nie wolno:
+            // odczytana treść ma **jedno** miejsce docelowe, więc pytanie zadane
+            // w liście plików byłoby czytaniem cudzego schowka bez odbiorcy.
+            $state->report(Message::warning($this->translator->translate('clipboard.no-target')), $now);
+
+            return true;
+        }
+
+        if ($this->clipboard?->requestText() !== true) {
+            $state->report(Message::error($this->translator->translate('clipboard.problem.unavailable')), $now);
+
+            return true;
+        }
+
+        $state->requestClipboard($now);
+
+        return true;
+    }
+
+    private function pasteTarget(LoopState $state): ?AcceptsPaste
+    {
+        $top = $this->topmost($state);
+
+        return $top instanceof AcceptsPaste ? $top : null;
+    }
+
+    /**
+     * Okno nakładane, a pod jego brak — ekran. Ta sama kolejność, którą chodzi
+     * klawisz i wskaźnik: okno **wypiera** ekran, bo klawisze do niego nie
+     * schodzą.
+     */
+    private function topmost(LoopState $state): OverlayInterface|ScreenInterface
+    {
+        return $state->overlays()->current() ?? $this->screens->current();
+    }
+
+    /**
+     * Zaznaczanie treści: kotwica, prostokąt, zdanie po zwolnieniu (krok 56).
+     *
+     * Stoi **za** drogą przez ekran, a nie przed nią, i kolejność jest tu
+     * regułą: naciśnięcie ma najpierw postawić kursor (krok 55), a granica
+     * podziału — zdążyć się chwycić. Dopiero potem rdzeń pyta, czy to
+     * przeciągnięcie jest jeszcze wolne.
+     *
+     * Pierwszeństwo granicy rozstrzyga się **w tym jednym miejscu**, a nie
+     * w każdym ekranie z osobna: ekran prowadzący własne przeciągnięcie mówi to
+     * zdolnością `DragsOwnContent`, a wszystkie pozostałe milczą (D100 nr 2).
+     *
+     * Zdanie o liczbie wierszy pada **po zwolnieniu przycisku**, a nie przy
+     * każdym drgnięciu ręki — tą samą regułą, którą krok 55 zapisał dla zapisu
+     * proporcji podziału, i z tego samego powodu: przeciągnięcie daje
+     * kilkadziesiąt zdarzeń na sekundę, a komunikat wyświetlany tyle razy
+     * migotałby zamiast mówić.
+     */
+    private function select(PointerEvent $event, LoopState $state, float $now): void
+    {
+        if ($event->button !== PointerButton::Left) {
+            return;
+        }
+
+        $selection = $state->selection();
+
+        match ($event->action) {
+            PointerAction::Press => $selection->begin($event->row, $event->column),
+            PointerAction::Drag => $this->dragsOwn()
+                ? null
+                : $selection->extendTo($event->row, $event->column),
+            PointerAction::Release => $this->released($selection, $state, $now),
+            default => null,
+        };
+    }
+
+    /** Czy ekran na wierzchu prowadzi własne przeciągnięcie — dziś: granicę podziału. */
+    private function dragsOwn(): bool
+    {
+        $screen = $this->screens->current();
+
+        return $screen instanceof DragsOwnContent && $screen->isDraggingOwn();
+    }
+
+    private function released(SelectionState $selection, LoopState $state, float $now): void
+    {
+        $rows = $selection->rows();
+        $selection->release();
+
+        if ($rows > 0) {
+            $state->report(Message::info($this->translator->plural('selection.rows', $rows)), $now);
+        }
     }
 
     /**

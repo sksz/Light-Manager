@@ -53,6 +53,22 @@ final class Theme
          * niczemu innemu.
          */
         public readonly string $marked,
+        /**
+         * Tło prostokąta zaznaczonego wskaźnikiem (krok 56).
+         *
+         * Trzynasta rola i druga dołożona od kroku 13. Kolor musi się różnić
+         * naraz od **dwóch** rzeczy, i to one, a nie upodobanie, wyznaczyły go
+         * w każdej palecie: od tła wiersza pod kursorem (`selection`), bo inaczej
+         * prostokąt wygląda jak kilka kursorów naraz, i od tła paneli
+         * (`surface`), bo inaczej nie widać go w ogóle. Wybrany został fiolet —
+         * jedyna rodzina barw, której projekt nie używał dotąd do niczego, tak
+         * jak w kroku 43 zieleń.
+         *
+         * Pismo w prostokącie bierze `selectionText`, więc kontrast liczy się
+         * wobec **tej jednej wartości** i tylko wobec niej — inaczej niż przy
+         * `marked`, gdzie kolorem jest samo pismo.
+         */
+        public readonly string $marquee,
         public readonly string $info,
         public readonly string $warning,
         public readonly string $danger,
@@ -88,6 +104,11 @@ final class Theme
             // przygaszona, żeby nie konkurowała z akcentem o uwagę — ma
             // odróżniać, a nie krzyczeć.
             marked: '#7fb069',
+            // Fiolet jest tu ciemny i nienasycony: prostokąt zaznaczenia bywa
+            // wielkości panelu, więc kolor mocny zalewałby pół klatki. Odróżnia
+            // go od kursora (`#313845`) hue, a od powierzchni (`#1f2228`) —
+            // jasność.
+            marquee: '#4a3f6b',
             info: '#8d939d',
             warning: '#d9a441',
             danger: '#e0645c',
@@ -112,6 +133,9 @@ final class Theme
             selectionText: '#eceff4',
             // Zieleń z kanonicznej palety Nord — ta sama rodzina, co reszta motywu.
             marked: '#a3be8c',
+            // Fiolet z kanonicznej palety Nord (`#b48ead`) przygaszony do tła —
+            // ta sama rodzina, co reszta motywu.
+            marquee: '#574b6b',
             info: '#81a1c1',
             warning: '#ebcb8b',
             danger: '#bf616a',
@@ -137,6 +161,10 @@ final class Theme
             selectionText: '#1b1814',
             // Jedyny motyw, w którym kolor musi być **ciemniejszy** od tła.
             marked: '#4f7a2e',
+            // Jedyny motyw, w którym prostokąt musi być **jaśniejszy** od tła —
+            // i jedyny, w którym odróżnia się od kursora nie jasnością, tylko
+            // ciepłotą: `selection` jest tu beżowe, zaznaczenie chłodne.
+            marquee: '#cbc2dd',
             info: '#55606e',
             warning: '#9a6c10',
             danger: '#a8352b',
@@ -159,6 +187,10 @@ final class Theme
             selection: '#2a3358',
             selectionText: '#f0f4ff',
             marked: '#81c995',
+            // Motyw jest w całości niebieski, więc sam fiolet by nie wystarczył:
+            // prostokąt jest tu wyraźnie **jaśniejszy** od kursora (`#2a3358`),
+            // bo w tej palecie to jasność, a nie hue, niesie różnicę.
+            marquee: '#473a6e',
             info: '#8b95b8',
             warning: '#f2c14e',
             danger: '#f28b82',

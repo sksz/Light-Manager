@@ -110,6 +110,39 @@ return [
     'help.key.collapse.short' => 'zwiń',
     'help.key.menu.short' => 'menu',
 
+    // Zaznaczanie treści wskaźnikiem (krok 56). Jedyne zdanie, które ten
+    // mechanizm mówi wprost — liczba wierszy odmienia je, stąd trzy formy.
+    'selection.rows' => [
+        'Zaznaczono {count} wiersz klatki.',
+        'Zaznaczono {count} wiersze klatki.',
+        'Zaznaczono {count} wierszy klatki.',
+    ],
+
+    // Schowek systemowy (krok 57). Zdania o skopiowaniu są **osobne dla każdego
+    // źródła**, bo trzy różne treści po tym samym klawiszu są dla użytkownika
+    // nierozróżnialne, dopóki zdanie jest jedno.
+    'clipboard.key.copy' => 'skopiuj do schowka',
+    'clipboard.key.paste' => 'wklej ze schowka',
+    'clipboard.copied.selection' => [
+        'Skopiowano zaznaczenie: {count} wiersz.',
+        'Skopiowano zaznaczenie: {count} wiersze.',
+        'Skopiowano zaznaczenie: {count} wierszy.',
+    ],
+    'clipboard.copied.answer' => [
+        'Skopiowano odpowiedź: {count} wiersz.',
+        'Skopiowano odpowiedź: {count} wiersze.',
+        'Skopiowano odpowiedź: {count} wierszy.',
+    ],
+    'clipboard.copied.path' => 'Skopiowano ścieżkę: {path}',
+    'clipboard.copied.question' => 'Skopiowano treść pytania.',
+    'clipboard.nothing' => 'Nie ma czego skopiować — zaznacz treść myszą albo stań na wpisie.',
+    'clipboard.no-target' => 'Nie ma gdzie wkleić — schowek trafia do pola tekstowego z ogniskiem.',
+    'clipboard.empty' => 'Schowek jest pusty.',
+    'clipboard.unreachable' => 'Ten terminal nie oddaje zawartości schowka.',
+    'clipboard.problem.empty' => 'Nie ma czego położyć w schowku.',
+    'clipboard.problem.too-long' => 'Treść jest za długa dla schowka terminala — nic nie skopiowano.',
+    'clipboard.problem.unavailable' => 'Schowek jest w tym trybie nieosiągalny.',
+
     // Nazwy miejsc, w których staje ognisko na ekranach rdzenia (krok 40).
     'settings.focus.tabs' => 'Zakładki',
     'settings.focus.item' => 'Pozycja',
@@ -179,6 +212,7 @@ return [
     'choice.key.cancel' => 'wycofaj się',
     'choice.key.cancel.short' => 'wycofaj',
     'command.history' => 'historia',
+    'command.clipboard.done' => 'Schowek: gotowe.',
     'command.dump.requested' => 'Zrzut następnej klatki: {file}-prymitywy.txt oraz {file}.png',
     'command.problem.empty' => 'nie wpisano nazwy komendy',
     'command.problem.unknown' => 'nieznana komenda: {name}',
@@ -214,6 +248,8 @@ return [
     'command.core.settings' => 'otwórz ustawienia',
     'command.core.help' => 'otwórz pomoc',
     'command.core.quit' => 'zakończ pracę',
+    'command.core.clipboard.copy' => 'skopiuj do schowka systemowego',
+    'command.core.clipboard.paste' => 'wklej ze schowka systemowego',
     'command.core.dump' => 'zapisz następną klatkę do pliku (prymitywy i obraz)',
     'command.core.fullscreen' => 'włącz lub wyłącz pełny ekran',
     'command.fullscreen.on' => 'Pełny ekran włączony.',
@@ -396,6 +432,7 @@ return [
     'bench.scenario.settings' => 'ekran ustawień',
     'bench.scenario.tree' => 'drzewo katalogów',
     'bench.scenario.marked' => 'lista z zaznaczeniem',
+    'bench.scenario.marquee' => 'prostokąt zaznaczenia',
 
     'bench.transfer.title' => 'Przesył klatki do terminala',
     'bench.transfer.blob' => '  rozmiar klatki:     {kilobytes} kB',

@@ -40,6 +40,7 @@ use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\Split;
 use LightManager\Presentation\Ui\Component\TreeView;
 use LightManager\Presentation\Ui\DeclaresFocus;
+use LightManager\Presentation\Ui\DragsOwnContent;
 use LightManager\Presentation\Ui\DrawsOwnFrame;
 use LightManager\Presentation\Ui\FocusHint;
 use LightManager\Presentation\Ui\KeyBinding;
@@ -85,7 +86,8 @@ final class ClusterScreen implements
     DrawsOwnFrame,
     Resettable,
     ReadsContext,
-    AcceptsPointer
+    AcceptsPointer,
+    DragsOwnContent
 {
     public const ID = 'k8s';
 
@@ -564,6 +566,15 @@ final class ClusterScreen implements
         }
 
         return $this->resources->draw($bounds, $kind, $this->listCursor);
+    }
+
+    /**
+     * Przeciągnięcie granicy podziału należy do ekranu, a nie do zaznaczania
+     * treści (krok 56) — rdzeń pyta o to raz, w `InputHandler`.
+     */
+    public function isDraggingOwn(): bool
+    {
+        return $this->splitState->isDragging();
     }
 
     /**

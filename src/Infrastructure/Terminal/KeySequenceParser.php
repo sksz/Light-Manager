@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Infrastructure\Terminal;
 
+use LightManager\Application\Dto\ClipboardText;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Dto\PointerAction;
@@ -20,10 +21,47 @@ use LightManager\Application\Dto\PointerEvent;
  * terminal wysyła kliknięcia tą samą sekwencją CSI, którą wysyła strzałki,
  * różniącą się prywatnym bajtem `<` zaraz po `ESC [`. Rozbiór jest przez to
  * jeden, a wynik ma dwie postacie — stąd `ParsedKey` niosący `InputEvent`.
+ *
+ * Od kroku 57 dochodzi **trzecia gałąź i trzecia postać zdarzenia**: odpowiedź
+ * terminala na pytanie o schowek (`OSC 52`). Różni się od dwóch poprzednich
+ * dwiema rzeczami naraz i obie trzeba znać:
+ *
+ * 1. **Nie jest sekwencją CSI**, więc nie wchodzi przez `ESC [`, tylko przez
+ *    `ESC ]` — a ta droga była do kroku 57 zajęta: `]` to bajt drukowalny, więc
+ *    `parseAltCharacter()` z kroku 29 rozbierał ją jako `Alt`+`]`. Nowa gałąź
+ *    stoi przez to **przed** tamtą.
+ * 2. **Jest długa i przychodzi kawałkami.** Strzałka ma trzy bajty i mieści się
+ *    w jednym odczycie; schowek ma tyle, ile ma zawartość, więc `parse()`
+ *    i `parseAfterTimeout()` odpowiadają na nią **tak samo**: „czekaj dalej”.
+ *    To jest jedyne miejsce, w którym `parseAfterTimeout()` nie rozstrzyga —
+ *    i dlatego wolno tak zrobić tylko wtedy, gdy w buforze stoi **pełny
+ *    znacznik** `ESC ] 5 2 ;`. Bez tego warunku samo naciśnięcie `Alt`+`]`
+ *    zamurowałoby wejście w oczekiwaniu na zakończenie łańcucha, którego nikt
+ *    nie wysłał.
  */
 final class KeySequenceParser
 {
     private const ESCAPE = "\e";
+
+    /** Znacznik odpowiedzi o schowku: `OSC` (`ESC ]`), numer operacji, średnik. */
+    private const CLIPBOARD_MARKER = "\e]52;";
+
+    /** Zakończenie łańcucha OSC w postaci z normy (`ST` = `ESC \`). */
+    private const STRING_TERMINATOR = "\e\\";
+
+    /** Zakończenie w postaci starszej — terminale wysyłają obie, więc znamy obie. */
+    private const BELL = "\a";
+
+    /**
+     * Górna granica niedokończonej odpowiedzi o schowku.
+     *
+     * Bez niej sekwencja, która nigdy się nie domknie — bo terminal padł
+     * w połowie zapisu albo bo ktoś wkleił do terminala bajty wyglądające jak
+     * początek odpowiedzi — zatrzymywałaby **całe** wejście aplikacji na zawsze.
+     * Wartość jest hojna wobec tego, po co ten mechanizm istnieje (schowek to
+     * zwykle wiersz, czasem plik konfiguracyjny) i skromna wobec pamięci.
+     */
+    private const MAX_PENDING_CLIPBOARD_BYTES = 1048576;
 
     /** Prywatny bajt otwierający sekwencję wskaźnika w trybie SGR. */
     private const SGR_POINTER_MARKER = '<';
@@ -114,6 +152,13 @@ final class KeySequenceParser
      * Wersja rozstrzygająca: wywoływana, gdy terminal nie dosłał już nic
      * więcej, więc niejednoznaczności trzeba zamknąć (samotny `ESC` to
      * naciśnięcie klawisza Escape, a nie początek sekwencji).
+     *
+     * **Jeden wyjątek od słowa „rozstrzygająca” dokłada krok 57**: rozpoczęta
+     * odpowiedź o schowku nadal oddaje `null`, bo jej długość zależy od
+     * zawartości schowka, a nie od protokołu — czekanie kończy dopiero
+     * zakończenie łańcucha albo przekroczenie progu. Warunkiem jest **pełny
+     * znacznik** w buforze, więc `Alt`+`]` rozstrzyga się tutaj tak, jak
+     * rozstrzygał od kroku 29.
      */
     public function parseAfterTimeout(string $buffer): ?ParsedKey
     {
@@ -181,8 +226,103 @@ final class KeySequenceParser
         return match ($buffer[1]) {
             '[' => $this->parseControlSequence($buffer, $mayGrow),
             'O' => $this->parseSingleShift($buffer, $mayGrow),
+            // Gałąź OSC stoi **przed** `Alt`+znakiem, bo `]` jest znakiem
+            // drukowalnym i tamta gałąź złapałaby ją pierwsza (krok 57).
+            ']' => $this->parseOperatingSystemCommand($buffer, $mayGrow),
             default => $this->parseAltCharacter($buffer),
         };
+    }
+
+    /**
+     * Łańcuch OSC — dziś w jednej jedynej postaci: odpowiedź o schowku
+     * (`ESC ] 52 ; <wybór> ; <base64> ST`).
+     *
+     * Trzy rozstrzygnięcia zapisane w tym rachunku:
+     *
+     * - **Oba zakończenia są równoprawne** (`ST` i `BEL`). Norma zna pierwsze,
+     *   terminale wysyłają oba, a zgadywanie, który przyjdzie, nie ma jak się
+     *   udać: liczy się to, które przyszło **wcześniej**, bo drugie może stać
+     *   w środku treści.
+     * - **Czekamy tylko na to, co się zapowiedziało.** Dopóki w buforze nie ma
+     *   pełnego `ESC ] 52 ;`, sekwencja rozstrzyga się starą drogą — czyli
+     *   `Alt`+`]`. Inaczej jedno naciśnięcie klawisza zatrzymywałoby wejście.
+     * - **Nierozczytany ładunek nie jest pustym schowkiem.** Zjadamy sekwencję
+     *   (bo jest domknięta i nie ma po co zostawiać jej w buforze), ale zdarzenia
+     *   z niej nie powstaje: prośba wygaśnie po terminie i użytkownik usłyszy, że
+     *   schowek jest nieosiągalny. Pusta odpowiedź (`ESC ] 52 ; c ; ST`) jest za
+     *   to prawdziwie pustym schowkiem i wraca jako `ClipboardText('')`.
+     */
+    private function parseOperatingSystemCommand(string $buffer, bool $mayGrow): ?ParsedKey
+    {
+        if (!str_starts_with($buffer, self::CLIPBOARD_MARKER)) {
+            // Znacznik jeszcze niepełny, ale bufor nadal może się nim stać —
+            // czekamy tą samą drogą, którą czeka strzałka.
+            if ($mayGrow && str_starts_with(self::CLIPBOARD_MARKER, $buffer)) {
+                return null;
+            }
+
+            return $this->parseAltCharacter($buffer);
+        }
+
+        $end = $this->stringTerminatorAt($buffer);
+
+        if ($end === null) {
+            if (strlen($buffer) <= self::MAX_PENDING_CLIPBOARD_BYTES) {
+                // Jedyne miejsce, w którym `parseAfterTimeout()` nie rozstrzyga:
+                // odpowiedź o schowku przychodzi kawałkami przez kilka taktów.
+                return null;
+            }
+
+            // Próg przekroczony — sekwencja nie domknie się już nigdy. Zjadamy
+            // ją w całości, żeby wejście odżyło; o milczeniu schowka powie
+            // wygaśnięcie prośby.
+            return new ParsedKey(KeyPress::special(Key::Unknown, $buffer), strlen($buffer));
+        }
+
+        [$offset, $length] = $end;
+        $consumed = $offset + $length;
+        $body = substr($buffer, strlen(self::CLIPBOARD_MARKER), $offset - strlen(self::CLIPBOARD_MARKER));
+        $payload = base64_decode($this->base64Of($body), true);
+
+        if ($payload === false) {
+            return new ParsedKey(KeyPress::special(Key::Unknown, substr($buffer, 0, $consumed)), $consumed);
+        }
+
+        return new ParsedKey(new ClipboardText($payload), $consumed);
+    }
+
+    /**
+     * Gdzie kończy się łańcuch OSC i ile bajtów zajmuje zakończenie — albo
+     * `null`, gdy jeszcze się nie skończył.
+     *
+     * @return ?array{int, int}
+     */
+    private function stringTerminatorAt(string $buffer): ?array
+    {
+        $st = strpos($buffer, self::STRING_TERMINATOR, strlen(self::CLIPBOARD_MARKER));
+        $bell = strpos($buffer, self::BELL, strlen(self::CLIPBOARD_MARKER));
+
+        return match (true) {
+            $st !== false && ($bell === false || $st < $bell) => [$st, strlen(self::STRING_TERMINATOR)],
+            $bell !== false => [$bell, strlen(self::BELL)],
+            default => null,
+        };
+    }
+
+    /**
+     * Sam ładunek base64 z treści łańcucha — bez pola wyboru schowka.
+     *
+     * Pole bywa puste (`ESC ] 52 ; ; …`) i bywa echem tego, o co pytaliśmy
+     * (`c`), więc czyta się je jako „wszystko do pierwszego średnika”, a nie
+     * jako znany zestaw liter. Ładunek bez średnika przed sobą jest odpowiedzią
+     * terminala, który pola nie odesłał — i taką odpowiedź też przyjmujemy,
+     * bo alternatywą byłoby odrzucenie schowka z powodu formalności.
+     */
+    private function base64Of(string $body): string
+    {
+        $separator = strpos($body, ';');
+
+        return $separator === false ? $body : substr($body, $separator + 1);
     }
 
     /**

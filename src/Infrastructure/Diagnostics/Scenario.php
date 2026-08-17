@@ -249,6 +249,23 @@ enum Scenario: string
      */
     case Marked = 'marked';
 
+    /**
+     * Pełna klatka z **prostokątem zaznaczonym wskaźnikiem** (krok 56).
+     *
+     * **Rozlicza się w parze z `chrome-text`**, i to jest tu para najprostsza
+     * z możliwych: klatka jest co do prymitywu ta sama, a różnica między dwiema
+     * liczbami to w całości cena **czwartej płaszczyzny** — drugiego przejścia
+     * po prymitywach (warstwa tekstowa) plus kilku `TextMark`ów pokrywających
+     * zaznaczone wiersze.
+     *
+     * Zaznaczenie obejmuje **pięć wierszy na pełnej szerokości panelu**, bo tyle
+     * bierze przeciągnięcie ręką przez listę plików — i dlatego, że miara kroku
+     * mówi o dokładnie pięciu wierszach. Sufitem nie jest: prostokąt da się
+     * rozciągnąć na całą klatkę, ale wtedy scenariusz mierzyłby przemalowanie
+     * okna, a nie czynność, którą ktokolwiek wykonuje.
+     */
+    case Marquee = 'marquee';
+
     /** @return list<self> kolejność wydruku: od najtańszego do najbogatszego */
     public static function all(): array
     {
@@ -291,7 +308,8 @@ enum Scenario: string
             self::Chrome, self::ChromeWithText, self::Thumbnail, self::Popup,
             self::Command, self::Sections, self::Progress, self::Split,
             self::Background, self::BackgroundMany, self::Columns, self::TextView,
-            self::Highlight, self::Settings, self::Tree, self::Marked => true,
+            self::Highlight, self::Settings, self::Tree, self::Marked,
+            self::Marquee => true,
             default => false,
         };
     }

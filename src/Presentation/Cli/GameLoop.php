@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Presentation\Cli;
 
+use LightManager\Application\Dto\ClipboardText;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Dto\PointerEvent;
 use LightManager\Application\Port\BackgroundPumpPort;
@@ -92,6 +93,14 @@ final class GameLoop
             // dysk, a rysowanie nie ma prawa mieć skutków ubocznych.
             $this->input->advanceWork($state, $startedAt);
 
+            // Termin prośby o schowek (krok 57): terminal bez obsługi `OSC 52`
+            // nie odpowiada **nic**, więc ktoś musi zauważyć, że odpowiedź już
+            // nie przyjdzie. Stoi w fazie „aktualizuj stan”, bo zdanie w pasku
+            // stanu jest zmianą stanu, a nie skutkiem rysowania — i tuż za
+            // kawałkiem pracy, bo oba pytania mają tę samą postać: „czy coś
+            // przestało być aktualne”.
+            $this->input->expireClipboardRequest($state, $startedAt);
+
             // Takt modułów (krok 45): raz na klatkę, dla każdego przyjętego
             // modułu, który o niego poprosił — **niezależnie od tego, co jest na
             // wierzchu**. To jest cała różnica wobec `NeedsTime` kilka linii
@@ -117,9 +126,14 @@ final class GameLoop
      *
      * Od kroku 55 zdarzenia są **dwojakie i stoją w jednej kolejce**, więc
      * kolejność kliknięcia wobec klawisza jest tą, w jakiej padły u użytkownika.
-     * Rozdzielenie na dwie drogi pada tutaj i jest jedynym miejscem, w którym
-     * pętla o tej dwojakości wie: dalej, w `InputHandler`, oba przechodzą przez
-     * te same trzy piętra.
+     * Od kroku 57 są **trojakie**: trzecią postacią jest treść schowka, która
+     * w torze terminalowym przychodzi klatkę albo dwie po tym, jak o nią
+     * poproszono. Rozdzielenie na drogi pada tutaj i jest jedynym miejscem,
+     * w którym pętla o tej trojakości wie.
+     *
+     * Schowek jest przy tym jedyną postacią, która **nie kończy aplikacji** —
+     * treść wklejona do pola nie ma jak być klawiszem wyjścia — więc jego droga
+     * nie oddaje niczego do `match`a.
      *
      * @return bool czy padł klawisz wyjścia
      */
@@ -129,6 +143,7 @@ final class GameLoop
             $quits = match (true) {
                 $event instanceof PointerEvent => $this->input->pointer($event, $state, $now),
                 $event instanceof KeyPress => $this->input->handle($event, $state, $now),
+                $event instanceof ClipboardText => $this->clipboard($event, $state, $now),
                 default => false,
             };
 
@@ -136,6 +151,14 @@ final class GameLoop
                 return true;
             }
         }
+
+        return false;
+    }
+
+    /** Treść schowka nie kończy aplikacji — stąd stałe `false` (krok 57). */
+    private function clipboard(ClipboardText $event, LoopState $state, float $now): bool
+    {
+        $this->input->clipboard($event, $state, $now);
 
         return false;
     }

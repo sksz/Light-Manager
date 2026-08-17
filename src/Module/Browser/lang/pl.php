@@ -52,6 +52,14 @@ return [
     // w kolumnach, a nie dlatego, że katalog form mnogich nie umie.
     'module.browser.marked.summary.dirs' => '• {count} z {total} · {size} bez {dirs} kat.',
 
+    // Kopiowanie zaznaczonych wpisów do schowka (krok 57). Ścieżki, nie nazwy:
+    // napis wklejony do innej aplikacji ma się nadawać do użycia.
+    'module.browser.clipboard.copied' => [
+        'Skopiowano ścieżkę {count} zaznaczonego wpisu.',
+        'Skopiowano ścieżki {count} zaznaczonych wpisów.',
+        'Skopiowano ścieżki {count} zaznaczonych wpisów.',
+    ],
+
     // Pozycje zakładki ustawień modułu.
     'module.browser.setting.showHidden' => 'Pokazuj wpisy ukryte',
     'module.browser.setting.split' => 'Podział na dwa panele',

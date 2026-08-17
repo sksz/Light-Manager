@@ -116,7 +116,9 @@ Kolumna **Stan** mówi, co się z decyzją stało w kodzie:
 | [D94](#d94--obraz-idzie-do-klastra-rejestrem-ghcr-budowa-przenosi-się-do-taktu-modułu-a-modulesetting-uczy-się-maskować) | Obraz idzie do klastra rejestrem GHCR, budowa przenosi się do taktu modułu, a `ModuleSetting` uczy się maskować | krok 54 (przez nr 7 — rdzeniowy `ModuleSetting`) | 2026-08-16 | Wdrożona |
 | [D95](#d95--wskaźnik-wchodzi-jako-wspólny-nadtyp-zdarzeń-trafienie-deklaruje-ekran-a-faza-xix-dzieli-się-na-trzy-kroki) | Wskaźnik wchodzi jako wspólny nadtyp zdarzeń, trafienie deklaruje ekran, a Faza XIX dzieli się na trzy kroki | Faza XIX — kroki 55, 56 i 57 (przez nr 9 — powstają 56 i 57) | 2026-08-16 | Wdrożona w kroku 55; nr 4–6 czekają na kroki 56 i 57 |
 | [D99](#d99--rozstrzygnięcia-startowe-kroku-55-okno-odczepia-się-od-kursora-zobowiązanie-jest-ostre-a-proporcja-podziału-przeżywa-uruchomienie) | Rozstrzygnięcia startowe kroku 55: okno odczepia się od kursora, zobowiązanie jest ostre, a proporcja podziału przeżywa uruchomienie | krok 55 (przez nr 1 — rdzeniowy `ScrollWindow`; przez nr 3 — pięć modułów) | 2026-08-16 | Wdrożona |
+| [D100](#d100--rozstrzygnięcia-startowe-kroku-56-trzynasta-rola-przeciągnięcie-deklarowane-przez-ekran-warstwa-tekstowa-z-rolami-i-kursor-belki) | Rozstrzygnięcia startowe kroku 56: trzynasta rola, przeciągnięcie deklarowane przez ekran, warstwa tekstowa z rolami i kursor belki | krok 56 (przez nr 1–3 — rdzeniowe: rola motywu, warstwa tekstowa klatki, zdolność ekranu) | 2026-08-16 | Wdrożona |
 | [D98](#d98--dziesięć-modułów-wchodzi-jako-zarysy-podział-wedle-poziomów-wartości-jeden-plik-na-krok-trzy-pytania-przecinające-całość) | Dziesięć modułów wchodzi jako zarysy: podział wedle poziomów wartości, jeden plik na krok, trzy pytania przecinające całość | Fazy XXII–XXIV — kroki 66–75 (rozstrzygnięcia o kształcie planu, nie o modułach) | 2026-08-16 | Czeka |
+| [D101](#d101--rozstrzygnięcia-startowe-kroku-57-kontekst-jako-źródło-ścieżki-prośba-z-terminem-bez-referencji-wklejanie-przy-polu-a-dług-d100-spłacony-do-połowy) | Rozstrzygnięcia startowe kroku 57: kontekst jako źródło ścieżki, prośba z terminem bez referencji, wklejanie przy polu, a dług D100 spłacony do połowy | krok 57 (przez nr 4 — powstaje zarys kroku 76) | 2026-08-17 | Wdrożona |
 
 > **Indeks jest niekompletny od D62 wzwyż.** Wpisy **D62–D76** stoją w treści
 > dziennika, ale wiersza tutaj nie dostały — regułę „nowy wpis to dwie czynności”
@@ -7152,7 +7154,7 @@ pozostały bezalternatywne):
 
 **Dotyczy:** Fazy XIX w całości — kroków **55** ([55-mysz-wskaznik.md](archiwum/55-mysz-wskaznik.md)),
 **56** ([56-zaznaczanie-tresci.md](56-zaznaczanie-tresci.md)) i **57**
-([57-schowek.md](57-schowek.md)), które powstały z podziału zarysu; klas
+([57-schowek.md](archiwum/57-schowek.md)), które powstały z podziału zarysu; klas
 `Application\Dto\KeyPress`, `Application\Port\InputPort`,
 `Infrastructure\Terminal\TerminalService`,
 `Infrastructure\Terminal\KeySequenceParser`,
@@ -7746,3 +7748,254 @@ w kodzie i jedno z nich jest sprzecznością **wewnątrz samego planu**.
   buduje `KeyPress` wprost, z pominięciem `InputPort`, więc ani parser SGR, ani
   przełącznik myszy nie leżą na mierzonej ścieżce. Zapowiadany drugi przebieg
   „z myszą wyłączoną” nie ma się przez to do czego odnieść i nie powstał.
+
+## Decyzje ze startu kroku 56 (2026-08-16)
+
+### D100 — Rozstrzygnięcia startowe kroku 56: trzynasta rola, przeciągnięcie deklarowane przez ekran, warstwa tekstowa z rolami i kursor belki
+
+**Dotyczy:** kroku **56** ([56-zaznaczanie-tresci.md](archiwum/56-zaznaczanie-tresci.md));
+klas `Application\Ui\FrameText`, `Application\Ui\Role`,
+`Infrastructure\Rendering\CellBuffer`,
+`Infrastructure\Rendering\TextFrameRenderer`,
+`Infrastructure\Rendering\Theme`, `Presentation\Ui\SelectionState`,
+`Presentation\Ui\DragsOwnContent`, `Presentation\Ui\Component\Marquee`,
+`Presentation\Cli\FrameComposer`, `Presentation\Cli\InputHandler`,
+`Presentation\Cli\LoopState` oraz `Infrastructure\Glfw\GlfwWindowService`.
+
+**Data:** 2026-08-16, **na starcie kroku** — jak D99, a nie jak D95. Powód jest
+ten sam: zakres rozstrzygnęło D95 (nr 4), a te cztery pytania wyszły dopiero
+z rozpoznania w kodzie i **dwa z nich są sprzecznością między planem
+a kodem**, a nie wyborem między wariantami.
+
+**Co rozstrzygnęło rozpoznanie, zanim padło pierwsze pytanie:**
+
+- **`Role::Selection` już istnieje i znaczy co innego.** Plan zapowiadał ją jako
+  rolę nową („Rola motywu jest nowa (`Role::Selection`)”), a stoi w kodzie od
+  kroku 13 jako **tło wiersza pod kursorem listy** — wraz z `SelectionText`
+  i wraz z komponentem `Highlight`, który ją rysuje. Zdanie planu było przez to
+  nieprawdziwe, a nie tylko nieprecyzyjne.
+- **Granica podziału nie jest rozstrzygana w `InputHandler`.** Plan mówił
+  „pierwszeństwo rozstrzyga się w jednym miejscu (`InputHandler`), a nie
+  w każdym ekranie z osobna”; w kodzie rozstrzyga je **pięć ekranów**
+  (`BrowserScreen`, `AudioScreen`, `DockerScreen`, `ClusterScreen`,
+  `FileInfoScreen`), z których każdy woła `SplitState::pointer()` i oddaje
+  `ScreenOutcome::stay()` — czyli tę samą odpowiedź, co przy zdarzeniu, którego
+  nie tknął. Rdzeń nie ma dziś **żadnej** drogi, żeby te dwa przypadki odróżnić.
+- **`TextFrameRenderer::composeBuffer()` liczy znaki i kolory jednym
+  przejściem.** Wyniesienie samych znaków znaczyłoby drugie przejście po
+  prymitywach w gorącej ścieżce toru tekstowego — czyli regresję na osi
+  `--text` wprowadzoną po to, żeby klasa była czystsza.
+- **Zaznaczyć da się każdą komórkę klatki**, bo prostokąt nie zna pojęcia
+  treści. Zdanie planu o kursorze `I-beam` „nad treścią, którą da się zaznaczyć”
+  nie ma przez to granicy, którą opisuje.
+- **Reguła 11k mówi o ośmiu kształtach, a implementacji jest siedem**
+  (`grep -l "implements Primitive"`). Liczba rozjechała się z kodem już
+  w kroku 30 — `TextMark` był siódmym kształtem, nie ósmym.
+
+**Decyzje użytkownika:**
+
+1. **Zaznaczenie dostaje trzynastą rolę motywu (`Role::Marquee`)**, a nie
+   odwrócenie ról ani ponowne użycie `Selection`. Kolor wchodzi do czterech
+   palet — fiolet, jedyna rodzina barw, której projekt nie używał dotąd do
+   niczego (jak zieleń w kroku 43). Pismo bierze **istniejącą** rolę
+   `SelectionText`, więc zaznaczenie jest jednolite: kolor katalogu ani
+   dopasowania filtra nie przebijają się przez nie. Odrzucone: inwersja pisma
+   i tła istniejącymi rolami (zero zmian w motywach, ale blok ostry i obcy
+   palecie) oraz ponowne użycie `Selection` (najtańsze, ale prostokąt
+   przeciągnięty przez pięć wierszy wyglądałby jak pięć kursorów, a nad samym
+   kursorem nie byłoby go widać wcale).
+2. **Ekran prowadzący własne przeciągnięcie deklaruje to zdolnością**
+   `Presentation\Ui\DragsOwnContent`, a `InputHandler` pyta o nią **wyłącznie
+   przy przeciągnięciu**. Zdolność deklaruje się osobno, jak `DrawsOwnFrame`
+   i `DeclaresFocus`, a odpowiedź jest **stanem, nie skutkiem zdarzenia** — co
+   pasuje do mechanizmu, bo granicę chwyta się naciśnięciem, więc ekran wie
+   o niej, zanim przyjdzie pierwsze przeciągnięcie. Odrzucone: znacznik
+   `handled` w `ScreenOutcome` wzorem `OverlayOutcome` (ogólniejszy, obejmowałby
+   każde przyszłe przeciągnięcie zjadane przez ekran — ale ten sam typ wraca
+   z `handle()`, gdzie „zużyte” nie znaczyłoby nic).
+3. **Warstwa tekstowa niesie znak wraz z rolą pisma i rolą tła**, a renderer
+   tekstowy mapuje role na kolory dopiero przy składaniu bajtów. Tor tekstowy
+   zostaje przez to przy **jednym** przejściu po prymitywach, a zaznaczenie
+   dostaje rolę spod spodu za darmo. Odrzucone: `FrameText` niosący sam znak
+   (czystszy pojęciowo — rachunek nie znałby ról — ale kupiony drugim
+   przejściem po prymitywach w jedynym fragmencie kroku dotykającym gorącej
+   ścieżki).
+4. **Kursor `I-beam` obejmuje całe okno i jest widoczny zawsze.** Tak zachowuje
+   się każdy terminal, i tak jest tu prawdziwie: zaznaczyć da się każdą komórkę.
+   Odrzucone: kursor zmieniany na czas przeciągania (niesie informację, ale jej
+   nie zapowiada) i pominięcie kształtu (tor okienkowy zostałby jedynym, w
+   którym nie widać, że treść da się zaznaczyć).
+
+**Co z tego wynika — i czego krok pilnuje:**
+
+- **Rdzeń rośnie o cztery rzeczy** i wszystkie cztery są nazwane: warstwa
+  tekstowa (`FrameText`), stan zaznaczenia (`SelectionState` w `LoopState`),
+  zdolność `DragsOwnContent` i trzynasta rola motywu. Reguła 15 nie zachodzi
+  w żadnej z nich — zaznaczenie klatki nie jest funkcją, którą dałoby się
+  umieścić w module, bo klatka należy do rdzenia.
+- **Słownik prymitywów zostaje zamknięty**, jak zapowiadało D95: zaznaczenie
+  rysuje się `TextMark`ami, po jednym na wiersz. Dziewiąty kształt nie był
+  potrzebny ani przez chwilę.
+- **Reguła 11k dostaje sprostowaną liczbę: kształtów jest siedem.** Zapis reguły
+  („zanim dołożysz kształt, sprawdź, czy nie jest którymś z istniejących pod
+  inną nazwą”) zostaje w mocy — a `Marquee` jest jego kolejnym potwierdzeniem,
+  trzecim po karetce `TextInput` i po `TextMark`u.
+- **Treści okna nakładanego nie da się zaznaczyć** i jest to skutek uboczny
+  zakresu, nie przeoczenie: otwarcie okna kasuje zaznaczenie (punkt 2 zakresu),
+  a kliknięcie w okno zużywa okno (krok 55). Dług jest nazwany tutaj i nie ma
+  właściciela — odcisk klucza hosta i log kontenera to treści, które ktoś zechce
+  skopiować.
+
+## Decyzje ze startu kroku 57 (2026-08-17)
+
+### D101 — Rozstrzygnięcia startowe kroku 57: kontekst jako źródło ścieżki, prośba z terminem bez referencji, wklejanie przy polu, a dług D100 spłacony do połowy
+
+**Dotyczy:** kroku **57** ([57-schowek.md](archiwum/57-schowek.md)) oraz — przez
+rozstrzygnięcie nr 4 — nowego kroku **76**
+([76-zaznaczanie-w-oknie.md](76-zaznaczanie-w-oknie.md)); klas
+`Application\Port\ClipboardPort`, `Application\Dto\ClipboardText`,
+`Infrastructure\Terminal\TerminalClipboardService`,
+`Infrastructure\Terminal\KeySequenceParser`,
+`Infrastructure\Terminal\TerminalService`,
+`Infrastructure\Glfw\GlfwClipboardService`,
+`Infrastructure\Glfw\GlfwInputService`, `Presentation\Ui\CopiesContent`,
+`Presentation\Ui\AcceptsPaste`, `Presentation\Ui\Component\TextInput`,
+`Presentation\Cli\LoopState`, `Presentation\Cli\InputHandler`,
+`Presentation\Cli\GameLoop` oraz pliku `bin/run.sh`.
+
+**Data:** 2026-08-17, **na starcie kroku** — jak D99 i D100, a nie jak D95.
+Powód ten sam: zakres rozstrzygnęło D95 (nr 5, 6 i 8), a te cztery pytania
+wyszły dopiero z rozpoznania w kodzie. **Trzy z nich są sprzecznością między
+planem a kodem**, a nie wyborem między wariantami.
+
+**Co rozstrzygnęło rozpoznanie, zanim padło pierwsze pytanie:**
+
+- **`ESC ]` jest dziś rozbierane jako `Alt`+`]`.** `]` to bajt drukowalny
+  (`0x5D`), więc sekwencja OSC wpada w `KeySequenceParser::parseAltCharacter()`
+  — gałąź dopisana w kroku 29. Nowa gałąź musi przez to stanąć **przed** nią
+  w `match`u na drugim bajcie, a nie „gdzieś obok CSI”.
+- **Sekwencja niepełna ma dziś dokładnie jedno okno na dosłanie reszty.**
+  `TerminalService::readEvent()` czyta 1024 B, pyta parsera, a gdy ten odmówi —
+  czeka 20 ms, dobiera **jeszcze raz** i woła `parseAfterTimeout()`, po którym
+  odpowiedź musi już być. Dla strzałki to nadmiar; dla odpowiedzi OSC 52
+  niosącej kilkadziesiąt kilobajtów schowka to **za mało** — nadmiar rozsypałby
+  się na fałszywe naciśnięcia (`Alt`+`]`, potem cyfry base64 jako znaki).
+  Rozbiór OSC musi umieć **czekać między taktami**, a to znaczy próg długości
+  i termin, bo sekwencja, która nigdy się nie domknie, zamurowałaby całe
+  wejście.
+- **Dwa z trzech źródeł kopiowania rdzeń już umie przeczytać.**
+  `ModuleContext::selectionPath()` (krok 49) oddaje ścieżkę wpisu pod kursorem
+  **generycznie** — także dla ekranu zdalnego, bo `origin` i `path` publikuje
+  ten, kto zna miejsce — a `browser.marked` (krok 53) oddaje **nazwy**
+  zaznaczonych wpisów i został napisany dokładnie dla takiego odbiorcy. Zdanie
+  planu „treść podaje ekran, bo to on wie, co u niego znaczy »to, na czym
+  stoję«” było przez to prawdziwe tylko dla jednego z trzech źródeł.
+- **Reguła 11p zabrania pokazywać `Alt`+`v` w stopce globalnie.** „Klawisz
+  działający w danym miejscu musi tam stać w spisie — **i odwrotnie**”, a
+  wklejanie bez pola tekstowego nie robi nic. `StatusHintsFlowTest` tego nie
+  złapie, bo sprawdza wiązania ekranu i miejsca, nie globalne — czyli reguła
+  broni się tu samym zapisem, nie testem.
+- **Wzorce zrzutów i złote klatki są bezpieczne.** `ScenarioFactory` składa
+  **własne** `StatusHints` z pozycji bez wiązań, więc nowy klawisz rdzenia nie
+  zmienia ani jednego wzorca w `docs/pomiary/wzorce-png/` ani w
+  `tests/Golden/`. Zdanie planu „wyglądu klatki krok nie zmienia” zostaje
+  prawdziwe — ale nie dlatego, że stopka się nie zmienia, tylko dlatego, że
+  pomiar jej nie widzi.
+- **PHP-GLFW ma obie funkcje schowka** (`function_exists()`: `true`/`true`),
+  a `GlfwInputService` ma **jedną kolejkę** `InputEvent`ów wypełnianą przez
+  wywołania zwrotne. Odpowiedź synchroniczna ma więc gdzie stanąć bez drugiego
+  kanału.
+- **XTerm 390 trzyma `GetSelection` i `SetSelection` na liście domyślnej**
+  (`man xterm`: „i.e., no operations are allowed”), więc muszą wypaść z listy
+  w `bin/run.sh` **oba** — sam zapis nie wystarczy, bo bez odczytu wklejanie
+  nie istnieje.
+
+**Decyzje użytkownika:**
+
+1. **Ścieżkę wpisu pod kursorem podaje kontekst, a nazwy zaznaczonych wpisów —
+   zdolność ekranu.** Trzecie źródło (`ModuleContext::selectionPath()`) jest
+   przez to **generyczne i darmowe**: działa w każdym ekranie publikującym
+   kontekst, łącznie ze zdalnym, bez ani jednej linii w module. Drugie źródło
+   idzie nową zdolnością `Presentation\Ui\CopiesContent`, którą deklaruje dziś
+   **jedna** przeglądarka. Odrzucone: cała treść ze zdolności ekranu (dosłownie
+   wedle planu — `Alt`+`c` bez zaznaczenia milczałby w Dockerze, k8s i SSH,
+   dopóki każdy z nich zdolności nie zadeklaruje, czyli powtarzałoby się
+   zobowiązanie ostrzejsze niż zakres z D99 nr 2); cała treść kwerendami z nazwy
+   (rdzeń poznałby nazwę konkretnego modułu — precedens `LAST_RESORT_MODULE`
+   istnieje, ale dotyczy `Bootstrapu`, nie obsługi klawisza); dwa źródła zamiast
+   trzech (zdanie „skopiowano 3 nazwy” by nie powstało).
+2. **Rdzeń pamięta prośbę wraz z terminem, a nie proszącego.** `LoopState`
+   trzyma znacznik „prośba wisi” i chwilę wygaśnięcia; przy doręczeniu pyta na
+   nowo to, co na wierzchu, o zdolność `Presentation\Ui\AcceptsPaste`. Pole
+   zamknięte znaczy „nikt się nie zgłasza”, czyli treść **porzuconą** — bez
+   żadnej referencji do skasowania. Cena jest nazwana: gdyby w tej samej
+   ćwiartce sekundy jedno pole się zamknęło, a drugie otworzyło, treść trafi do
+   drugiego. Odrzucone: pamiętanie **obiektu**, który poprosił (dosłownie „prosi
+   ten, kto ma ognisko, i tylko on odbiera”, ale pierwsza referencja do okna
+   albo ekranu w stanie pętli — trzy nowe miejsca, w których trzeba pamiętać
+   o skasowaniu) oraz zamiana treści na naciśnięcia znaków (precedens kroku 55,
+   ale bramka „kto umie przyjąć” jest i tak konieczna, więc oszczędność jest
+   pozorna, a wieloznakowa treść to N przebiegów przez trzy piętra).
+3. **`Alt`+`c` jest klawiszem rdzenia, `Alt`+`v` — klawiszem miejsca.**
+   Kopiowanie wchodzi do `InputHandler::globalBindings()`, bo zaznaczenie jest
+   własnością rdzenia (reguła 11ź); wklejanie wchodzi do
+   `TextInput::bindings()`, czyli do poziomu „miejsce” w stopce. Reguła 11p
+   zostaje przez to spełniona **w obie strony**. Odrzucone: oba globalnie
+   (stopka na liście plików obiecywałaby klawisz, po którym nic się nie dzieje)
+   oraz oba przy miejscu (kopiowanie trzeba by zadeklarować kilkanaście razy
+   i byłoby cicho niekompletne tam, gdzie ktoś zapomni).
+4. **Dług D100 spłaca się do połowy, a druga połowa dostaje własny krok.**
+   Okno nakładane deklaruje **tę samą** zdolność `CopiesContent`, co ekran — nie
+   bliźniaka, bo odpowiedź jest daną, a nie skutkiem zdarzenia (różnica wobec
+   `AcceptsPointer`/`AcceptsPointerInOverlay`, gdzie różnią się typy odpowiedzi).
+   `Alt`+`c` w pytaniu o klucz hosta kopiuje przez to odcisk `SHA256:…`, którego
+   nie widać nigdzie indziej. **Zaznaczania myszą w oknie to nie dodaje**
+   i dlatego druga połowa długu wychodzi z tego kroku jako **zarys kroku 76**:
+   otwarcie okna przestaje kasować zaznaczenie, a przeciągnięcie w oknie
+   przestaje być przez nie zużywane — czyli zmiana trzech reguł kasowania
+   i pierwszeństwa wskaźnika, a to jest krok, nie punkt. Odrzucone: pozostawienie
+   długu w całości (D100 nazwał go wprost, a odcisk klucza i log kontenera to
+   treści, po które ktoś sięgnie) oraz szerokie rozwiązanie tu i teraz (druga
+   zmiana mechanizmu kroku 56 w kroku, który miał dowieźć schowek).
+
+**Co z tego wynika — i czego krok pilnuje:**
+
+- **Rdzeń rośnie o pięć rzeczy** i wszystkie pięć są nazwane: port schowka
+  (`ClipboardPort` wraz z dwiema implementacjami), trzecia postać zdarzenia
+  (`ClipboardText`), dwie zdolności (`CopiesContent`, `AcceptsPaste`), prośba
+  z terminem w `LoopState` i gałąź OSC w parserze wejścia. Zapowiadany przez D95
+  „port schowka” to jedna z nich — pozostałe cztery są ceną asynchroniczności
+  odczytu i rozstrzygnięć nr 1–3.
+- **Słownik wejścia rośnie o postać zdarzenia, nie o modyfikator ani klawisz** —
+  czyli warunek `Fable` z przypisów ¹ i ² nadal nie zachodzi i model zostaje
+  `Opus / high`, jak przewidywało D95.
+- **Trzy zobowiązania z zastrzeżenia startowego są częścią zakresu**: czyta się
+  wyłącznie na polecenie, treść ma jedno miejsce docelowe, `bin/run.sh` tłumaczy
+  zmianę. Rozstrzygnięcie nr 2 jest przy tym **techniczną gwarancją** drugiego
+  z nich: skoro treść oddaje się temu, kto zadeklarował `AcceptsPaste`, to nie
+  ma drogi, którą trafiłaby do dziennika, do pliku ani do potomka.
+- **Próg długości OSC 52 i zachowanie terminala, który nie odpowiada, są do
+  zmierzenia, nie do założenia** — narzędziem jest `bin/terminal-probe`
+  (`make probe-xterm`), a wynik idzie do dziennika kroku. Kopiowanie oddające
+  połowę treści bez komunikatu jest gorsze od kopiowania, które odmawia.
+  **Zmierzone:** XTerm 390 przyjmuje treść do **256 kB**, przy 512 kB schowek
+  zostaje z poprzednią zawartością bez śladu. Stała aplikacji **zostaje na
+  64 kB** — zmierzony pułap należy do jednego terminala na jednej maszynie.
+
+**Rozstrzygnięcie dołożone w trakcie wykonania: `Alt`+litera wymaga pod XTermem
+zasobu `metaSendsEscape: true`, a naprawa należy do terminala, nie do parsera.**
+Wyszło z pierwszego w projekcie oglądania klatki pod XTermem i jest **defektem
+starszym od tego kroku**: `Alt`+`z` (krok 29) i `Alt`+`u` (krok 44) nie działały
+tam od chwili powstania. Domyślnie `metaSendsEscape` jest `false`, a wtedy
+rozstrzyga `eightBitInput` i `Alt`+`c` przychodzi jako **jeden znak drukowalny**
+(zmierzone `bin/terminal-probe`: bajty `c3 a3`, czyli `ã` = `0x63|0x80`;
+`Alt`+`v` → `c3 b6`, `Alt`+`z` → `c3 ba`). Zasób wchodzi do `bin/run.sh`
+i `bin/run-terminal-probe.sh` wraz z objaśnieniem. **Odrzucone: rozpoznawanie
+postaci ośmiobitowej w parserze** — nie jest to kwestia ostrożności, tylko
+niewykonalności: użytkownik wpisujący `ã` w nazwę pliku wysyła **dokładnie te
+same bajty**, więc parser rozpoznający je jako `Alt` odbierałby możliwość
+wpisywania znaków diakrytycznych. Odrzucone także zdjęcie skrótów z `Alt`
+(unieważniałoby D95 nr 8 i regułę 11j dla wygody jednego terminala). Skutek
+uboczny wart zapamiętania: **podgląd wejścia nie wypisywał modyfikatorów przy
+klawiszu**, więc narzędzie od pytania „co terminal naprawdę przysłał” nie umiało
+odpowiedzieć na to jedno pytanie — od tego kroku wypisuje.

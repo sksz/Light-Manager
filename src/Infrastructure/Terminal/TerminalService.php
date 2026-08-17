@@ -107,8 +107,7 @@ final class TerminalService extends AbstractSingleton implements InputPort
         $parsed = $this->parser->parse($this->buffer);
 
         if ($parsed === null) {
-            $this->buffer .= $this->readAvailableBytes(self::SEQUENCE_TAIL_TIMEOUT_MICROSECONDS);
-            $parsed = $this->parser->parseAfterTimeout($this->buffer);
+            $parsed = $this->awaitSequenceTail();
         }
 
         if ($parsed === null) {
@@ -118,6 +117,45 @@ final class TerminalService extends AbstractSingleton implements InputPort
         $this->buffer = substr($this->buffer, $parsed->consumedBytes);
 
         return $parsed->event;
+    }
+
+    /**
+     * Dobieranie reszty niedokończonej sekwencji — **w pętli, a nie raz**
+     * (krok 57).
+     *
+     * Do kroku 57 stał tu jeden odczyt: 20 ms na dosłanie i pytanie
+     * rozstrzygające. Dla strzałki to nadmiar, bo trzy bajty przychodzą razem.
+     * Odpowiedź na pytanie o schowek ma jednak tyle bajtów, ile ma zawartość
+     * schowka, a jeden odczyt oddaje najwyżej `READ_CHUNK_BYTES` — czyli treść
+     * dłuższa od kilobajta rozstrzygałaby się jako niepełna i rozsypywała na
+     * fałszywe naciśnięcia.
+     *
+     * Pętla wychodzi trzema drogami i wszystkie trzy są potrzebne: **zdarzenie
+     * rozebrane** (najczęstsza), **cisza w oknie dosłania** (wtedy pada pytanie
+     * rozstrzygające — tak kończy się samotny `Esc`) oraz **koniec przyrostu**,
+     * czyli terminal, który zamilkł, choć sekwencji nie domknął. Górną granicę
+     * długości pilnuje parser, bo to on wie, czego jeszcze brakuje.
+     *
+     * Kosztu w gorącej ścieżce nie ma: pętla wykonuje się **wyłącznie** wtedy,
+     * gdy parser odmówił, czyli w tych samych przypadkach, w których do kroku 57
+     * płaciło się jedno oczekiwanie.
+     */
+    private function awaitSequenceTail(): ?ParsedKey
+    {
+        while (true) {
+            $before = strlen($this->buffer);
+            $this->buffer .= $this->readAvailableBytes(self::SEQUENCE_TAIL_TIMEOUT_MICROSECONDS);
+
+            if (strlen($this->buffer) === $before) {
+                return $this->parser->parseAfterTimeout($this->buffer);
+            }
+
+            $parsed = $this->parser->parse($this->buffer);
+
+            if ($parsed !== null) {
+                return $parsed;
+            }
+        }
     }
 
     /**

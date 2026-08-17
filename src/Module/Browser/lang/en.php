@@ -38,6 +38,12 @@ return [
     // omission is a lie.
     'module.browser.marked.summary.dirs' => '• {count} of {total} · {size} excl. {dirs} dir.',
 
+    // Copying marked entries to the clipboard (step 57) — paths, not names.
+    'module.browser.clipboard.copied' => [
+        'Copied the path of {count} marked entry.',
+        'Copied the paths of {count} marked entries.',
+    ],
+
     // Settings tab entries.
     'module.browser.setting.showHidden' => 'Show hidden entries',
     'module.browser.setting.split' => 'Split into two panes',

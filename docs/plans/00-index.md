@@ -559,6 +559,26 @@ zamienia `0x03` na SIGINT **zanim aplikacja cokolwiek przeczyta** — czyli skr�
 zamyka program. Klawiszami schowka zostały `Alt`+`c` i `Alt`+`v`, a reguła 11j
 (modyfikatory rozłączne) wyszła z fazy **nietknięta**.
 
+**Krok 56 wykonany — i znowu rozpoznanie przed pierwszą linią kodu obaliło zdania
+własnego planu, tym razem dwa.** `Role::Selection`, zapowiadana jako rola nowa,
+stoi w kodzie od kroku 13 jako tło wiersza pod kursorem — zaznaczenie dostało
+przez to **trzynastą** rolę (`Marquee`, fiolet w czterech paletach), a pismo
+bierze istniejące `SelectionText`. Pierwszeństwo granicy podziału nie
+rozstrzygało się zaś w `InputHandler`, tylko w **pięciu ekranach**, z których
+żaden nie mówił, czy zdarzenie zużył; rdzeń dostał zdolność `DragsOwnContent`
+i pyta o nią w jednym miejscu (D100). Warstwa tekstowa wyszła z renderera
+tekstowego **z rolami, a nie z samymi znakami** — inaczej tor tekstowy
+przechodziłby po prymitywach dwa razy. **Słownik prymitywów wyszedł nietknięty**:
+prostokąt to `TextMark` na wiersz. Pomiar: `--loop` w rozrzucie zaokrąglenia,
+`--text` **bez regresji mimo przeprowadzki** (pełna klatka −2,4%), a dwadzieścia
+wzorcowych zrzutów zgodnych **co do piksela**. Cena samego zaznaczenia:
++0,3 ms w torze tekstowym, poniżej rozdzielczości w okienkowym i **+3,7 ms
+w sixelowym, z czego +2,9 ms w kwantyzacji** — czyli dokładnie ta lekcja, którą
+zapisał krok 43: nowa rola motywu kosztuje w Sixelu paletę, nie rysowanie.
+Dług kroku jest przy tym **spłacany dopiero przez 57**, a trzy granice stoją
+w dzienniku: okna nakładanego nie da się zaznaczyć, klatki pod XTermem nikt
+jeszcze nie oglądał, a zaznaczenie przeżywa przewijanie.
+
 **Krok 55 wykonany — i to rozpoznanie przed pierwszą linią kodu obaliło zdanie
 własnego planu.** Plan zamawiał kółko przewijające „bez ruszania kursora”, a
 w kodzie stało **szesnaście** paneli listowych wołających
@@ -585,8 +605,19 @@ ma się do czego odnieść) i **klatki pod XTermem nikt jeszcze nie oglądał**.
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
 | 55 | Mysz: wskaźnik wchodzi do słownika wejścia | [55-mysz-wskaznik.md](archiwum/55-mysz-wskaznik.md) | 6, 9, 14, 15, 18, 19, 21, 24, 32, 33, 34, 35, 40 | Fable⁶ | xhigh | Ukończony z zastrzeżeniem |
-| 56 | Zaznaczanie treści: klatka uczy się mówić, co na niej pisze | [56-zaznaczanie-tresci.md](56-zaznaczanie-tresci.md) | 8, 13, 18, 30, 35, 38, 55 | Opus⁷ | xhigh | Nie rozpoczęty |
-| 57 | Schowek systemowy: trzy tory, dwie drogi, jedno miejsce | [57-schowek.md](57-schowek.md) | 6, 7, 14, 15, 19, 32, 33, 34, 43, 48, 55, 56 | Opus⁷ | high | Nie rozpoczęty |
+| 56 | Zaznaczanie treści: klatka uczy się mówić, co na niej pisze | [56-zaznaczanie-tresci.md](archiwum/56-zaznaczanie-tresci.md) | 8, 13, 18, 30, 35, 38, 55 | Opus⁷ | xhigh | Ukończony z zastrzeżeniem |
+| 57 | Schowek systemowy: trzy tory, dwie drogi, jedno miejsce | [57-schowek.md](archiwum/57-schowek.md) | 6, 7, 14, 15, 19, 32, 33, 34, 43, 48, 49, 53, 55, 56 | Opus⁷ | high | Ukończony |
+| 76 | Zaznaczanie treści w oknie nakładanym | [76-zaznaczanie-w-oknie.md](76-zaznaczanie-w-oknie.md) | 19, 28, 51, 52, 55, 56, 57 | Opus⁷ | high | Zarys |
+
+**Krok 76 powstał 2026-08-17, na starcie kroku 57** ([00-decyzje.md](00-decyzje.md),
+D101 nr 4), i jest w tej fazie czwarty, choć numer ma najwyższy w planie. Powód
+jest ten sam, dla którego dług w ogóle powstał: krok 57 spłaca **połowę** długu
+z D100 — treść okna nakładanego da się skopiować `Alt`+`c`, bo okno deklaruje
+`CopiesContent` — ale wskazać jej myszą nie sposób, bo zaznaczanie w oknie rusza
+**trzy reguły mechanizmu kroku 56 naraz**. Szerokie rozwiązanie tu i teraz byłoby
+drugą zmianą tamtego mechanizmu w kroku, który miał dowieźć schowek. Dług ma
+przez to właściciela i termin, jak `ProgressBar` w kroku 23 i jak samo
+zaznaczanie w kroku 56.
 
 ⁶ Przydział **potwierdzony 2026-08-16** (D95): zachodzi warunek z przypisów
 ¹ i ² — krok zmienia słownik wejścia (`InputPort` przestaje oddawać `KeyPress`)
@@ -594,14 +625,16 @@ i dotyka wszystkich trzech torów naraz, bo raportowanie myszy włącza się tak
 w torze tekstowym (D95 nr 7). Zapowiadany wariant tańszy (`Opus / high` przy
 zakresie zawężonym do schowka bez myszy) **odpadł** wraz z rozstrzygnięciem nr 3.
 
-⁷ Kroki 56 i 57 **nie spełniają** warunku z przypisów ¹ i ²: słownik wejścia
+⁷ Kroki 56, 57 i 76 **nie spełniają** warunku z przypisów ¹ i ²: słownik wejścia
 rośnie w nich najwyżej o **postać zdarzenia** (`ClipboardText`), nigdy
 o modyfikator ani klawisz, a słownik prymitywów zostaje zamknięty — zaznaczenie
 rysuje się `TextMark`ami z kroku 30, więc trzej tłumacze zostają nietknięci.
 Wysiłek kroku 56 trzyma **rachunek na ścieżce klatki** (warstwa tekstowa wychodzi
 z renderera tekstowego do wspólnego miejsca, więc rozlicza się trzema osiami
 pomiaru); kroku 57 — **asynchroniczność odczytu** (terminal odpowiada na wejściu
-klatkę później albo nie odpowiada wcale).
+klatkę później albo nie odpowiada wcale); kroku 76 — **przeliczenie reguł
+kasowania** i pierwszeństwo wskaźnika przy oknie modalnym, czyli to samo miejsce,
+w którym krok 56 pomylił się co do `InputHandler`a.
 
 ⁴ Zależność **dopisana 2026-08-16**, na starcie kroku ([00-decyzje.md](00-decyzje.md),
 D91 nr 3): rozstrzygnięcie użytkownika postawiło w lewym panelu **drzewo grup API

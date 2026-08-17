@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LightManager\Infrastructure\Diagnostics;
 
 use LightManager\Application\Ui\Frame;
+use LightManager\Application\Ui\FrameText;
 use LightManager\Application\Ui\Plane;
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Rect;
@@ -19,6 +20,7 @@ use LightManager\Presentation\Ui\Component\ImageBox;
 use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\ListRow;
 use LightManager\Presentation\Ui\Component\ListView;
+use LightManager\Presentation\Ui\Component\Marquee;
 use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\ProgressBar;
 use LightManager\Presentation\Ui\Component\Section;
@@ -144,6 +146,16 @@ final class ScenarioFactory
     private const MARK = '•';
 
     /**
+     * Ile wierszy obejmuje zaznaczenie w scenariuszu `marquee` (krok 56).
+     *
+     * Pięć, bo tyle mówi miara kroku („przeciągnięcie przez pięć wierszy listy”)
+     * i tyle bierze jedno przeciągnięcie ręką. Prostokąt na całą klatkę byłby
+     * sufitem, ale mierzyłby przemalowanie okna zamiast czynności, którą
+     * ktokolwiek wykonuje.
+     */
+    private const MARQUEE_ROWS = 5;
+
+    /**
      * Zakładki ekranu ustawień — dwie rdzenia, spis modułów i po jednej na
      * moduł, czyli tyle, ile widzi użytkownik przy obu modułach włączonych.
      *
@@ -212,7 +224,30 @@ final class ScenarioFactory
             $planes[] = $this->commandWindow($layout, $rows, $columns);
         }
 
+        if ($scenario === Scenario::Marquee) {
+            $planes[] = $this->marquee($planes, $layout, $rows, $columns);
+        }
+
         return new ScenarioFrame(new Frame($planes), $rows, $columns);
+    }
+
+    /**
+     * Czwarta płaszczyzna: **prostokąt zaznaczony wskaźnikiem** (krok 56).
+     *
+     * Powstaje tą samą drogą, co w aplikacji — warstwa tekstowa z płaszczyzn już
+     * złożonych, a na niej `Marquee` — bo scenariusz, który składałby ją własnym
+     * kodem, mierzyłby swój kod, a nie ten z `FrameComposer`a (reguła 2 tej
+     * klasy: wierność).
+     *
+     * @param list<Plane> $planes płaszczyzny złożone do tej pory
+     */
+    private function marquee(array $planes, HudLayout $layout, int $rows, int $columns): Plane
+    {
+        $list = HudLayout::contentOf($layout->list, $layout->listIsPanel());
+        $area = $list->rowsFrom(0, min(self::MARQUEE_ROWS, $list->rows));
+        $text = FrameText::of(new Frame($planes), $rows, $columns);
+
+        return new Plane('selection', $area, Marquee::over($text, $area));
     }
 
     /** @return list<Primitive> */

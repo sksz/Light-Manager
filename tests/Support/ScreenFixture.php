@@ -145,6 +145,7 @@ final class ScreenFixture
         public readonly StubDockerApi $docker = new StubDockerApi(),
         public readonly StubCompose $compose = new StubCompose(),
         public readonly StubKubectl $kubectl = new StubKubectl(),
+        public readonly StubClipboard $clipboard = new StubClipboard(),
     ) {
         $translator = new StubTranslator();
         $themes = new FixedThemes();
@@ -352,10 +353,14 @@ final class ScreenFixture
             $this->help,
             $this->settings,
             new ProblemPresenter($translator),
+            $translator,
             $this->commands,
             self::moduleScreens($this->modules),
             null,
             $this->menu,
+            // Schowek **wyłącznie atrapą** (krok 57): obie prawdziwe
+            // implementacje piszą po schowku osoby uruchamiającej testy.
+            $this->clipboard,
         );
     }
 

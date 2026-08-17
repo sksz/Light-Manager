@@ -1,14 +1,32 @@
 # Krok 57 — Schowek systemowy: trzy tory, dwie drogi, jedno miejsce
 
 > **Skąd ten krok.** Powstał 2026-08-16 z podziału zarysu Fazy XIX
-> ([00-decyzje.md](00-decyzje.md), D95 nr 9) i bierze z niego trzeci mechanizm.
+> ([00-decyzje.md](../00-decyzje.md), D95 nr 9) i bierze z niego trzeci mechanizm.
 > Zamyka fazę i **spłaca dług kroku 56**: zaznaczenie, które tamten krok
 > dowiózł bez odbiorcy, dostaje tutaj to, po co powstało.
 
 ## Status
 
-**Nie rozpoczęty.** Rozstrzygnięcia startowe: [00-decyzje.md](00-decyzje.md),
-D95 (nr 5, 6, 8 i 9).
+**Ukończony** 2026-08-17. Rozstrzygnięcia startowe:
+[00-decyzje.md](../00-decyzje.md), **D101** (cztery pytania ze startu kroku) oraz
+D95 (nr 5, 6, 8 i 9 — zakres).
+
+**Trzy zdania tego planu obaliło rozpoznanie w kodzie** i poprawki stoją niżej,
+przy punktach, których dotyczą:
+
+1. Treść do skopiowania **nie pochodzi w całości od ekranu** — ścieżkę wpisu pod
+   kursorem oddaje `ModuleContext::selectionPath()` z kroku 49, generycznie
+   i dla ekranu zdalnego też (D101 nr 1, punkt 5 zakresu).
+2. `Alt`+`v` **nie jest klawiszem rdzenia** — reguła 11p zabrania obiecywać
+   w stopce klawisz, który w danym miejscu nic nie robi (D101 nr 3, punkt 4
+   zakresu).
+3. Rozbiór OSC **nie mieści się w jednym oknie dosłania** — sekwencja niepełna
+   musi umieć czekać między taktami, z progiem długości i terminem (D101,
+   rozpoznanie; punkt 3 zakresu).
+
+Krok spłaca ponadto **połowę długu z D100**: treść okna nakładanego da się
+skopiować, ale nie da się jej zaznaczyć myszą. Druga połowa ma odtąd właściciela
+— [krok 76](../76-zaznaczanie-w-oknie.md), zarys (D101 nr 4).
 
 ## Cel
 
@@ -281,4 +299,165 @@ klawisze i zdanie o tym, co robić, gdy terminal odczytu nie obsługuje.
 
 ## Dziennik realizacji
 
-*(Krok nie rozpoczęty — wpisy pojawią się przy wykonaniu.)*
+### 2026-08-17 — rozpoznanie przed pierwszą linią kodu
+
+Sprawdzone w kodzie, na maszynie i w `man xterm`. **Trzy zdania tego planu
+okazały się nieprawdziwe**, a nie tylko nieprecyzyjne — wszystkie trzy stoją
+wyżej, w „Statusie”, i wszystkie trzy rozstrzygnęło D101.
+
+- **`ESC ]` było rozbierane jako `Alt`+`]`.** `]` to bajt drukowalny (`0x5D`),
+  więc gałąź `parseAltCharacter()` z kroku 29 łapała początek łańcucha OSC
+  pierwsza. Nowa gałąź stanęła **przed** nią.
+- **Sekwencja niepełna miała dokładnie jedno okno na dosłanie reszty.**
+  `readEvent()` czytał 1024 B, pytał parsera, a przy odmowie czekał 20 ms,
+  dobierał **jeszcze raz** i wołał `parseAfterTimeout()`, po którym odpowiedź
+  musiała już być. Dla strzałki to nadmiar; dla odpowiedzi o schowku niosącej
+  kilkadziesiąt kilobajtów — za mało, a nadmiar rozsypałby się na fałszywe
+  naciśnięcia.
+- **Dwa z trzech źródeł kopiowania rdzeń już umiał przeczytać.**
+  `ModuleContext::selectionPath()` (krok 49) oddaje ścieżkę wpisu **generycznie**,
+  także dla ekranu zdalnego; `browser.marked` (krok 53) oddaje **nazwy**
+  zaznaczonych wpisów i został napisany dokładnie dla takiego odbiorcy. Zdanie
+  „treść podaje ekran” było prawdziwe tylko dla jednego źródła z trzech.
+- **Reguła 11p zabraniała pokazać `Alt`+`v` w stopce globalnie** — „klawisz
+  działający w danym miejscu musi tam stać w spisie, **i odwrotnie**”, a
+  wklejanie bez pola tekstowego nie robi nic.
+- **Wzorce zrzutów i złote klatki okazały się bezpieczne**, ale nie z powodu
+  podanego w planie: `ScenarioFactory` składa **własne** `StatusHints` z pozycji
+  bez wiązań, więc nowy klawisz rdzenia nie zmienia ani jednego wzorca. Zdanie
+  „wyglądu klatki krok nie zmienia” zostaje prawdziwe — stopka jednak rośnie,
+  tylko pomiar jej nie widzi.
+- **XTerm 390 trzyma `GetSelection` i `SetSelection` na liście domyślnej**
+  (`man xterm`: „i.e., no operations are allowed”), więc z listy musiały wypaść
+  **oba**.
+
+### 2026-08-17 — wykonanie
+
+**Rdzeń urósł o pięć rzeczy, nie o jedną zapowiadaną przez D95.** Port schowka
+był jedną z nich; cztery pozostałe są ceną asynchroniczności odczytu
+i rozstrzygnięć D101 nr 1–3: trzecia postać zdarzenia (`ClipboardText`), dwie
+zdolności (`CopiesContent`, `AcceptsPaste`), prośba z terminem w `LoopState`
+i gałąź OSC w parserze wejścia.
+
+**Trzy rzeczy wyszły inaczej, niż zapowiadał zakres, i każda ma powód w kodzie:**
+
+1. **Klawisze schowka nie schodzą do okna nakładanego ani do ekranu — stoją
+   przed nimi.** Nie jest to porządek, tylko konieczność: klawisz przepuszczony
+   przez okno trafia do klawiszy globalnych, a te **zamykają okno**
+   (`InputHandler::toOverlay()`, krok 19). `Alt`+`v` w polu filtra zamykałby przez
+   to filtr, do którego miał wkleić wzorzec.
+2. **`RequiresEnvironment` z kroku 48 nie miało tu zastosowania** (punkt 6
+   zakresu obiecywał inaczej): jest to zdolność **modułu**, a nie komendy, i rdzeń
+   nie ma dla komend niczego podobnego. Zamiast tego obie komendy istnieją zawsze,
+   a odmowa jest zdaniem — schowek istnieje we wszystkich trzech torach, więc nie
+   ma czego wyłączać.
+3. **`bin/terminal-probe` urósł o dwa klawisze**, bo bez nich zapowiedziany
+   w planie pomiar progu nie miałby narzędzia (reguła 18): `c` pyta terminal
+   o schowek, `p` kładzie w nim próbkę o **podwajającej się** długości. Próbka
+   rosnąca, a nie jedna, bo terminal swojego limitu nie podaje i nie da się go
+   zapytać.
+
+**Dług D100 spłacony do połowy**, zgodnie z D101 nr 4: `CopiesContent` deklarują
+`ConfirmOverlay` (treść pytania — odcisk `SHA256:…` z kroku 48 nie widać nigdzie
+indziej) i `CommandOverlay` (odpowiedź kwerendy, wierszami rozdzielonymi
+tabulatorem). Zaznaczania myszą w oknie to nie dodaje — druga połowa ma
+właściciela i termin: [krok 76](../76-zaznaczanie-w-oknie.md).
+
+**Granica pomiaru, ta sama co w kroku 55 i warta powtórzenia**: oś `--loop`
+**nie mierzy tego, co ten krok dokłada do wejścia**. `LoopBenchmarkRunner` woła
+`$this->screen->handle($key)` na `KeyPress`ie zbudowanym wprost, więc ani
+`KeySequenceParser`, ani `InputHandler` nie stoją na jej ścieżce — trzecia gałąź
+parsera i gałąź klawiszy schowka są dla tej osi niewidoczne. Liczba z niej mówi
+zatem to samo, co w kroku 55: **że reszta taktu się nie zmieniła**. Rachunek
+statyczny na tę gałąź jest przy tym jednym porównaniem napisu na sekwencję
+escape (czwarte ramię `match`a na `$buffer[1]`), a `awaitSequenceTail()` wykonuje
+się **wyłącznie** wtedy, gdy parser odmówił — czyli w tych samych przypadkach,
+w których do tego kroku płaciło się jedno oczekiwanie.
+
+**Testy:** `KeySequenceParserTest` dostał dziesięć przebiegów na rozbiór
+odpowiedzi (`ST` i `BEL`, pole wyboru w trzech postaciach, treść wielowierszowa,
+schowek pusty, ładunek nierozczytany, sekwencja niepełna czekająca **po** upływie
+okna, `Alt`+`]` nadal rozstrzygane po terminie, sekwencja w środku bufora);
+`ClipboardFlowTest` — siedemnaście przebiegów użytkownika; `TerminalClipboardServiceTest`
+— trzy odmowy, czyli wszystko, co da się sprawdzić **bez** dotykania cudzego
+schowka. Zobowiązanie „testy nie dotykają schowka osoby uruchamiającej je” jest
+spełnione konstrukcyjnie: drogą jest `tests/Support/StubClipboard`, wstawiany do
+`ScreenFixture` jak każda inna atrapa.
+
+`make qa` zielone: 2289 testów, 7455 asercji; PHPStan `max` bez błędów.
+
+### 2026-08-17 — pomiar
+
+**Oś `--loop`, „przed i po" wobec wzorca po kroku 56: −2,2% / −2,5%, bez
+regresji.** Maszyna zwolniona (obciążenie 0,04 na rdzeń wobec 0,06 we wzorcu),
+wzorzec zapisany jako `docs/pomiary/2026-08-17-po-kroku-57-loop.json`.
+
+**Pierwszy przebieg trzeba było odrzucić i powód jest wart zapisania.** Przy
+domyślnych 15 przebiegach oś pokazała `+20,2% ▲` w scenariuszu „klatka
+z kompletem prac w tle" — przy wartości bezwzględnej **0,1 ms** i rozrzucie
+0,1–0,2 ms, czyli 2×. Regresja była w całości zaokrągleniem: 120 przebiegów
+w tej samej konfiguracji dało `−2,5%`. Wniosek na przyszłość: **oś `--loop` mierzy
+dziś wartości na granicy własnej rozdzielczości wydruku**, więc jednocyfrowa
+zmiana procentowa nic tam nie znaczy, dopóki rozrzut nie zejdzie poniżej progu.
+
+### 2026-08-17 — sprawdzenie pod XTermem i defekt starszy od tego kroku
+
+Narzędziem był `bin/terminal-probe` (`make probe-xterm`) i sama aplikacja
+(`make run-xterm`, `make run-window`), wysterowane `xdotool`em; treść schowka
+czytana z drugiej strony `xclip -o`, czyli **naprawdę „wklejeniem w innej
+aplikacji"**. Schowek osoby uruchamiającej został zapisany przed pracą
+i przywrócony po niej.
+
+**Odczyt działa.** Po zdjęciu `GetSelection` z listy XTerm 390 odpowiada na
+`OSC 52` z pytajnikiem, a trzecia gałąź parsera oddaje treść co do bajtu:
+podglądowi wróciło `ClipboardText bajtów: 21 treść: LM-SCHOWEK-PROBA-2026`.
+
+**Próg obcięcia zmierzony — i leży czterokrotnie wyżej niż nasza stała.** Próbka
+podwajana od 1 kB dochodzi w całości do **256 kB**; przy **512 kB schowek zostaje
+z poprzednią zawartością**, bez błędu, bez sygnału, bez śladu — dokładnie ta
+cisza, przed którą broni własny próg. Stała **zostaje na 64 kB** i jest to wybór
+zapisany w jej docbloku: zmierzony pułap należy do jednego terminala na jednej
+maszynie, a multiplekser w środku drogi bywa znacznie skromniejszy. Odmowa przy
+131 072 B sprawdzona pod XTermem: `odmowa: clipboard.problem.too-long`, schowek
+nietknięty.
+
+**Najdroższe znalezisko nie dotyczy schowka i jest starsze od tego kroku:
+`Alt`+litera nie działała pod XTermem ani razu.** Domyślnie `metaSendsEscape`
+jest `false`, a wtedy rozstrzyga `eightBitInput` i `Alt`+`c` przychodzi jako
+**jeden znak drukowalny** — zmierzone bajty `c3 a3`, czyli `ã` (`0x63|0x80`);
+`Alt`+`v` → `c3 b6` (`ö`), `Alt`+`z` → `c3 ba` (`ú`). Parser czyta to jako zwykłą
+literę i **nie ma jak czytać inaczej**: użytkownik wpisujący `ã` w nazwę pliku
+wysyła dokładnie te same bajty. Dotyczyło to `Alt`+`z` z kroku 29 i `Alt`+`u`
+z kroku 44 **od chwili ich powstania**; nie wyszło wcześniej, bo klatki pod
+XTermem nikt nie oglądał — zdanie stojące jako granica w dziennikach kroków 55,
+56 i 46. Naprawa: zasób `metaSendsEscape: true` w `bin/run.sh`
+i `bin/run-terminal-probe.sh`, wraz z objaśnieniem; po nim bajty to `76`/`7a`
+ze znacznikiem `Alt`. Wariant „parser rozpoznaje postać ośmiobitową" został
+**odrzucony** — odebrałby możliwość wpisywania znaków diakrytycznych.
+
+Podgląd wejścia wypisuje przy tym odtąd **modyfikatory także przy klawiszu**. Bez
+nich `c` i `Alt`+`c` dawały identyczny wiersz (`KeyPress::alt()` niesie w `raw`
+samą literę), czyli narzędzie do odpowiadania na pytanie „co terminal naprawdę
+przysłał" nie umiało odpowiedzieć na to jedno pytanie, które okazało się
+najważniejsze.
+
+**Kryteria ukończenia — co sprawdzone i czym:**
+
+| Kryterium | Jak sprawdzone |
+|---|---|
+| `Alt`+`c` kładzie treść w schowku środowiska | `xclip -o` po naciśnięciu w aplikacji: tor **sixelowy** (`make run-xterm`) i **okienkowy** (`make run-window`) — oba oddały `/home/sksz/Projects/lm/.php-cs-fixer.dist.php` |
+| Trzy źródła, trzy zdania | ścieżka wpisu (`Skopiowano ścieżkę: …`), dwa zaznaczone wpisy (`Skopiowano ścieżki 2 zaznaczonych wpisów.`), zaznaczenie myszą (prostokąt przez cztery wiersze oddał `claude/ git/ ssets/ in/` — **prostokątne, nie przepływowe**, widać po uciętych nazwach) |
+| `Alt`+`v` wstawia treść do pola | filtr w torze sixelowym (`szukaj: compo`) i okienkowym (`szukaj: wklejka-z-okna`); w terminalu odpowiedź przyszła zdarzeniem, nie z wywołania |
+| Brak pola → zdanie, nie odczyt | `! Nie ma gdzie wkleić — schowek trafia do pola tekstowego z ogniskiem.` i **zero pytań** do terminala (pilnuje tego również `ClipboardFlowTest`) |
+| Treść za długa → odmowa | `odmowa: clipboard.problem.too-long` przy 131 072 B, schowek nietknięty |
+| Stopka mówi prawdę w obie strony | okno 210 kolumn: `Alt+V wklej ze schowka` przy **polu**, `Alt+C skopiuj do schowka` wśród **globalnych** |
+| `bin/run.sh` tłumaczy zmianę listy | komentarz opisuje oba zwężenia (kroki 34 i 57) oraz nowy zasób `metaSendsEscape` |
+| Testy nie dotykają cudzego schowka | konstrukcyjnie — `tests/Support/StubClipboard`; jedyny test prawdziwej usługi sprawdza wyłącznie gałęzie **przed** zapisem |
+| `--loop` bez regresji | −2,2% / −2,5% (120 przebiegów) |
+| `make qa` zielone | 2289 testów, 7455 asercji, PHPStan `max` |
+
+**Czego nie sprawdzono ręcznie i dlaczego:** toru **tekstowego** osobno. Schowek
+wybiera się w `Bootstrap::clipboard()` wyłącznie po fladze `--window`, więc oba
+tory terminalowe dostają **tę samą** `TerminalClipboardService` — nie ma tam ani
+jednej gałęzi zależnej od renderera, a odpowiedź terminala rozbiera ten sam
+parser. Sprawdzenie byłoby powtórzeniem toru sixelowego pod inną nazwą.

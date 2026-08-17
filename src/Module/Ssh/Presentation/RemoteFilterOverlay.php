@@ -11,6 +11,7 @@ use LightManager\Application\Ui\Rect;
 use LightManager\Module\Ssh\Application\RemoteBrowser;
 use LightManager\Module\Ssh\Application\SshSettings;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteNameFilter;
+use LightManager\Presentation\Ui\AcceptsPaste;
 use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\TextInput;
 use LightManager\Presentation\Ui\HudLayout;
@@ -32,7 +33,7 @@ use LightManager\Presentation\Ui\OverlayOutcome;
  * Powtórzone jest **zachowanie, nie mechanizm**: pole tekstowe, obwódka, układ
  * i wiązania pochodzą z rdzenia, tak samo jak tam.
  */
-final class RemoteFilterOverlay implements OverlayInterface, NeedsTime
+final class RemoteFilterOverlay implements OverlayInterface, NeedsTime, AcceptsPaste
 {
     private const ID = 'ssh.filter';
 
@@ -118,6 +119,21 @@ final class RemoteFilterOverlay implements OverlayInterface, NeedsTime
             Key::ArrowDown => $this->moved(1),
             default => $this->toInput($key),
         };
+    }
+
+    /**
+     * Treść schowka w polu filtra — wraz z zawężeniem listy, jak w przeglądarce
+     * (krok 57).
+     */
+    public function paste(string $text): bool
+    {
+        if (!$this->input->paste($text)) {
+            return false;
+        }
+
+        $this->browser->useFilter(new RemoteNameFilter($this->input->value()));
+
+        return true;
     }
 
     /**

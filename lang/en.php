@@ -93,11 +93,39 @@ return [
     'help.key.collapse.short' => 'collapse',
     'help.key.menu.short' => 'menu',
 
+    // Selecting frame content with the pointer (step 56).
+    'selection.rows' => [
+        'Selected {count} frame row.',
+        'Selected {count} frame rows.',
+    ],
+
     // Names of the places the focus visits on the core screens (step 40).
     'settings.focus.tabs' => 'Tabs',
     'settings.focus.item' => 'Item',
     'settings.focus.action' => 'Action',
     'settings.focus.edit' => 'Editing',
+
+    // System clipboard (step 57). One sentence per source: three different
+    // contents behind the same key are indistinguishable with one sentence.
+    'clipboard.key.copy' => 'copy to the clipboard',
+    'clipboard.key.paste' => 'paste from the clipboard',
+    'clipboard.copied.selection' => [
+        'Copied the selection: {count} row.',
+        'Copied the selection: {count} rows.',
+    ],
+    'clipboard.copied.answer' => [
+        'Copied the answer: {count} row.',
+        'Copied the answer: {count} rows.',
+    ],
+    'clipboard.copied.path' => 'Copied the path: {path}',
+    'clipboard.copied.question' => 'Copied the question.',
+    'clipboard.nothing' => 'Nothing to copy — select content with the mouse or stand on an entry.',
+    'clipboard.no-target' => 'Nowhere to paste — the clipboard goes into the focused text field.',
+    'clipboard.empty' => 'The clipboard is empty.',
+    'clipboard.unreachable' => 'This terminal does not report the clipboard contents.',
+    'clipboard.problem.empty' => 'Nothing to put in the clipboard.',
+    'clipboard.problem.too-long' => 'The content is too long for the terminal clipboard — nothing was copied.',
+    'clipboard.problem.unavailable' => 'The clipboard is unreachable in this mode.',
 
     // Module tab in the help window — headings of the declared part.
     'help.module.shortcut' => 'Shortcut',
@@ -162,6 +190,7 @@ return [
     'choice.key.cancel' => 'back out',
     'choice.key.cancel.short' => 'back out',
     'command.history' => 'history',
+    'command.clipboard.done' => 'Clipboard: done.',
     'command.dump.requested' => 'Next frame will be written to {file}-prymitywy.txt and {file}.png',
     'command.problem.empty' => 'no command name was typed',
     'command.problem.unknown' => 'unknown command: {name}',
@@ -197,6 +226,8 @@ return [
     'command.core.settings' => 'open the settings',
     'command.core.help' => 'open the help',
     'command.core.quit' => 'quit the application',
+    'command.core.clipboard.copy' => 'copy to the system clipboard',
+    'command.core.clipboard.paste' => 'paste from the system clipboard',
     'command.core.dump' => 'write the next frame to a file (primitives and image)',
     'command.core.fullscreen' => 'toggle fullscreen',
     'command.fullscreen.on' => 'Fullscreen on.',
@@ -369,6 +400,7 @@ return [
     'bench.scenario.settings' => 'settings screen',
     'bench.scenario.tree' => 'directory tree',
     'bench.scenario.marked' => 'list with marks',
+    'bench.scenario.marquee' => 'selection rectangle',
 
     'bench.transfer.title' => 'Frame transfer to the terminal',
     'bench.transfer.blob' => '  frame size:         {kilobytes} kB',

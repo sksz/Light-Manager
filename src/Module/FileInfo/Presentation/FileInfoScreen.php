@@ -33,6 +33,7 @@ use LightManager\Presentation\Ui\Component\Section;
 use LightManager\Presentation\Ui\Component\SectionList;
 use LightManager\Presentation\Ui\Component\Split;
 use LightManager\Presentation\Ui\DeclaresFocus;
+use LightManager\Presentation\Ui\DragsOwnContent;
 use LightManager\Presentation\Ui\DrawsOwnFrame;
 use LightManager\Presentation\Ui\FocusHint;
 use LightManager\Presentation\Ui\KeyBinding;
@@ -79,7 +80,8 @@ final class FileInfoScreen implements
     DrawsOwnFrame,
     NeedsTime,
     DeclaresFocus,
-    AcceptsPointer
+    AcceptsPointer,
+    DragsOwnContent
 {
     /** Prostokąt z ostatniego rysowania — pamięć wymagana przez `AcceptsPointer` (krok 55). */
     private ?Rect $lastBounds = null;
@@ -706,6 +708,15 @@ final class FileInfoScreen implements
                 'module.file-info.help.sectionEdges.short',
             ),
         ]);
+    }
+
+    /**
+     * Przeciągnięcie granicy podziału należy do ekranu, a nie do zaznaczania
+     * treści (krok 56) — rdzeń pyta o to raz, w `InputHandler`.
+     */
+    public function isDraggingOwn(): bool
+    {
+        return $this->focusState->isDragging();
     }
 
     /**

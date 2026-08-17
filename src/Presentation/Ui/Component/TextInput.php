@@ -155,7 +155,42 @@ final class TextInput implements FocusableInterface
         return [
             KeyBinding::of([Key::ArrowLeft, Key::ArrowRight, Key::Home, Key::End], 'command.key.caret'),
             KeyBinding::of([Key::Backspace, Key::Delete], 'command.key.erase'),
+            // Wklejanie stoi w spisie **miejsca**, a nie wśród klawiszy rdzenia
+            // (krok 57, D101 nr 3): reguła 11p każe obiecywać klawisz dokładnie
+            // tam, gdzie działa — **i odwrotnie** — a `Alt`+`v` bez pola
+            // tekstowego nie ma czego zrobić. `Alt`+`c` jest przez to klawiszem
+            // rdzenia, bo zaznaczenie jest własnością rdzenia (11ź), a jego
+            // bliźniak — klawiszem pola.
+            KeyBinding::alt('v', 'clipboard.key.paste'),
         ];
+    }
+
+    /**
+     * Treść schowka w miejscu karetki — **jedyne miejsce docelowe odczytanego
+     * schowka w całej aplikacji** (krok 57).
+     *
+     * Wklejenie jest wstawieniem, nie podmianą: napis wchodzi tam, gdzie stoi
+     * karetka, a karetka staje za nim — dokładnie tak, jak przy wpisywaniu
+     * znaku, tylko za jednym razem. Pole nie ocenia treści (tak samo jak
+     * `PromptOverlay` nie ocenia wpisanej nazwy) i **nie zna maskowania**:
+     * `$masked` dotyczy wyłącznie rysowania, więc hasło wklejone do pola
+     * z sekretem zachowuje się jak hasło wpisane z klawiatury.
+     *
+     * Znaki sterujące treści są usuwane, i to nie jest kosmetyka: pole jest
+     * jednowierszowe, więc nowa linia z wielowierszowego schowka nie ma się
+     * gdzie narysować, a wklejona wprost przeszłaby dalej — do nazwy pliku, do
+     * wzorca filtra albo do wiersza polecenia. Zamieniamy ją na odstęp, bo
+     * usunięcie bez śladu skleiłoby dwa wiersze w jedno słowo.
+     */
+    public function paste(string $text): bool
+    {
+        $clean = preg_replace('/[\p{Cc}\p{Cf}]+/u', ' ', $text);
+
+        if ($clean === null || trim($clean) === '') {
+            return false;
+        }
+
+        return $this->insert($clean);
     }
 
     public function handle(KeyPress $key): bool
@@ -189,12 +224,20 @@ final class TextInput implements FocusableInterface
         return $this->caret - $width + 1;
     }
 
-    private function insert(string $character): bool
+    /**
+     * Wstawienie w miejscu karetki — jeden znak z klawiatury albo cały napis ze
+     * schowka.
+     *
+     * Karetka przesuwa się o **długość wstawki**, nie o jeden: do kroku 57
+     * wstawką był zawsze jeden znak, więc `++` był tym samym rachunkiem, a nie
+     * uproszczeniem. Wklejanie czyni z tej równości przypadek szczególny.
+     */
+    private function insert(string $text): bool
     {
         $this->value = mb_substr($this->value, 0, $this->caret)
-            . $character
+            . $text
             . mb_substr($this->value, $this->caret);
-        ++$this->caret;
+        $this->caret += mb_strlen($text);
 
         return true;
     }

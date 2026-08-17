@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace LightManager\Infrastructure\Rendering;
 
+use LightManager\Application\Ui\FrameText;
+use LightManager\Application\Ui\Role;
+
 /**
  * Siatka znaków wraz z kolorem pierwszego planu i tła — płótno trybu
  * tekstowego.
@@ -14,59 +17,26 @@ namespace LightManager\Infrastructure\Rendering;
  * w środku napisu — i właśnie tam obie implementacje okienka się rozjeżdżały.
  * Płaszczyzny nakładane na siebie bez bufora komórek nie dają się zrobić
  * w ogóle.
+ *
+ * **Krok 56 zabrał stąd rozbiór prymitywów na komórki, a zostawił kolory.**
+ * Siatkę znaków wraz z rolami buduje odtąd `Application\Ui\FrameText` — wspólny
+ * rachunek trzech torów — a ta klasa jest tym, czym tryb tekstowy różni się od
+ * pozostałych: **nakłada na role paletę i składa bajty**. Podział przechodzi
+ * dokładnie tam, gdzie leży granica warstw: role są pojęciem `Application`,
+ * kody ANSI — `Infrastructure`.
  */
 final class CellBuffer
 {
-    /** @var array<int, array<int, string>> znak w każdej komórce */
-    private array $glyphs = [];
-
-    /** @var array<int, array<int, ?string>> kolor pierwszego planu, `null` — domyślny */
-    private array $foreground = [];
-
-    /** @var array<int, array<int, ?string>> kolor tła, `null` — przezroczyste */
-    private array $background = [];
-
+    /**
+     * @param array<string, string> $colors rola → kolor motywu, pod kluczem
+     *                                      `Role::$name`; mapę składa renderer
+     *                                      raz na klatkę, bo tabela ról jest
+     *                                      jego, a nie siatki znaków
+     */
     public function __construct(
-        private readonly int $rows,
-        private readonly int $columns,
+        private readonly FrameText $text,
+        private readonly array $colors,
     ) {
-        for ($row = 0; $row < $rows; ++$row) {
-            $this->glyphs[$row] = array_fill(0, max(1, $columns), ' ');
-            $this->foreground[$row] = array_fill(0, max(1, $columns), null);
-            $this->background[$row] = array_fill(0, max(1, $columns), null);
-        }
-    }
-
-    public function put(int $row, int $column, string $glyph, ?string $color = null): void
-    {
-        if ($row < 0 || $row >= $this->rows || $column < 0 || $column >= $this->columns) {
-            return;
-        }
-
-        $this->glyphs[$row][$column] = $glyph;
-
-        if ($color !== null) {
-            $this->foreground[$row][$column] = $color;
-        }
-    }
-
-    public function write(int $row, int $column, string $text, ?string $color = null): void
-    {
-        $length = mb_strlen($text);
-
-        for ($offset = 0; $offset < $length; ++$offset) {
-            $this->put($row, $column + $offset, mb_substr($text, $offset, 1), $color);
-        }
-    }
-
-    /** Tło komórki; znak zostaje nietknięty, więc tekst położony wcześniej przetrwa. */
-    public function paint(int $row, int $column, string $color): void
-    {
-        if ($row < 0 || $row >= $this->rows || $column < 0 || $column >= $this->columns) {
-            return;
-        }
-
-        $this->background[$row][$column] = $color;
     }
 
     /**
@@ -74,35 +44,60 @@ final class CellBuffer
      *
      * Kody wypisujemy tylko przy **zmianie** koloru, a nie przy każdej komórce:
      * wiersz listy o jednolitym kolorze daje wtedy jeden kod zamiast stu
-     * sześćdziesięciu.
+     * sześćdziesięciu. Porównujemy przy tym **role, nie kolory** — dwie role
+     * o tej samej wartości w palecie (w Grafitcie `Accent` i `Warning`) dają
+     * przez to jeden kod więcej niż musiały; jest to cena mniejsza niż
+     * porównywanie napisów w każdej komórce.
      */
     public function toAnsi(AnsiPalette $palette): string
     {
         $lines = [];
 
-        for ($row = 0; $row < $this->rows; ++$row) {
+        for ($row = 0; $row < $this->text->rows; ++$row) {
+            $glyphs = $this->text->glyphRow($row);
+            $foregrounds = $this->text->foregroundRow($row);
+            $backgrounds = $this->text->backgroundRow($row);
+
             $line = '';
             $currentForeground = null;
             $currentBackground = null;
 
-            for ($column = 0; $column < $this->columns; ++$column) {
-                $foreground = $this->foreground[$row][$column];
-                $background = $this->background[$row][$column];
+            for ($column = 0; $column < $this->text->columns; ++$column) {
+                $foreground = $foregrounds[$column] ?? null;
+                $background = $backgrounds[$column] ?? null;
 
                 if ($foreground !== $currentForeground || $background !== $currentBackground) {
                     $line .= AnsiPalette::RESET;
-                    $line .= $background === null ? '' : $palette->background($background);
-                    $line .= $foreground === null ? '' : $palette->foreground($foreground);
+                    $line .= $this->code($palette, $background, foreground: false);
+                    $line .= $this->code($palette, $foreground, foreground: true);
                     $currentForeground = $foreground;
                     $currentBackground = $background;
                 }
 
-                $line .= $this->glyphs[$row][$column];
+                $line .= $glyphs[$column] ?? ' ';
             }
 
             $lines[] = $line . AnsiPalette::RESET;
         }
 
         return implode("\r\n", $lines);
+    }
+
+    /**
+     * Kod koloru albo pusty napis — dla komórki bez roli i dla roli, której
+     * wołający nie podał w mapie. Ta druga sytuacja nie zdarza się w aplikacji
+     * (renderer składa mapę z `Role::cases()`), a milczenie jest tu lepsze od
+     * wyjątku: brakująca rola zostawia komórkę w kolorze domyślnym terminala,
+     * czyli klatkę czytelną zamiast przerwanego rysowania.
+     */
+    private function code(AnsiPalette $palette, ?Role $role, bool $foreground): string
+    {
+        $color = $role === null ? null : ($this->colors[$role->name] ?? null);
+
+        if ($color === null) {
+            return '';
+        }
+
+        return $foreground ? $palette->foreground($color) : $palette->background($color);
     }
 }

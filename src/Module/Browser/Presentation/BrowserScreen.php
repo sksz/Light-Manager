@@ -33,7 +33,10 @@ use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\Split;
 use LightManager\Presentation\Ui\ComponentInterface;
+use LightManager\Presentation\Ui\CopiesContent;
+use LightManager\Presentation\Ui\CopyContent;
 use LightManager\Presentation\Ui\DeclaresFocus;
+use LightManager\Presentation\Ui\DragsOwnContent;
 use LightManager\Presentation\Ui\DrawsOwnFrame;
 use LightManager\Presentation\Ui\FocusHint;
 use LightManager\Presentation\Ui\KeyBinding;
@@ -57,7 +60,13 @@ use LightManager\Presentation\Ui\SplitAxis;
  * `BrowserState`, bo katalog zmienia nie tylko klawisz, ale i komenda
  * `browser.jump`, a dwa miejsca publikacji rozjechałyby się o klatkę.
  */
-final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFocus, AcceptsPointer
+final class BrowserScreen implements
+    ScreenInterface,
+    DrawsOwnFrame,
+    DeclaresFocus,
+    AcceptsPointer,
+    DragsOwnContent,
+    CopiesContent
 {
     /** Ile wierszy zapasu zostawić między zaznaczeniem a krawędzią listy. */
     public const SCROLL_MARGIN = 2;
@@ -324,6 +333,15 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
     }
 
     /**
+     * Przeciągnięcie granicy podziału należy do ekranu, a nie do zaznaczania
+     * treści (krok 56) — rdzeń pyta o to raz, w `InputHandler`.
+     */
+    public function isDraggingOwn(): bool
+    {
+        return $this->panes->split()->isDragging();
+    }
+
+    /**
      * Kliknięcie, przeciągnięcie i kółko w liście plików — miara kroku 55
      * („kliknięcie w wiersz listy stawia na nim kursor we wszystkich trzech
      * torach”).
@@ -546,6 +564,48 @@ final class BrowserScreen implements ScreenInterface, DrawsOwnFrame, DeclaresFoc
     private function splitsIn(Rect $zone): bool
     {
         return $this->splits() && $zone->rows >= 3 && Split::fits($zone, $this->axis());
+    }
+
+    /**
+     * Co u przeglądarki znaczy „skopiuj to, na czym stoję": **ścieżki wpisów
+     * zaznaczonych wielokrotnie** (krok 57, D101 nr 1).
+     *
+     * To jest **drugie** z trzech źródeł kopiowania i jedyne, którego rdzeń nie
+     * umie przeczytać sam: `ModuleContext` niesie o zbiorze trzy liczby — ile,
+     * ile bajtów, ile katalogów — i **ani jednej nazwy** (krok 43). Pierwsze
+     * źródło (zaznaczenie klatki) i trzecie (ścieżka wpisu pod kursorem) są
+     * rdzeniowe, więc tej metody nie dotyczą.
+     *
+     * Zbiór pusty oddaje `null`, a nie ścieżkę wpisu pod kursorem, i jest to ta
+     * sama granica, którą postawiła kwerenda `browser.marked`: reguła 15c
+     * („pusty zbiór znaczy wpis pod kursorem") obowiązuje **czynności**, bo te
+     * muszą wiedzieć, na czym pracować. Tu odpowiedź ma być prawdziwa —
+     * zaznaczono zero wpisów — a wpisem pod kursorem zajmie się rdzeń krok dalej.
+     *
+     * Ścieżki, nie nazwy: napis wklejony do innej aplikacji ma się nadawać do
+     * użycia, a `raport.txt` bez katalogu nie nadaje się do niczego. Zaznaczenie
+     * z drzewa nie wchodzi, bo zbiór należy do **listy** (reguła 15c) — a to,
+     * czym panel jest teraz, wie `BrowserPanes`, nie ten ekran.
+     */
+    public function copyable(): ?CopyContent
+    {
+        $marked = $this->queries->marked();
+
+        if ($marked->isEmpty()) {
+            return null;
+        }
+
+        $directory = rtrim($this->queries->pointedDirectory()->path()->value, '/');
+        $paths = [];
+
+        foreach ($marked->names() as $name) {
+            $paths[] = $directory . '/' . $name;
+        }
+
+        return new CopyContent(
+            implode("\n", $paths),
+            Message::info($this->translator->plural('module.browser.clipboard.copied', count($paths))),
+        );
     }
 
     /**

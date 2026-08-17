@@ -29,6 +29,7 @@ use LightManager\Application\UseCase\RestoreDefaultSettingsUseCase;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Cli\Query\CoreReader;
+use LightManager\Presentation\Ui\AcceptsPaste;
 use LightManager\Presentation\Ui\AcceptsPointer;
 use LightManager\Presentation\Ui\Component\Button;
 use LightManager\Presentation\Ui\Component\Choice;
@@ -72,7 +73,7 @@ use LightManager\Presentation\Ui\ScrollWindow;
  * a nie w `TextInput` — pole wyszło z kroku 19 jako komponent bez trybów i
  * dokładanie mu ich teraz kazałoby oknu komend trzymać je stale włączone.
  */
-final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus, AcceptsPointer
+final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus, AcceptsPointer, AcceptsPaste
 {
     /**
      * Ile wierszy nad treścią zajmuje oprawa: pasek zakładek i odstęp pod nim.
@@ -429,6 +430,26 @@ final class SettingsScreen implements ScreenInterface, Resettable, DeclaresFocus
         }
 
         return $bindings;
+    }
+
+    /**
+     * Treść schowka w edytowanej pozycji tekstowej — **tylko w trakcie edycji**
+     * (krok 57).
+     *
+     * Pozycja z sekretem (reguła 11y) przyjmuje wklejenie jak każda inna, i to
+     * jest zamierzone: maskowanie dotyczy rysowania, nie treści, a token
+     * rejestru obrazów jest dokładnie tą wartością, której nikt nie przepisuje
+     * z ręki. Treść schowka **nie trafia przy tym nigdzie poza pole** — do
+     * `settings.json` wchodzi dopiero po `Enter`ze, tą samą drogą, co wartość
+     * wpisana z klawiatury.
+     */
+    public function paste(string $text): bool
+    {
+        if ($this->editing === null) {
+            return false;
+        }
+
+        return $this->input?->paste($text) ?? false;
     }
 
     /**

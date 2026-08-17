@@ -24,6 +24,7 @@ use LightManager\Application\Query\QueryResult;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
 use LightManager\Domain\ValueObject\Message;
+use LightManager\Presentation\Ui\AcceptsPaste;
 use LightManager\Presentation\Ui\Command\OpensOverlay;
 use LightManager\Presentation\Ui\Component\Column;
 use LightManager\Presentation\Ui\Component\ListRow;
@@ -32,6 +33,8 @@ use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\Table;
 use LightManager\Presentation\Ui\Component\TableRow;
 use LightManager\Presentation\Ui\Component\TextInput;
+use LightManager\Presentation\Ui\CopiesContent;
+use LightManager\Presentation\Ui\CopyContent;
 use LightManager\Presentation\Ui\HudLayout;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\NeedsTime;
@@ -64,7 +67,7 @@ use LightManager\Presentation\Ui\ScrollWindow;
  * jako tabela z nagłówkiem. Historii kwerendy nie mają i mieć nie będą: historia
  * zapisuje czynność, a nie pytanie.
  */
-final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
+final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime, AcceptsPaste, CopiesContent
 {
     private const ID = 'command';
 
@@ -224,6 +227,61 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime
             KeyBinding::of([Key::Escape], 'command.key.close'),
             ...$this->input->bindings(),
         ];
+    }
+
+    /**
+     * Treścią tego okna jest **odpowiedź kwerendy**, gdy jakaś stoi (krok 57).
+     *
+     * Druga połowa spłaty długu z D100, obok pytania w `ConfirmOverlay`: okno
+     * kwerend pokazuje identyfikatory kontenerów, odciski i ścieżki, czyli
+     * dokładnie te napisy, których nikt nie przepisuje z ręki — a zaznaczyć ich
+     * myszą nie sposób, dopóki nie ma zaznaczania w oknie (krok 76).
+     *
+     * Kopiuje się **cała odpowiedź**, a nie wiersz pod kursorem, i to nie jest
+     * uproszczenie: wiersz wskazuje kursor listy podpowiedzi, który przy jednym
+     * wierszu odpowiedzi wskazuje **pole**, a nie wiersz (`drawRecord()` liczy
+     * pozycje z pól). Kopiowanie „tego, na czym stoi kursor" znaczyłoby więc
+     * w dwóch kształtach odpowiedzi dwie różne rzeczy. Wiersze rozdziela
+     * tabulator, bo tak wkleja się je do arkusza i do powłoki.
+     *
+     * Podpowiedzi się **nie kopiują** — spis komend jest widokiem na rejestr,
+     * a nie odpowiedzią na pytanie.
+     */
+    public function copyable(): ?CopyContent
+    {
+        $rows = $this->result?->rows() ?? [];
+
+        if ($rows === []) {
+            return null;
+        }
+
+        $lines = [implode("\t", array_keys($rows[0]))];
+
+        foreach ($rows as $row) {
+            $lines[] = implode("\t", array_map(static fn (string|int|bool $value): string => (string) $value, $row));
+        }
+
+        return new CopyContent(
+            implode("\n", $lines),
+            Message::info($this->translator->plural('clipboard.copied.answer', count($rows))),
+        );
+    }
+
+    /**
+     * Treść schowka w wierszu polecenia (krok 57).
+     *
+     * Pamięć podpowiedzi gaśnie tak samo, jak przy wpisanym znaku: wklejona
+     * nazwa komendy ma dać te same podpowiedzi, co nazwa wpisana z klawiatury.
+     */
+    public function paste(string $text): bool
+    {
+        $accepted = $this->input->paste($text);
+
+        if ($accepted) {
+            $this->cache = null;
+        }
+
+        return $accepted;
     }
 
     public function handle(KeyPress $key): OverlayOutcome

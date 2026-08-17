@@ -8,11 +8,13 @@ use LightManager\Application\Port\FrameRendererPort;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Port\ViewportPort;
 use LightManager\Application\Ui\Frame;
+use LightManager\Application\Ui\FrameText;
 use LightManager\Application\Ui\Plane;
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
 use LightManager\Domain\ValueObject\MessageTone;
+use LightManager\Presentation\Ui\Component\Marquee;
 use LightManager\Presentation\Ui\Component\Panel;
 use LightManager\Presentation\Ui\Component\StatusBar;
 use LightManager\Presentation\Ui\DeclaresFocus;
@@ -131,11 +133,60 @@ final class FrameComposer
             $this->content($layout, $screen, $state, $header, $ownFrame !== [], $hints),
         ];
 
+        foreach ($this->selection($state, $screen, $planes, $rows, $columns, $overlay !== null) as $plane) {
+            $planes[] = $plane;
+        }
+
         if ($overlay !== null) {
             $planes[] = $this->overlay($overlay, $rows, $columns, $state->now());
         }
 
         $this->renderer->render(new Frame($planes));
+    }
+
+    /**
+     * **Czwarta płaszczyzna: zaznaczenie** — składana wyłącznie wtedy, gdy
+     * zaznaczenie istnieje (krok 56).
+     *
+     * Stoi **między treścią a oknem nakładanym**, bo zaznacza się to, co widać,
+     * a okna nakładanego nie zaznacza się wcale: jego otwarcie kasuje
+     * zaznaczenie tą samą regułą, co zmiana ekranu i zmiana rozmiaru okna.
+     * Pytanie o to kasowanie pada tutaj i jest to jedyne miejsce, w którym widać
+     * wszystkie trzy zmiany naraz — ekran, okno i rozmiar przechodzą przez
+     * składanie klatki co takt.
+     *
+     * Warstwa tekstowa liczy się **dopiero teraz i tylko tutaj**: klatka bez
+     * zaznaczenia nie płaci za nią ani jednym przejściem po prymitywach. Buduje
+     * się ją z płaszczyzn **już złożonych**, więc zaznaczenie czyta dokładnie to,
+     * co narysowano — a nie to, co miało być narysowane.
+     *
+     * @param list<Plane> $planes płaszczyzny złożone do tej pory
+     *
+     * @return list<Plane>
+     */
+    private function selection(
+        LoopState $state,
+        ScreenInterface $screen,
+        array $planes,
+        int $rows,
+        int $columns,
+        bool $overlayOpen,
+    ): array {
+        $selection = $state->selection();
+        $selection->useFrame($screen->id(), $overlayOpen, $rows, $columns);
+
+        $bounds = $selection->bounds();
+
+        if ($bounds === null) {
+            $state->useFrameText(null);
+
+            return [];
+        }
+
+        $text = FrameText::of(new Frame($planes), $rows, $columns);
+        $state->useFrameText($text);
+
+        return [new Plane('selection', $bounds, Marquee::over($text, $bounds))];
     }
 
     /**

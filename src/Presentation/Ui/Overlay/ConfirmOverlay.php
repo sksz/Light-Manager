@@ -11,9 +11,12 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Rect;
 use LightManager\Application\Ui\Role;
+use LightManager\Domain\ValueObject\Message;
 use LightManager\Presentation\Ui\Component\Button;
 use LightManager\Presentation\Ui\Component\Dialog;
 use LightManager\Presentation\Ui\Component\Label;
+use LightManager\Presentation\Ui\CopiesContent;
+use LightManager\Presentation\Ui\CopyContent;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\OverlayInterface;
 use LightManager\Presentation\Ui\OverlayOutcome;
@@ -59,7 +62,7 @@ use LightManager\Presentation\Ui\OverlayOutcome;
  * bezpiecznie; okno, z którego nie da się wyjść inaczej niż odpowiadając,
  * byłoby gorsze od pytania, które można zignorować.
  */
-final class ConfirmOverlay implements OverlayInterface
+final class ConfirmOverlay implements OverlayInterface, CopiesContent
 {
     private const MARGIN_ROWS = 2;
 
@@ -237,6 +240,37 @@ final class ConfirmOverlay implements OverlayInterface
         }
 
         return OverlayOutcome::close();
+    }
+
+    /**
+     * Treścią tego okna jest **jego pytanie** (krok 57, D101 nr 4).
+     *
+     * Spłaca połowę długu nazwanego w D100: treści okna nakładanego nie da się
+     * zaznaczyć myszą, bo otwarcie okna kasuje zaznaczenie, a kliknięcie w okno
+     * zużywa okno — więc dopóki nie ma zaznaczania w oknie (krok 76), jedyną
+     * drogą do tej treści jest `Alt`+`c`.
+     *
+     * Odbiorcą tej metody jest **jedno konkretne pytanie**, a nie ozdoba
+     * ogólności: zaufanie nieznanemu kluczowi hosta niesie odcisk `SHA256:…`,
+     * którego nie widać nigdzie indziej w aplikacji (krok 48) — a odcisk trzeba
+     * z czymś porównać, czyli gdzieś wkleić. To samo zdanie stało już raz
+     * w regule 10, przy zawijaniu pytania: *zanim ucniesz treść pytania, sprawdź,
+     * czy użytkownik ma ją skąd wziąć.*
+     *
+     * Oddajemy pytanie w postaci **złożonej, nierozłamanej** — bo łamanie należy
+     * do szerokości okna, a nie do treści.
+     *
+     * Typ zwracany jest **węższy od kontraktu** i mówi prawdę o tym oknie: okno
+     * potwierdzenia bez pytania nie istnieje, bo pytanie jest jego jedynym
+     * powodem. `null` zostawiamy tym, u których treść bywa (`BrowserScreen` bez
+     * zaznaczenia, okno komend bez odpowiedzi kwerendy).
+     */
+    public function copyable(): CopyContent
+    {
+        return new CopyContent(
+            $this->question(),
+            Message::info($this->translator->translate('clipboard.copied.question')),
+        );
     }
 
     /**

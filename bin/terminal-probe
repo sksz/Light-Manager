@@ -3,6 +3,7 @@
 
 declare(strict_types=1);
 
+use LightManager\Application\Dto\ClipboardText;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Dto\PointerEvent;
@@ -10,6 +11,7 @@ use LightManager\Domain\ValueObject\RendererMode;
 use LightManager\Infrastructure\Imagick\ImagickCapabilityService;
 use LightManager\Infrastructure\Support\InfrastructureException;
 use LightManager\Infrastructure\Terminal\SixelCapabilityService;
+use LightManager\Infrastructure\Terminal\TerminalClipboardService;
 use LightManager\Infrastructure\Terminal\TerminalService;
 
 $autoload = __DIR__ . '/../vendor/autoload.php';
@@ -25,7 +27,11 @@ require $autoload;
 echo 'Podgląd wejścia terminala — naciskaj klawisze, wyjście: q albo Ctrl+C.' . PHP_EOL;
 echo 'Każda sekwencja escape (strzałki, Home/End, PageUp/PageDown) powinna dać ' . PHP_EOL;
 echo 'dokładnie jeden wiersz, a nie serię pojedynczych znaków.' . PHP_EOL;
-echo 'Mysz jest raportowana w trybie SGR — klikaj, przeciągaj i kręć kółkiem.' . PHP_EOL . PHP_EOL;
+echo 'Mysz jest raportowana w trybie SGR — klikaj, przeciągaj i kręć kółkiem.' . PHP_EOL;
+echo 'Schowek (krok 57): "c" pyta terminal o zawartość schowka przez OSC 52,' . PHP_EOL;
+echo '"p" kładzie w nim próbkę rosnącej długości — tak mierzy się próg obcięcia.' . PHP_EOL;
+echo 'Terminal bez obsługi odczytu nie odpowie NIC i to jest właśnie ta cisza,' . PHP_EOL;
+echo 'przed którą broni termin prośby w aplikacji.' . PHP_EOL . PHP_EOL;
 
 try {
     $terminal = TerminalService::getInstance();
@@ -43,6 +49,9 @@ printf(
     ImagickCapabilityService::getInstance()->supportsSixelCoder() ? 'dostępny' : 'niedostępny',
     PHP_EOL . PHP_EOL,
 );
+
+// Długość próbki schowka podwaja się z każdym naciśnięciem „p".
+$probeLength = 1024;
 
 while (true) {
     // Handler sygnału nie kończy już procesu (krok 09) — Ctrl+C zamyka tylko
@@ -82,13 +91,69 @@ while (true) {
         continue;
     }
 
+    // Odpowiedź terminala o schowku (krok 57). To jest jedyne miejsce, w którym
+    // widać ją **surowo**: w aplikacji treść idzie wprost do pola tekstowego
+    // z ogniskiem i nigdzie poza nie, więc podglądu z niej nie ma (i mieć nie
+    // powinna — reguła „jedno miejsce docelowe").
+    if ($event instanceof ClipboardText) {
+        printf(
+            'ClipboardText bajtów: %-8d treść: %s%s',
+            strlen($event->text),
+            substr(str_replace(["\n", "\r"], ['\\n', '\\r'], $event->text), 0, 60),
+            PHP_EOL,
+        );
+
+        continue;
+    }
+
     if (!$event instanceof KeyPress) {
         continue;
     }
 
-    printf('%-12s bajty: %s%s', $event->key->name, bin2hex($event->raw), PHP_EOL);
+    // Modyfikatory wypisujemy **przy klawiszu**, nie tylko przy wskaźniku, i to
+    // nie jest ozdoba: bez nich `c` i `Alt`+`c` dają identyczny wiersz, bo
+    // `KeyPress::alt()` niesie w `raw` samą literę. Różnicę widać wyłącznie
+    // w znacznikach — a to ona przesądza, czy skrót zadziała (krok 57: pod
+    // XTermem bez zasobu `metaSendsEscape` Alt nie dochodzi wcale).
+    printf(
+        '%-12s bajty: %-10s%s%s',
+        $event->key->name,
+        bin2hex($event->raw),
+        $event->ctrl || $event->alt || $event->shift ? ' modyfikatory: ' . implode('+', array_keys(array_filter([
+            'Ctrl' => $event->ctrl,
+            'Alt' => $event->alt,
+            'Shift' => $event->shift,
+        ]))) : '',
+        PHP_EOL,
+    );
 
-    if ($event->key === Key::Character && $event->raw === 'q') {
+    if ($event->key !== Key::Character) {
+        continue;
+    }
+
+    if ($event->raw === 'c') {
+        TerminalClipboardService::getInstance()->requestText();
+        echo '  → zapytano o schowek (OSC 52 z pytajnikiem); odpowiedź, jeśli' . PHP_EOL;
+        echo '    przyjdzie, pojawi się poniżej jako ClipboardText.' . PHP_EOL;
+
+        continue;
+    }
+
+    if ($event->raw === 'p') {
+        // Próg obcięcia mierzy się **rosnącą próbką**, a nie jedną: XTerm nie
+        // podaje swojego limitu łańcucha OSC i nie da się go zapytać, więc
+        // jedyną drogą jest położyć w schowku coraz dłuższy napis i sprawdzić
+        // (klawiszem „c" albo wklejeniem w innej aplikacji), ile z niego doszło.
+        $length = $probeLength;
+        $probeLength *= 2;
+        $problem = TerminalClipboardService::getInstance()->put(str_repeat('A', $length));
+
+        printf('  → położono próbkę %d B%s%s', $length, $problem === null ? '' : ' — odmowa: ' . $problem, PHP_EOL);
+
+        continue;
+    }
+
+    if ($event->raw === 'q') {
         break;
     }
 }

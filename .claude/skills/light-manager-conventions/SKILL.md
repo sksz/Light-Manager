@@ -330,8 +330,9 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     i wyłącznie na granicy jednostki kodowej, bo `0A 00` wypada w UTF-16LE także
     w środku pary innych znaków, a kotwica przesunięta o bajt to pół znaku.
 11j. **Słownik wejścia zna trzy modyfikatory, rozłącznie** (kroki 29 i 44):
-    `ctrl` (skróty modułów, krok 19) i `alt` (zawijanie w podglądzie, cofanie) —
-    oba **wyłącznie przy literach** — oraz `shift` (druga droga usunięcia,
+    `ctrl` (skróty modułów, krok 19) i `alt` (zawijanie w podglądzie, cofanie,
+    a od kroku 57 schowek: `Alt`+`c` i `Alt`+`v`) — oba **wyłącznie przy
+    literach** — oraz `shift` (druga droga usunięcia,
     zaznaczanie zakresem) **wyłącznie przy klawiszach nazwanych**: litera
     z `Shift`em przychodzi z obu torów jako inna litera, więc znacznik przy
     znaku nie miałby czego nieść. Kombinacji modyfikatorów nie ma i nie
@@ -349,17 +350,46 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     ta reguła o nim mówi: rozłączności nie ma tam gdzie zastosować, bo wskaźnik
     nie ma ani litery, ani nazwy — oba protokoły podają wszystkie trzy
     niezależnie i tak też stoją w `PointerEvent`.
-11k. **Słownik prymitywów otwarto raz i ma osiem kształtów** (krok 30, D59).
-    Ósmy to `TextMark` — **napis na własnym tle**, dla dopasowania filtra. Zgoda
+    **Rozłączność obroniła się w kroku 57 pomiarem, nie zasadą** (D95 nr 8):
+    schowek miał wisieć na `Ctrl`+`Alt`+literze, a tryb surowy zostawia włączone
+    `isig` i `iexten` (sprawdzone w prawdziwym pty: `intr = ^C`, `lnext = ^V`).
+    `Ctrl`+`Alt`+`c` wysyła przez to `ESC` + `0x03`, a sterownik tty zamienia
+    `0x03` na SIGINT **zanim aplikacja cokolwiek przeczyta** — czyli skrót zamyka
+    program; `^V` przy `iexten` połyka następny bajt. Wariant „tryb surowy rośnie
+    o `-isig -iexten`" był rozważany i **odrzucony**: zmieniałby gwarancję kroku
+    06 dla wygody jednego skrótu. Wniosek na przyszłość: **zanim powiesisz skrót
+    na modyfikatorze, sprawdź w pty, czy sterownik tty go do ciebie dopuści.**
+    **`Alt`+litera wymaga pod XTermem zasobu `metaSendsEscape: true`** i to jest
+    defekt wykryty dopiero w kroku 57, przy pierwszym oglądaniu klatki pod
+    XTermem — czyli **`Alt`+`z` z kroku 29 i `Alt`+`u` z kroku 44 nie działały tam
+    od chwili powstania**. Domyślnie `metaSendsEscape` jest `false`, a wtedy
+    rozstrzyga `eightBitInput` i `Alt`+`c` przychodzi jako **jeden znak
+    drukowalny** `0x63|0x80`, czyli `ã` (zmierzone `bin/terminal-probe`: bajty
+    `c3 a3`; `Alt`+`v` → `c3 b6`, `Alt`+`z` → `c3 ba`). Naprawa idzie **zasobem
+    terminala**, nie parserem, i nie jest to wybór wygody: użytkownik wpisujący
+    `ã` w nazwę pliku wysyła **dokładnie te same bajty**, więc parser
+    rozpoznający tę postać jako `Alt` odbierałby możliwość wpisania znaków
+    diakrytycznych. Zasób stoi w `bin/run.sh` i `bin/run-terminal-probe.sh`; inne
+    emulatory (WezTerm, foot, mlterm) wysyłają `ESC`+literę domyślnie. Podgląd
+    wejścia wypisuje odtąd **modyfikatory także przy klawiszu** — bez nich `c`
+    i `Alt`+`c` dają identyczny wiersz, bo `KeyPress::alt()` niesie w `raw` samą
+    literę.
+11k. **Słownik prymitywów otwarto raz i ma siedem kształtów** (krok 30, D59;
+    **liczba sprostowana w kroku 56** — reguła mówiła „osiem”, a implementacji
+    `Primitive` było od początku siedem: `TextRun`, `TextMark`, `RoundRect`,
+    `Bar`, `Bitmap`, `Scrollbar`, `CornerBrackets`. Pomyłka pochodzi z kroku 30,
+    który nazwał `TextMark` ósmym; sprawdza się to jednym `grep`em).
+    Ostatni to `TextMark` — **napis na własnym tle**, dla dopasowania filtra. Zgoda
     użytkownika (D48) dotyczyła otwarcia, nie kształtu, a kształt rozstrzygnął
     się dopiero przy rozpisaniu: „samo tło pod fragmentem” byłoby **synonimem**
     `Bar`a z `Weight::Fill`, więc nowy prymityw musiał związać pismo z tłem
     w jednej rzeczy. Zyski: jedna zapamiętana bitmapa i jeden `compositeImage`
     zamiast dwóch (Sixel), tło **i** kolor pisma tej samej komórki (tekst),
     `TextRun` nietknięty. Reguła na przyszłość: **zanim dołożysz kształt,
-    sprawdź, czy nie jest którymś z siedmiu pod inną nazwą** — precedensem jest
-    karetka `TextInput` z kroku 19, która podświetlenie udała parą istniejących
-    prymitywów. Zakresy dopasowania niesie **wiersz** (`TableRow::$marks`, klucz
+    sprawdź, czy nie jest którymś z istniejących pod inną nazwą** — precedensy są
+    dwa: karetka `TextInput` z kroku 19, która podświetlenie udała parą
+    istniejących prymitywów, i prostokąt zaznaczenia z kroku 56, który jest
+    `TextMark`iem na wiersz. Zakresy dopasowania niesie **wiersz** (`TableRow::$marks`, klucz
     = numer kolumny, pusto domyślnie), liczone **w znakach, nie w bajtach**;
     przycięcie do widocznej treści należy do komponentu, bo tylko on wie, ile
     z napisu zostało.
@@ -785,6 +815,74 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     przeciągania (reguła kroku 37 o rozmiarze okna). Pozycja ustawień należy do
     **modułu** (reguła 11c), a jej deklaracja i wiązanie stoją raz w rdzeniu
     (`Presentation\Cli\SplitSetting`).
+11ź. **Klatka umie oddać swoją treść jako znaki; rachunek jest jeden i mieszka
+    w `Application/Ui`** (krok 56, D100). `FrameText::of(Frame, rows, columns)`
+    zamienia prymitywy w **siatkę znaków wraz z rolami** — po jednym przejściu,
+    z tą samą degradacją kształtów, którą miał od kroku 18 renderer tekstowy
+    (obwódka to znaki rysunkowe, miniatura to sam podpis, suwak i nawias narożny
+    **nie mają odpowiednika**). Renderer tekstowy stoi odtąd **na nim** i dokłada
+    wyłącznie paletę; `CellBuffer` jest tym, co zostało z jego dawnej roli.
+    Zakaz, na którym to stoi: **drugiego rachunku „prymityw → znak” nie wolno
+    napisać** — dwie kopie rozjechałyby się przy pierwszym nowym kształcie,
+    a rozjazd byłby niewidoczny, bo zaznaczenie oddawałoby inny tekst niż ten na
+    ekranie i tylko w tym jednym kształcie. Pilnuje tego
+    `tests/Application/Ui/FrameTextTest.php`, który składa warstwę z **każdego**
+    kształtu słownika.
+    **Zaznaczenie treści jest własnością rdzenia, nie ekranu**: `SelectionState`
+    (piąta klasa pamiętająca coś między klatkami, po `ScrollWindow`,
+    `SectionState`, `SplitState` i `TreeState`) mieszka w `LoopState`, bo
+    prostokąt przecina panele, ekrany i okna nakładane — dotyczy **klatki**.
+    Jest **prostokątne, nie przepływowe**, i to nie jest uproszczenie: ekran
+    składa się z paneli stojących obok siebie, więc zaznaczenie „od punktu do
+    punktu” zabrałoby ze sobą obwódkę panelu sąsiedniego i jego treść. Kasuje się
+    przy **zmianie ekranu, otwarciu okna nakładanego i zmianie rozmiaru okna**
+    (pyta o to `FrameComposer`, raz na takt, bo tylko tam widać wszystkie trzy) —
+    a przewijanie go **nie kasuje**, bo treść przewinięta pod prostokątem jest
+    nową treścią zaznaczenia. Kliknięcie od przeciągnięcia odróżnia **ruch, a nie
+    modyfikator** (`Shift`+przeciągnięcie zostaje ucieczką do zaznaczania
+    natywnego terminala), a przeciągnięcie zaczęte na granicy podziału należy do
+    ekranu: mówi to zdolnością `DragsOwnContent`, o którą `InputHandler` pyta
+    w jednym miejscu. Rysuje się `TextMark`ami — **jeden na wiersz**, tło
+    `Role::Marquee` (trzynasta rola), pismo `Role::SelectionText` — więc słownik
+    prymitywów zostaje zamknięty (11k). Czwarta płaszczyzna klatki powstaje
+    **wyłącznie wtedy, gdy zaznaczenie istnieje**; klatka bez niego nie płaci ani
+    jednym przejściem po prymitywach.
+11ż. **Schowek czyta się wyłącznie na polecenie użytkownika, a odczytana treść
+    ma jedno miejsce docelowe** (krok 57, D101). `Application\Port\ClipboardPort`
+    jest **portem rdzenia** — zdolnością toru wyjścia, jak `ViewportPort`, a nie
+    wyjątkiem od reguły 15 — z dwiema implementacjami: `OSC 52` dla obu torów
+    terminalowych i `glfwSetClipboardString()`/`glfwGetClipboardString()` dla okna.
+    Metody są **asymetryczne i taka ma zostać ich nazwa**: `put()` odpowiada
+    z wywołania, `requestText()` **nie oddaje tekstu**, bo w terminalu nie ma go
+    skąd wziąć — odpowiedź przychodzi `ClipboardText`em na wejściu, **trzecią
+    postacią `InputEvent`**, klatkę albo dwie później albo nigdy.
+    Cztery reguły odczytu: **prosi ten, kto ma ognisko** (`AcceptsPaste`; bez pola
+    tekstowego pytanie nie pada w ogóle), **rdzeń pamięta prośbę, a nie
+    proszącego** (znacznik z terminem w `LoopState`; odbiorcę pyta się na nowo przy
+    doręczeniu, więc nie ma referencji do kasowania), **pytanie ma termin**
+    (ćwierć sekundy — terminal bez obsługi odczytu milczy, a nie odmawia; pytanie
+    o wygaśnięcie pada raz na takt w `GameLoop`) i **rozbiór `OSC` należy do
+    parsera wejścia**. To ostatnie jest jedynym miejscem, w którym
+    `parseAfterTimeout()` **nie rozstrzyga**, i wolno tak wyłącznie przy pełnym
+    znaczniku `ESC ] 5 2 ;` w buforze: bez tego warunku samo `Alt`+`]` zamurowałoby
+    wejście, czekając na zakończenie łańcucha, którego nikt nie wysłał.
+    **Cena tej drogi jest nazwana i zamieniona na trzy zobowiązania** (D95 nr 5):
+    `bin/run.sh` musiał zdjąć z `disallowedWindowOps` **oba** wpisy —
+    `SetSelection` i `GetSelection` — a drugi pozwala aplikacji w terminalu
+    przeczytać **cudzy** schowek. Stąd: czyta się tylko na polecenie; treść ma
+    jedno miejsce docelowe (i pilnuje tego kształt kodu, nie komentarz — jedna
+    droga wyjścia z parsera); `bin/run.sh` tłumaczy **oba** zwężenia listy. Ten sam
+    zakaz obowiązuje testy: **żaden przebieg nie dotyka schowka osoby, która go
+    uruchamia** — drogą jest `tests/Support/StubClipboard`, bo obie prawdziwe
+    implementacje po cudzym schowku piszą.
+    Kopiowanie ma **trzy źródła w ustalonej kolejności i trzy różne zdania**:
+    zaznaczenie klatki (56) → `CopiesContent` ekranu albo okna → ścieżka wpisu
+    z `ModuleContext` (49). Kolejność rozstrzyga rdzeń, bo tylko on widzi wszystkie
+    trzy; zdolność jest **jedna dla ekranu i okna** (odpowiedź jest daną, nie
+    skutkiem zdarzenia — różnica wobec pary `AcceptsPointer`). Zdanie mówi **co**
+    skopiowano: trzy treści po tym samym klawiszu są nierozróżnialne, dopóki zdanie
+    jest jedno. Nowe źródło kopiowania to **deklaracja `CopiesContent`**, nigdy
+    gałąź w `InputHandler`.
 12. **Ekran rysuje dwie strefy, nie jedną** (krok 21, D42; krok 47, D78):
     `header()` oddaje `?ScreenZone` — klucz etykiety obwódki plus komponent
     z treścią — a `null` znaczy „strefa nie powstaje, jej wiersze idą do środka”.
@@ -815,6 +913,15 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     ostatniego odbiorcę, wychodzi z rdzenia, a nie zostaje na zapas. Tak zniknął
     pas podglądu z kontraktu ekranu — decyzja D76 zostawiła go bez użytkownika
     i zapisała to jako dług, a nie jako wyjątek.
+    **Drugi jawny wyjątek, z tą samą jawną zgodą i z terminem: zaznaczanie
+    treści** (krok 56, D95 nr 9). Zaznaczenie dowiezione przed schowkiem było
+    funkcją, której nie ma gdzie skopiować — **odbiorcę wniósł krok 57
+    i dług jest spłacony**: `Alt`+`c` bierze zaznaczenie jako **pierwsze** z trzech
+    źródeł. Zgoda padła z ceną wypisaną przed wyborem: zamiana kolejności kroków
+    56 i 57 usuwała problem bez żadnego kosztu i została odrzucona na rzecz
+    kolejności z tytułu fazy. Termin był przez to **jeden krok**, a nie trzy jak
+    przy `ProgressBar`ze — i tak samo jak tam, **nie jest to precedens**: trzeci
+    wyjątek wymaga trzeciej zgody.
 14. PHPStan `level: max`. Zamiast obniżać poziom — punktowy
     `@phpstan-ignore-line` z komentarzem uzasadniającym.
 15. **Nowa funkcja to moduł w `src/Module/`, nie zmiana w rdzeniu** (krok 20).
@@ -1026,10 +1133,19 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
 (Application) → `...Service` (Infrastructure, Singleton). `...UseCase`
 (Application). `...Exception` (Domain oraz Infrastructure). DTO opisujące
 zdarzenia wejściowe — `Application/Dto` (np. `KeyPress`, enum `Key`).
+Schowek — `ClipboardPort` (Application), `TerminalClipboardService`
+w `Infrastructure/Terminal` i `GlfwClipboardService` w `Infrastructure/Glfw`
+(katalog po torze, nie po funkcji); treść jako `Application/Dto/ClipboardText`,
+obok `KeyPress` i `PointerEvent`, bo jest trzecią postacią tego samego zdarzenia
+wejściowego. Zdolności schowka — `CopiesContent`, `CopyContent` i `AcceptsPaste`
+— w `Presentation/Ui`, obok `AcceptsPointer` i `DeclaresFocus`.
 Wartości opisujące **obraz** (`Frame`, `Plane`, `Rect`, `Size`, `Role`,
-`Corner` i prymitywy `TextRun`, `RoundRect`, `CornerBrackets`, `Bar`, `Bitmap`,
-`Scrollbar`) leżą w `Application/Ui` — przechodzą przez `FrameRendererPort`,
-więc muszą być widoczne dla `Infrastructure`. Wartości opisujące
+`Corner` i prymitywy `TextRun`, `TextMark`, `RoundRect`, `CornerBrackets`,
+`Bar`, `Bitmap`, `Scrollbar`) leżą w `Application/Ui` — przechodzą przez
+`FrameRendererPort`, więc muszą być widoczne dla `Infrastructure`. Tam leży też
+**`FrameText`** (krok 56): drugie oblicze tej samej klatki, czyli jej treść
+zapisana znakami — pyta o nie i renderer tekstowy, i zaznaczanie w dwóch
+pozostałych torach. Wartości opisujące
 **konfigurację** (`Settings`, `SettingKey`, `SettingsTab`, `SettingsTabKind`,
 `SettingsCursor`, `Language`) leżą w `Application/Dto`. Kontrakt modułu —
 `ModuleInterface`, `ModuleShortcut`, `ModuleContext`, `ModuleSetting`,

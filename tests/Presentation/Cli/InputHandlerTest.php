@@ -593,7 +593,18 @@ final class InputHandlerTest extends TestCase
     public function testFullscreenKeyBelongsToTheWindowedTrackOnly(): void
     {
         self::assertSame(
-            ['help.key.help', 'help.key.settings', 'help.key.menu', 'help.key.commands', 'help.key.quit'],
+            [
+                'help.key.help',
+                'help.key.settings',
+                'help.key.menu',
+                'help.key.commands',
+                'help.key.quit',
+                // Kopiowanie do schowka jest klawiszem rdzenia w **obu** torach
+                // (krok 57): zaznaczenie klatki jest własnością rdzenia, więc
+                // ani terminal, ani okno nie mają powodu go nie mieć. Wklejanie
+                // stoi w spisie miejsca, nie tutaj — patrz `TextInput`.
+                'clipboard.key.copy',
+            ],
             self::descriptionsOf(InputHandler::globalBindings()),
         );
         self::assertSame(
@@ -603,6 +614,7 @@ final class InputHandlerTest extends TestCase
                 'help.key.menu',
                 'help.key.commands',
                 'help.key.quit',
+                'clipboard.key.copy',
                 'help.key.fullscreen',
             ],
             self::descriptionsOf(InputHandler::globalBindings(true)),
@@ -645,6 +657,7 @@ final class InputHandlerTest extends TestCase
             $this->app->help,
             $this->app->settings,
             new ProblemPresenter(new StubTranslator()),
+            new StubTranslator(),
             $this->app->commands,
             [],
             Closure::fromCallable($toggle),
