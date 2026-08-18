@@ -401,6 +401,7 @@ return [
     'bench.scenario.tree' => 'directory tree',
     'bench.scenario.marked' => 'list with marks',
     'bench.scenario.marquee' => 'selection rectangle',
+    'bench.scenario.environments' => 'Docker environment list',
 
     'bench.transfer.title' => 'Frame transfer to the terminal',
     'bench.transfer.blob' => '  frame size:         {kilobytes} kB',

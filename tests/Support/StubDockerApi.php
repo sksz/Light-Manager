@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LightManager\Tests\Support;
 
 use LightManager\Module\Docker\Application\DockerCall;
+use LightManager\Module\Docker\Application\DockerEndpoint;
 use LightManager\Module\Docker\Application\DockerResult;
 use LightManager\Module\Docker\Application\Port\DockerApiPort;
 
@@ -37,6 +38,9 @@ final class StubDockerApi implements DockerApiPort
     /** Ostatni nagłówek `X-Registry-Auth` — pusty, dopóki nikt nie wypychał. */
     public string $registryAuth = '';
 
+    /** Ostatni podany punkt końcowy (krok 58) — `null`, dopóki takt go nie pchnął. */
+    public ?DockerEndpoint $endpoint = null;
+
     /** @var array<int, DockerResult> odpowiedzi przypisane do uchwytów */
     private array $results = [];
 
@@ -57,6 +61,11 @@ final class StubDockerApi implements DockerApiPort
     public function willReturn(string $body, int $status = 200): self
     {
         return $this->willAnswer(DockerResult::done($body, $status));
+    }
+
+    public function useEndpoint(DockerEndpoint $endpoint): void
+    {
+        $this->endpoint = $endpoint;
     }
 
     public function get(string $path): DockerCall

@@ -7999,3 +7999,64 @@ wpisywania znaków diakrytycznych. Odrzucone także zdjęcie skrótów z `Alt`
 uboczny wart zapamiętania: **podgląd wejścia nie wypisywał modyfikatorów przy
 klawiszu**, więc narzędzie od pytania „co terminal naprawdę przysłał” nie umiało
 odpowiedzieć na to jedno pytanie — od tego kroku wypisuje.
+
+## Decyzje ze startu kroku 58 (2026-08-18)
+
+### D102 — Rozstrzygnięcia startowe kroku 58: gniazdo tunelu ma zapas w `~/.light-manager`, wpis powstaje łańcuchem okien, a bieżącym środowiskiem pierwszego uruchomienia jest gniazdo lokalne
+
+**Dotyczy:** kroku **58** ([58-srodowiska-dockera.md](archiwum/58-srodowiska-dockera.md));
+klas `Module/Docker/Infrastructure/SocketTunnelService`,
+`Module/Docker/Presentation/EnvironmentFlow`,
+`Module/Docker/Application/EnvironmentBook` i pliku stanu
+`~/.light-manager/docker.json`.
+
+**Data:** 2026-08-18, przed pierwszą linią kodu kroku. Trzy pytania — wszystkie
+o miejsca, które plan kroku zostawił niedopowiedziane; rozstrzygnięcia zakresu
+stoją w D96 i żadne z nich nie było tu otwierane.
+
+**Decyzje użytkownika:**
+
+1. **Gniazdo tunelu w braku `XDG_RUNTIME_DIR` ląduje w `~/.light-manager`** —
+   tym samym katalogu `0700`, w którym leży gniazdo mistrza modułu Ssh
+   (`ControlSocket`). Prywatność ta sama, wzorzec już istnieje, tunel działa
+   także w sesji bez systemd. Odrzucone: odmowa z komunikatem (odbierałaby
+   funkcję maszynom bez systemd) i `sys_get_temp_dir()` (wariant wprost
+   przeciwny planowi — katalog współdzielony, a gniazdo daje pełną władzę nad
+   demonem po drugiej stronie).
+2. **Wpis środowiska powstaje łańcuchem okien** — `ChoiceOverlay` o rodzaj,
+   potem `PromptOverlay` na kolejne pola przez `OverlayOutcome::replace()`,
+   z wartościami domyślnymi; zmiana (`F4`) idzie tym samym łańcuchem
+   z wypełnionymi polami i bez okna rodzaju. Wzorzec `ConnectFlow` z kroku 48.
+   Odrzucone: jeden napis do rozbioru (`tcp://host:2376?cert=…`) — zwięźlejszy,
+   ale składnię trzeba znać na pamięć, a walidacja mówi dopiero po całości.
+3. **Środowiskiem bieżącym pierwszego uruchomienia jest gniazdo lokalne** —
+   dzisiejsze zachowanie modułu bez zmian; krok niczego nie przestawia
+   użytkownikowi, który środowisk nie używa. Odrzucony kontekst `Current`
+   klienta docker: spójniejszy z klientem, ale maszyna z przestawionym
+   kontekstem rozmawiałaby nagle z innym demonem niż wczoraj — dokładnie to
+   zaskoczenie, przed którym krok ma chronić.
+
+**Co z tego wynika:**
+
+- `SocketTunnelService::directory()` ma dwie gałęzie i obie dają katalog
+  prywatny; test jednostkowy sprawdza obie (gałąź `XDG_RUNTIME_DIR` pomija się
+  na maszynie, która zmiennej nie ma).
+- Rdzeń nie rośnie o nic — wszystkie trzy rozstrzygnięcia mieszczą się
+  w module, zgodnie z założeniem D96 („rdzeń nie rośnie w tej fazie o nic").
+
+**Rozstrzygnięcie dołożone w trakcie wykonania (nr 4): tunel dostaje drogę
+hasłową — przez `SSH_ASKPASS`, oknem przy wyborze, bez zapisywania.** Plan dał
+wpisowi tunelowemu tylko cel, port i gniazdo, więc tunel uwierzytelniał się
+wyłącznie kluczem albo agentem (`BatchMode=yes` — port pracy tłowej nie podaje
+potomkowi wejścia, granica z kroku 26). Pierwsza próba żywa trafiła na hosta
+dostępnego **wyłącznie hasłem** i użytkownik rozstrzygnął: droga hasłowa
+wchodzi. Wybór wpisu tunelowego pyta wpierw o sposób uwierzytelnienia
+(`ChoiceOverlay`: klucz albo agent / hasło / przerwij — odpowiedź pierwsza jest
+domyślna, więc `Enter` bez namysłu robi to, co przed rozszerzeniem), a hasło
+idzie polem maskowanym i przez `SSH_ASKPASS` — wzorcem hasłowej drogi modułu
+Ssh z kroku 48: **nigdy wierszem polecenia**, zmienna środowiskowa znika zaraz
+po uruchomieniu potomka, nic nie jest zapisywane. Wariant „puste pole hasła
+znaczy klucz" był rozważany i **odpadł**: `PromptOverlay` na pustym polu
+świadomie nie robi nic (krok 41) i nie ma powodu tego ruszać dla jednego okna.
+Pomocnik `bin/ssh-askpass` jest narzędziem repozytorium, nie kodem modułu Ssh,
+więc reguła 15 zostaje nietknięta.

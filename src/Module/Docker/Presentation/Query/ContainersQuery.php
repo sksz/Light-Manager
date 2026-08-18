@@ -10,6 +10,7 @@ use LightManager\Application\Query\QueryResult;
 use LightManager\Module\Docker\Application\ContainerList;
 use LightManager\Module\Docker\Application\ContainerView;
 use LightManager\Module\Docker\Application\DockerSettings;
+use LightManager\Module\Docker\Application\Environments;
 use LightManager\Module\Docker\Domain\ValueObject\Container;
 
 /**
@@ -27,6 +28,7 @@ final class ContainersQuery implements QueryInterface
 
     public function __construct(
         private readonly ContainerList $containers,
+        private readonly Environments $environments,
     ) {
     }
 
@@ -61,12 +63,16 @@ final class ContainersQuery implements QueryInterface
             $this->containers->problemKey(),
         );
 
-        return QueryResult::owned(DockerSettings::ID, $view, static function () use ($view): array {
+        // Nazwa środowiska w każdym wierszu (krok 58, reguła 11w): bez niej
+        // odpowiedź dwóch różnych demonów wygląda dla obcego identycznie.
+        $environment = $this->environments->currentName();
+
+        return QueryResult::owned(DockerSettings::ID, $view, static function () use ($view, $environment): array {
             $rows = [];
             $selected = $view->selected();
 
             foreach ($view->entries as $container) {
-                $rows[] = self::describe($container, $selected !== null && $selected->equals($container));
+                $rows[] = self::describe($container, $selected !== null && $selected->equals($container), $environment);
             }
 
             return $rows;
@@ -74,7 +80,7 @@ final class ContainersQuery implements QueryInterface
     }
 
     /** @return array<string, string|int|bool> */
-    private static function describe(Container $container, bool $selected): array
+    private static function describe(Container $container, bool $selected, string $environment): array
     {
         return [
             'id' => $container->id->short(),
@@ -87,6 +93,7 @@ final class ContainersQuery implements QueryInterface
             'created' => $container->createdAt === null ? '' : date(self::TIMESTAMP_FORMAT, $container->createdAt),
             'running' => $container->isRunning(),
             'selected' => $selected,
+            'environment' => $environment,
         ];
     }
 }

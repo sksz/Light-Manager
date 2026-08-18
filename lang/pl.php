@@ -433,6 +433,7 @@ return [
     'bench.scenario.tree' => 'drzewo katalogów',
     'bench.scenario.marked' => 'lista z zaznaczeniem',
     'bench.scenario.marquee' => 'prostokąt zaznaczenia',
+    'bench.scenario.environments' => 'spis środowisk Dockera',
 
     'bench.transfer.title' => 'Przesył klatki do terminala',
     'bench.transfer.blob' => '  rozmiar klatki:     {kilobytes} kB',

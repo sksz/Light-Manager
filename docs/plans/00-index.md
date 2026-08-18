@@ -706,9 +706,28 @@ ls`, `kubeconfig` wraz z `KUBECONFIG`), a książka modułu dokłada to, czego t
 nie niosą. Do cudzych plików moduł nadal **nie pisze** — zdanie z kroków 51 i 52
 zostaje w mocy.
 
+**Krok 58 wykonany — a jedno rozstrzygnięcie dołożyła próba żywa.** Plan dał
+wpisowi tunelowemu cel, port i gniazdo, więc tunel uwierzytelniał się wyłącznie
+kluczem albo agentem (`BatchMode` — port pracy tłowej nie podaje potomkowi
+wejścia) — a pierwszy żywy host okazał się dostępny **wyłącznie hasłem**. Tunel
+dostał przez to **drogę hasłową** (D102 nr 4): wybór wpisu pyta o sposób
+uwierzytelnienia, hasło idzie polem maskowanym i `SSH_ASKPASS` wzorcem kroku 48,
+nigdy wierszem polecenia. Próba żywa przeszła w całości: tunel hasłem wstał,
+prawdziwy kod modułu odczytał przez przywiezione gniazdo wersję demona
+i kontenery, a po zamknięciu nie został ani jeden proces `ssh` i ani jedno
+gniazdo. Obietnica „rdzeń nie rośnie o nic" **dotrzymana co do litery** — moduł
+urósł przy tym o klasę, której plan nie wymieniał (koordynator `Environments`),
+a scenariusz spisu środowisk wszedł do `ScenarioFactory` wedle planu, wbrew
+rekomendacji wykonawcy (mierzy wiersz nagłówka tabeli i trzy role wierszy naraz
+— rzeczy nie mierzone nigdzie; +7,1 ms wobec pary `columns`, głównie
+w kwantyzacji, wedle lekcji kroku 43). Pomiar `--loop` **+2,5% / −0,9%**
+(rozrzut). Trzy granice stoją w dzienniku: TCP+TLS czeka na wystawionego
+demona, compose zdalny nie był podnoszony na żywo, a klatki spisu środowisk pod
+XTermem nikt nie oglądał.
+
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 58 | Środowiska Dockera: jeden demon przestaje być założeniem | [58-srodowiska-dockera.md](58-srodowiska-dockera.md) | 14, 15, 24, 26, 27, 28, 30, 32, 40, 45, 46, 48, 51, 53, 54 | Opus⁸ | xhigh | Nie rozpoczęty |
+| 58 | Środowiska Dockera: jeden demon przestaje być założeniem | [58-srodowiska-dockera.md](archiwum/58-srodowiska-dockera.md) | 14, 15, 24, 26, 27, 28, 30, 32, 40, 45, 46, 48, 51, 53, 54 | Opus⁸ | xhigh | Ukończony z zastrzeżeniem |
 | 59 | Klastry Kubernetesa: połączenie przestaje być jednym kontekstem | [59-klastry-kubernetesa.md](59-klastry-kubernetesa.md) | 14, 15, 22, 24, 27, 28, 31, 48, 52, 53, 54, 58 | Opus⁸ | high | Nie rozpoczęty |
 | 60 | Rejestry obrazów: książka, zawartość i sekret w klastrze | [60-rejestry-obrazow.md](60-rejestry-obrazow.md) | 19, 27, 28, 32, 48, 51, 52, 53, 54, 58, 59 | Opus⁸ | xhigh | Nie rozpoczęty |
 

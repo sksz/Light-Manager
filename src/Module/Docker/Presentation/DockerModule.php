@@ -21,17 +21,24 @@ use LightManager\Module\Docker\Application\BuildWork;
 use LightManager\Module\Docker\Application\ContainerList;
 use LightManager\Module\Docker\Application\DockerEvent;
 use LightManager\Module\Docker\Application\DockerSettings;
+use LightManager\Module\Docker\Application\Environments;
 use LightManager\Module\Docker\Application\ImageList;
 use LightManager\Module\Docker\Application\LogStream;
 use LightManager\Module\Docker\Application\Port\ComposePort;
+use LightManager\Module\Docker\Application\Port\ContextCatalogPort;
 use LightManager\Module\Docker\Application\Port\DockerApiPort;
+use LightManager\Module\Docker\Application\Port\EnvironmentBookPort;
+use LightManager\Module\Docker\Application\Port\TunnelPort;
 use LightManager\Module\Docker\Application\PushWork;
 use LightManager\Module\Docker\Infrastructure\BuildContextPacker;
 use LightManager\Module\Docker\Infrastructure\BuildProgressReader;
 use LightManager\Module\Docker\Infrastructure\ComposeCliService;
 use LightManager\Module\Docker\Infrastructure\DockerApiService;
+use LightManager\Module\Docker\Infrastructure\DockerContextReader;
 use LightManager\Module\Docker\Infrastructure\DockerJsonReader;
+use LightManager\Module\Docker\Infrastructure\DockerStateService;
 use LightManager\Module\Docker\Infrastructure\LogFrameReader;
+use LightManager\Module\Docker\Infrastructure\SocketTunnelService;
 use LightManager\Module\Docker\Presentation\Command\BuildCommand;
 use LightManager\Module\Docker\Presentation\Command\ComposeDownCommand;
 use LightManager\Module\Docker\Presentation\Command\ComposeUpCommand;
@@ -41,6 +48,7 @@ use LightManager\Module\Docker\Presentation\Command\PushCommand;
 use LightManager\Module\Docker\Presentation\Query\BuildQuery;
 use LightManager\Module\Docker\Presentation\Query\ComposeQuery;
 use LightManager\Module\Docker\Presentation\Query\ContainersQuery;
+use LightManager\Module\Docker\Presentation\Query\EnvironmentsQuery;
 use LightManager\Module\Docker\Presentation\Query\ImagesQuery;
 use LightManager\Module\Docker\Presentation\Query\PushQuery;
 use LightManager\Presentation\Cli\LoopState;
@@ -130,6 +138,11 @@ final class DockerModule implements
 
     private ?DockerQueries $reader = null;
 
+    /** Środowiska — „z którym demonem" jako dana, jedna na moduł (krok 58). */
+    private ?Environments $environments = null;
+
+    private ?EnvironmentScreen $environmentScreen = null;
+
     /**
      * @param ?DockerApiPort $api  wstrzyknięcie istnieje dla testów, które nie mają
      *                             prawa zapytać demona — tak samo, jak testy dźwięku
@@ -143,6 +156,10 @@ final class DockerModule implements
         private readonly SettingsPort $settings,
         private readonly ?DockerApiPort $api = null,
         private readonly ?ComposePort $compose = null,
+        /** Trzy porty środowisk — wstrzyknięcie istnieje dla testów, jak `$api` (krok 58). */
+        private readonly ?EnvironmentBookPort $environmentBook = null,
+        private readonly ?ContextCatalogPort $contexts = null,
+        private readonly ?TunnelPort $tunnel = null,
     ) {
     }
 
@@ -162,13 +179,18 @@ final class DockerModule implements
     }
 
     /**
-     * Czego brakuje, żeby moduł miał czym działać.
+     * Czego brakuje, żeby moduł miał czym działać — **wyłącznie `ext-curl`**
+     * (krok 58).
      *
-     * Pytanie pada **raz, w ścieżce startu aplikacji**, więc kosztuje
-     * `extension_loaded()` i `file_exists()` — nigdy zapytania do demona
-     * (reguła 11s). Moduł z podstawionym portem (test) nie pyta o nic: atrapa nie
-     * potrzebuje ani rozszerzenia, ani gniazda, a start testu nie ma prawa
-     * zależeć od tego, co jest zainstalowane na maszynie, która go uruchamia.
+     * Do tego kroku brak gniazda lokalnego odrzucał cały moduł — a przy
+     * środowisku zdalnym byłaby to odmowa bez powodu: maszyna bez demona
+     * lokalnego jest dokładnie tą, na której zdalne środowisko ma sens (miara
+     * druga planu). Brak gniazda jest odtąd **stanem wpisu** — z tym samym
+     * zdaniem, co dawniej, ale w treści ekranu. Precedens z kroku 51 („leżący
+     * demon nie odrzuca modułu", D90) rozszerza się na demona nieobecnego.
+     *
+     * Pytanie nadal pada raz, w ścieżce startu, i kosztuje `extension_loaded()`
+     * (reguła 11s). Moduł z podstawionym portem (test) nie pyta o nic.
      */
     public function unavailableReason(): ?string
     {
@@ -176,13 +198,9 @@ final class DockerModule implements
             return null;
         }
 
-        if (!extension_loaded('curl')) {
-            return 'module.' . DockerSettings::ID . '.unavailable.curl';
-        }
-
-        return DockerApiService::isSupported()
+        return DockerApiService::hasCurl()
             ? null
-            : 'module.' . DockerSettings::ID . '.unavailable.socket';
+            : 'module.' . DockerSettings::ID . '.unavailable.curl';
     }
 
     /** `Ctrl`+`O` otwiera listę kontenerów. */
@@ -227,12 +245,38 @@ final class DockerModule implements
             $this->state,
             $this->reader(),
             new CoreReader($this->state->queries()),
+            $this->environmentScreen(),
             SplitSetting::state(
                 DockerSettings::ID,
                 self::SPLIT_PERCENT,
                 $this->state,
                 new ChangeModuleSettingUseCase($this->settings, $this->translator),
             ),
+        );
+    }
+
+    /**
+     * Środowiska — **jedne na moduł**, z tego samego powodu, co lista
+     * kontenerów: takt posuwa tunel, ekran pokazuje spis, a kwerenda oddaje
+     * odpowiedź — trzy obiekty znaczyłyby trzy prawdy o jednym wyborze.
+     */
+    private function environments(): Environments
+    {
+        return $this->environments ??= new Environments(
+            $this->environmentBook ?? DockerStateService::getInstance(),
+            $this->contexts ?? DockerContextReader::getInstance(),
+            $this->tunnel ?? SocketTunnelService::getInstance(),
+        );
+    }
+
+    private function environmentScreen(): EnvironmentScreen
+    {
+        return $this->environmentScreen ??= new EnvironmentScreen(
+            $this->environments(),
+            new EnvironmentFlow($this->environments(), $this->translator),
+            $this->translator,
+            $this->reader(),
+            $this->state,
         );
     }
 
@@ -261,11 +305,12 @@ final class DockerModule implements
     public function queries(): array
     {
         return [
-            new ImagesQuery($this->images(), $this->translator),
-            new ContainersQuery($this->containers()),
-            new ComposeQuery($this->compose()),
+            new ImagesQuery($this->images(), $this->translator, $this->environments()),
+            new ContainersQuery($this->containers(), $this->environments()),
+            new ComposeQuery($this->compose(), $this->environments()),
             new BuildQuery($this->work()),
             new PushQuery($this->pushWork()),
+            new EnvironmentsQuery($this->environments()),
         ];
     }
 
@@ -285,6 +330,24 @@ final class DockerModule implements
      */
     public function tick(float $now): void
     {
+        // Środowisko idzie **przed pompowaniem**: przełączenie unieważnia
+        // wszystko, co przyszło od poprzedniego demona (kryterium kroku 58),
+        // a punkt końcowy musi stać, zanim ktokolwiek zada pytanie.
+        $environments = $this->environments();
+        $environments->tick();
+
+        if ($environments->takeSwitched()) {
+            $this->containers()->forget();
+            $this->images()->forget();
+            $this->logs()->close();
+            $this->work()->stop();
+            $this->pushWork()->stop();
+            $this->state->events()->publish(DockerEvent::EnvironmentChanged->value);
+        }
+
+        $this->api()->useEndpoint($environments->endpoint());
+        $this->compose()->useEnvironment($environments->composePrefix());
+
         $this->api()->pump();
         $this->logs()->useLimit(DockerSettings::logLinesFrom($this->settings->current()));
         // Budowa idzie **tutaj**, a nie w oknie postępu (krok 54, D94 nr 5):
@@ -315,6 +378,7 @@ final class DockerModule implements
             'module.' . DockerSettings::ID . '.help.logs',
             'module.' . DockerSettings::ID . '.help.build',
             'module.' . DockerSettings::ID . '.help.compose',
+            'module.' . DockerSettings::ID . '.help.environments',
             'module.' . DockerSettings::ID . '.help.refresh',
         ];
     }
@@ -400,7 +464,7 @@ final class DockerModule implements
             new PsCommand($screen),
             new ImagesCommand($screen),
             new BuildCommand($this->builds(), $screen),
-            new ComposeUpCommand($this->composeFlow(), $screen),
+            new ComposeUpCommand($this->composeFlow(), $screen, $this->environments(), $this->translator),
             new ComposeDownCommand($this->composeFlow(), $screen),
             new PushCommand($this->pushes(), $this->reader(), $this->translator),
         ];

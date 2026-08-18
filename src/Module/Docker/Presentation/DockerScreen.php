@@ -22,6 +22,7 @@ use LightManager\Module\Docker\Application\ContainerList;
 use LightManager\Module\Docker\Application\DockerAction;
 use LightManager\Module\Docker\Application\DockerEvent;
 use LightManager\Module\Docker\Application\DockerSettings;
+use LightManager\Module\Docker\Application\EnvironmentBook;
 use LightManager\Module\Docker\Application\ImageList;
 use LightManager\Module\Docker\Application\LogStream;
 use LightManager\Module\Docker\Application\Port\ComposePort;
@@ -106,6 +107,13 @@ final class DockerScreen implements
      */
     private const REFRESH_KEY = 'r';
 
+    /**
+     * Litera spisu środowisk (krok 58) — **goła litera w ekranie, nie skrót
+     * modułu**: liter moduł nie zajmuje ani jednej, więc `e` jest wolne we
+     * wszystkich postaciach listowych.
+     */
+    private const ENVIRONMENTS_KEY = 'e';
+
     private DockerView $view = DockerView::Containers;
 
     private readonly ContainerPane $containerPane;
@@ -160,6 +168,8 @@ final class DockerScreen implements
         private readonly DockerQueries $reader,
         /** Odczyt ustawień rdzenia — przez rejestr kwerend (krok 53, D92 nr 3). */
         private readonly CoreReader $core,
+        /** Spis środowisk — czwarta postać ekranu (krok 58). */
+        private readonly EnvironmentScreen $environments,
         /** Proporcja podziału z ustawień modułu wraz z jej zapisem (krok 55). */
         ?SplitState $split = null,
     ) {
@@ -246,6 +256,14 @@ final class DockerScreen implements
         $this->drawn = true;
         $this->lastBounds = $bounds;
 
+        if ($this->view === DockerView::Environments) {
+            // Spis środowisk zajmuje ekran w całości, jak logi: tabela o pięciu
+            // kolumnach w połowie szerokości ucinałaby adresy.
+            $this->lastCapacity = max(1, $bounds->rows);
+
+            return $this->environments->draw($bounds);
+        }
+
         if ($this->view === DockerView::Logs) {
             $this->lastCapacity = max(1, $bounds->rows);
 
@@ -281,11 +299,12 @@ final class DockerScreen implements
      */
     public function bindings(): array
     {
-        if ($this->view === DockerView::Logs) {
-            return $this->logBindings();
-        }
-
-        return $this->view === DockerView::Containers ? $this->containerBindings() : $this->imageBindings();
+        return match ($this->view) {
+            DockerView::Logs => $this->logBindings(),
+            DockerView::Environments => $this->environments->bindings(),
+            DockerView::Containers => $this->containerBindings(),
+            DockerView::Images => $this->imageBindings(),
+        };
     }
 
     public function focus(): FocusHint
@@ -297,6 +316,7 @@ final class DockerScreen implements
     {
         $this->drawn = true;
         $this->logPane->reset();
+        $this->environments->reset();
     }
 
     /**
@@ -351,6 +371,10 @@ final class DockerScreen implements
             return ScreenOutcome::stay();
         }
 
+        if ($this->view === DockerView::Environments) {
+            return $this->environments->pointer($event);
+        }
+
         if ($this->view === DockerView::Logs) {
             if ($event->isScroll()) {
                 $this->logPane->scrollBy($event->scrollRows());
@@ -397,6 +421,10 @@ final class DockerScreen implements
             $this->containers->refresh();
             $this->images->refresh();
 
+            if ($this->view === DockerView::Environments) {
+                $this->environments->refresh();
+            }
+
             return ScreenOutcome::stay();
         }
 
@@ -404,7 +432,29 @@ final class DockerScreen implements
             DockerView::Logs => $this->handleLogs($key),
             DockerView::Images => $this->handleImages($key),
             DockerView::Containers => $this->handleContainers($key),
+            DockerView::Environments => $this->handleEnvironments($key),
         };
+    }
+
+    /** `Esc` wraca do kontenerów — jak z logów; reszta należy do spisu. */
+    private function handleEnvironments(KeyPress $key): ScreenOutcome
+    {
+        if ($key->key === Key::Escape) {
+            $this->view = DockerView::Containers;
+
+            return ScreenOutcome::stay();
+        }
+
+        return $this->environments->handle($key);
+    }
+
+    /** Wejście w spis środowisk: świeże konteksty klienta przy każdym otwarciu. */
+    private function showEnvironments(): ScreenOutcome
+    {
+        $this->view = DockerView::Environments;
+        $this->environments->refresh();
+
+        return ScreenOutcome::stay();
     }
 
     /** Postać widoczna w tej chwili — pyta o nią moduł, składając zdanie komendy. */
@@ -427,6 +477,10 @@ final class DockerScreen implements
 
     private function handleContainers(KeyPress $key): ScreenOutcome
     {
+        if ($key->key === Key::Character && $key->raw === self::ENVIRONMENTS_KEY && !$key->ctrl && !$key->alt) {
+            return $this->showEnvironments();
+        }
+
         $container = $this->reader->containers()->selected();
 
         if ($key->key === Key::Enter && $container !== null) {
@@ -465,6 +519,10 @@ final class DockerScreen implements
 
     private function handleImages(KeyPress $key): ScreenOutcome
     {
+        if ($key->key === Key::Character && $key->raw === self::ENVIRONMENTS_KEY && !$key->ctrl && !$key->alt) {
+            return $this->showEnvironments();
+        }
+
         if ($key->key === Key::F3) {
             $this->view = DockerView::Containers;
 
@@ -675,6 +733,7 @@ final class DockerScreen implements
         );
 
         return $this->view !== DockerView::Logs
+            && $this->view !== DockerView::Environments
             && $zone->rows >= 3
             && Split::fits($zone, SplitAxis::Vertical);
     }
@@ -688,6 +747,10 @@ final class DockerScreen implements
      */
     private function headerText(): string
     {
+        if ($this->view === DockerView::Environments) {
+            return $this->environments->headerText();
+        }
+
         $compose = $this->reader->compose();
 
         if ($compose->isWorking() && $compose->action !== null) {
@@ -706,6 +769,18 @@ final class DockerScreen implements
 
         if ($this->view === DockerView::Containers && $project !== null) {
             return $this->text('compose.narrowed', ['project' => $project]);
+        }
+
+        // Lista mówi, z którym demonem rozmawia — kontenery zdalnego demona
+        // widać w tym samym panelu, więc różnicę niesie zdanie górnego pasa
+        // (miara kroku 58). Gniazdo lokalne zostaje przy dawnym zdaniu.
+        $environment = $this->reader->environments();
+
+        if ($environment->current !== '' && $environment->current !== EnvironmentBook::DEFAULT_NAME) {
+            return $this->text(
+                $this->view === DockerView::Containers ? 'containers.headerAt' : 'images.headerAt',
+                ['name' => $environment->current],
+            );
         }
 
         return $this->text($this->view === DockerView::Containers ? 'containers.header' : 'images.header');
@@ -787,6 +862,7 @@ final class DockerScreen implements
             KeyBinding::of([Key::F5], $this->key('key.project'), $this->key('key.project.short')),
             KeyBinding::of([Key::F7], $this->key('key.build'), $this->key('key.build.short')),
             KeyBinding::of([Key::F8, Key::Delete], $this->key('key.remove'), $this->key('key.remove.short')),
+            KeyBinding::character(self::ENVIRONMENTS_KEY, $this->key('key.environments'), $this->key('key.environments.short')),
             KeyBinding::ctrl(self::REFRESH_KEY, $this->key('key.refresh'), $this->key('key.refresh.short')),
         ];
     }
@@ -800,6 +876,7 @@ final class DockerScreen implements
             KeyBinding::of([Key::F3], $this->key('key.containers'), $this->key('key.containers.short')),
             KeyBinding::of([Key::F7], $this->key('key.build'), $this->key('key.build.short')),
             KeyBinding::of([Key::F8, Key::Delete], $this->key('key.removeImage'), $this->key('key.remove.short')),
+            KeyBinding::character(self::ENVIRONMENTS_KEY, $this->key('key.environments'), $this->key('key.environments.short')),
             KeyBinding::ctrl(self::REFRESH_KEY, $this->key('key.refresh'), $this->key('key.refresh.short')),
         ];
     }

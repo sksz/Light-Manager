@@ -1,7 +1,7 @@
 # Krok 58 — Środowiska Dockera: jeden demon przestaje być założeniem
 
 > **Skąd ten krok.** Powstał 2026-08-16 na polecenie użytkownika, jako pierwszy
-> krok **Fazy XX** ([00-decyzje.md](00-decyzje.md), D96). Otwiera pozycję
+> krok **Fazy XX** ([00-decyzje.md](../00-decyzje.md), D96). Otwiera pozycję
 > wykluczoną wprost z kroku 51 — „Swarm, konteksty Dockera i demony zdalne po
 > TCP/TLS" — i robi to z powodu, którego tamten krok nie miał: moduł ma dziś
 > wpisaną w kod odpowiedź na pytanie „**z którym** demonem rozmawiasz", a odpowiedź
@@ -9,8 +9,21 @@
 
 ## Status
 
-**Nie rozpoczęty.** Rozstrzygnięcia startowe: [00-decyzje.md](00-decyzje.md),
-D96 (nr 1, 2, 3 i 5).
+**Ukończony z zastrzeżeniem** 2026-08-18. Rozstrzygnięcia startowe:
+[00-decyzje.md](../00-decyzje.md), D96 (nr 1, 2, 3 i 5) oraz **D102** — trzy
+pytania o miejsca, które ten plan zostawił niedopowiedziane (zapas gniazda
+tunelu, kształt okien wpisu, środowisko bieżące pierwszego uruchomienia),
+plus rozstrzygnięcie dołożone w trakcie: **tunel dostał drogę hasłową**
+(D102 nr 4), bo pierwsza próba żywa trafiła na hosta dostępnego wyłącznie
+hasłem.
+
+Zastrzeżenie — trzy rzeczy nieobejrzane na żywo, każda z powodem:
+**TCP+TLS** czeka na wystawionego demona (żaden osiągalny host go nie ma),
+**compose w środowisku zdalnym** nie był podnoszony (podniesienie projektu
+zmienia stan cudzego hosta i nie zostało zamówione — mechanizm przedrostka
+pilnują testy), a **klatki spisu środowisk pod XTermem nikt nie oglądał**
+(granica ta sama, co w krokach 55–57). Tunel SSH — kryterium główne — był
+próbowany na żywym hoście i przeszedł (dziennik niżej).
 
 ## Cel
 
@@ -23,7 +36,7 @@ panelu, w którym widać lokalne, a przełączenie środowiska nie zmienia ani j
 linii kodu rozmowy z demonem.**
 
 Miarą drugą, wymierną: **brak lokalnego gniazda przestaje odrzucać moduł.** Dziś
-odrzuca ([`DockerModule::unavailableReason()`](../../src/Module/Docker/Presentation/DockerModule.php)),
+odrzuca ([`DockerModule::unavailableReason()`](../../../src/Module/Docker/Presentation/DockerModule.php)),
 a przy środowisku zdalnym byłaby to odmowa bez powodu — maszyna bez demona
 lokalnego jest dokładnie tą, na której zdalne środowisko ma sens.
 
@@ -289,4 +302,76 @@ potomka idzie przedrostkiem wiersza polecenia, bo port bierze napis.
 
 ## Dziennik realizacji
 
-*(Krok nie rozpoczęty — wpisy pojawią się przy wykonaniu.)*
+**2026-08-18 — kod, testy i dokumentacja.** Zakres wykonany wedle planu, z pięcioma
+rzeczami wartymi zapisania:
+
+1. **Doszła klasa, której plan nie wymieniał: `Application/Environments`** —
+   koordynator na wzór `SshSession`. Ktoś musi widzieć naraz książkę, konteksty
+   klienta i stan tunelu, żeby policzyć punkt końcowy rozmowy
+   (`DockerEndpoint`) i przedrostek compose; bez niego ta wiedza rozlałaby się
+   po ekranie, takcie i kwerendach. Obok niego weszły drobne dane
+   (`DockerEndpoint`, `EnvironmentRow`, `EnvironmentOrigin`, `ContextEntry`,
+   `TunnelStage`) — plan zbierał je pod ogólnym „pola zależne od rodzaju".
+2. **`ExitOnForwardFailure=yes` jest w wierszu mistrza obowiązkowe, choć plan
+   o nim milczał**: bez tej opcji `ssh -f` demonizuje się także wtedy, gdy
+   przekierowanie nie wstało — czyli „tunel stoi" znaczyłoby tylko
+   „uwierzytelniłem się", a pierwsze pytanie wisiałoby na gnieździe, którego
+   nie ma. `BatchMode=yes` też: port pracy tłowej nie podaje potomkowi
+   terminala, więc tunel do wpisu książki hostów z uwierzytelnieniem hasłem
+   kończy się odmową klienta zamiast zawiśnięciem — ta granica jest zapisana
+   w pomocy modułu.
+3. **Usługa tunelu dostała szew także na `exec()`** (zamknięcie idzie `-O exit`
+   poza portem pracy tłowej — lekcja z kroku 48 o wypieranym zamknięciu),
+   bo kryterium fazy „żaden test nie uruchamia ani `ssh`, ani `docker`"
+   obejmuje również sprzątanie. Testy sprawdzają kształt wiersza polecenia
+   i skasowanie pliku gniazda bez jednego prawdziwego procesu.
+4. **Kwerenda `docker.environments` oddaje wpisowi tunelowemu gniazdo lokalne
+   jako adres** — cel SSH i ścieżki kluczy TLS nie wchodzą do wierszy (reguła
+   11w); własny ekran pokazuje cel, bo jest ekranem właściciela. Pilnuje tego
+   test przeszukujący spłaszczone wiersze po `tajny.example.com` i `/sekrety/`.
+5. **Plan zderzył się z zapisanym pominięciem pomiarowym.** Punkt 9 każe dołożyć
+   scenariusz spisu środowisk do `ScenarioFactory`, ale `docs/pomiary/README.md`
+   ma od kroku 51 zapisane pominięcie dla całego ekranu Dockera: treść to
+   `Table` i `TextView`, czyli dokładnie to, co mierzą `columns` i `text-view`,
+   a osobny scenariusz powtarzałby pomiar pod inną nazwą. Spis środowisk jest
+   `Table` o pięciu kolumnach — ten sam skład. Rozstrzygnięcie należy do
+   użytkownika przy rozliczaniu pomiaru.
+
+Stan zastany bez zmian wobec rozpoznania z planu; `make qa` zielone.
+Rdzeń nie urósł o nic — wszystkie zmiany leżą w `src/Module/Docker/`,
+w atrapach testowych i w narzędziu pomiarowym.
+
+**2026-08-18 — rozliczenie: pomiar, scenariusz, droga hasłowa i próba żywa.**
+
+1. **Scenariusz `environments` wszedł do `ScenarioFactory` wedle planu** —
+   rozstrzygnięcie użytkownika, wbrew rekomendacji rozszerzenia pominięcia
+   z kroku 51. Racja okazała się po stronie planu: scenariusz mierzy **wiersz
+   nagłówka tabeli** (rysowany od kroku 48, nigdzie dotąd nie mierzony)
+   i **trzy role wierszy naraz**. Wynik: 27,7 ms wobec pary `columns` 20,6 ms —
+   **+7,1 ms**, ta sama skala, co `marked` (27,8 ms), czyli cena leży głównie
+   w rolach i kwantyzacji, dokładnie wedle lekcji kroku 43. Złota klatka
+   zapisana; pozostałe złote klatki co do bajta nietknięte.
+2. **Pomiar bez regresji.** Oś `--loop` wobec wzorca po kroku 57: **+2,5% /
+   −0,9%** (rozrzut; obciążenie 0,04 na rdzeń). Tor sixelowy wobec wzorca po
+   kroku 44: wszystkie wspólne scenariusze w ±4%. Wzorce zapisane:
+   `2026-08-18-po-kroku-58-loop.json` i `2026-08-18-po-kroku-58.json`.
+3. **Droga hasłowa tunelu (D102 nr 4)** — dołożona w trakcie, na
+   rozstrzygnięcie użytkownika, gdy pierwsza próba żywa trafiła na hosta
+   dostępnego wyłącznie hasłem. Wybór wpisu tunelowego pyta o sposób
+   uwierzytelnienia (`ChoiceOverlay`; klucz/agent jest odpowiedzią domyślną),
+   hasło idzie polem maskowanym i `SSH_ASKPASS` — wzorcem kroku 48, nigdy
+   wierszem polecenia. Test pilnuje, że hasła nie ma w wierszu polecenia,
+   a zmienna środowiskowa znika zaraz po uruchomieniu potomka.
+4. **Próba żywa tunelu przeszła** (host `morfshop.skszenks.p6.tiktalik.io`,
+   uwierzytelnienie hasłem, prawdziwy kod modułu: `SocketTunnelService` +
+   `BackgroundProcessService` + `DockerApiService`): tunel wstał
+   (`/run/user/1000/lm-docker-proba.sock`), `GET /version` przez gniazdo —
+   HTTP 200, serwer **29.7.2** (linux/amd64), `GET /containers/json?all=1` —
+   HTTP 200 (zero kontenerów, zgodnie ze stanem hosta). Po `shutdown()`:
+   **ani jednego procesu `ssh`, ani jednego pliku gniazda** — kryterium
+   sprzątania spełnione na żywo.
+5. **Lekcja spoza kodu, zapisana w `CLAUDE.md`**: na zdalnych hostach nie
+   wykonuje się niczego ponad to, co użytkownik wprost polecił, dokładnie
+   podanymi poświadczeniami — bez kluczy, bez certyfikatów, bez własnej
+   diagnostyki. Reguła weszła do `CLAUDE.md` w trakcie tego kroku, po dwóch
+   przerwaniach pracy przez użytkownika.

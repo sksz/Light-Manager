@@ -655,6 +655,27 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     zajęło ekran — a to czyniło niewykonalnym „`Esc` przerywa czekanie, nie
     budowę". Okna są odtąd obserwatorami, a zdarzenia ogłasza takt przez
     `takeFinished()`.
+    **Z którym demonem rozmawiamy, jest daną wpisu, a nie stałą usługi** (krok
+    58, D96). Wpis środowiska (`DockerEnvironment`: gniazdo lokalne / tunel SSH /
+    TCP z TLS) mieszka w książce w pliku stanu `docker.json`, obok kontekstów
+    czytanych od klienta `docker` (pochodzenie widoczne, przy zbieżnej nazwie
+    wygrywa wpis własny, do cudzych plików moduł nie pisze); usługa gniazda
+    dostaje z wybranego wpisu gotowy `DockerEndpoint` i **kod rozmowy nie zmienia
+    się o linię**. Statyczne zostało wyłącznie „czy `ext-curl` w ogóle jest" —
+    brak gniazda **nie odrzuca modułu**, jest stanem wpisu mówionym zdaniem
+    w treści ekranu. Tunel `ssh -M -N -f -L` jest pracą przeżywającą swój uchwyt
+    (gniazdo w `XDG_RUNTIME_DIR`, w jego braku `~/.light-manager`; sprzątanie
+    dwiema drogami plus skasowanie pliku gniazda; `ExitOnForwardFailure=yes`
+    obowiązkowo, bo bez niego „stoi" znaczy tylko „uwierzytelniłem się"),
+    a wstaje **na wybór środowiska**, nigdy przy starcie; uwierzytelnia się
+    kluczem/agentem (`BatchMode`, domyślnie) albo hasłem przez `SSH_ASKPASS`
+    (D102 nr 4 — pyta `ChoiceOverlay` przy wyborze, hasło nigdy wierszem
+    polecenia i nigdzie nie zapisywane). **Zmienna środowiskowa
+    dla potomka idzie przedrostkiem wiersza polecenia** (`DOCKER_HOST=…` przed
+    `docker compose …`), bo port pracy tłowej bierze napis — tablicy `env` nie ma
+    i nie ma powodu, żeby była. Przełączenie środowiska **unieważnia listy, logi
+    i budowę** wraz z pytaniami w locie, a kwerendy list niosą nazwę środowiska
+    w każdym wierszu; celu SSH i ścieżek kluczy TLS wiersze nie niosą (11w).
 11u. **Zamawiając pracę tłową, powiedz, czym jest jej wypis** (krok 52, D91 nr 12).
     `Application\Dto\OutputShape` ma dwie wartości i **przeciwne** reguły wobec
     granicy bufora: `Result` (domyślny) zbiera do granicy i **odrzuca nadmiar** —

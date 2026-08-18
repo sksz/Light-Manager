@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LightManager\Module\Docker\Application\Port;
 
 use LightManager\Module\Docker\Application\DockerCall;
+use LightManager\Module\Docker\Application\DockerEndpoint;
 use LightManager\Module\Docker\Application\DockerResult;
 
 /**
@@ -35,6 +36,17 @@ use LightManager\Module\Docker\Application\DockerResult;
  */
 interface DockerApiPort
 {
+    /**
+     * Dokąd mają iść kolejne pytania (krok 58) — dana z wybranego wpisu
+     * środowiska.
+     *
+     * Podaje ją takt modułu, raz na klatkę, bo tylko on widzi naraz wpis
+     * bieżący i stan tunelu. Rozmowy trwające w chwili zmiany **zostają przy
+     * swojej drodze** — przełączenie środowiska i tak je kończy, bo unieważnia
+     * listy, logi i budowę (kryterium kroku).
+     */
+    public function useEndpoint(DockerEndpoint $endpoint): void;
+
     /** Pytanie o dane: lista kontenerów, lista obrazów, opis. */
     public function get(string $path): DockerCall;
 

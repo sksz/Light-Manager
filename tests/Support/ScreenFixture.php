@@ -144,6 +144,9 @@ final class ScreenFixture
         public readonly StubRemoteTransfer $remoteTransfers = new StubRemoteTransfer(),
         public readonly StubDockerApi $docker = new StubDockerApi(),
         public readonly StubCompose $compose = new StubCompose(),
+        public readonly StubEnvironmentBook $environmentBook = new StubEnvironmentBook(),
+        public readonly StubContextCatalog $contexts = new StubContextCatalog(),
+        public readonly StubTunnel $tunnel = new StubTunnel(),
         public readonly StubKubectl $kubectl = new StubKubectl(),
         public readonly StubClipboard $clipboard = new StubClipboard(),
     ) {
@@ -234,12 +237,21 @@ final class ScreenFixture
         // gniazda jest zarazem odpowiedzią na `RequiresEnvironment`: bez niego
         // zestaw modułów zależałby od tego, czy maszyna uruchamiająca testy ma
         // zainstalowanego Dockera (krok 51).
+        //
+        // **Trzy porty środowisk doszły w kroku 58 z tych samych powodów, co
+        // trzeci port modułu Ssh w kroku 49**: książka bez atrapy czytałaby
+        // `~/.light-manager/docker.json` maszyny testowej, odczyt kontekstów
+        // uruchamiałby prawdziwy proces `docker context ls`, a tunel —
+        // prawdziwy `ssh` do hosta z przykładowego wpisu.
         $dockerModule = new DockerModule(
             $this->state,
             $translator,
             $settingsStore,
             $docker,
             $compose,
+            $environmentBook,
+            $contexts,
+            $tunnel,
         );
         $this->dockerScreen = $dockerModule->screen();
 

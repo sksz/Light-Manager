@@ -46,6 +46,15 @@ enum DockerEvent: string
     /** Projekt compose podniesiony albo położony. */
     case ComposeChanged = 'docker.compose.changed';
 
+    /**
+     * Moduł rozmawia odtąd z innym demonem (krok 58).
+     *
+     * Jedna pozycja na przełączenie, bez pary „udane/nieudane": wybór, który
+     * się nie udał (tunel nie wstał), nie zmienia rozmówcy — mówi o nim stan
+     * tunelu, nie zdarzenie.
+     */
+    case EnvironmentChanged = 'docker.environment.changed';
+
     public function labelKey(): string
     {
         return 'module.' . DockerSettings::ID . '.event.'

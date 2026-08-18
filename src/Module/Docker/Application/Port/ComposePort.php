@@ -28,6 +28,18 @@ use LightManager\Module\Docker\Application\ComposeState;
  */
 interface ComposePort
 {
+    /**
+     * Przedrostek wiersza polecenia z wybranego środowiska (krok 58):
+     * `DOCKER_HOST=…`, a dla demona po sieci także `DOCKER_TLS_VERIFY=1`
+     * i `DOCKER_CERT_PATH=…`.
+     *
+     * Zmienna środowiskowa idzie **przedrostkiem, a nie tablicą `env`** —
+     * port pracy tłowej bierze gotowy wiersz polecenia i nie ma powodu, żeby
+     * przestał (czwarta trudność planu kroku 58). Podaje go takt modułu, raz
+     * na klatkę.
+     */
+    public function useEnvironment(string $prefix): void;
+
     /** Stan do obejrzenia w tej klatce. Nigdy nie blokuje i nigdy nie jest `null`. */
     public function state(): ComposeState;
 

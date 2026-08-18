@@ -2,6 +2,25 @@
 
 Light Manager — menadżer plików działający w terminalu i we własnym oknie.
 
+## Niewydane — Organy (Faza XX): wiele miejsc
+
+Jeden grający, wiele piszczałek: aplikacja przestaje zakładać, że demon,
+klaster i rejestr są po jednym — miejsca stają się spisami, które prowadzisz.
+
+- **Docker rozmawia z wybranym środowiskiem** (2026-08-18). Litera `e` na
+  ekranie Dockera otwiera spis środowisk: obok gniazda lokalnego i kontekstów
+  klienta `docker` stoją wpisy własne — demon za tunelem SSH (z hasłem albo
+  kluczem, do wyboru przy połączeniu) i demon po TCP z certyfikatami. `Enter`
+  wybiera bieżące, a kontenery i obrazy zdalnego demona widać w tych samych
+  panelach, co lokalne; górny pas mówi, z kim rozmawiasz, a tunel, który nie
+  wstał, mówi dlaczego — zamiast pokazywać pustą listę. Maszyna bez lokalnego
+  demona nie traci już modułu, a po wyjściu z aplikacji nie zostaje ani proces
+  `ssh`, ani plik gniazda. `docker.up` w środowisku zdalnym uprzedza, że
+  montowania i kontekst budowy znaczą tam co innego niż lokalnie.
+
+W przygotowaniu: książka klastrów Kubernetesa i rejestry obrazów —
+z wypchnięciem, pobraniem i sekretem zakładanym w klastrze.
+
 ## Niewydane — Kastaniety (Faza XIX): wskaźnik
 
 - **Schowek systemowy: kopiuj i wklejaj między aplikacją a resztą pulpitu**

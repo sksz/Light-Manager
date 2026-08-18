@@ -18,9 +18,9 @@ return [
     'module.docker.name' => 'Docker',
     'module.docker.description' => 'Kontenery, obrazy, logi na żywo, budowanie obrazów i projekty compose.',
 
-    // Powody, dla których rejestr odrzuca moduł (krok 51, D90 nr 6).
+    // Powód, dla którego rejestr odrzuca moduł — od kroku 58 wyłącznie jeden:
+    // brak gniazda jest stanem środowiska, nie brakiem modułu.
     'module.docker.unavailable.curl' => 'brak rozszerzenia PHP „curl”',
-    'module.docker.unavailable.socket' => 'brak gniazda demona /var/run/docker.sock',
 
     // Komendy modułu.
     'module.docker.command.ps' => 'pokaż kontenery',
@@ -31,11 +31,12 @@ return [
     'module.docker.argument.directory' => 'katalog z plikiem Dockerfile',
     'module.docker.argument.file' => 'plik compose albo katalog, w którym leży',
 
-    // Kwerendy modułu (krok 54).
+    // Kwerendy modułu (krok 54; środowiska — krok 58).
     'module.docker.query.images' => 'obrazy znane demonowi wraz z etykietami',
     'module.docker.query.containers' => 'kontenery wraz z projektem compose',
     'module.docker.query.compose' => 'projekty compose wraz z etapem pracy',
     'module.docker.query.build' => 'stan budowy: etap, znacznik, ostatni komunikat',
+    'module.docker.query.environments' => 'środowiska: nazwa, rodzaj, adres, wybór i stan tunelu',
 
     // Pozycja zakładki ustawień — jedyna (D90 nr 3).
     'module.docker.setting.logLines' => 'Wierszy logu w pamięci',
@@ -48,6 +49,7 @@ return [
     'module.docker.view.containers' => 'KONTENERY',
     'module.docker.view.images' => 'OBRAZY',
     'module.docker.view.logs' => 'LOGI',
+    'module.docker.view.environments' => 'ŚRODOWISKA',
     'module.docker.detail.title' => 'OPIS',
 
     // Nagłówki kolumn.
@@ -80,11 +82,15 @@ return [
 
     // Zdania górnego pasa i puste listy.
     'module.docker.containers.header' => 'Kontenery na tej maszynie',
+    // Zdanie ze środowiskiem — miara kroku 58: kontenery zdalnego demona widać
+    // w tym samym panelu, więc różnicę niesie górny pas.
+    'module.docker.containers.headerAt' => 'Kontenery — środowisko {name}',
     'module.docker.containers.reading' => 'Pytam demona o kontenery…',
     'module.docker.containers.empty' => 'Demon nie prowadzi ani jednego kontenera.',
     'module.docker.containers.emptyProject' => 'Projekt {project} nie ma ani jednego kontenera.',
     'module.docker.containers.confirmRemoval' => 'Usunąć kontener {name}? Działający zostanie zatrzymany, a jego zawartość przepadnie.',
     'module.docker.images.header' => 'Obrazy na tej maszynie',
+    'module.docker.images.headerAt' => 'Obrazy — środowisko {name}',
     'module.docker.images.reading' => 'Pytam demona o obrazy…',
     'module.docker.images.empty' => 'Demon nie ma ani jednego obrazu.',
     'module.docker.images.dangling' => 'obraz bez nazwy — został po przebudowie',
@@ -117,7 +123,7 @@ return [
     'module.docker.action.done.remove-image' => 'Obraz {name} usunięty.',
 
     // Powody, dla których rozmowa z demonem się nie udała.
-    'module.docker.daemon.unsupported' => 'Rozmowa z demonem wymaga rozszerzenia „curl” i gniazda /var/run/docker.sock.',
+    'module.docker.daemon.unsupported' => 'Rozmowa z demonem wymaga rozszerzenia PHP „curl”.',
     'module.docker.daemon.failed' => 'Nie udało się rozpocząć rozmowy z demonem.',
     'module.docker.daemon.unreachable' => 'Demon Dockera nie odpowiada — sprawdź, czy działa.',
     'module.docker.daemon.timedOut' => 'Demon Dockera nie odpowiedział w wyznaczonym czasie.',
@@ -172,6 +178,89 @@ return [
     'module.docker.compose.noProjects' => 'Żaden kontener nie należy do projektu compose.',
     'module.docker.compose.narrowed' => 'Pokazuję projekt {project}.',
     'module.docker.compose.allProjects' => 'Pokazuję wszystkie kontenery.',
+    // Pułapka środowiska zdalnego (krok 58, punkt 6 planu) — zdanie pada
+    // **przed** podniesieniem, a nie w komentarzu do kodu.
+    'module.docker.compose.remoteWarning' => 'Środowisko {name} to zdalny demon: plik compose czyta klient po tej stronie, ale montowania volumes wskażą ścieżki na maszynie demona, a kontekst budowy pojedzie przez sieć. Podnieść mimo to?',
+
+    // Środowiska (krok 58): rodzaje, pochodzenie, spis, okna wpisu, tunel.
+    'module.docker.env.kind.local' => 'gniazdo lokalne',
+    'module.docker.env.kind.tunnel' => 'tunel SSH',
+    'module.docker.env.kind.tcp' => 'TCP z TLS',
+    'module.docker.env.origin.own' => 'własny',
+    'module.docker.env.origin.client' => 'klient docker',
+    'module.docker.env.origin.default' => 'wbudowany',
+    'module.docker.env.column.name' => 'Nazwa',
+    'module.docker.env.column.kind' => 'Rodzaj',
+    'module.docker.env.column.address' => 'Adres',
+    'module.docker.env.column.origin' => 'Pochodzenie',
+    'module.docker.env.column.state' => 'Stan',
+    'module.docker.env.state.current' => 'bieżące',
+    'module.docker.env.state.shadowed' => 'przysłonięty',
+    'module.docker.env.empty' => 'Spis środowisk jest pusty — F7 dodaje wpis.',
+    'module.docker.env.header.tunnel' => 'Środowisko {name} — {stage}',
+    'module.docker.env.saved' => 'Środowisko {name} zapisane.',
+    'module.docker.env.removed' => 'Środowisko {name} usunięte.',
+    'module.docker.env.switched' => 'Rozmawiam ze środowiskiem {name}.',
+    'module.docker.env.switching' => 'Podnoszę tunel do środowiska {name}…',
+    'module.docker.env.clientEntry' => 'Wpis {name} należy do klienta docker — zmienia się go poleceniem docker context, nie tutaj.',
+    'module.docker.env.confirm.remove' => 'Usunąć środowisko {name} ze spisu? Demon i jego kontenery zostają nietknięte.',
+    'module.docker.env.prompt.kind' => 'Jakiego rodzaju środowisko dodać?',
+    'module.docker.env.prompt.cancel' => 'przerwij',
+    'module.docker.env.prompt.name' => 'Nazwa środowiska',
+    'module.docker.env.prompt.name.field' => 'nazwa własna (litery, cyfry, kropka, myślnik)',
+    'module.docker.env.prompt.socket' => 'Ścieżka gniazda demona',
+    'module.docker.env.prompt.socket.field' => 'ścieżka bezwzględna gniazda',
+    'module.docker.env.prompt.target' => 'Dokąd prowadzi tunel',
+    'module.docker.env.prompt.target.field' => 'wpis książki hostów albo [użytkownik@]host[:port]',
+    // Droga hasłowa tunelu (D102 nr 4) — hasło nie jest nigdzie zapisywane.
+    'module.docker.env.prompt.auth' => 'Jak uwierzytelnić tunel do {target}?',
+    'module.docker.env.auth.key' => 'kluczem albo agentem',
+    'module.docker.env.auth.password' => 'hasłem',
+    'module.docker.env.prompt.tunnelPassword' => 'Hasło do {target}',
+    'module.docker.env.prompt.tunnelPassword.field' => 'hasło nie zostanie nigdzie zapisane',
+    'module.docker.env.prompt.remoteSocket' => 'Gniazdo demona po stronie zdalnej',
+    'module.docker.env.prompt.address' => 'Adres demona',
+    'module.docker.env.prompt.address.field' => 'host[:port] — domyślnie port 2376',
+    'module.docker.env.prompt.cert' => 'Certyfikat klienta (cert.pem)',
+    'module.docker.env.prompt.key' => 'Klucz klienta (key.pem)',
+    'module.docker.env.prompt.ca' => 'Certyfikat urzędu (ca.pem)',
+    'module.docker.env.prompt.path.field' => 'ścieżka bezwzględna pliku',
+    'module.docker.env.key.select' => 'wybierz środowisko bieżące',
+    'module.docker.env.key.select.short' => 'wybierz',
+    'module.docker.env.key.add' => 'dodaj środowisko',
+    'module.docker.env.key.add.short' => 'dodaj',
+    'module.docker.env.key.edit' => 'zmień środowisko',
+    'module.docker.env.key.edit.short' => 'zmień',
+    'module.docker.env.key.remove' => 'usuń środowisko',
+    'module.docker.env.key.remove.short' => 'usuń',
+    'module.docker.env.key.refresh' => 'odśwież konteksty klienta',
+
+    // Powody niepowodzeń wokół środowisk.
+    'module.docker.env.book.unreadable' => 'Pliku docker.json nie da się odczytać — spis środowisk zaczyna od nowa.',
+    'module.docker.env.contexts.failed' => 'Nie udało się odczytać kontekstów klienta docker.',
+    'module.docker.env.socketMissing' => 'Gniazda {path} nie ma — demon nie działa albo środowisko wskazuje złe miejsce.',
+    'module.docker.env.certMissing' => 'Pliku {path} nie ma — środowisko TCP wymaga kompletu certyfikatów.',
+    'module.docker.env.problem.unknown' => 'Środowiska {name} nie ma w spisie.',
+    'module.docker.env.problem.unknownHost' => 'Nie wiadomo, dokąd poprowadzić tunel — wpis nie wskazuje ani książki hostów, ani adresu.',
+    'module.docker.env.problem.unusableContext' => 'Kontekst {name} wskazuje adres, którym moduł nie umie rozmawiać — dodaj wpis własny (tunel SSH albo TCP z TLS).',
+    'module.docker.env.problem.emptyName' => 'Nazwa środowiska nie może być pusta.',
+    'module.docker.env.problem.invalidName' => 'Nazwa {name} nie nadaje się na środowisko — dozwolone litery, cyfry, kropka, podkreślenie i myślnik.',
+    'module.docker.env.problem.invalidSocket' => 'Ścieżka {path} nie jest bezwzględną ścieżką gniazda.',
+    'module.docker.env.problem.invalidTarget' => 'Cel {target} nie wygląda ani na wpis książki hostów, ani na [użytkownik@]host.',
+    'module.docker.env.problem.invalidHost' => 'Adres {host} nie wygląda na nazwę ani adres maszyny.',
+    'module.docker.env.problem.invalidPort' => 'Port {port} jest poza zakresem 1–65535.',
+    'module.docker.env.problem.invalidCertificate' => 'Ścieżka {path} nie jest bezwzględną ścieżką pliku certyfikatu.',
+
+    // Cztery postacie tunelu (krok 58) — widoczne w górnym pasie i w spisie.
+    'module.docker.tunnel.none' => 'tunelu nie ma',
+    'module.docker.tunnel.starting' => 'tunel wstaje…',
+    'module.docker.tunnel.up' => 'tunel stoi',
+    'module.docker.tunnel.failed' => 'tunel nie wstał',
+    'module.docker.tunnel.waiting' => 'Tunel jeszcze wstaje — listy przyjdą, gdy stanie.',
+    'module.docker.tunnel.down' => 'Tunel nie stoi — wybierz środowisko jeszcze raz, żeby go podnieść.',
+    'module.docker.tunnel.rejected' => 'Tunel nie wstał: {reason}',
+    'module.docker.tunnel.interrupted' => 'Podnoszenie tunelu zostało przerwane.',
+    'module.docker.tunnel.failedShort' => 'Tunel nie wstał.',
 
     // Rozmiary — jednostki są napisem, bo zapis liczby zależy od języka.
     'module.docker.size.bytes' => '{value} B',
@@ -208,6 +297,8 @@ return [
     'module.docker.key.follow.short' => 'koniec',
     'module.docker.key.back' => 'wróć do listy kontenerów',
     'module.docker.key.back.short' => 'powrót',
+    'module.docker.key.environments' => 'pokaż spis środowisk',
+    'module.docker.key.environments.short' => 'środowiska',
 
     // Nazwy zdarzeń — widoczne w oknie odbiorcy (moduł dźwięku).
     'module.docker.event.container.changed' => 'Kontener zmienił stan',
@@ -216,6 +307,7 @@ return [
     'module.docker.event.build.finished' => 'Obraz zbudowany',
     'module.docker.event.build.failed' => 'Budowa nieudana',
     'module.docker.event.compose.changed' => 'Projekt compose zmieniony',
+    'module.docker.event.environment.changed' => 'Środowisko Dockera przełączone',
 
     // Zakładka pomocy — część, której z deklaracji wyczytać się nie da.
     'module.docker.help.start' => 'Ctrl+O otwiera listę kontenerów; F3 przełącza między kontenerami a obrazami.',
@@ -224,5 +316,6 @@ return [
     'module.docker.help.logs' => 'Enter otwiera logi kontenera. Płyną na żywo także wtedy, gdy patrzysz na co innego; strzałka w górę zatrzymuje widok, End wraca na koniec.',
     'module.docker.help.build' => 'F7 buduje obraz: pyta o katalog z plikiem Dockerfile, potem o nazwę. Kontekst pakowany jest z pominięciem tego, co wyklucza .dockerignore.',
     'module.docker.help.compose' => 'Komendy docker.up i docker.down podnoszą i kładą projekt compose; bez argumentu biorą plik z katalogu, w którym stoi przeglądarka. F5 zawęża listę do projektu.',
+    'module.docker.help.environments' => 'Litera e otwiera spis środowisk: gniazdo lokalne, tunel SSH i demon po TCP z TLS. Enter wybiera bieżące, a tunel wstaje na wybór — po pytaniu, czy uwierzytelnić kluczem/agentem, czy hasłem; hasło nie jest nigdzie zapisywane.',
     'module.docker.help.refresh' => 'Ctrl+R odświeża obie listy natychmiast — po własnej czynności robi się to samo z siebie.',
 ];

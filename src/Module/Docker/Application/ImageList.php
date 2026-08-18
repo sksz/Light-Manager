@@ -177,6 +177,23 @@ final class ImageList
         }
     }
 
+    /**
+     * Zapomina wszystko, co przyszło — powód ten sam, co w liście kontenerów
+     * (krok 58): odpowiedź w locie pochodzi od poprzedniego demona i nie ma
+     * prawa przeżyć przełączenia środowiska.
+     */
+    public function forget(): void
+    {
+        $this->stop();
+        $this->images = [];
+        $this->outcome = null;
+        $this->problemKey = null;
+        $this->loaded = false;
+        $this->refreshedAt = 0.0;
+        $this->cursor = 0;
+        ++$this->revision;
+    }
+
     private function collectListing(): void
     {
         if ($this->listing === null) {

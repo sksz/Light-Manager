@@ -47,6 +47,9 @@ final class ComposeCliService extends AbstractSingleton implements ComposePort
 
     private ComposeState $state;
 
+    /** Przedrostek środowiska (krok 58) — `DOCKER_HOST=…` przed poleceniem. */
+    private string $prefix = '';
+
     private ?BackgroundHandle $handle = null;
 
     private ?ComposeAction $action = null;
@@ -88,6 +91,11 @@ final class ComposeCliService extends AbstractSingleton implements ComposePort
         return false;
     }
 
+    public function useEnvironment(string $prefix): void
+    {
+        $this->prefix = $prefix;
+    }
+
     public function state(): ComposeState
     {
         return $this->state;
@@ -107,7 +115,11 @@ final class ComposeCliService extends AbstractSingleton implements ComposePort
 
         $this->action = $action;
         $this->state = ComposeState::working($action);
-        $this->handle = $this->processes()->start($command, $action->timeoutSeconds());
+        // Przedrostek środowiska idzie przed poleceniem — klient czyta
+        // `DOCKER_HOST` i rozmawia z tym samym demonem, co listy modułu.
+        // Dotyczy także `ls`: spis projektów z innego demona niż kontenery
+        // byłby drugą prawdą o tej samej maszynie.
+        $this->handle = $this->processes()->start($this->prefix . $command, $action->timeoutSeconds());
     }
 
     public function advance(): void

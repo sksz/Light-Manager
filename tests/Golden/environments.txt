@@ -1,0 +1,103 @@
+plane chrome rect=0,0 30x100 opaque=0 primitives=8
+  R0,1,3,98,-,Border,Round
+  C0,1,3,98,Accent,Round
+  T0,8,Muted,Background,PATH
+  R3,1,23,98,-,Border,Round
+  C3,1,23,98,Accent,Round
+  T3,8,Muted,Background,FILES
+  R26,1,4,98,-,Border,Round
+  C26,1,4,98,Accent,Round
+plane content rect=0,0 30x100 opaque=0 primitives=93
+  T4,2,Muted,-,Nazwa
+  T4,28,Muted,-,Rodzaj
+  T4,40,Muted,-,Adres
+  T4,69,Muted,-,Pochodzenie
+  T4,93,Muted,-,Stan
+  T5,2,Text,-,srodowisko-000
+  T5,28,Muted,-,gniazdo lo…
+  T5,40,Text,-,/var/run/docker.sock
+  T5,69,Muted,-,własny
+  T6,2,Text,-,srodowisko-001
+  T6,28,Muted,-,tunel SSH
+  T6,40,Text,-,/run/user/1000/lm-docker-00…
+  T6,69,Muted,-,klient docker
+  R7,2,1,96,Selection,-,Soft
+  B7,2,1,96,Accent,Edge
+  T7,2,SelectionText,-,srodowisko-002
+  T7,28,SelectionText,-,TCP z TLS
+  T7,40,SelectionText,-,https://demon-002.example.c…
+  T7,69,SelectionText,-,własny
+  T7,90,SelectionText,-,bieżące
+  T8,2,Text,-,srodowisko-003
+  T8,28,Muted,-,gniazdo lo…
+  T8,40,Text,-,/var/run/docker.sock
+  T8,69,Muted,-,klient docker
+  T9,2,Muted,-,srodowisko-004
+  T9,28,Muted,-,tunel SSH
+  T9,40,Muted,-,/run/user/1000/lm-docker-00…
+  T9,69,Muted,-,własny
+  T9,85,Muted,-,przysłonięty
+  T10,2,Text,-,srodowisko-005
+  T10,28,Muted,-,TCP z TLS
+  T10,40,Text,-,https://demon-005.example.c…
+  T10,69,Muted,-,klient docker
+  T11,2,Text,-,srodowisko-006
+  T11,28,Muted,-,gniazdo lo…
+  T11,40,Text,-,/var/run/docker.sock
+  T11,69,Muted,-,własny
+  T12,2,Text,-,srodowisko-007
+  T12,28,Muted,-,tunel SSH
+  T12,40,Text,-,/run/user/1000/lm-docker-00…
+  T12,69,Muted,-,klient docker
+  T13,2,Text,-,srodowisko-008
+  T13,28,Muted,-,TCP z TLS
+  T13,40,Text,-,https://demon-008.example.c…
+  T13,69,Muted,-,własny
+  T14,2,Text,-,srodowisko-009
+  T14,28,Muted,-,gniazdo lo…
+  T14,40,Text,-,/var/run/docker.sock
+  T14,69,Muted,-,klient docker
+  T15,2,Text,-,srodowisko-010
+  T15,28,Muted,-,tunel SSH
+  T15,40,Text,-,/run/user/1000/lm-docker-01…
+  T15,69,Muted,-,własny
+  T16,2,Muted,-,srodowisko-011
+  T16,28,Muted,-,TCP z TLS
+  T16,40,Muted,-,https://demon-011.example.c…
+  T16,69,Muted,-,klient docker
+  T16,85,Muted,-,przysłonięty
+  T17,2,Text,-,srodowisko-012
+  T17,28,Muted,-,gniazdo lo…
+  T17,40,Text,-,/var/run/docker.sock
+  T17,69,Muted,-,własny
+  T18,2,Marked,-,srodowisko-013
+  T18,28,Muted,-,tunel SSH
+  T18,40,Marked,-,/run/user/1000/lm-docker-01…
+  T18,69,Muted,-,klient docker
+  T18,90,Marked,-,bieżące
+  T19,2,Text,-,srodowisko-014
+  T19,28,Muted,-,TCP z TLS
+  T19,40,Text,-,https://demon-014.example.c…
+  T19,69,Muted,-,własny
+  T20,2,Text,-,srodowisko-015
+  T20,28,Muted,-,gniazdo lo…
+  T20,40,Text,-,/var/run/docker.sock
+  T20,69,Muted,-,klient docker
+  T21,2,Text,-,srodowisko-016
+  T21,28,Muted,-,tunel SSH
+  T21,40,Text,-,/run/user/1000/lm-docker-01…
+  T21,69,Muted,-,własny
+  T22,2,Text,-,srodowisko-017
+  T22,28,Muted,-,TCP z TLS
+  T22,40,Text,-,https://demon-017.example.c…
+  T22,69,Muted,-,klient docker
+  T23,2,Muted,-,srodowisko-018
+  T23,28,Muted,-,gniazdo lo…
+  T23,40,Muted,-,/var/run/docker.sock
+  T23,69,Muted,-,własny
+  T23,85,Muted,-,przysłonięty
+  T24,2,Text,-,srodowisko-019
+  T24,28,Muted,-,tunel SSH
+  T24,40,Text,-,/run/user/1000/lm-docker-01…
+  T24,69,Muted,-,klient docker
+  S5,97,20,1,42,21,105,Border,Accent

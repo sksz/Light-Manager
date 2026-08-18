@@ -9,6 +9,7 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\Query\QueryInterface;
 use LightManager\Application\Query\QueryResult;
 use LightManager\Module\Docker\Application\DockerSettings;
+use LightManager\Module\Docker\Application\Environments;
 use LightManager\Module\Docker\Application\ImageList;
 use LightManager\Module\Docker\Application\ImageView;
 use LightManager\Module\Docker\Domain\ValueObject\Image;
@@ -41,6 +42,7 @@ final class ImagesQuery implements QueryInterface
     public function __construct(
         private readonly ImageList $images,
         private readonly TranslatorPort $translator,
+        private readonly Environments $environments,
     ) {
     }
 
@@ -73,13 +75,21 @@ final class ImagesQuery implements QueryInterface
             $this->images->problemKey(),
         );
         $translator = $this->translator;
+        // Nazwa środowiska w każdym wierszu (krok 58, reguła 11w): obraz
+        // „zbudowany" na innym demonie nie jest tym, co klaster może pobrać.
+        $environment = $this->environments->currentName();
 
-        return QueryResult::owned(DockerSettings::ID, $view, static function () use ($view, $translator): array {
+        return QueryResult::owned(DockerSettings::ID, $view, static function () use ($view, $translator, $environment): array {
             $rows = [];
             $selected = $view->selected();
 
             foreach ($view->entries as $image) {
-                $rows[] = self::describe($image, $selected !== null && $selected->id->equals($image->id), $translator);
+                $rows[] = self::describe(
+                    $image,
+                    $selected !== null && $selected->id->equals($image->id),
+                    $translator,
+                    $environment,
+                );
             }
 
             // Pusta lista dostaje **wiersz z samym etapem** — tak samo, jak
@@ -98,13 +108,18 @@ final class ImagesQuery implements QueryInterface
                 'selected' => false,
                 'loaded' => $view->loaded,
                 'problem' => $view->problemKey ?? '',
+                'environment' => $environment,
             ]] : $rows;
         });
     }
 
     /** @return array<string, string|int|bool> */
-    private static function describe(Image $image, bool $selected, TranslatorPort $translator): array
-    {
+    private static function describe(
+        Image $image,
+        bool $selected,
+        TranslatorPort $translator,
+        string $environment,
+    ): array {
         return [
             'id' => $image->id->short(),
             // Pierwsza etykieta, bo nią obraz się wskazuje; **pusto** przy obrazie
@@ -117,6 +132,7 @@ final class ImagesQuery implements QueryInterface
             'selected' => $selected,
             'loaded' => true,
             'problem' => '',
+            'environment' => $environment,
         ];
     }
 }

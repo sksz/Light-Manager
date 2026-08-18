@@ -1502,16 +1502,76 @@ pełnej semantyki Dockera objawia się **rozmiarem kontekstu, a nie wynikiem
 budowy**. Bez tego pierwszy lepszy projekt Node.js wysłałby demonowi
 `node_modules`.
 
-**Moduł odmawia startu bez `ext-curl` albo bez gniazda** (`RequiresEnvironment`),
-ale **nie odmawia z powodu leżącego demona**: rozszerzenia nie da się doładować
-w trakcie działania aplikacji, a demona da się podnieść — moduł odrzucony przy
-starcie nie wróciłby aż do restartu, więc zatrzymany demon jest zdaniem na
-ekranie, a nie powodem nieobecności.
+**Moduł odmawia startu wyłącznie bez `ext-curl`** (`RequiresEnvironment`; od
+kroku 58). Do tamtego kroku odrzucał go także brak gniazda lokalnego — a przy
+środowisku zdalnym byłaby to odmowa bez powodu: maszyna bez demona lokalnego
+jest dokładnie tą, na której zdalne środowisko ma sens. Brak gniazda jest odtąd
+**stanem wpisu środowiska**, mówionym zdaniem w treści ekranu; precedens z kroku
+51 („leżący demon nie odrzuca modułu") objął demona nieobecnego.
 
 **Listy odświeżają się z zegara co pięć sekund, ale wyłącznie przy widocznym
 ekranie**; zawężenie do projektu compose nie kosztuje ani jednego pytania więcej,
 bo kontener zna swój projekt z etykiety `com.docker.compose.project`
 przychodzącej razem z listą.
+
+##### Środowiska: jeden demon przestaje być założeniem (od kroku 58)
+
+**Z którym demonem moduł rozmawia, jest daną wpisu, a nie stałą usługi.** Wpis
+środowiska (`DockerEnvironment`) ma nazwę własną i jeden z trzech rodzajów:
+**gniazdo lokalne**, **tunel SSH** (`ssh -L` przywozi gniazdo zdalnego demona)
+albo **TCP z TLS-em klienta** (`https://host:2376`, trzy ścieżki plików). Zyskiem
+wspólnym obu dróg zdalnych jest to, że **kod rozmowy z demonem zostaje jeden**
+(D96 nr 2): ramkowanie logów, strumień budowy i `X-Registry-Auth` nie zmieniają
+się o linię — usługa gniazda dostaje z wybranego wpisu gotowy `DockerEndpoint`
+i nie wie, skąd się wziął. Odrzucone zostało `docker -H ssh://` przez klienta,
+i to twardo: listy zdalne szłyby wtedy inną drogą niż lokalne, czyli powstałaby
+druga droga do tej samej danej.
+
+**Spis ma dwa źródła** (D96 nr 3): konteksty klienta `docker` czyta się pracą
+tłową (`docker context ls --format json`, NDJSON), a wpisy własne dochodzą
+z książki w pliku stanu modułu `~/.light-manager/docker.json` (tryb `0600`,
+nieznane klucze przeżywają zapis — krok 60 dopisze tam książkę rejestrów).
+Trzy reguły scalania: **pochodzenie jest widoczne**, przy zbieżnej nazwie
+**wygrywa wpis własny** (kolizja zostaje w spisie jako wiersz przysłonięty),
+a **brak klienta nie jest awarią** — lista schodzi do wpisów własnych plus
+gniazda lokalnego. Do cudzych plików moduł **nie pisze**: wpisu czytanego od
+klienta nie da się z aplikacji ani zmienić, ani skasować.
+
+**Tunel jest pracą, która przeżywa swój uchwyt** (wzorzec `ssh -M -N -f`
+z kroku 48): mistrz demonizuje się sam, uchwyt pracy tłowej gaśnie, a na dysku
+zostają dwa pliki — gniazdo przywiezione i gniazdo mistrza, którym tunel się
+potem zamyka (`-O exit`). Gniazdo leży w `XDG_RUNTIME_DIR` (w jego braku —
+w `~/.light-manager`, D102 nr 1), nazwa zawiera nazwę wpisu, a sprzątanie idzie
+dwiema drogami (D47) **plus skasowanie pliku gniazda**, bo `ssh` zostawia je po
+sobie — a gniazdo po nieżyjącym tunelu wisi przy `connect()`.
+`ExitOnForwardFailure=yes` jest warunkiem prawdomówności stanu: bez niego
+„tunel stoi" znaczyłoby tylko „uwierzytelniłem się". Stan tunelu ma **cztery
+postacie** (nie ma / wstaje / stoi / nie wstał z powodem) i jest widoczny
+w górnym pasie — inaczej „demon nie odpowiada" i „tunel nie wstał" wyglądałyby
+identycznie, a wymagają dwóch różnych czynności. Tunel wstaje **na wybór
+środowiska**, nigdy przy starcie aplikacji (start nie ma prawa kosztować
+procesu potomnego), a cel bierze się z kwerendy `ssh.hosts`, gdy wpis wskazuje
+książkę hostów — trzy napisy, ani jednego typu (reguła 15g). Uwierzytelnienie
+ma **dwie drogi do wyboru przy połączeniu** (D102 nr 4): klucz albo agent
+(`BatchMode=yes`, odpowiedź domyślna) i hasło — polem maskowanym, przez
+`SSH_ASKPASS` wzorcem hasłowej drogi modułu Ssh z kroku 48: nigdy wierszem
+polecenia, bez zapisywania gdziekolwiek.
+
+**Compose dostaje środowisko przedrostkiem wiersza polecenia**
+(`DOCKER_HOST=…`, dla TCP także `DOCKER_TLS_VERIFY=1` i `DOCKER_CERT_PATH=…`),
+bo port pracy tłowej bierze gotowy napis i nie ma powodu, żeby przestał.
+Pułapka środowiska zdalnego jest **nazwana w napisach i pada przed
+podniesieniem**: plik compose czyta klient po stronie lokalnej, ale montowania
+`volumes:` wskazują ścieżki po stronie demona, a kontekst budowy jedzie przez
+sieć — `docker.up` pyta o to oknem, zanim cokolwiek ruszy.
+
+**Przełączenie środowiska unieważnia obie listy, logi i budowę** — pytania
+w locie są przerywane, bo odpowiedź zamówiona przed przełączeniem przyszłaby od
+poprzedniego demona. Kwerendy `docker.containers`, `docker.images`
+i `docker.compose` niosą przez to **nazwę środowiska w każdym wierszu** (inaczej
+odpowiedź dwóch demonów wyglądałaby dla obcego identycznie), a nowa
+`docker.environments` oddaje spis wraz z wyborem i stanem tunelu — **bez celu
+SSH i bez ścieżek kluczy TLS** (reguła 11w).
 
 #### Kubernetes: moduł, który nie wie z góry, co pokaże (od kroku 52)
 

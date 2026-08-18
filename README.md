@@ -845,6 +845,41 @@ Wbudowane są dziś trzy:
   praca trwa, bo ile z pliku poszło w sieć, klient `sftp` na potoku nie mówi.
   Przesyłane są **pliki, nie katalogi**, a przesył kopiuje — źródła nie usuwa.
 
+- **Docker** (`docker`, `Ctrl`+`O`) — kontenery i obrazy **wybranego
+  środowiska**, logi na żywo, budowa obrazów i projekty compose. Litera **`e`**
+  otwiera spis środowisk: obok gniazda lokalnego i kontekstów klienta `docker`
+  (czytanych, nigdy nie zmienianych) stoją tam wpisy własne, prowadzone
+  z ekranu i pamiętane w `~/.light-manager/docker.json`.
+
+  **Jak dodać środowisko zdalne:** w spisie (`e`) naciśnij `F7`, wybierz rodzaj
+  i odpowiedz na kolejne pytania:
+
+  - **tunel SSH** — podaj nazwę, cel (`użytkownik@host[:port]` **albo nazwę
+    wpisu książki hostów** modułu sesji zdalnej — dane weźmie stamtąd) i ścieżkę
+    gniazda po stronie zdalnej (domyślnie `/var/run/docker.sock`). Przy wyborze
+    środowiska padnie pytanie, czy uwierzytelnić **kluczem/agentem, czy
+    hasłem** — hasło wpisuje się w polu maskowanym i nie jest nigdzie
+    zapisywane;
+  - **TCP z TLS** — podaj nazwę, adres `host[:port]` (domyślnie 2376) i trzy
+    ścieżki plików: certyfikat klienta, jego klucz i certyfikat urzędu. Dla
+    compose komplet musi leżeć w jednym katalogu pod nazwami
+    `cert.pem`/`key.pem`/`ca.pem`, bo klient czyta go zmienną
+    `DOCKER_CERT_PATH`.
+
+  `Enter` wybiera środowisko bieżące — kontenery i obrazy zdalnego demona widać
+  wtedy **w tych samych panelach**, co lokalne, a górny pas mówi, z kim
+  rozmawiasz. Tunel wstaje na wybór (nigdy przy starcie aplikacji), jego stan —
+  wstaje / stoi / nie wstał z powodem — widać w spisie i w górnym pasie,
+  a ponowny `Enter` podnosi go od nowa. `F4` zmienia wpis, `F8` usuwa (wpisów
+  klienta nie — należą do `docker context`), `Ctrl`+`R` czyta konteksty na
+  nowo. Po wyjściu z aplikacji nie zostaje ani proces `ssh`, ani plik gniazda.
+
+  Brak gniazda lokalnego **nie zabiera modułu**: to stan środowiska, mówiony
+  zdaniem na ekranie — moduł znika wyłącznie bez rozszerzenia PHP `curl`.
+  `docker.up` w środowisku zdalnym pyta przed podniesieniem projektu: plik
+  compose czyta klient po tej stronie, ale montowania `volumes:` wskazują
+  ścieżki na maszynie demona, a kontekst budowy jedzie przez sieć.
+
 #### Moduł domyślny
 
 Aplikacja startuje z oknem modułu wskazanego kluczem `startupModule`; domyślnie

@@ -307,6 +307,7 @@ final class ScenarioFactory
             Scenario::Columns => $this->columns($list),
             Scenario::Highlight => $this->columns($list, highlighted: true),
             Scenario::Marked => $this->columns($list, marked: true),
+            Scenario::Environments => $this->environments($list),
             Scenario::TextView => $this->textView($list),
             Scenario::Tree => $this->tree($list),
             Scenario::Split => $this->splitLists($layout),
@@ -746,6 +747,66 @@ final class ScenarioFactory
             $rows,
             2,
             $this->scroll($bounds->rows),
+        ))->draw($bounds);
+    }
+
+    /**
+     * Spis środowisk Dockera: tabela z nagłówkiem, pięcioma kolumnami i trzema
+     * rolami wierszy naraz (krok 58).
+     *
+     * Treść jest przepisana z kształtu prawdziwego ekranu (nazwa, rodzaj, adres,
+     * pochodzenie, stan), ale wartości pochodzą z licznika — determinizm, reguła
+     * pierwsza tej klasy. Rytmy ról celowo się nie pokrywają (jedenaście
+     * i siedem są względnie pierwsze), z tej samej lekcji, co siódemka
+     * w scenariuszu `marked`: rytm zbieżny ukrywałby jedną z kombinacji.
+     *
+     * @return list<Primitive>
+     */
+    private function environments(Rect $bounds): array
+    {
+        $rows = [];
+        $count = max(0, $bounds->rows);
+        $kinds = ['gniazdo lokalne', 'tunel SSH', 'TCP z TLS'];
+
+        for ($index = 0; $index < $count; ++$index) {
+            $kind = $kinds[$index % 3];
+            $current = $index % 11 === 2;
+            $shadowed = $index % 7 === 4 && !$current;
+            $cells = [
+                sprintf('srodowisko-%03d', $index),
+                $kind,
+                match ($index % 3) {
+                    0 => '/var/run/docker.sock',
+                    1 => sprintf('/run/user/1000/lm-docker-%03d.sock', $index),
+                    default => sprintf('https://demon-%03d.example.com:2376', $index),
+                },
+                $index % 2 === 0 ? 'własny' : 'klient docker',
+                match (true) {
+                    $shadowed => 'przysłonięty',
+                    $current => 'bieżące',
+                    default => '',
+                },
+            ];
+
+            $rows[] = new TableRow($cells, match (true) {
+                $shadowed => Role::Muted,
+                $current => Role::Marked,
+                default => Role::Text,
+            });
+        }
+
+        return (new Table(
+            [
+                Column::flexible(8, label: 'Nazwa'),
+                Column::fixed(12, yieldOrder: 2, label: 'Rodzaj', role: Role::Muted),
+                Column::flexible(12, label: 'Adres'),
+                Column::fixed(14, yieldOrder: 1, label: 'Pochodzenie', role: Role::Muted),
+                Column::fixed(14, yieldOrder: 3, align: Align::Right, label: 'Stan'),
+            ],
+            $rows,
+            2,
+            $this->scroll($bounds->rows),
+            withHeader: true,
         ))->draw($bounds);
     }
 

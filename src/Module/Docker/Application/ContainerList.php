@@ -264,6 +264,28 @@ final class ContainerList
     }
 
     /**
+     * Zapomina wszystko, co przyszło — bo przyszło od **innego demona**
+     * (krok 58, przełączenie środowiska).
+     *
+     * Przerwanie pytań w locie jest tu częścią poprawności, nie porządkiem:
+     * odpowiedź zamówiona przed przełączeniem przyszłaby od poprzedniego demona
+     * i wskrzesiłaby listę, którą właśnie unieważniono. Kryterium kroku mówi
+     * wprost — żaden wiersz z poprzedniego demona nie przeżywa zmiany.
+     */
+    public function forget(): void
+    {
+        $this->stop();
+        $this->containers = [];
+        $this->outcome = null;
+        $this->problemKey = null;
+        $this->loaded = false;
+        $this->refreshedAt = 0.0;
+        $this->cursor = 0;
+        $this->project = null;
+        ++$this->revision;
+    }
+
+    /**
      * Odbiera odpowiedź na pytanie o listę.
      *
      * Kursor **przeżywa odświeżenie tak, jak potrafi**: zostaje na tej samej

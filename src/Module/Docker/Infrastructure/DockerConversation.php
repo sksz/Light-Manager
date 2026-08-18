@@ -37,6 +37,9 @@ final class DockerConversation
 
     private ?string $problemKey = null;
 
+    /** @var array<string, string|int|float> */
+    private array $problemParameters = [];
+
     public function __construct(
         /** `null` wyłącznie w rozmowie odmówionej — tej, która nie ruszyła w ogóle. */
         private readonly ?CurlHandle $curl,
@@ -46,12 +49,20 @@ final class DockerConversation
         $this->attached = $curl instanceof CurlHandle;
     }
 
-    /** Rozmowa, której nie było — powód zamiast uchwytu. */
-    public static function refused(string $problemKey): self
+    /**
+     * Rozmowa, której nie było — powód zamiast uchwytu.
+     *
+     * Parametry doszły w kroku 58: odmowa mówi odtąd także **dlaczego** („tunel
+     * nie wstał: {reason}"), a nie tylko że nie ma czym rozmawiać.
+     *
+     * @param array<string, string|int|float> $parameters
+     */
+    public static function refused(string $problemKey, array $parameters = []): self
     {
         $conversation = new self(null, false, 0);
         $conversation->finished = true;
         $conversation->problemKey = $problemKey;
+        $conversation->problemParameters = $parameters;
 
         return $conversation;
     }
@@ -103,7 +114,7 @@ final class DockerConversation
     public function result(): DockerResult
     {
         if ($this->problemKey !== null) {
-            return DockerResult::failed($this->problemKey);
+            return DockerResult::failed($this->problemKey, $this->problemParameters);
         }
 
         if (!$this->finished) {

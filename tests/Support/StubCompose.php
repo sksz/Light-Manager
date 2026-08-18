@@ -25,6 +25,9 @@ final class StubCompose implements ComposePort
     /** @var list<string> czynności, o które poproszono — w kolejności */
     public array $started = [];
 
+    /** Ostatni przedrostek środowiska (krok 58) — pusty, dopóki takt go nie pchnął. */
+    public string $prefix = '';
+
     public int $stopCount = 0;
 
     private ComposeState $state;
@@ -40,6 +43,11 @@ final class StubCompose implements ComposePort
         private readonly array $projects = [],
     ) {
         $this->state = ComposeState::idle();
+    }
+
+    public function useEnvironment(string $prefix): void
+    {
+        $this->prefix = $prefix;
     }
 
     public function state(): ComposeState

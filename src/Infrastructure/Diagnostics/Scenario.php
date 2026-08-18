@@ -266,6 +266,21 @@ enum Scenario: string
      */
     case Marquee = 'marquee';
 
+    /**
+     * Spis środowisk Dockera: tabela **z nagłówkiem kolumn** i trzema rolami
+     * wierszy naraz (krok 58).
+     *
+     * **Rozlicza się w parze z `columns`**, tą samą konstrukcją, co `highlight`
+     * i `marked`: ten sam prostokąt, ta sama `Table`, to samo przewinięcie.
+     * Różnią go trzy rzeczy i wszystkie trzy są treścią pomiaru: **wiersz
+     * nagłówka** (jedyny w aplikacji mierzony scenariuszem — spisy hostów
+     * i środowisk rysują go, a żaden scenariusz go dotąd nie miał), **pięć
+     * kolumn** zamiast czterech oraz **trzy role wierszy naraz** (bieżące
+     * `Marked`, przysłonięty `Muted`, reszta `Text`) — a klucz pamięci
+     * podręcznej wierszy buduje się z treści i roli (D34).
+     */
+    case Environments = 'environments';
+
     /** @return list<self> kolejność wydruku: od najtańszego do najbogatszego */
     public static function all(): array
     {
@@ -309,7 +324,7 @@ enum Scenario: string
             self::Command, self::Sections, self::Progress, self::Split,
             self::Background, self::BackgroundMany, self::Columns, self::TextView,
             self::Highlight, self::Settings, self::Tree, self::Marked,
-            self::Marquee => true,
+            self::Marquee, self::Environments => true,
             default => false,
         };
     }

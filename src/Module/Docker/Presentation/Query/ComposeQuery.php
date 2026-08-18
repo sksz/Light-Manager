@@ -8,6 +8,7 @@ use LightManager\Application\Command\CommandInput;
 use LightManager\Application\Query\QueryInterface;
 use LightManager\Application\Query\QueryResult;
 use LightManager\Module\Docker\Application\DockerSettings;
+use LightManager\Module\Docker\Application\Environments;
 use LightManager\Module\Docker\Application\Port\ComposePort;
 use LightManager\Module\Docker\Domain\ValueObject\ComposeProject;
 
@@ -29,6 +30,7 @@ final class ComposeQuery implements QueryInterface
 {
     public function __construct(
         private readonly ComposePort $compose,
+        private readonly Environments $environments,
     ) {
     }
 
@@ -55,13 +57,16 @@ final class ComposeQuery implements QueryInterface
     public function ask(CommandInput $input): QueryResult
     {
         $state = $this->compose->state();
+        // Nazwa środowiska w każdym wierszu (krok 58, reguła 11w) — projekt
+        // „podniesiony" na innym demonie to inna prawda o tej samej maszynie.
+        $environment = $this->environments->currentName();
 
-        return QueryResult::owned(DockerSettings::ID, $state, static function () use ($state): array {
+        return QueryResult::owned(DockerSettings::ID, $state, static function () use ($state, $environment): array {
             $stage = strtolower($state->stage->name);
             $rows = [];
 
             foreach ($state->projects as $project) {
-                $rows[] = self::describe($project, $stage);
+                $rows[] = self::describe($project, $stage, $environment);
             }
 
             return $rows === [] ? [[
@@ -73,12 +78,13 @@ final class ComposeQuery implements QueryInterface
                 'action' => $state->action->value ?? '',
                 'note' => $state->note,
                 'problem' => $state->problemKey ?? '',
+                'environment' => $environment,
             ]] : $rows;
         });
     }
 
     /** @return array<string, string|int|bool> */
-    private static function describe(ComposeProject $project, string $stage): array
+    private static function describe(ComposeProject $project, string $stage, string $environment): array
     {
         return [
             'name' => $project->name,
@@ -89,6 +95,7 @@ final class ComposeQuery implements QueryInterface
             'action' => '',
             'note' => '',
             'problem' => '',
+            'environment' => $environment,
         ];
     }
 }

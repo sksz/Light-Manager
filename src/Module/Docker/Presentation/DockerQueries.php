@@ -9,6 +9,7 @@ use LightManager\Module\Docker\Application\BuildProgress;
 use LightManager\Module\Docker\Application\ComposeState;
 use LightManager\Module\Docker\Application\ContainerView;
 use LightManager\Module\Docker\Application\DockerSettings;
+use LightManager\Module\Docker\Application\EnvironmentBookView;
 use LightManager\Module\Docker\Application\ImageView;
 
 /**
@@ -59,6 +60,13 @@ final readonly class DockerQueries
         $payload = $this->ask('build');
 
         return $payload instanceof BuildProgress ? $payload : BuildProgress::empty();
+    }
+
+    public function environments(): EnvironmentBookView
+    {
+        $payload = $this->ask('environments');
+
+        return $payload instanceof EnvironmentBookView ? $payload : EnvironmentBookView::empty();
     }
 
     private function ask(string $name): ?object

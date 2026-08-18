@@ -8,6 +8,7 @@ use CurlHandle;
 use CurlMultiHandle;
 use LightManager\Infrastructure\Support\AbstractSingleton;
 use LightManager\Module\Docker\Application\DockerCall;
+use LightManager\Module\Docker\Application\DockerEndpoint;
 use LightManager\Module\Docker\Application\DockerResult;
 use LightManager\Module\Docker\Application\Port\DockerApiPort;
 
@@ -41,7 +42,15 @@ use LightManager\Module\Docker\Application\Port\DockerApiPort;
  */
 final class DockerApiService extends AbstractSingleton implements DockerApiPort
 {
-    /** Gniazdo demona w miejscu, w którym stawia je każda dzisiejsza instalacja. */
+    /**
+     * Gniazdo demona w miejscu, w którym stawia je każda dzisiejsza instalacja.
+     *
+     * Od kroku 58 to **wartość zapasowa, nie odpowiedź**: z którym demonem
+     * rozmawiamy, jest daną wpisu środowiska, a przychodzi tu gotowym
+     * `DockerEndpoint`em przez `useEndpoint()`. Stała zostaje dla uruchomień,
+     * w których nikt jeszcze żadnego punktu nie podał (testy składające usługę
+     * samodzielnie), i jest tym samym zachowaniem, co przed krokiem 58.
+     */
     public const SOCKET_PATH = '/var/run/docker.sock';
 
     /**
@@ -56,8 +65,8 @@ final class DockerApiService extends AbstractSingleton implements DockerApiPort
      */
     private const API_VERSION = 'v1.41';
 
-    /** Nazwa hosta jest tu obowiązkowa i bez znaczenia — żądanie i tak idzie gniazdem. */
-    private const BASE_URL = 'http://localhost/' . self::API_VERSION;
+    /** Nazwa hosta jest tu obowiązkowa i bez znaczenia — żądanie po gnieździe i tak idzie gniazdem. */
+    private const SOCKET_BASE_URL = 'http://localhost/' . self::API_VERSION;
 
     /** Ile sekund czekać na odpowiedź pytania zwykłego, zanim uznamy je za stracone. */
     private const CALL_TIMEOUT_SECONDS = 20;
@@ -80,6 +89,14 @@ final class DockerApiService extends AbstractSingleton implements DockerApiPort
     private ?CurlMultiHandle $multi = null;
 
     /**
+     * Dokąd idzie rozmowa — dana z wybranego wpisu środowiska (krok 58).
+     *
+     * `null` znaczy „nikt jeszcze nie podał", czyli gniazdo lokalne — dokładnie
+     * to, co usługa robiła, zanim środowiska istniały.
+     */
+    private ?DockerEndpoint $endpoint = null;
+
+    /**
      * Rozmowy tego uruchomienia — numer uchwytu → rozmowa.
      *
      * @var array<int, DockerConversation>
@@ -90,12 +107,28 @@ final class DockerApiService extends AbstractSingleton implements DockerApiPort
 
     private bool $shutdownRegistered = false;
 
-    /** Czy w tym środowisku jest czym i przez co rozmawiać (reguła 11s — tanio). */
-    public static function isSupported(): bool
+    /**
+     * Czy jest **czym** rozmawiać — samo rozszerzenie, bez pytania o gniazdo.
+     *
+     * Do kroku 58 pytanie było jedno i statyczne, bo demon był jeden. Odkąd
+     * „z którym demonem" jest daną wpisu, odpowiedź „czy da się w ogóle" brzmi
+     * „zależy które" — statyczne zostaje wyłącznie to, czego nie zmieni żaden
+     * wpis: obecność `ext-curl` (reguła 11s — tanio, raz na uruchomienie).
+     */
+    public static function hasCurl(): bool
     {
-        return extension_loaded('curl')
-            && defined('CURLOPT_UNIX_SOCKET_PATH')
-            && file_exists(self::SOCKET_PATH);
+        return extension_loaded('curl') && defined('CURLOPT_UNIX_SOCKET_PATH');
+    }
+
+    /** Czy z bieżącym punktem końcowym da się rozmawiać — pytanie o wpis, nie o maszynę. */
+    public function isSupported(): bool
+    {
+        return self::hasCurl() && $this->refusalFor($this->endpointNow()) === null;
+    }
+
+    public function useEndpoint(DockerEndpoint $endpoint): void
+    {
+        $this->endpoint = $endpoint;
     }
 
     public function get(string $path): DockerCall
@@ -193,8 +226,17 @@ final class DockerApiService extends AbstractSingleton implements DockerApiPort
     ): DockerCall {
         $call = new DockerCall(++$this->lastId);
 
-        if (!self::isSupported()) {
+        if (!self::hasCurl()) {
             $this->calls[$call->id] = DockerConversation::refused('module.docker.daemon.unsupported');
+
+            return $call;
+        }
+
+        $endpoint = $this->endpointNow();
+        $refusal = $this->refusalFor($endpoint);
+
+        if ($refusal !== null) {
+            $this->calls[$call->id] = $refusal;
 
             return $call;
         }
@@ -211,7 +253,7 @@ final class DockerApiService extends AbstractSingleton implements DockerApiPort
         $conversation = new DockerConversation($handle, $streaming, self::MAX_BUFFER_BYTES);
 
         curl_setopt_array($handle, $this->options(
-            $handle,
+            $endpoint,
             $conversation,
             $path,
             $streaming,
@@ -236,10 +278,14 @@ final class DockerApiService extends AbstractSingleton implements DockerApiPort
      * płynąca nie oddałaby ani bajtu, dopóki kontener żyje**. Z nim każda porcja
      * ląduje w buforze rozmowy, a moduł zabiera ją w najbliższej klatce.
      *
+     * Droga do demona bierze się z punktu końcowego (krok 58): gniazdo unixowe
+     * albo `https://host:port` z TLS-em klienta. **Reszta rozmowy nie zmienia
+     * się o linię** — i to jest cała stawka dwóch dróg naraz (D96 nr 2).
+     *
      * @return array<int, mixed>
      */
     private function options(
-        CurlHandle $handle,
+        DockerEndpoint $endpoint,
         DockerConversation $conversation,
         string $path,
         bool $streaming,
@@ -249,8 +295,6 @@ final class DockerApiService extends AbstractSingleton implements DockerApiPort
         ?string $registryAuth = null,
     ): array {
         $options = [
-            CURLOPT_UNIX_SOCKET_PATH => self::SOCKET_PATH,
-            CURLOPT_URL => self::BASE_URL . $path,
             CURLOPT_CONNECTTIMEOUT_MS => self::CONNECT_TIMEOUT_MS,
             CURLOPT_WRITEFUNCTION => static fn (CurlHandle $ignored, string $chunk): int
                 => $conversation->collect($chunk),
@@ -260,6 +304,16 @@ final class DockerApiService extends AbstractSingleton implements DockerApiPort
             // dwudziestu sekundach”.
             CURLOPT_TIMEOUT => $streaming ? 0 : self::CALL_TIMEOUT_SECONDS,
         ];
+
+        if ($endpoint->socketPath !== null) {
+            $options[CURLOPT_UNIX_SOCKET_PATH] = $endpoint->socketPath;
+            $options[CURLOPT_URL] = self::SOCKET_BASE_URL . $path;
+        } else {
+            $options[CURLOPT_URL] = $endpoint->baseUrl() . '/' . self::API_VERSION . $path;
+            $options[CURLOPT_SSLCERT] = $endpoint->certPath ?? '';
+            $options[CURLOPT_SSLKEY] = $endpoint->keyPath ?? '';
+            $options[CURLOPT_CAINFO] = $endpoint->caPath ?? '';
+        }
 
         if ($method !== 'GET') {
             $options[CURLOPT_CUSTOMREQUEST] = $method;
@@ -333,6 +387,49 @@ final class DockerApiService extends AbstractSingleton implements DockerApiPort
         if ($this->multi !== null) {
             $conversation->detachFrom($this->multi);
         }
+    }
+
+    private function endpointNow(): DockerEndpoint
+    {
+        return $this->endpoint ?? DockerEndpoint::unixSocket(self::SOCKET_PATH);
+    }
+
+    /**
+     * Powód, dla którego rozmowy z tym punktem nie ma jak zacząć — `null`,
+     * gdy wolno pytać.
+     *
+     * Brak gniazda jest odtąd **stanem wpisu, nie brakiem modułu** (miara druga
+     * planu): odpowiedź wraca odmówioną rozmową z kluczem, ekran mówi ją
+     * zdaniem, a moduł stoi dalej. Pliki sprawdzamy tu, a nie przy wyborze
+     * wpisu, bo demon i certyfikaty mają prawo pojawić się między jednym
+     * pytaniem a drugim.
+     */
+    private function refusalFor(DockerEndpoint $endpoint): ?DockerConversation
+    {
+        if (!$endpoint->isReady()) {
+            return DockerConversation::refused(
+                $endpoint->problemKey ?? 'module.docker.daemon.unsupported',
+                $endpoint->problemParameters,
+            );
+        }
+
+        if ($endpoint->socketPath !== null && !file_exists($endpoint->socketPath)) {
+            return DockerConversation::refused('module.docker.env.socketMissing', [
+                'path' => $endpoint->socketPath,
+            ]);
+        }
+
+        if ($endpoint->isTls()) {
+            foreach ([$endpoint->certPath, $endpoint->keyPath, $endpoint->caPath] as $file) {
+                if ($file === null || !is_file($file)) {
+                    return DockerConversation::refused('module.docker.env.certMissing', [
+                        'path' => $file ?? '',
+                    ]);
+                }
+            }
+        }
+
+        return null;
     }
 
     private function registerShutdownHandler(): void

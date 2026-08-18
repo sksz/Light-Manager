@@ -24,6 +24,20 @@ wejście już ma. Pełny spis „proces → wejście”: `docs/architecture.md`,
 `docs/konwencja-changelogu.md`** — tam stoi numeracja, nazewnictwo wydań, zasada
 sekcji „Niewydane” i zgodność wersji w `composer.json`.
 
+**Na zdalnych hostach nie sprawdzasz NICZEGO samodzielnie.** Na zdalnym hoście
+wykonujesz **wyłącznie to, co użytkownik wprost polecił, dokładnie tymi
+poświadczeniami, które podał** (podane hasło = używasz hasła). Zakazy bez
+wyjątków:
+
+- **żadnych kluczy i certyfikatów** — nie czytasz, nie wskazujesz, nie
+  instalujesz i nie dotykasz kluczy ani certyfikatów użytkownika (`~/.ssh`,
+  `ssh-copy-id`, `IdentityFile`, TLS) bez jego wyraźnego polecenia;
+- **żadnej diagnostyki po swojemu** — nie sprawdzasz, „dlaczego host tak
+  odpowiada": nie zaglądasz w `/etc/passwd`, konta, grupy, uprawnienia ani
+  konfigurację zdalnej maszyny;
+- gdy coś nie działa: **stop, komplet informacji** (co dokładnie uruchomiono,
+  co wróciło) **i pytanie, co dalej** — zamiast próbować kolejnych rzeczy.
+
 **Przed pomiarem wydajności (`make bench*`, `bin/render-bench`) oraz przed
 sprawdzeniem działania aplikacji w prawdziwym terminalu (zrzuty ekranu, klatka
 pod XTermem, `make run*`) poproś użytkownika o zwolnienie mocy obliczeniowej
