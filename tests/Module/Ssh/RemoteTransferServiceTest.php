@@ -49,7 +49,7 @@ final class RemoteTransferServiceTest extends TestCase
         $this->root = sys_get_temp_dir() . '/lm-przesyl-' . bin2hex(random_bytes(6));
         mkdir($this->root);
 
-        $this->host = new HostProfile('próba', '127.0.0.1', 2223, 'foo');
+        $this->host = new HostProfile('00000001', 'próba', '127.0.0.1', 2223, 'foo');
         $this->processes = new StubBackgroundProcess(pollsUntilDone: 2, output: '');
         $this->transfers = RemoteTransferService::getInstance();
         $this->transfers->useSeams($this->processes, FileOperationsService::getInstance());

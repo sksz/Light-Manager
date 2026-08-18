@@ -32,6 +32,11 @@ use PHPUnit\Framework\TestCase;
  * Odpowiedzi przychodzą **taktem**, a nie klawiszem, więc każdy krok przebiegu
  * przechodzi przez `ticker` — tę samą drogę, którą w aplikacji prowadzi
  * `GameLoop`.
+ *
+ * **`HOME` idzie na katalog tymczasowy z pustym `~/.kube/config`** (krok 59):
+ * miejsce ma odtąd dwie współrzędne, a brak pliku rozstrzyga się `is_file()`,
+ * nie odpowiedzią klienta — bez podstawienia przebieg zależałby od tego, czy
+ * maszyna testująca ma własny `kubeconfig`.
  */
 final class ClusterFlowTest extends TestCase
 {
@@ -59,10 +64,29 @@ final class ClusterFlowTest extends TestCase
 
     private ScreenFixture $app;
 
+    private string $home = '';
+
+    private string|false $previousHome = false;
+
     protected function setUp(): void
     {
+        $this->previousHome = getenv('HOME');
+        $this->home = sys_get_temp_dir() . '/lm-cluster-flow-' . getmypid() . '-' . random_int(1000, 9999);
+
+        mkdir($this->home . '/.kube', 0o700, true);
+        touch($this->home . '/.kube/config');
+        putenv('HOME=' . $this->home);
+
         $this->kubectl = new StubKubectl();
         $this->app = $this->fixture();
+    }
+
+    protected function tearDown(): void
+    {
+        unlink($this->home . '/.kube/config');
+        rmdir($this->home . '/.kube');
+        rmdir($this->home);
+        putenv($this->previousHome === false ? 'HOME' : 'HOME=' . $this->previousHome);
     }
 
     /** **Sedno kroku**: skrót otwiera klaster, a takt przynosi spis rodzajów. */
@@ -132,6 +156,8 @@ final class ClusterFlowTest extends TestCase
         $this->press(KeyPress::ctrl('k'));
         $this->tick();
         $this->tick();
+        $this->tick();
+        $this->tick();
 
         $texts = $this->joined();
 
@@ -150,11 +176,12 @@ final class ClusterFlowTest extends TestCase
 
         $this->press(KeyPress::ctrl('k'));
         $this->tick();
+        $this->tick();
 
         $texts = $this->joined();
 
         self::assertStringContainsString('module.k8s.stage.noContext', $texts);
-        self::assertSame(1, count($this->kubectl->calls), 'bez kontekstu nie pytamy klastra o nic');
+        self::assertSame(1, count($this->kubectl->calls), 'bez klastra nie pytamy o nic ponad sam plik');
     }
 
     /**
@@ -169,6 +196,7 @@ final class ClusterFlowTest extends TestCase
         $this->kubectl->willReturn('{"contexts":[{"name":"ca-dev","context":{}}],"current-context":""}');
 
         $this->press(KeyPress::ctrl('k'));
+        $this->tick();
         $this->tick();
 
         $screen = $this->app->screens->current();
@@ -214,6 +242,11 @@ final class ClusterFlowTest extends TestCase
             ->willReturn(self::RESOURCES);
 
         $this->press(KeyPress::ctrl('k'));
+
+        // Cztery takty, a nie trzy: od kroku 59 pierwszy zamawia odczyt pliku
+        // `kubeconfig`, bo miejsce ma dwie współrzędne i pierwsza z nich jest
+        // pytaniem do dysku.
+        $this->tick();
         $this->tick();
         $this->tick();
         $this->tick();

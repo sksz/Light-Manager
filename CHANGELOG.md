@@ -7,6 +7,31 @@ Light Manager — menadżer plików działający w terminalu i we własnym oknie
 Jeden grający, wiele piszczałek: aplikacja przestaje zakładać, że demon,
 klaster i rejestr są po jednym — miejsca stają się spisami, które prowadzisz.
 
+- **Adresy mieszkają w książce adresowej, wspólnej dla wszystkich modułów**
+  (2026-08-18). `Ctrl`+`W` otwiera spis miejsc, pod które łączy się aplikacja:
+  `F7` dopisuje, `F4` zmienia, `F8` usuwa, `Ctrl`+`F` zawęża. Ten sam wpis widzi
+  sesja zdalna i tunel Dockera, więc **adres poprawia się w jednym miejscu**,
+  a nie w dwóch. Wpis ma własny identyfikator, więc nazwę wolno zmienić,
+  zostawić pustą albo powtórzyć — odniesienia pozostałych modułów tego nie
+  zauważą. Pola poza nazwą i adresem dokładają moduły: sesja zdalna dopisuje
+  port i użytkownika, a książka pyta o nie w tym samym łańcuchu okien. **Haseł,
+  kluczy ani certyfikatów w książce nie ma** — trzyma je ten moduł, który się
+  nimi przedstawia. Spis hostów ze starszej wersji przenosi się do książki sam,
+  przy pierwszym uruchomieniu, a stary zapis zostaje nietknięty; brak klienta
+  `ssh` nie zabiera już adresów, z których korzysta Docker.
+- **Klaster wybiera się ze spisu, a nie z jednej pozycji ustawień**
+  (2026-08-18). Litera `c` na ekranie Kubernetesa otwiera spis klastrów: obok
+  kontekstów czytanych z `~/.kube/config` i ze ścieżek w `KUBECONFIG` stoją
+  wpisy własne, wskazujące dowolny plik — także taki, którego moduł wcześniej
+  w ogóle nie widział. `Enter` przełącza, `F7` dopisuje, `F4` zmienia, `F8`
+  usuwa; wpisu czytanego z cudzego pliku nie da się skasować, bo aplikacja do
+  `kubeconfig` nadal nie pisze. **Dwa klastry o kontekstach tej samej nazwy
+  w dwóch plikach są odtąd dwoma miejscami** — przełączenie między nimi nie
+  miesza ani zasobów, ani drzewa rodzajów, ani otwartego opisu. Wpis
+  wskazujący nieistniejący plik albo kontekst, którego w pliku nie ma, mówi
+  **co poprawić**, zamiast udawać, że klaster nie odpowiada. Zapamiętane
+  miejsce ze starszej wersji przenosi się do spisu samo, przy pierwszym
+  uruchomieniu.
 - **Docker rozmawia z wybranym środowiskiem** (2026-08-18). Litera `e` na
   ekranie Dockera otwiera spis środowisk: obok gniazda lokalnego i kontekstów
   klienta `docker` stoją wpisy własne — demon za tunelem SSH (z hasłem albo
@@ -18,8 +43,8 @@ klaster i rejestr są po jednym — miejsca stają się spisami, które prowadzi
   `ssh`, ani plik gniazda. `docker.up` w środowisku zdalnym uprzedza, że
   montowania i kontekst budowy znaczą tam co innego niż lokalnie.
 
-W przygotowaniu: książka klastrów Kubernetesa i rejestry obrazów —
-z wypchnięciem, pobraniem i sekretem zakładanym w klastrze.
+W przygotowaniu: rejestry obrazów — z wypchnięciem, pobraniem i sekretem
+zakładanym w klastrze.
 
 ## Niewydane — Kastaniety (Faza XIX): wskaźnik
 

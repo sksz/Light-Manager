@@ -17,10 +17,10 @@ use LightManager\Application\Module\RequiresEnvironment;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
-use LightManager\Module\Ssh\Application\Port\HostBookPort;
 use LightManager\Module\Ssh\Application\Port\RemoteDirectoryPort;
 use LightManager\Module\Ssh\Application\Port\RemoteTransferPort;
 use LightManager\Module\Ssh\Application\Port\SshSessionPort;
+use LightManager\Module\Ssh\Application\Port\SshStatePort;
 use LightManager\Module\Ssh\Application\RemoteBrowser;
 use LightManager\Module\Ssh\Application\SshEvent;
 use LightManager\Module\Ssh\Application\SshSession;
@@ -34,8 +34,8 @@ use LightManager\Module\Ssh\Presentation\Command\DisconnectCommand;
 use LightManager\Module\Ssh\Presentation\Command\DownloadCommand;
 use LightManager\Module\Ssh\Presentation\Command\HostsCommand;
 use LightManager\Module\Ssh\Presentation\Command\UploadCommand;
+use LightManager\Module\Ssh\Presentation\Query\AddressFieldsQuery;
 use LightManager\Module\Ssh\Presentation\Query\EntriesQuery;
-use LightManager\Module\Ssh\Presentation\Query\HostsQuery;
 use LightManager\Module\Ssh\Presentation\Query\SessionQuery;
 use LightManager\Module\Ssh\Presentation\Query\TransferQuery;
 use LightManager\Presentation\Cli\LoopState;
@@ -114,7 +114,7 @@ final class SshModule implements
      *                                  prawa otworzyć połączenia — tak samo, jak testy
      *                                  dźwięku nie mają prawa uruchomić silnika.
      *                                  `null` znaczy „weź usługę na kliencie OpenSSH"
-     * @param ?HostBookPort        $storage     jw. — test nie ma prawa dotknąć pliku w katalogu domowym
+     * @param ?SshStatePort        $storage     jw. — test nie ma prawa dotknąć pliku w katalogu domowym
      * @param ?RemoteDirectoryPort  $directories jw. — odczyt katalogu uruchamia proces potomny,
      *                                           więc test dostaje atrapę (krok 49)
      * @param ?RemoteTransferPort   $files       jw. — przesył uruchamia proces potomny **i pisze
@@ -125,7 +125,7 @@ final class SshModule implements
         private readonly TranslatorPort $translator,
         private readonly SettingsPort $settings,
         private readonly ?SshSessionPort $sessions = null,
-        private readonly ?HostBookPort $storage = null,
+        private readonly ?SshStatePort $storage = null,
         private readonly ?RemoteDirectoryPort $directories = null,
         private readonly ?RemoteTransferPort $files = null,
     ) {
@@ -194,7 +194,8 @@ final class SshModule implements
     }
 
     /**
-     * Cztery źródła danych tego modułu — **cała jego cena w kroku 54**.
+     * Źródła danych tego modułu — **cała jego cena w kroku 54**, przeliczona
+     * w kroku 60.
      *
      * Zdolność deklaruje się osobno, jak `ProvidesCommands` i `DeclaresEvents`,
      * bo nie wymienia ani jednego typu z `Presentation` (kryterium podziału
@@ -205,7 +206,11 @@ final class SshModule implements
     public function queries(): array
     {
         return [
-            new HostsQuery($this->session()),
+            // `ssh.hosts` **zniknęła w kroku 60**: powtarzałaby cudzą odpowiedź,
+            // bo adresy mieszkają odtąd w książce adresowej. W jej miejsce
+            // wchodzi deklaracja pól, które ten moduł dokłada wpisowi książki —
+            // czyli druga strona tej samej granicy.
+            new AddressFieldsQuery(),
             new SessionQuery($this->session()),
             new EntriesQuery($this->browser(), $this->translator),
             new TransferQuery($this->transfers(), $this->translator),
@@ -272,7 +277,7 @@ final class SshModule implements
      */
     private function reader(): SshQueries
     {
-        return $this->reader ??= new SshQueries($this->state->queries());
+        return $this->reader ??= new SshQueries($this->state, $this->session());
     }
 
     /**
@@ -305,6 +310,11 @@ final class SshModule implements
      */
     public function tick(float $now): void
     {
+        // Rozdział książki adresowej zakłada się w takcie — raz na uruchomienie
+        // i niezależnie od tego, który ekran użytkownik otworzył pierwszy
+        // (krok 60). Koszt po pierwszym wywołaniu to jedno sprawdzenie pola.
+        $this->reader()->declareChapter();
+
         // Takt idzie przez **ekran**, a nie wprost do sesji, bo od kroku 49 są
         // dwie prace i jedna decyzja: sesja, odczyt katalogu i rozstrzygnięcie,
         // którą postać widać. Rozdzielone znaczyłyby dwa miejsca, które muszą

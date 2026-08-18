@@ -32,8 +32,6 @@ use LightManager\Infrastructure\Support\AbstractSingleton;
  */
 final class SettingsService extends AbstractSingleton implements SettingsPort
 {
-    private const DIRECTORY = '.light-manager';
-
     private const FILE = 'settings.json';
 
     private const TEMPORARY_PREFIX = '.settings-';
@@ -56,11 +54,6 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
     private const LEGACY_HIDDEN_MODULE = 'browser';
 
     private const LEGACY_HIDDEN_SETTING = 'showHidden';
-
-    /** Właściciel czyta i pisze, reszta świata nic — plik opisuje wyłącznie jego środowisko. */
-    private const FILE_MODE = 0o600;
-
-    private const DIRECTORY_MODE = 0o700;
 
     private ?Settings $current = null;
 
@@ -334,34 +327,26 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
         };
     }
 
+    /**
+     * Zapis idzie wspólną drogą (`StateFile`, krok 59) — wynik zamienia się tu
+     * na wyjątki, bo kontraktem konfiguracji jest mówienie o niepowodzeniu,
+     * a nie cisza usług stanu.
+     */
     private function write(Settings $settings): void
     {
-        $directory = $this->directory();
-
-        if (!is_dir($directory) && !@mkdir($directory, self::DIRECTORY_MODE, true) && !is_dir($directory)) {
-            throw ConfigException::forUnwritableDirectory($directory);
-        }
-
         $json = json_encode($this->toArray($settings), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
         if ($json === false) {
             throw ConfigException::forFailedEncoding();
         }
 
-        $path = $this->location();
-        $temporary = $directory . DIRECTORY_SEPARATOR . self::TEMPORARY_PREFIX . getmypid() . '.tmp';
+        $directory = $this->directory();
 
-        if (@file_put_contents($temporary, $json . "\n") === false) {
-            throw ConfigException::forUnwritableFile($path);
-        }
-
-        @chmod($temporary, self::FILE_MODE);
-
-        if (!@rename($temporary, $path)) {
-            @unlink($temporary);
-
-            throw ConfigException::forUnwritableFile($path);
-        }
+        match (StateFile::write($directory, self::FILE, self::TEMPORARY_PREFIX, $json)) {
+            StateWriteOutcome::DirectoryFailed => throw ConfigException::forUnwritableDirectory($directory),
+            StateWriteOutcome::FileFailed => throw ConfigException::forUnwritableFile($this->location()),
+            StateWriteOutcome::Written => null,
+        };
     }
 
     /**
@@ -394,20 +379,9 @@ final class SettingsService extends AbstractSingleton implements SettingsPort
         return $values;
     }
 
-    /**
-     * Katalog domowy bierzemy z `HOME`. Gdy zmiennej nie ma — a to stan
-     * patologiczny, nie zwykły — konfiguracja ląduje w katalogu roboczym
-     * procesu, żeby ekran ustawień działał zamiast wywracać się na starcie.
-     */
+    /** Katalog stanu — od kroku 59 zna go jedno miejsce (`StateFile`). */
     private function directory(): string
     {
-        $home = getenv('HOME');
-
-        if (!is_string($home) || $home === '') {
-            $working = getcwd();
-            $home = $working === false ? '.' : $working;
-        }
-
-        return rtrim($home, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::DIRECTORY;
+        return StateFile::directory();
     }
 }

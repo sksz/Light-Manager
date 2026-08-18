@@ -1,0 +1,47 @@
+{
+    "signature": "1000x600px 166x46 theme=grafit palette=64 textAA=0 strokeAA=1 font=auto loop",
+    "environment": {
+        "php": "8.3.11",
+        "imageMagick": "ImageMagick 6.9.12-98 Q16 x86_64 18038 https://legacy.imagemagick.org",
+        "font": "DejaVu-Sans-Mono",
+        "recordedAt": "2026-08-18T19:11:39+00:00",
+        "loadPerCore": 0.1
+    },
+    "options": {
+        "widthPixels": 1000,
+        "heightPixels": 600,
+        "columns": 166,
+        "rows": 46,
+        "theme": "grafit",
+        "textAntialias": false,
+        "strokeAntialias": true,
+        "paletteColors": 64,
+        "font": null,
+        "iterations": 15,
+        "warmupIterations": 3,
+        "track": "loop"
+    },
+    "scenarios": {
+        "background": {
+            "draw": 0.006,
+            "quantize": 0,
+            "encode": 0.083,
+            "total": 0.09,
+            "bytes": 83,
+            "unstable": false,
+            "cold": 0.522,
+            "peakBytes": 4194304
+        },
+        "background-many": {
+            "draw": 0.039,
+            "quantize": 0,
+            "encode": 0.083,
+            "total": 0.122,
+            "bytes": 83,
+            "unstable": false,
+            "cold": 0.183,
+            "peakBytes": 4194304
+        }
+    },
+    "transfer": null
+}

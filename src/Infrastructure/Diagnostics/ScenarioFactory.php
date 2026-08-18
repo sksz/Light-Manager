@@ -798,7 +798,7 @@ final class ScenarioFactory
         return (new Table(
             [
                 Column::flexible(8, label: 'Nazwa'),
-                Column::fixed(12, yieldOrder: 2, label: 'Rodzaj', role: Role::Muted),
+                Column::fixed(16, yieldOrder: 2, label: 'Rodzaj', role: Role::Muted),
                 Column::flexible(12, label: 'Adres'),
                 Column::fixed(14, yieldOrder: 1, label: 'Pochodzenie', role: Role::Muted),
                 Column::fixed(14, yieldOrder: 3, align: Align::Right, label: 'Stan'),

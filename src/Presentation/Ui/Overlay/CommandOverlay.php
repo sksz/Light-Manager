@@ -235,7 +235,7 @@ final class CommandOverlay implements OverlayInterface, Resettable, NeedsTime, A
      * Druga połowa spłaty długu z D100, obok pytania w `ConfirmOverlay`: okno
      * kwerend pokazuje identyfikatory kontenerów, odciski i ścieżki, czyli
      * dokładnie te napisy, których nikt nie przepisuje z ręki — a zaznaczyć ich
-     * myszą nie sposób, dopóki nie ma zaznaczania w oknie (krok 76).
+     * myszą nie sposób, dopóki nie ma zaznaczania w oknie (krok 77).
      *
      * Kopiuje się **cała odpowiedź**, a nie wiersz pod kursorem, i to nie jest
      * uproszczenie: wiersz wskazuje kursor listy podpowiedzi, który przy jednym

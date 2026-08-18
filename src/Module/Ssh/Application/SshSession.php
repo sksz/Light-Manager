@@ -6,18 +6,24 @@ namespace LightManager\Module\Ssh\Application;
 
 use LightManager\Application\Event\EventRegistry;
 use LightManager\Application\Port\SettingsPort;
-use LightManager\Module\Ssh\Application\Port\HostBookPort;
 use LightManager\Module\Ssh\Application\Port\SshSessionPort;
+use LightManager\Module\Ssh\Application\Port\SshStatePort;
 use LightManager\Module\Ssh\Domain\ValueObject\AuthMethod;
+use LightManager\Module\Ssh\Domain\ValueObject\HostCredentials;
 use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
 
 /**
- * Sesja i książka hostów widziane jako jedna rzecz — **jedna na moduł** (krok 48).
+ * Sesja zdalna — **jedna na moduł** (krok 48; bez książki od kroku 60).
  *
  * Wzorowane wprost na `PlaylistPlayer` z kroku 45 i z tego samego powodu: takt
  * pilnuje jednego stanu, ekran pokazuje drugi, komenda przestawia trzeci —
  * a przy trzech obiektach byłyby to trzy prawdy. Ekran, obie komendy i takt
  * dostają **ten sam** obiekt.
+ *
+ * **Książki tu już nie ma** (krok 60): adresy przeniosły się do własnego
+ * modułu, a sesji został stan połączenia i to, co z niego wynika. Klasa
+ * schudła przez to o cztery metody i o jedno zmartwienie — kto pilnuje zapisu
+ * spisu.
  *
  * **Warstwy `UseCase` moduł nie dostał, choć plan ją przewidywał.** Powód jest
  * ten sam, dla którego nie ma jej moduł dźwięku: `ConnectUseCase`
@@ -31,13 +37,6 @@ use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
  */
 final class SshSession
 {
-    private ?HostBook $book = null;
-
-    private ?string $bookProblem = null;
-
-    /** Ile razy książka się zmieniła — patrz `revision()`. */
-    private int $revision = 0;
-
     /**
      * Etap, o którym już ogłoszono.
      *
@@ -50,7 +49,7 @@ final class SshSession
 
     public function __construct(
         private readonly SshSessionPort $sessions,
-        private readonly HostBookPort $storage,
+        private readonly SshStatePort $storage,
         private readonly SettingsPort $settings,
         private readonly EventRegistry $events,
     ) {
@@ -59,31 +58,6 @@ final class SshSession
     public function state(): SessionState
     {
         return $this->sessions->state();
-    }
-
-    public function book(): HostBook
-    {
-        if ($this->book === null) {
-            $loaded = $this->storage->load();
-            $this->book = $loaded->book;
-            $this->bookProblem = $loaded->problemKey;
-            ++$this->revision;
-        }
-
-        return $this->book;
-    }
-
-    /** Klucz powodu, gdy pliku książki nie dało się przeczytać; `null`, gdy dobrze. */
-    public function bookProblem(): ?string
-    {
-        $this->book();
-
-        return $this->bookProblem;
-    }
-
-    public function location(): string
-    {
-        return $this->storage->location();
     }
 
     /**
@@ -129,43 +103,6 @@ final class SshSession
     public function defaultAuth(): AuthMethod
     {
         return SshSettings::authFrom($this->settings->current());
-    }
-
-    /**
-     * Licznik zmian książki hostów — **znacznik pokolenia dla kwerendy
-     * `ssh.hosts`** (krok 54).
-     *
-     * Bije w trzech miejscach i wszystkie trzy są tutaj: pierwsze wczytanie
-     * z dysku oraz dopisanie i usunięcie wpisu. Warunek D93 nr 1 („pamięć wyniku
-     * wolno trzymać wyłącznie tam, gdzie źródło umie powiedzieć, że się
-     * zmieniło”) jest przez to spełniony **konstrukcyjnie**, a nie obietnicą:
-     * książka nie ma innej drogi zmiany niż te trzy, bo `HostBook` wychodzi stąd
-     * wyłącznie przez `book()`, a zapisuje ją `persist()`.
-     */
-    public function revision(): int
-    {
-        $this->book();
-
-        return $this->revision;
-    }
-
-    public function add(HostProfile $profile): void
-    {
-        $this->book()->add($profile);
-        ++$this->revision;
-        $this->persist();
-    }
-
-    public function remove(string $name): bool
-    {
-        if (!$this->book()->remove($name)) {
-            return false;
-        }
-
-        ++$this->revision;
-        $this->persist();
-
-        return true;
     }
 
     /**
@@ -221,10 +158,25 @@ final class SshSession
         }
     }
 
-    private function persist(): void
+    /**
+     * Poświadczenia wpisu — czym się przedstawić i skąd wziąć klucz.
+     *
+     * Sesja jest tu **jedyną drogą** do tej danej, bo to ona wie, że połączenie
+     * ma je dostać zanim ruszy; ekran i komenda dostają gotowy `HostProfile`.
+     */
+    public function credentials(string $entryId, string $entryName = ''): HostCredentials
     {
-        if ($this->book !== null) {
-            $this->storage->save($this->book);
-        }
+        return $this->storage->credentials($entryId, $entryName);
+    }
+
+    public function saveCredentials(string $entryId, HostCredentials $credentials): void
+    {
+        $this->storage->saveCredentials($entryId, $credentials);
+    }
+
+    /** Gdzie leży dokument stanu — pokazuje to górny pas ekranu. */
+    public function location(): string
+    {
+        return $this->storage->location();
     }
 }

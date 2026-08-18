@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Tests\Module\Audio;
 
+use LightManager\Infrastructure\Config\StateDocumentService;
 use LightManager\Module\Audio\Application\EffectMap;
 use LightManager\Module\Audio\Application\Playlist;
 use LightManager\Module\Audio\Application\PlaylistEntry;
@@ -12,7 +13,9 @@ use LightManager\Tests\Support\ResetsSingletons;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Plik stanu modułu `~/.light-manager/audio.json` (krok 45).
+ * Stan modułu dźwięku — sekcja `audio` dokumentu stanu (krok 45; od kroku 59
+ * w `~/.light-manager/state.json`, D103). Stary `audio.json` czyta się jak
+ * sekcja, więc treść pisana tu do niego sprawdza zarazem migrację.
  *
  * Test podstawia `HOME` na katalog tymczasowy — tą samą drogą, którą testy
  * konfiguracji i historii komend trzymają się z dala od katalogu domowego
@@ -37,6 +40,7 @@ final class AudioStateServiceTest extends TestCase
         putenv('HOME=' . $this->home);
 
         $this->resetSingleton(AudioStateService::class);
+        $this->resetSingleton(StateDocumentService::class);
     }
 
     protected function tearDown(): void
@@ -53,6 +57,7 @@ final class AudioStateServiceTest extends TestCase
         putenv($this->previousHome === false ? 'HOME' : 'HOME=' . $this->previousHome);
 
         $this->resetSingleton(AudioStateService::class);
+        $this->resetSingleton(StateDocumentService::class);
     }
 
     /** Brak pliku to **zwykły stan**, nie kłopot — i tylko wtedy migracja ma prawo zadziałać. */
@@ -122,13 +127,15 @@ final class AudioStateServiceTest extends TestCase
         $service->load();
         $service->save(new Playlist([PlaylistEntry::of('/muzyka/nowy.mp3')]));
 
+        // Zapis idzie od kroku 59 do `state.json`, do sekcji `audio` (D103).
         /** @var array<string, mixed> $document */
         $document = json_decode((string) file_get_contents($service->location()), true);
-        $playlist = $document['playlist'] ?? null;
+        $section = $document['audio'] ?? null;
 
-        self::assertSame(['file.deleted' => 'pop.wav'], $document['hooks'] ?? null);
-        self::assertIsArray($playlist);
-        self::assertCount(1, $playlist);
+        self::assertIsArray($section);
+        self::assertSame(['file.deleted' => 'pop.wav'], $section['hooks'] ?? null);
+        self::assertIsArray($section['playlist'] ?? null);
+        self::assertCount(1, $section['playlist']);
     }
 
     /**

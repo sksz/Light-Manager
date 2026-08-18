@@ -143,7 +143,7 @@ final class ResourceCache
 
         $this->pending = $kind;
         $this->work->begin(
-            KubectlCall::list($kind, $this->session->namespace(), $this->session->context()),
+            KubectlCall::list($kind, $this->session->namespace(), $this->session->place()),
             $this->session->timeoutSeconds(),
         );
     }

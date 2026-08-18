@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Audio\Infrastructure;
 
+use LightManager\Application\Port\StateDocumentPort;
+use LightManager\Infrastructure\Config\StateDocumentService;
 use LightManager\Infrastructure\Support\AbstractSingleton;
 use LightManager\Module\Audio\Application\EffectAssignment;
 use LightManager\Module\Audio\Application\EffectMap;
@@ -14,36 +16,34 @@ use LightManager\Module\Audio\Application\Port\EffectMapPort;
 use LightManager\Module\Audio\Application\Port\PlaylistPort;
 
 /**
- * Stan modułu dźwięku w pliku `~/.light-manager/audio.json` (krok 45).
+ * Stan modułu dźwięku — sekcja `audio` dokumentu stanu (krok 45; od kroku 59
+ * w `~/.light-manager/state.json`, D103).
  *
- * **Plik stanu modułu, nie plik playlisty** — i to jest rozstrzygnięcie ze startu
- * kroku (D82 nr 3): krok 46 dołoży mapę hooków **kluczem**, a nie drugim plikiem,
- * więc dokument ma od pierwszego dnia kształt, który to uniesie. Klucze, których
- * ta wersja nie zna, przeżywają zapis nietknięte — inaczej starszy zapis kasowałby
- * to, co dopisała nowsza część modułu.
+ * Usłudze została **treść sekcji**: playlista pod kluczem `playlist`, mapa
+ * „zdarzenie → plik" pod `hooks` i zamiana wierszy na pozycje. Mechanizm —
+ * plik, zapis tymczasowy z `rename()`, przetrwanie nieznanych kluczy, migracja
+ * ze starego `audio.json` — mieszka od kroku 59 za rdzeniowym
+ * `StateDocumentPort` (wynik przeglądu 15e).
  *
- * Droga zapisu ta sama, co w historii komend i w konfiguracji: plik tymczasowy
- * i `rename()` w tym samym katalogu, więc przerwany zapis zostawia poprzednią,
- * poprawną wersję zamiast obciętej.
+ * Odczyt sekcji jest **jeden na proces** i to jest warunek, bez którego mapa
+ * efektów nie mogłaby mieszkać w tej samej sekcji, co playlista: obie czytają
+ * się niezależnie, w kolejności, której nikt nie ustala, a zapis jednej nie ma
+ * prawa skasować drugiej.
  *
- * **Żadna ścieżka nie rzuca** (zasada portu). Plik ruszony ręcznie daje pustą
+ * **Żadna ścieżka nie rzuca** (zasada portu). Sekcja ruszona ręcznie daje pustą
  * playlistę wraz z powodem do pokazania w pasku stanu, a nieudany zapis ginie po
  * cichu — aplikacja działa wtedy tak, jak działała przed tym krokiem.
  */
 final class AudioStateService extends AbstractSingleton implements PlaylistPort, EffectMapPort
 {
-    private const DIRECTORY = '.light-manager';
+    private const SECTION = 'audio';
 
-    private const FILE = 'audio.json';
-
-    private const TEMPORARY_PREFIX = '.audio-';
-
-    /** Klucz playlisty w dokumencie; obok niego stoi mapa efektów z kroku 46. */
+    /** Klucz playlisty w sekcji; obok niego stoi mapa efektów z kroku 46. */
     private const PLAYLIST_KEY = 'playlist';
 
     /**
-     * Klucz mapy „zdarzenie → plik" (krok 46) — **obok playlisty, w tym samym
-     * dokumencie**, dokładnie tak, jak zapowiadał krok 45.
+     * Klucz mapy „zdarzenie → plik" (krok 46) — **obok playlisty, w tej samej
+     * sekcji**, dokładnie tak, jak zapowiadał krok 45.
      */
     private const HOOKS_KEY = 'hooks';
 
@@ -53,42 +53,39 @@ final class AudioStateService extends AbstractSingleton implements PlaylistPort,
 
     private const ENABLED_KEY = 'enabled';
 
-    /** Właściciel czyta i pisze, reszta świata nic — wpisy są ścieżkami. */
-    private const FILE_MODE = 0o600;
-
-    private const DIRECTORY_MODE = 0o700;
+    private ?StateDocumentPort $documents = null;
 
     /**
-     * Ostatnio wczytany dokument — po to, żeby zapis nie skasował kluczy, których
+     * Ostatnio wczytana sekcja — po to, żeby zapis nie skasował kluczy, których
      * ta wersja nie zna.
      *
-     * @var array<string, mixed>
+     * @var array<string, mixed>|null
      */
-    private array $document = [];
+    private ?array $section = null;
 
-    /**
-     * Czy dokument zdążył się przeczytać.
-     *
-     * Odczyt jest **jeden na proces** i to jest warunek, bez którego mapa efektów
-     * z kroku 46 nie mogłaby zamieszkać w tym samym pliku: playlista i mapa
-     * czytają się niezależnie od siebie, w kolejności, której nikt nie ustala,
-     * a zapis jednej nie ma prawa skasować drugiej.
-     */
-    private bool $documentRead = false;
+    private bool $sectionRead = false;
+
+    /** Podstawienie dokumentu stanu — **wyłącznie dla testów** (szew jak w `KubectlService`). */
+    public function useSeam(StateDocumentPort $documents): void
+    {
+        $this->documents = $documents;
+        $this->section = null;
+        $this->sectionRead = false;
+    }
 
     public function load(): LoadedPlaylist
     {
-        if (!is_file($this->location())) {
-            return new LoadedPlaylist(new Playlist(), null, fresh: true);
-        }
+        $section = $this->section();
 
-        $document = $this->document();
-
-        if ($document === null) {
+        if ($section === null) {
             return new LoadedPlaylist(new Playlist(), 'module.audio.playlist.unreadable');
         }
 
-        $stored = $document[self::PLAYLIST_KEY] ?? [];
+        if ($section === [] && !$this->documents()->hasSection(self::SECTION)) {
+            return new LoadedPlaylist(new Playlist(), null, fresh: true);
+        }
+
+        $stored = $section[self::PLAYLIST_KEY] ?? [];
 
         if (!is_array($stored)) {
             return new LoadedPlaylist(new Playlist(), 'module.audio.playlist.unreadable');
@@ -99,107 +96,45 @@ final class AudioStateService extends AbstractSingleton implements PlaylistPort,
 
     public function save(Playlist $playlist): void
     {
-        $this->document();
-        $this->document[self::PLAYLIST_KEY] = self::documentOf($playlist);
-        $this->write();
+        $section = $this->section() ?? [];
+        $section[self::PLAYLIST_KEY] = self::documentOf($playlist);
+        $this->section = $section;
+        $this->documents()->saveSection(self::SECTION, $section);
     }
 
     /**
-     * Mapa przypisań — **pusta, gdy dokumentu nie da się przeczytać**.
+     * Mapa przypisań — **pusta, gdy sekcji nie da się przeczytać**.
      *
      * Powodu nie oddaje, w odróżnieniu od playlisty, i to nie jest niedbałość:
-     * o kłopocie z tym samym plikiem mówi już `load()`, a dwa zdania o jednej
+     * o kłopocie z tą samą sekcją mówi już `load()`, a dwa zdania o jednej
      * usterce w jednym pasku stanu znaczyłyby, że drugie wypiera pierwsze.
      */
     public function loadEffects(): EffectMap
     {
-        $document = $this->document();
-        $stored = $document[self::HOOKS_KEY] ?? [];
+        $stored = ($this->section() ?? [])[self::HOOKS_KEY] ?? [];
 
         return is_array($stored) ? new EffectMap(self::assignmentsFrom($stored)) : new EffectMap();
     }
 
     public function saveEffects(EffectMap $effects): void
     {
-        $this->document();
-        $this->document[self::HOOKS_KEY] = self::documentOfEffects($effects);
-        $this->write();
-    }
-
-    /**
-     * Dokument z dysku, przeczytany raz; `null` znaczy „nie da się go
-     * przeczytać".
-     *
-     * Nieudany odczyt zostawia dokument **pusty, ale przeczytany**: kolejne
-     * pytanie nie dotyka wtedy dysku, a pierwszy zapis nadpisze plik, którego
-     * i tak nikt nie zrozumiał.
-     *
-     * @return array<string, mixed>|null
-     */
-    private function document(): ?array
-    {
-        if ($this->documentRead) {
-            return $this->document;
-        }
-
-        $this->documentRead = true;
-        $path = $this->location();
-
-        if (!is_file($path)) {
-            return $this->document;
-        }
-
-        $raw = @file_get_contents($path);
-        /** @var mixed $decoded */
-        $decoded = $raw === false ? null : json_decode($raw, true);
-
-        if (!is_array($decoded)) {
-            return null;
-        }
-
-        /** @var array<string, mixed> $decoded */
-        return $this->document = $decoded;
-    }
-
-    /** Zapis dokumentu: plik tymczasowy i `rename()`, więc przerwany nie obcina. */
-    private function write(): void
-    {
-        $directory = $this->directory();
-
-        if (!is_dir($directory) && !@mkdir($directory, self::DIRECTORY_MODE, true) && !is_dir($directory)) {
-            return;
-        }
-
-        $content = json_encode($this->document, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        if ($content === false) {
-            return;
-        }
-
-        $temporary = $directory . DIRECTORY_SEPARATOR . self::TEMPORARY_PREFIX . getmypid() . '.tmp';
-
-        if (@file_put_contents($temporary, $content . "\n") === false) {
-            return;
-        }
-
-        @chmod($temporary, self::FILE_MODE);
-
-        if (!@rename($temporary, $this->location())) {
-            @unlink($temporary);
-        }
+        $section = $this->section() ?? [];
+        $section[self::HOOKS_KEY] = self::documentOfEffects($effects);
+        $this->section = $section;
+        $this->documents()->saveSection(self::SECTION, $section);
     }
 
     public function location(): string
     {
-        return $this->directory() . DIRECTORY_SEPARATOR . self::FILE;
+        return $this->documents()->location();
     }
 
     /**
-     * Pozycje z tego, co stało w pliku — **wpis nie do odczytania wypada, a plik
-     * zostaje**.
+     * Pozycje z tego, co stało w sekcji — **wpis nie do odczytania wypada,
+     * a sekcja zostaje**.
      *
-     * To jest inna reguła niż dla całego dokumentu i różnica jest celowa:
-     * dokument bez sensu znaczy „nie wiem, co tu jest” i kończy się komunikatem,
+     * To jest inna reguła niż dla całej sekcji i różnica jest celowa: sekcja
+     * bez sensu znaczy „nie wiem, co tu jest” i kończy się komunikatem,
      * a pojedynczy wpis bez ścieżki znaczy „tej jednej pozycji nie ma” — reszta
      * playlisty jest wtedy w porządku i nie ma powodu jej tracić.
      *
@@ -233,7 +168,7 @@ final class AudioStateService extends AbstractSingleton implements PlaylistPort,
     }
 
     /**
-     * Przypisania z dokumentu — **wiersz bez ścieżki wypada, reszta zostaje**, tą
+     * Przypisania z sekcji — **wiersz bez ścieżki wypada, reszta zostaje**, tą
      * samą regułą, co pozycja playlisty bez ścieżki.
      *
      * Nazw zdarzeń **nie sprawdzamy** i to jest celowe: słownik zna dopiero
@@ -297,16 +232,24 @@ final class AudioStateService extends AbstractSingleton implements PlaylistPort,
         return $stored;
     }
 
-    /** Katalog domowy z `HOME`, a w jego braku — katalog roboczy (jak w konfiguracji). */
-    private function directory(): string
+    /**
+     * Sekcja z dokumentu stanu, przeczytana raz; `null` znaczy „nie da się jej
+     * przeczytać".
+     *
+     * @return array<string, mixed>|null
+     */
+    private function section(): ?array
     {
-        $home = getenv('HOME');
-
-        if (!is_string($home) || $home === '') {
-            $working = getcwd();
-            $home = $working === false ? '.' : $working;
+        if (!$this->sectionRead) {
+            $this->sectionRead = true;
+            $this->section = $this->documents()->section(self::SECTION);
         }
 
-        return rtrim($home, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::DIRECTORY;
+        return $this->section;
+    }
+
+    private function documents(): StateDocumentPort
+    {
+        return $this->documents ?? StateDocumentService::getInstance();
     }
 }

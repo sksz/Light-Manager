@@ -10,17 +10,17 @@ use LightManager\Application\Module\ModuleSetting;
 /**
  * Ustawienia modułu klastra (krok 52).
  *
- * **Cztery pozycje i każda z rozstrzygnięcia**, nie z upodobania: limit czasu
- * (D91 nr 6), odstęp odświeżania (nr 7), liczba wierszy logu trzymanych
- * w pamięci oraz zapamiętane miejsce — kontekst i przestrzeń nazw, których plan
- * kroku żąda wprost („oba zapamiętywane w ustawieniach modułu”).
+ * **Każda pozycja z rozstrzygnięcia**, nie z upodobania: limit czasu (D91 nr 6),
+ * odstęp odświeżania (nr 7), liczba wierszy logu trzymanych w pamięci i limit
+ * czekania na cudzą budowę (D94 nr 5).
  *
  * Liczby są **wartościami z listy przystanków**, bo `ModuleSetting::valueFrom()`
  * sprowadza wartość spoza listy do domyślnej — wpisane ręcznie 7 sekund
- * przepadłoby przy pierwszym odczycie. Kontekst i przestrzeń są napisami i to
- * jedyne dwie pozycje tego modułu, których użytkownik nie przestawia strzałkami
- * w ustawieniach, tylko **wyborem na ekranie**; zakładka pokazuje je, bo
- * pokazanie zapamiętanego miejsca jest tańsze niż tłumaczenie, gdzie ono siedzi.
+ * przepadłoby przy pierwszym odczycie.
+ *
+ * **Zapamiętane miejsce wyszło stąd w kroku 59**: kontekst i przestrzeń nazw
+ * mieszkają w książce klastrów, bo miejsce ma dwie współrzędne i własną
+ * tożsamość. Klucze zostają jako źródło jednorazowej migracji.
  */
 final class KubernetesSettings
 {
@@ -35,8 +35,10 @@ final class KubernetesSettings
     /** Ile wierszy logu trzymamy, zanim najstarsze zaczną wypadać. */
     public const LOG_LINES = 'logLines';
 
+    /** Klucz zapamiętanego kontekstu — **wyłącznie źródło migracji** (krok 59). */
     public const CONTEXT = 'context';
 
+    /** Klucz zapamiętanej przestrzeni — **wyłącznie źródło migracji** (krok 59). */
     public const NAMESPACE = 'namespace';
 
     /**
@@ -90,7 +92,17 @@ final class KubernetesSettings
 
     public const DEFAULT_BUILD_WAIT = 600;
 
-    /** @return list<ModuleSetting> */
+    /**
+     * Cztery pozycje — **dwie mniej niż do kroku 59**.
+     *
+     * `context` i `namespace` wyszły z zakładki do książki klastrów (plan
+     * punkt 7): miejsce ma dwie współrzędne i własną tożsamość, więc dwie
+     * pozycje, których użytkownik nie przestawiał strzałkami, były obejściem
+     * braku książki, a nie ustawieniami. Klucze **zostają w kodzie** jako
+     * źródło jednorazowej migracji — czyta je `Clusters::migrate()`.
+     *
+     * @return list<ModuleSetting>
+     */
     public static function declarations(): array
     {
         return [
@@ -98,8 +110,6 @@ final class KubernetesSettings
             self::refreshDeclaration(),
             self::logLinesDeclaration(),
             self::buildWaitDeclaration(),
-            ModuleSetting::text(self::CONTEXT, 'module.' . self::ID . '.setting.' . self::CONTEXT, ''),
-            ModuleSetting::text(self::NAMESPACE, 'module.' . self::ID . '.setting.' . self::NAMESPACE, ''),
         ];
     }
 
@@ -131,7 +141,7 @@ final class KubernetesSettings
         return is_int($value) ? $value : self::DEFAULT_LOG_LINES;
     }
 
-    /** Zapamiętany kontekst; pusty napis znaczy „ten, który wskazuje `kubeconfig`”. */
+    /** Zapamiętany kontekst sprzed kroku 59; pusty napis — nie było czego pamiętać. */
     public static function contextFrom(Settings $settings): string
     {
         $value = $settings->moduleValue(self::ID, self::CONTEXT);
@@ -139,7 +149,7 @@ final class KubernetesSettings
         return is_string($value) ? $value : '';
     }
 
-    /** Zapamiętana przestrzeń nazw; pusty napis znaczy „ta z kontekstu”. */
+    /** Zapamiętana przestrzeń sprzed kroku 59; pusty napis — nie było czego pamiętać. */
     public static function namespaceFrom(Settings $settings): string
     {
         $value = $settings->moduleValue(self::ID, self::NAMESPACE);

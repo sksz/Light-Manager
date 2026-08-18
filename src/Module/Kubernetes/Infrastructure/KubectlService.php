@@ -28,6 +28,10 @@ use LightManager\Module\Kubernetes\Application\Port\KubectlPort;
  * się rozczytać **tylko wtedy, gdy klaster akurat o niczym nie ostrzegał**.
  * Powód niepowodzenia bierze się z osobnego pola `BackgroundState::$errorOutput`.
  *
+ * **Miejsce jedzie dwiema flagami** od kroku 59: `--kubeconfig` obok
+ * `--context`. Do tamtego kroku pierwsza z nich nie padała ani razu, więc dwa
+ * pliki z kontekstem tej samej nazwy mieszały dane po cichu (D96).
+ *
  * **Limity są dwa i oba obowiązkowe**, poza jednym nazwanym wyjątkiem:
  * `--request-timeout` mówi klientowi, kiedy przestać czekać na serwer, a limit
  * procesu (rdzeń) ubija potomka, który zawiesił się przed wysłaniem żądania albo
@@ -108,10 +112,19 @@ final class KubectlService extends AbstractSingleton implements KubectlPort
     private static function commandFor(KubectlCall $call, int $timeoutSeconds): string
     {
         $arguments = $call->arguments;
+        $place = $call->place;
 
-        if ($call->context !== null) {
-            $arguments[] = '--context';
-            $arguments[] = $call->context->value;
+        // Obie współrzędne miejsca idą **argumentem**, a nie zmienną
+        // środowiskową (krok 59): cytowanie jest wtedy jedno i stoi w jednym
+        // miejscu — tym samym, przez które od kroku 52 przechodzi kontekst.
+        if ($place !== null) {
+            $arguments[] = '--kubeconfig';
+            $arguments[] = $place->kubeconfig;
+
+            if ($call->withContext && $place->context !== null) {
+                $arguments[] = '--context';
+                $arguments[] = $place->context->value;
+            }
         }
 
         if (!$call->isStreaming()) {

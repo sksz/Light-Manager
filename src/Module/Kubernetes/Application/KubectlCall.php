@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace LightManager\Module\Kubernetes\Application;
 
 use LightManager\Application\Dto\OutputShape;
-use LightManager\Module\Kubernetes\Domain\ValueObject\ContextName;
+use LightManager\Module\Kubernetes\Domain\ValueObject\ClusterPlace;
 use LightManager\Module\Kubernetes\Domain\ValueObject\NamespaceName;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ResourceKind;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ResourceRef;
@@ -30,6 +30,12 @@ use LightManager\Module\Kubernetes\Domain\ValueObject\ResourceRef;
  * `kubectl logs -f --request-timeout=5s` zamyka strumień po pięciu sekundach,
  * czyli limit żądania zabiłby dokładnie tę pracę, która ma trwać. Limit procesu
  * zostaje — nad strumieniem czuwa on.
+ *
+ * **Miejsce ma od kroku 59 dwie współrzędne** (plik i kontekst, `ClusterPlace`)
+ * i idą one do **każdego** wywołania — także do `config view`, które do tamtego
+ * kroku było jedynym „bez miejsca". To właśnie ono ma wypisać zawartość
+ * **wskazanego** pliku, więc spis kontekstów daje się odtąd pobrać z każdego,
+ * nie tylko z domyślnego.
  */
 final readonly class KubectlCall
 {
@@ -40,23 +46,36 @@ final readonly class KubectlCall
      */
     private function __construct(
         public array $arguments,
-        public ?ContextName $context = null,
+        public ?ClusterPlace $place = null,
         public OutputShape $shape = OutputShape::Result,
+        /**
+         * Czy dołożyć `--context`. Spis kontekstów pyta **sam plik**, więc
+         * kontekst jest tam bez znaczenia — a przy pliku, w którym akurat go
+         * nie ma, `--context` zamieniłby odpowiedź w odmowę.
+         */
+        public bool $withContext = true,
     ) {
     }
 
     /**
-     * Spis kontekstów wraz z bieżącym — **jedyne wywołanie, które nie potrzebuje
-     * klastra**.
+     * Spis kontekstów wskazanego pliku wraz z jego bieżącym — **jedyne
+     * wywołanie, które nie potrzebuje klastra**.
      *
      * `config view` czyta plik konfiguracyjny i nic poza nim, więc odpowiada
      * także wtedy, gdy nie ma czego zapytać po sieci. To dlatego stan „nie ma
      * bieżącego kontekstu” daje się narysować, zamiast kończyć się zdaniem
      * „connection refused” — a plan kroku żąda dokładnie tego.
+     *
+     * **Plik podaje się tu ścieżką, nie miejscem**: pytamy o to, jakie
+     * konteksty w nim są, więc żaden nie jest jeszcze wybrany.
      */
-    public static function contexts(): self
+    public static function contexts(string $kubeconfig): self
     {
-        return new self(['config', 'view', '-o', 'json']);
+        return new self(
+            ['config', 'view', '-o', 'json'],
+            ClusterPlace::forFile($kubeconfig),
+            withContext: false,
+        );
     }
 
     /**
@@ -65,9 +84,9 @@ final readonly class KubectlCall
      * Bez klastra kończy się kodem niezerowym, a mimo to **wypisuje wersję
      * klienta** — dlatego wynik czyta się z wyjścia, a nie z kodu wyjścia.
      */
-    public static function version(?ContextName $context): self
+    public static function version(?ClusterPlace $place): self
     {
-        return new self(['version', '-o', 'json'], $context);
+        return new self(['version', '-o', 'json'], $place);
     }
 
     /**
@@ -77,30 +96,30 @@ final readonly class KubectlCall
      * i `name`; sprawdzone przy rozstrzyganiu, D91). Tekst rozczytuje
      * `ApiResourcesParser`, a wszystko inne w module idzie `-o json`.
      */
-    public static function apiResources(?ContextName $context): self
+    public static function apiResources(?ClusterPlace $place): self
     {
-        return new self(['api-resources', '-o', 'wide', '--no-headers'], $context);
+        return new self(['api-resources', '-o', 'wide', '--no-headers'], $place);
     }
 
     /** Lista zasobów rodzaju — w przestrzeni nazw albo bez niej, wedle rodzaju. */
-    public static function list(ResourceKind $kind, ?NamespaceName $namespace, ?ContextName $context): self
+    public static function list(ResourceKind $kind, ?NamespaceName $namespace, ?ClusterPlace $place): self
     {
         return new self(
             [...self::addressed($kind, $namespace), '-o', 'json'],
-            $context,
+            $place,
         );
     }
 
     /** Jeden zasób w całości — treść prawego panelu i źródło sekcji. */
-    public static function describe(ResourceRef $reference, ?ContextName $context): self
+    public static function describe(ResourceRef $reference, ?ClusterPlace $place): self
     {
-        return new self([...self::pointing('get', $reference), '-o', 'json'], $context);
+        return new self([...self::pointing('get', $reference), '-o', 'json'], $place);
     }
 
     /** Ten sam zasób w postaci, w której ogląda się go w dokumentacji. */
-    public static function yaml(ResourceRef $reference, ?ContextName $context): self
+    public static function yaml(ResourceRef $reference, ?ClusterPlace $place): self
     {
-        return new self([...self::pointing('get', $reference), '-o', 'yaml'], $context);
+        return new self([...self::pointing('get', $reference), '-o', 'yaml'], $place);
     }
 
     /**
@@ -110,7 +129,7 @@ final readonly class KubectlCall
      * jaki kontener kiedykolwiek napisał, i przy długo żyjącym podzie pierwsze
      * kilkanaście sekund idzie na przewijanie historii.
      */
-    public static function logs(ResourceRef $reference, ?string $container, int $tail, ?ContextName $context): self
+    public static function logs(ResourceRef $reference, ?string $container, int $tail, ?ClusterPlace $place): self
     {
         $arguments = ['logs', $reference->name, '-f', '--tail=' . $tail];
 
@@ -124,7 +143,7 @@ final readonly class KubectlCall
             $arguments[] = $container;
         }
 
-        return new self($arguments, $context, OutputShape::Stream);
+        return new self($arguments, $place, OutputShape::Stream);
     }
 
     /**
@@ -134,7 +153,7 @@ final readonly class KubectlCall
      * przeoczenie: rdzeniowy port pracy tłowej **nie podaje potomkowi wejścia**
      * (reguła 11d, granica postawiona świadomie w kroku 26).
      */
-    public static function apply(string $path, ?NamespaceName $namespace, ?ContextName $context): self
+    public static function apply(string $path, ?NamespaceName $namespace, ?ClusterPlace $place): self
     {
         $arguments = ['apply', '-f', $path];
 
@@ -143,12 +162,12 @@ final readonly class KubectlCall
             $arguments[] = $namespace->value;
         }
 
-        return new self($arguments, $context);
+        return new self($arguments, $place);
     }
 
-    public static function delete(ResourceRef $reference, ?ContextName $context): self
+    public static function delete(ResourceRef $reference, ?ClusterPlace $place): self
     {
-        return new self(self::pointing('delete', $reference), $context);
+        return new self(self::pointing('delete', $reference), $place);
     }
 
     /**
@@ -158,9 +177,9 @@ final readonly class KubectlCall
      * `null` **kasuje** wpis. Fragment idzie **argumentem** (`-p`), więc i tutaj
      * obowiązuje reguła „potomek nie dostaje wejścia”.
      */
-    public static function patch(ResourceRef $reference, string $patch, ?ContextName $context): self
+    public static function patch(ResourceRef $reference, string $patch, ?ClusterPlace $place): self
     {
-        return new self([...self::pointing('patch', $reference), '--type=merge', '-p', $patch], $context);
+        return new self([...self::pointing('patch', $reference), '--type=merge', '-p', $patch], $place);
     }
 
     /**
@@ -179,7 +198,7 @@ final readonly class KubectlCall
         ResourceRef $reference,
         string $container,
         string $image,
-        ?ContextName $context,
+        ?ClusterPlace $place,
     ): self {
         // `set image` jest czasownikiem **dwuczłonowym**, więc `pointing()` tu nie
         // wystarcza: składa `<czasownik> <adres>`, a tutaj adres stoi dopiero
@@ -193,7 +212,7 @@ final readonly class KubectlCall
 
         $arguments[] = $container . '=' . $image;
 
-        return new self($arguments, $context);
+        return new self($arguments, $place);
     }
 
     /** Czy wywołanie jest strumieniem — pyta usługa, składając limity. */

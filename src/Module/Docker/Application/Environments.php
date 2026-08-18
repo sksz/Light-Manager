@@ -42,7 +42,7 @@ final class Environments
     /** Znacznik przełączenia — zabiera go takt modułu, żeby unieważnić listy. */
     private bool $switched = false;
 
-    /** Cel tunelu rozstrzygnięty przy wyborze — trzy napisy z `ssh.hosts` albo wpis wprost. */
+    /** Cel tunelu rozstrzygnięty przy wyborze — wiersz `address-book.entry` albo wpis wprost. */
     private ?string $resolvedTarget = null;
 
     private int $resolvedPort = DockerEnvironment::DEFAULT_TUNNEL_PORT;
@@ -161,7 +161,7 @@ final class Environments
      * Wybiera środowisko bieżące. Oddaje klucz powodu, gdy wybrać się nie da.
      *
      * @param ?string $resolvedTarget cel tunelu rozstrzygnięty przez wołającego
-     *                                (kwerendą `ssh.hosts` albo z wpisu wprost) —
+     *                                (kwerendą `address-book.entry` albo z wpisu wprost) —
      *                                wymagany wyłącznie dla wpisu rodzaju tunel
      * @param ?string $password       hasło do celu tunelu — `null` znaczy klucz
      *                                albo agent (D102 nr 4). Znika razem z tym

@@ -715,6 +715,33 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     (`ResourceJsonParser::imagesOf()`, dwa kształty naraz: `spec.containers`
     poda i `spec.template.spec.containers` wszystkiego, co pody tworzy), więc
     kwerenda nie kosztuje ani jednego wywołania.
+    **Krok 59 zmienia w tym module jedną rzecz, ale przez cztery klasy stanu
+    naraz: miejsce ma dwie współrzędne, a jego tożsamością jest nazwa wpisu
+    książki, nie nazwa kontekstu** (D96 nr 4). Powód jest wymierny, nie
+    porządkowy: `default` w dwóch plikach `kubeconfig` to **dwa różne klastry**,
+    a `minikube` odtworzony po skasowaniu — trzeci; klucz zbudowany z nazwy
+    kontekstu mieszał przez to drzewo, pamięć podręczną, sekcje i otwarty opis
+    **po cichu**. Odtąd: `ClusterPlace` (plik + kontekst) jedzie w **każdym**
+    wywołaniu dwiema flagami (`--kubeconfig` obok `--context`, argumentem, nie
+    zmienną środowiskową) — także w `config view`, bo to ono ma wypisać
+    zawartość *wskazanego* pliku; klucze `TreeState`, `SectionState`,
+    `ScrollWindow` i `ResourceCache` biorą się z `ClusterSession::key()`,
+    a pokolenie sesji zmienia **każda** współrzędna. Spis klastrów jest książką
+    wpisów (piąta postać ekranu, klawisz `c`) czytającą przy tym cudze pliki:
+    domyślny `~/.kube/config` i ścieżki z `KUBECONFIG` — z trzema regułami
+    dwóch źródeł z kroku 58 (pochodzenie widoczne, wpis własny wygrywa przy
+    zbieżnej nazwie, wpisu czytanego nie da się skasować), a konteksty tej
+    samej nazwy z dwóch plików dostają **różne nazwy wierszy**, bo dwa wiersze
+    o jednej nazwie byłyby jednym miejscem. Stany „nie ma podów" są przez to
+    **dwa nowe**: `MissingFile` i `UnknownContext` — każda współrzędna umie być
+    nie tak, a pod zdaniem „klaster nie odpowiada" nie widać literówki
+    w ścieżce; brak pliku rozstrzyga się **`is_file()`, przed procesem
+    potomnym**, bo `kubectl` oddaje wtedy pustą konfigurację z kodem zero.
+    Dwie pułapki taktu, obie zapłacone raz: **plik czytany w tej chwili musi
+    wypaść z ponownego zamówienia** (inaczej takt dokłada go co klatkę, a drugi
+    odczyt nadpisuje wynik pierwszego), a **pytanie o wersje wiąże się
+    z pokoleniem sesji** (inaczej klaster, który wersji serwera nie podaje —
+    czyli dokładnie ten nieosiągalny — jest pytany trzydzieści razy na sekundę).
 11w. **Dane czyta się przez rejestr kwerend — i nie ma drugiej drogi** (krok 53,
     D92). `Application\Query\QueryRegistry` jest **jedynym** wejściem do danych:
     także dla rdzenia i także dla modułu czytającego **własny** stan. Zdanie
@@ -977,6 +1004,27 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     `QueryIsTheOnlyReadPathTest`, gdzie zakazane jest czytanie obiektem, który
     wolno trzymać).
 
+15h. **Dana dzielona przez kilka modułów dostaje moduł-właściciela, nie miejsce
+    w rdzeniu** (krok 60, D104/D105). Adres, pod którym coś stoi, był do tamtego
+    kroku własnością modułu sesji zdalnej, a sięgał po niego moduł Dockera —
+    kwerendą, więc reguła 15g była spełniona, ale **odrzucenie właściciela
+    zabierało dane wszystkim**: brak klienta `ssh` znaczył brak adresów także dla
+    tunelu, który z `ssh` nie ma nic wspólnego. Rozwiązaniem jest **siódmy
+    moduł** (`src/Module/AddressBook/`), a nie port ani pojęcie w rdzeniu —
+    D42 zostaje nietknięte. Cztery zdania graniczne tego wzorca:
+    **wpis jest pojemnikiem z własną tożsamością** (identyfikator losowy,
+    ośmioznakowy; nazwa i adres wolno puste, bo tożsamości nie niosą);
+    **pola dokładają moduły rozdziałami**, zakładanymi **komendą** wskazującą
+    **własną kwerendę** z deklaracją pól (klucz, etykieta, rodzaj, domyślna) —
+    czyli napisy w obie strony, ani jednego typu przez granicę;
+    **rozdział zakłada się w takcie**, nie przy pierwszym odczycie, bo inaczej
+    użytkownik zaczynający od cudzego ekranu zobaczy wpis bez twoich pól;
+    **materiał uwierzytelnienia do dzielonej danej nie wchodzi** (11w) —
+    zostaje w sekcji tego, kto się nim przedstawia, kluczowany identyfikatorem
+    wpisu. Próba na przyszłość jest ta sama, co przy 15b, tylko przyłożona do
+    odczytu: dana chcąca własny moduł musi mieć **dwóch czytelników** i koszt
+    utraty **niezależny od tego, który z nich akurat działa**.
+
 15b. **Reguła 15 ma dokładnie jeden wyjątek i jest on nazwany: zapis na dysk**
     (krok 41, D66/D75). Rdzeń ma port operacji na plikach
     (`Application\Port\FileOperationsPort` + `Infrastructure\FileSystem\FileOperationsService`),
@@ -1072,6 +1120,29 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     *Ilościowa:* **trzeci** moduł z własną domeną plikową uruchamia przegląd
     „czy to nadal powtórzenie, czy już wspólne miejsce” — nie automatyczną
     przeprowadzkę do rdzenia, tylko obowiązek postawienia pytania.
+    **Przegląd odbył się w kroku 59 i skończył się przeprowadzką — szerszą, niż
+    rekomendował plan** (D103). Wzorzec książki wpisów stanął po raz trzeci
+    (`HostBook`, `EnvironmentBook`, `ClusterBook`), a mechanizm zapisu pliku
+    stanu — po raz **piąty** (trzy usługi modułów plus konfiguracja i historia
+    komend), skopiowany niemal co do znaku. Rozstrzygnięcie użytkownika: **do
+    rdzenia wychodzi i pojęcie, i mechanizm**. Pojęcie to
+    `Application\State\Book` — porządek dopisywania i tożsamość po nazwie
+    własnej, z ładunkiem **nieprzezroczystym**, bo pola trzech książek są
+    rozłączne, a D42 („rdzeń nie wie, czym jest wpis") zostaje w mocy.
+    Mechanizm to `Application\Port\StateDocumentPort` +
+    `Infrastructure\Config\StateDocumentService`: **jeden plik
+    `~/.light-manager/state.json` z sekcją na właściciela**, plus
+    `Infrastructure\Config\StateFile` jako jedyna droga zapisu (`0600`, plik
+    tymczasowy i `rename()`) — używana także przez `settings.json` i historię
+    komend, więc kopii mechanizmu nie ma już ani jednej. Trzy zdania graniczne:
+    **właściciel sięga wyłącznie po sekcję o własnym identyfikatorze** (po cudzą
+    daną drogą jest rejestr kwerend, 11w), **cudze sekcje i nieznane klucze
+    przeżywają zapis**, a **migracja ze starych plików modułów mieszka za
+    portem** — sekcja nieobecna w dokumencie czyta się z `<sekcja>.json`, stary
+    plik zostaje na dysku nietknięty, a sekcją staje się przy pierwszym zapisie.
+    Wniosek na przyszłość: **przegląd 15e mierzy się liczbą kopii mechanizmu,
+    nie liczbą modułów** — trzy książki dało się obronić jako pojęcia, pięć
+    kopii `write()` nie dało się obronić wcale.
 15f. **Polecenie, którego wyjściem jest treść, nie scala strumieni** (krok 49,
     D88). `2>&1` w wierszu polecenia uruchamianego przez `BackgroundProcessPort`
     wolno dopisać wtedy i tylko wtedy, gdy wypis jest **krótki i diagnostyczny**

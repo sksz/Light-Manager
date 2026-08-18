@@ -26,16 +26,9 @@ use LightManager\Infrastructure\Support\AbstractSingleton;
  */
 final class CommandHistoryService extends AbstractSingleton implements CommandHistoryPort
 {
-    private const DIRECTORY = '.light-manager';
-
     private const FILE = 'history';
 
     private const TEMPORARY_PREFIX = '.history-';
-
-    /** Właściciel czyta i pisze, reszta świata nic — wpisy bywają ścieżkami. */
-    private const FILE_MODE = 0o600;
-
-    private const DIRECTORY_MODE = 0o700;
 
     public function load(): array
     {
@@ -67,24 +60,14 @@ final class CommandHistoryService extends AbstractSingleton implements CommandHi
 
     public function save(array $entries): void
     {
-        $directory = $this->directory();
-
-        if (!is_dir($directory) && !@mkdir($directory, self::DIRECTORY_MODE, true) && !is_dir($directory)) {
-            return;
-        }
-
-        $temporary = $directory . DIRECTORY_SEPARATOR . self::TEMPORARY_PREFIX . getmypid() . '.tmp';
-        $content = implode("\n", array_slice($entries, -CommandHistory::CAPACITY));
-
-        if (@file_put_contents($temporary, $content . "\n") === false) {
-            return;
-        }
-
-        @chmod($temporary, self::FILE_MODE);
-
-        if (!@rename($temporary, $this->location())) {
-            @unlink($temporary);
-        }
+        // Wspólna droga zapisu (`StateFile`, krok 59); wynik ginie po cichu,
+        // bo taki jest kontrakt historii — aplikacja działa bez niej tak samo.
+        StateFile::write(
+            $this->directory(),
+            self::FILE,
+            self::TEMPORARY_PREFIX,
+            implode("\n", array_slice($entries, -CommandHistory::CAPACITY)),
+        );
     }
 
     public function location(): string
@@ -92,16 +75,9 @@ final class CommandHistoryService extends AbstractSingleton implements CommandHi
         return $this->directory() . DIRECTORY_SEPARATOR . self::FILE;
     }
 
-    /** Katalog domowy z `HOME`, a w jego braku — katalog roboczy (jak w konfiguracji). */
+    /** Katalog stanu — od kroku 59 zna go jedno miejsce (`StateFile`). */
     private function directory(): string
     {
-        $home = getenv('HOME');
-
-        if (!is_string($home) || $home === '') {
-            $working = getcwd();
-            $home = $working === false ? '.' : $working;
-        }
-
-        return rtrim($home, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::DIRECTORY;
+        return StateFile::directory();
     }
 }

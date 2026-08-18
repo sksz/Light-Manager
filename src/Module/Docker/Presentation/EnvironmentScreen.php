@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Docker\Presentation;
 
+use LightManager\Application\Command\CommandInput;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Dto\PointerAction;
@@ -48,14 +49,26 @@ use LightManager\Presentation\Ui\ScrollWindow;
  * plików nie pisze. Odmowa jest zdaniem, nie ciszą.
  *
  * **Cel tunelu rozstrzyga się tutaj, przy wyborze**: napis równy nazwie wpisu
- * książki hostów idzie kwerendą `ssh.hosts` (trzy napisy, ani jednego typu —
+ * książki adresowej idzie kwerendą `address-book.entry` (kilka napisów, ani jednego typu —
  * reguła 15g), każdy inny czyta się jako `[user@]host`. Moduł umie żyć bez
  * odpowiedzi: moduł Ssh wyłączony albo odrzucony znaczy drogę wprost.
  */
 final class EnvironmentScreen
 {
-    /** Szerokość kolumny rodzaju — mieści najdłuższą nazwę rodzaju. */
-    private const KIND_COLUMN = 12;
+    /**
+     * Szerokość kolumny rodzaju — mieści najdłuższą nazwę rodzaju.
+     *
+     * **Szesnaście, a nie dwanaście** (poprawka z 2026-08-18, przy pierwszym
+     * obejrzeniu klatki pod XTermem): `gniazdo lokalne` ma piętnaście znaków,
+     * więc dwunastoznakowa kolumna ucinała go do `gniazdo lo…` — w każdym
+     * wierszu tego rodzaju, czyli w wierszu domyślnym pierwszego uruchomienia.
+     * **Szesnaście, bo kolumna oddaje ostatni znak na odstęp** od sąsiadki:
+     * przy piętnastu napis nadal tracił literę (sprawdzone złotą klatką, nie
+     * rachunkiem). Lekcja jest ta sama, co przy roli `Marked` w kroku 43:
+     * **miara dobrana z głowy, bez obejrzenia klatki, bywa miarą nietrafioną**,
+     * a napisy katalogu są jedyną, którą wolno się tu kierować.
+     */
+    private const KIND_COLUMN = 16;
 
     /** Szerokość kolumny pochodzenia — mieści „klient docker". */
     private const ORIGIN_COLUMN = 14;
@@ -276,33 +289,43 @@ final class EnvironmentScreen
     }
 
     /**
-     * Cel tunelu: dokładne dopasowanie do książki hostów wygrywa z adresem
+     * Cel tunelu: dokładne dopasowanie do książki adresowej wygrywa z adresem
      * wpisanym wprost (opis w `DockerEnvironment`).
+     *
+     * **Od kroku 60 pyta o jeden wpis, a nie przegląda całą książkę.** Do tamtego
+     * kroku innej drogi nie było — kwerenda `ssh.hosts` oddawała spis i trzeba
+     * było przejść po nim w poszukiwaniu jednej nazwy; `address-book.entry`
+     * bierze identyfikator albo nazwę i oddaje jeden wiersz. Napisów jest po
+     * staremu kilka i ani jednego typu (15g).
+     *
+     * Login i port bierze się z **rozdziału `ssh`** książki, a gdy go tam nie ma
+     * — z samego adresu, bo wpis dopisany komendą trzyma zwykle `user@host`.
      *
      * @return array{?string, ?int}
      */
     private function resolveTunnelTarget(DockerEnvironment $entry): array
     {
-        foreach ($this->state->queries()->ask('ssh.hosts')->rows() as $row) {
-            if (($row['name'] ?? null) !== $entry->target) {
-                continue;
-            }
+        $rows = $this->state->queries()
+            ->ask('address-book.entry', new CommandInput(['id' => $entry->target]))
+            ->rows();
+        $row = $rows[0] ?? null;
 
-            $host = $row['host'] ?? '';
-            $user = $row['user'] ?? '';
-            $port = $row['port'] ?? DockerEnvironment::DEFAULT_TUNNEL_PORT;
-
-            if (!is_string($host) || $host === '') {
-                break;
-            }
-
-            return [
-                is_string($user) && $user !== '' ? $user . '@' . $host : $host,
-                is_int($port) ? $port : DockerEnvironment::DEFAULT_TUNNEL_PORT,
-            ];
+        if ($row === null) {
+            return [$entry->target, $entry->port];
         }
 
-        return [$entry->target, $entry->port];
+        $address = $row['address'] ?? '';
+        $user = $row['ssh.user'] ?? '';
+        $port = $row['ssh.port'] ?? $entry->port;
+
+        if (!is_string($address) || $address === '') {
+            return [$entry->target, $entry->port];
+        }
+
+        return [
+            is_string($user) && $user !== '' && !str_contains($address, '@') ? $user . '@' . $address : $address,
+            is_int($port) ? $port : DockerEnvironment::DEFAULT_TUNNEL_PORT,
+        ];
     }
 
     private function askToEdit(): ScreenOutcome

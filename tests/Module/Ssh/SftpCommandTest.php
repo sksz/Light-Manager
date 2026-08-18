@@ -244,6 +244,6 @@ final class SftpCommandTest extends TestCase
 
     private static function host(): HostProfile
     {
-        return new HostProfile('biuro', 'example.com', 2222, 'anna');
+        return new HostProfile('00000001', 'biuro', 'example.com', 2222, 'anna');
     }
 }

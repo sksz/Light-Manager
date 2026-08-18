@@ -142,7 +142,7 @@ final class ApiCatalog
 
         $this->generation = $this->session->generation();
         $this->work->begin(
-            KubectlCall::apiResources($this->session->context()),
+            KubectlCall::apiResources($this->session->place()),
             $this->session->timeoutSeconds(),
         );
     }

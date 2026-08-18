@@ -7,6 +7,7 @@ namespace LightManager\Module\Kubernetes\Presentation;
 use LightManager\Application\Command\CommandInput;
 use LightManager\Application\Query\QueryRegistry;
 use LightManager\Module\Kubernetes\Application\ApiCatalog;
+use LightManager\Module\Kubernetes\Application\ClustersView;
 use LightManager\Module\Kubernetes\Application\ClusterView;
 use LightManager\Module\Kubernetes\Application\DeploymentView;
 use LightManager\Module\Kubernetes\Application\KubernetesSettings;
@@ -48,6 +49,14 @@ final readonly class KubernetesQueries
         $payload = $this->ask('contexts');
 
         return $payload instanceof ClusterView ? $payload : ClusterView::empty();
+    }
+
+    /** Spis klastrów z obu źródeł — treść czwartej postaci ekranu (krok 59). */
+    public function clusters(): ClustersView
+    {
+        $payload = $this->ask('clusters');
+
+        return $payload instanceof ClustersView ? $payload : ClustersView::empty();
     }
 
     public function namespaces(): NamespaceView

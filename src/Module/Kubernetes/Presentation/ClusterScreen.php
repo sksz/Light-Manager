@@ -18,6 +18,7 @@ use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\Kubernetes\Application\ActionOutcome;
 use LightManager\Module\Kubernetes\Application\ApiCatalog;
 use LightManager\Module\Kubernetes\Application\ClusterActions;
+use LightManager\Module\Kubernetes\Application\Clusters;
 use LightManager\Module\Kubernetes\Application\ClusterSession;
 use LightManager\Module\Kubernetes\Application\ClusterStage;
 use LightManager\Module\Kubernetes\Application\ClusterState;
@@ -154,6 +155,9 @@ final class ClusterScreen implements
 
     public function __construct(
         private readonly ClusterState $cluster,
+        private readonly Clusters $clusters,
+        /** Spis klastrów — czwarta postać ekranu (krok 59), pod klawiszem `c`. */
+        private readonly ClusterBookScreen $book,
         private readonly ApiCatalog $catalog,
         private readonly ResourceCache $cache,
         private readonly ResourceDetail $detail,
@@ -248,6 +252,12 @@ final class ClusterScreen implements
         $this->drawn = true;
         $this->lastBounds = $bounds;
 
+        if ($this->view === ClusterView::Clusters) {
+            $this->lastListCapacity = max(1, $bounds->rows);
+
+            return $this->book->draw($bounds);
+        }
+
         if ($this->view === ClusterView::Logs) {
             $this->lastListCapacity = max(1, $bounds->rows);
 
@@ -282,6 +292,10 @@ final class ClusterScreen implements
     /** @return list<KeyBinding> */
     public function bindings(): array
     {
+        if ($this->view === ClusterView::Clusters) {
+            return $this->book->bindings();
+        }
+
         if ($this->view === ClusterView::Logs) {
             return $this->logBindings();
         }
@@ -295,6 +309,10 @@ final class ClusterScreen implements
 
     public function focus(): FocusHint
     {
+        if ($this->view === ClusterView::Clusters) {
+            return new FocusHint($this->key('panel.clusters'), $this->bindings());
+        }
+
         if ($this->view === ClusterView::Logs) {
             return new FocusHint($this->key('panel.logs'), $this->bindings());
         }
@@ -330,6 +348,7 @@ final class ClusterScreen implements
         $this->now = $now;
         $visible = $this->drawn;
 
+        $this->clusters->tick();
         $this->cluster->advance();
         $this->catalog->advance();
         $this->cache->advance($now);
@@ -341,7 +360,7 @@ final class ClusterScreen implements
             $this->catalog->begin();
         }
 
-        if ($visible && $this->view !== ClusterView::Logs) {
+        if ($visible && $this->view === ClusterView::Resources) {
             $this->cache->refreshDue($this->tree->focusedKind(), $now, $refreshSeconds);
         }
 
@@ -353,6 +372,10 @@ final class ClusterScreen implements
     {
         if ($key->key === Key::Character && $key->raw === self::REFRESH_KEY && $key->ctrl) {
             return $this->refresh();
+        }
+
+        if ($this->view === ClusterView::Clusters) {
+            return $this->handleClusters($key);
         }
 
         if ($this->view === ClusterView::Logs) {
@@ -414,9 +437,13 @@ final class ClusterScreen implements
                 }
 
                 try {
-                    $this->cluster->useContext(ContextName::of($choice));
+                    $problem = $this->cluster->useContext(ContextName::of($choice));
                 } catch (InvalidClusterNameException) {
                     return OverlayOutcome::close(Message::error($this->text('context.rejected')));
+                }
+
+                if ($problem !== null) {
+                    return OverlayOutcome::close(Message::error($this->translator->translate($problem)));
                 }
 
                 $this->forgetEverything();
@@ -440,6 +467,10 @@ final class ClusterScreen implements
                     return OverlayOutcome::close(Message::error($this->text('namespace.rejected')));
                 }
 
+                // Przestrzeń zapisuje się **przy wpisie**, bo tam mieszka
+                // miejsce (krok 59): łańcuch okien o nią nie pyta, więc to jest
+                // jedyna droga, którą przeżywa uruchomienie.
+                $this->clusters->rememberNamespace($this->session->namespace()->value ?? '');
                 $this->forgetEverything();
 
                 return OverlayOutcome::close(Message::info($this->text('namespace.chosen', ['name' => $value])));
@@ -595,6 +626,10 @@ final class ClusterScreen implements
             return ScreenOutcome::stay();
         }
 
+        if ($this->view === ClusterView::Clusters) {
+            return $this->book->pointer($event);
+        }
+
         if ($this->view === ClusterView::Logs) {
             if ($event->isScroll()) {
                 $this->logPane->scrollBy($event->scrollRows());
@@ -748,7 +783,8 @@ final class ClusterScreen implements
     private function handleShared(KeyPress $key): ScreenOutcome
     {
         return match (true) {
-            $key->key === Key::Character && $key->raw === 'c' => ScreenOutcome::opens($this->openContextChoice()),
+            $key->key === Key::Character && $key->raw === 'c' => $this->showClusters(),
+            $key->key === Key::Character && $key->raw === 'k' => ScreenOutcome::opens($this->openContextChoice()),
             $key->key === Key::Character && $key->raw === 'n' => ScreenOutcome::opens($this->openNamespacePrompt()),
             $key->key === Key::Character && $key->raw === 'y' => $this->toggleYaml(),
             $key->key === Key::Character && $key->raw === 'l' => $this->openLogs(),
@@ -758,6 +794,39 @@ final class ClusterScreen implements
             $key->key === Key::F8, $key->key === Key::Delete => $this->confirmDeletion(),
             default => ScreenOutcome::stay(),
         };
+    }
+
+    /**
+     * Spis klastrów: `Esc` wraca do zasobów, resztę prowadzi postać spisu.
+     *
+     * Powrót jest tu, a nie w postaci spisu, z tego samego powodu, dla którego
+     * moduł Dockera trzyma go w `DockerScreen`: postać nie zna stosu ekranów
+     * ani tego, co było przed nią.
+     */
+    private function handleClusters(KeyPress $key): ScreenOutcome
+    {
+        if ($key->key === Key::Escape) {
+            $this->view = ClusterView::Resources;
+
+            return ScreenOutcome::stay();
+        }
+
+        if ($key->key === Key::Character && $key->raw === self::REFRESH_KEY && $key->ctrl) {
+            $this->book->refresh();
+
+            return ScreenOutcome::stay();
+        }
+
+        return $this->book->handle($key);
+    }
+
+    private function showClusters(): ScreenOutcome
+    {
+        $this->view = ClusterView::Clusters;
+        $this->book->reset();
+        $this->book->refresh();
+
+        return ScreenOutcome::stay();
     }
 
     private function handleLogs(KeyPress $key): ScreenOutcome
@@ -784,6 +853,10 @@ final class ClusterScreen implements
     private function handleStage(KeyPress $key): ScreenOutcome
     {
         if ($key->key === Key::Character && $key->raw === 'c') {
+            return $this->showClusters();
+        }
+
+        if ($key->key === Key::Character && $key->raw === 'k') {
             return ScreenOutcome::opens($this->openContextChoice());
         }
 
@@ -1140,7 +1213,10 @@ final class ClusterScreen implements
     {
         $this->detail->stop();
         $this->logs->close();
-        $this->treeState->useContext(self::ID . ':' . ($this->session->context()->value ?? ''));
+        // Tożsamością miejsca jest **nazwa wpisu**, nie nazwa kontekstu
+        // (krok 59, D96 nr 4): `default` w dwóch plikach to dwa różne klastry,
+        // więc klucz stanu bierze się z sesji, a nie z nazwy kontekstu.
+        $this->treeState->useContext(self::ID . ':' . $this->session->key());
         $this->listCursor = null;
         $this->view = ClusterView::Resources;
     }
@@ -1161,6 +1237,10 @@ final class ClusterScreen implements
 
         if ($action !== null) {
             return $this->text('action.working.' . $action->value);
+        }
+
+        if ($this->view === ClusterView::Clusters) {
+            return $this->book->headerText();
         }
 
         if ($this->view === ClusterView::Logs) {
@@ -1250,6 +1330,7 @@ final class ClusterScreen implements
         );
 
         return $this->view !== ClusterView::Logs
+            && $this->view !== ClusterView::Clusters
             && $zone->rows >= 3
             && Split::fits($zone, SplitAxis::Vertical);
     }
@@ -1282,7 +1363,8 @@ final class ClusterScreen implements
     private function sharedBindings(): array
     {
         return [
-            KeyBinding::character('c', $this->key('key.context'), $this->key('key.context.short')),
+            KeyBinding::character('c', $this->key('key.clusters'), $this->key('key.clusters.short')),
+            KeyBinding::character('k', $this->key('key.context'), $this->key('key.context.short')),
             KeyBinding::character('n', $this->key('key.namespace'), $this->key('key.namespace.short')),
             KeyBinding::character('y', $this->key('key.yaml'), $this->key('key.yaml.short')),
             KeyBinding::character('l', $this->key('key.logs'), $this->key('key.logs.short')),
@@ -1309,7 +1391,8 @@ final class ClusterScreen implements
     private function stageBindings(): array
     {
         return [
-            KeyBinding::character('c', $this->key('key.context'), $this->key('key.context.short')),
+            KeyBinding::character('c', $this->key('key.clusters'), $this->key('key.clusters.short')),
+            KeyBinding::character('k', $this->key('key.context'), $this->key('key.context.short')),
             KeyBinding::of([Key::Enter, Key::F5], $this->key('key.retry'), $this->key('key.retry.short')),
         ];
     }

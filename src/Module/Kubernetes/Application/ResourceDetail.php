@@ -108,7 +108,7 @@ final class ResourceDetail
         $this->revealed = null;
         $this->problemKey = null;
         $this->objectWork->begin(
-            KubectlCall::describe($reference, $this->session->context()),
+            KubectlCall::describe($reference, $this->session->place()),
             $this->session->timeoutSeconds(),
         );
     }
@@ -123,7 +123,7 @@ final class ResourceDetail
         }
 
         $this->yamlWork->begin(
-            KubectlCall::yaml($reference, $this->session->context()),
+            KubectlCall::yaml($reference, $this->session->place()),
             $this->session->timeoutSeconds(),
         );
     }

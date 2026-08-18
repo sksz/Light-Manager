@@ -6,6 +6,7 @@ namespace LightManager\Tests\Module\Kubernetes;
 
 use LightManager\Application\Dto\OutputShape;
 use LightManager\Module\Kubernetes\Application\KubectlCall;
+use LightManager\Module\Kubernetes\Domain\ValueObject\ClusterPlace;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ContextName;
 use LightManager\Module\Kubernetes\Domain\ValueObject\NamespaceName;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ResourceKind;
@@ -73,7 +74,7 @@ final class KubectlServiceTest extends TestCase
 
     public function testResultCallsAskForTheDefaultShape(): void
     {
-        $this->kubectl->start(KubectlCall::contexts(), 5);
+        $this->kubectl->start(KubectlCall::contexts('/home/anna/.kube/config'), 5);
 
         self::assertSame([OutputShape::Result], $this->processes->shapes);
     }
@@ -101,7 +102,7 @@ final class KubectlServiceTest extends TestCase
             KubectlCall::list(
                 self::pods(),
                 NamespaceName::of('moja-przestrzen'),
-                ContextName::of('gke_projekt_europe-west1_klaster'),
+                ClusterPlace::of('/home/anna/.kube/config', ContextName::of('gke_projekt_europe-west1_klaster')),
             ),
             5,
         );
@@ -111,6 +112,7 @@ final class KubectlServiceTest extends TestCase
         self::assertStringStartsWith("kubectl 'get' 'pods'", $command);
         self::assertStringContainsString("'-n' 'moja-przestrzen'", $command);
         self::assertStringContainsString("'--context' 'gke_projekt_europe-west1_klaster'", $command);
+        self::assertStringContainsString("'--kubeconfig' '/home/anna/.kube/config'", $command);
     }
 
     /** Zasób klastrowy **nie dostaje `-n`** — pytanie o węzeł w przestrzeni nazw nie ma sensu. */

@@ -121,7 +121,7 @@ a wzorce nazw są wąskie jak w kroku 48 — wartość wchodzi do wiersza polece
 tożsamość po nazwie, kolejność dopisywania (wzorem `HostBook`).
 `EnvironmentBookPort` → `DockerStateService` z plikiem
 `~/.light-manager/docker.json`, tryb `0600`, **nieznane klucze przeżywają
-zapis** — bo krok 60 dopisze do tego samego dokumentu książkę rejestrów, a dwa
+zapis** — bo krok 61 dopisze do tego samego dokumentu książkę rejestrów, a dwa
 niezależne zapisy jednego pliku to wyścig przy pierwszym zapisie z dwóch miejsc.
 
 ### 2. Dwa źródła jednej listy
@@ -375,3 +375,79 @@ w atrapach testowych i w narzędziu pomiarowym.
    podanymi poświadczeniami — bez kluczy, bez certyfikatów, bez własnej
    diagnostyki. Reguła weszła do `CLAUDE.md` w trakcie tego kroku, po dwóch
    przerwaniach pracy przez użytkownika.
+
+**2026-08-18 (wieczorem) — domknięcie zaległości: compose na żywo, tunel
+kluczem i pierwsze obejrzenie klatki pod XTermem.**
+
+Trzy granice zapisane rano zostały zdjęte dwie i pół; wykonane na polecenie
+użytkownika, na tym samym hoście `morfshop.skszenks.p6.tiktalik.io`, tym razem
+z uwierzytelnieniem **kluczem** (część publiczna podana wprost przez
+użytkownika; klucza prywatnego nikt nie czytał ani nie dotykał).
+
+1. **Tunel kluczem przeszedł** — droga `BatchMode`, bez `SSH_ASKPASS`. Tunel
+   wstał (`/run/user/1000/lm-docker-proba-klucz.sock`), `GET /version` — HTTP
+   200, serwer **29.7.2**; `/containers/json?all=1` i `/images/json` — puste,
+   zgodnie ze stanem hosta. Po `shutdown()` ani procesu `ssh`, ani pliku
+   gniazda. **Lekcja z próby, dotycząca nie modułu, lecz sposobu prowadzenia
+   prób**: skrypt próbny musi wołać `BackgroundProcessService::pump()`, bo
+   `poll()` jest od kroku 52 **czystym odczytem stanu** — bez pompowania praca
+   nigdy nie wychodzi z `Running` i wygląda to jak tunel, który nie wstaje.
+   Pierwszy przebieg umarł właśnie na tym i przyczyna leżała w skrypcie, nie
+   w kodzie modułu.
+2. **`compose up` przez tunel przeszedł w całości** — prawdziwym kodem na całej
+   drodze: `SocketTunnelService` → przedrostek `DOCKER_HOST` (składany tak, jak
+   robi to `Environments::composePrefix()`) → `ComposeCliService` →
+   `DockerApiService` po drugiej stronie. Projekt jednousługowy (`alpine:3`,
+   `sleep infinity`) czytany **lokalnie**, kontener powstał **zdalnie**:
+   `proba-compose-proba-1`, obraz `alpine:3`, widziany przez API demona.
+   Następnie `compose down` (`Done`), usunięcie ściągniętego obrazu (HTTP 200)
+   i zamknięcie tunelu — **host wrócił do stanu zerowego**, w którym go
+   zastano (kontenery `[]`, obrazy `[]`), a po stronie lokalnej nie został ani
+   proces `ssh`, ani gniazdo. Zdanie z planu kroku — „montowania i kontekst
+   budowy znaczą tam co innego niż lokalnie” — potwierdziło się w praktyce:
+   plik compose czyta klient lokalny, a wszystko, co z niego wynika, dzieje się
+   po drugiej stronie.
+3. **Klatka spisu środowisk obejrzana pod XTermem** — po raz pierwszy. Wyszła
+   z tego **usterka kosmetyczna, której nie widział żaden test**: kolumna
+   „Rodzaj" miała dwanaście znaków, a `gniazdo lokalne` ma piętnaście, więc
+   wiersz domyślny pierwszego uruchomienia pokazywał `gniazdo lo…`. Poprawione
+   na **szesnaście** — piętnaście nie wystarczyło, bo kolumna oddaje ostatni
+   znak na odstęp od sąsiadki (sprawdzone złotą klatką, nie rachunkiem).
+   Zmiana objęła `EnvironmentScreen` i scenariusz `environments`
+   w `ScenarioFactory`; złota klatka odnowiona po przeczytaniu różnicy, pomiar
+   pary `environments`/`columns` wobec wzorca po kroku 58: **−5,4% / −5,0%** —
+   para poruszyła się razem, więc jest to wahanie maszyny, a nie skutek
+   poszerzenia. **Lekcja ta sama, co przy roli `Marked` w kroku 43: miara
+   dobrana z głowy, bez obejrzenia klatki, bywa miarą nietrafioną.**
+4. **Granica, która zostaje: TCP z TLS — odłożona rozstrzygnięciem użytkownika
+   (2026-08-18), z drogą rozpoznaną i zapisaną.** Rozpoznanie prostuje przy tym
+   zdanie zapisane rano: próba **nie wymaga wystawiania demona do sieci**,
+   a wystawianie go odradzamy wprost — gniazdo demona jest równoważne rootowi,
+   a `dockerd` na publicznym porcie to jeden z najczęściej skanowanych celów.
+
+   Co wymusza nasz kod (sprawdzone w `DockerApiService`): przy TCP ustawiane są
+   wyłącznie `CURLOPT_SSLCERT`, `SSLKEY` i `CAINFO`, a `VERIFYPEER`
+   i `VERIFYHOST` **zostają domyślne** — więc obowiązuje pełna weryfikacja:
+   certyfikat serwera podpisany wskazanym CA **i** nazwa z `https://host:port`
+   zgodna z SAN. Trzy ścieżki wpisu wskazują pliki **lokalne**, a compose
+   potrzebuje ponadto jednego katalogu z nazwami `cert.pem`/`key.pem`/`ca.pem`.
+
+   Droga proponowana na następny raz: kontener `docker:dind`
+   (`DOCKER_TLS_CERTDIR=/certs`, `-p 127.0.0.1:2376:2376`) na zdalnym hoście
+   plus zwykły `ssh -L 2376:127.0.0.1:2376`, a wpis książki wskazuje
+   `127.0.0.1:2376`. dind wytwarza CA, certyfikat serwera i komplet kliencki
+   sam, pod nazwami, których chce `DOCKER_CERT_PATH`; prawdziwy demon hosta
+   zostaje **nietknięty** (bez zmiany konfiguracji i bez restartu ubijającego
+   cudze kontenery), a całość znika po `docker rm -f`. Do potwierdzenia przy
+   pierwszym połączeniu zostaje jedno: czy SAN certyfikatu serwera dind obejmuje
+   `127.0.0.1` — jeśli nie, wpis wskazuje nazwę, a nazwę mapuje się lokalnie.
+
+   Sprawdzić trzeba wtedy trzy rzeczy: `GET /version` i listy wpisem rodzaju
+   TCP, `composePrefix()` z `DOCKER_TLS_VERIFY=1`, oraz to, czy **zły certyfikat
+   kończy się zdaniem, a nie ciszą** — to ostatnie jest w kroku 58 obietnicą,
+   której nikt dotąd nie sprawdził.
+
+Przy okazji potwierdzone na żywo dwie rzeczy z **kroku 59**: górny pas obu
+spisów pokazuje `~/.light-manager/state.json`, czyli wspólny dokument stanu
+zastąpił pliki modułów w działającej aplikacji, a książka klastrów pokazała
+wpis przeniesiony migracją z pozycji ustawień.

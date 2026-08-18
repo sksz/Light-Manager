@@ -71,7 +71,7 @@ final class ClusterActions
         $this->begin(
             ClusterAction::Apply,
             $path,
-            KubectlCall::apply($path, $this->session->namespace(), $this->session->context()),
+            KubectlCall::apply($path, $this->session->namespace(), $this->session->place()),
         );
     }
 
@@ -80,7 +80,7 @@ final class ClusterActions
         $this->begin(
             ClusterAction::Delete,
             $reference->address(),
-            KubectlCall::delete($reference, $this->session->context()),
+            KubectlCall::delete($reference, $this->session->place()),
         );
     }
 
@@ -100,7 +100,7 @@ final class ClusterActions
             KubectlCall::patch(
                 $reference,
                 SecretPatch::forKey($key, $base64Value),
-                $this->session->context(),
+                $this->session->place(),
             ),
         );
     }
@@ -118,7 +118,7 @@ final class ClusterActions
         $this->begin(
             ClusterAction::SetImage,
             $reference->name . '/' . $container,
-            KubectlCall::setImage($reference, $container, $image, $this->session->context()),
+            KubectlCall::setImage($reference, $container, $image, $this->session->place()),
         );
     }
 

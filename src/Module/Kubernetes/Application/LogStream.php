@@ -127,7 +127,7 @@ final class LogStream
         $this->reference = $reference;
         $this->container = $container;
         $this->handle = $this->kubectl->start(
-            KubectlCall::logs($reference, $container, $tail, $session->context()),
+            KubectlCall::logs($reference, $container, $tail, $session->place()),
             self::LIFETIME_SECONDS,
         );
     }

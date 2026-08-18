@@ -51,6 +51,7 @@ use LightManager\Infrastructure\Terminal\SixelCapabilityService;
 use LightManager\Infrastructure\Terminal\TerminalClipboardService;
 use LightManager\Infrastructure\Terminal\TerminalService;
 use LightManager\Infrastructure\Terminal\TerminalSizeService;
+use LightManager\Module\AddressBook\Presentation\AddressBookModule;
 use LightManager\Module\Audio\Presentation\AudioModule;
 use LightManager\Module\Browser\Presentation\BrowserModule;
 use LightManager\Module\Docker\Presentation\DockerModule;
@@ -460,13 +461,20 @@ final class Bootstrap
             // Trzecia pozycja i **cały koszt modułu dźwięku w rdzeniu** (krok 36).
             // Rdzeń nie wie o nim nic ponad to: ani że gra, ani czym.
             new AudioModule($state, $translator, $settings),
-            // Czwarta pozycja i **cały koszt modułu sesji zdalnej w rdzeniu**
+            // Czwarta pozycja i **cały koszt książki adresowej w rdzeniu**
+            // (krok 60). Stoi **przed** modułami, które ją czytają, i jest to
+            // porządek dla oka, nie warunek: rejestr kwerend wypełnia się po
+            // zbudowaniu rejestru modułów, więc kolejność deklaracji nie
+            // rozstrzyga o niczym poza układem zakładek. Moduł nie odmawia
+            // startu nigdy — odrzucony zabrałby adresy wszystkim pozostałym.
+            new AddressBookModule($state, $translator, $settings),
+            // Piąta pozycja i **cały koszt modułu sesji zdalnej w rdzeniu**
             // (krok 48). Rdzeń nie wie o nim nic ponad to — ani z czym rozmawia,
             // ani że rozmawia w procesie potomnym. Moduł bywa przy tym pierwszym,
             // który się tu nie zjawi: bez klienta OpenSSH rejestr go odrzuca
             // (`RequiresEnvironment`, D87 nr 11), a ta linia zostaje ta sama.
             new SshModule($state, $translator, $settings),
-            // Piąta pozycja i **cały koszt modułu Dockera w rdzeniu** (krok 51)
+            // Szósta pozycja i **cały koszt modułu Dockera w rdzeniu** (krok 51)
             // ponad rozbudowę portu pracy tłowej, która jest osobnym zakresem
             // tego samego kroku i ma trzech odbiorców, nie jednego. Rdzeń nie
             // wie o tym module nic ponad tę linię — ani że rozmawia gniazdem,
@@ -474,7 +482,7 @@ final class Bootstrap
             // gniazda demona rejestr go odrzuca (`RequiresEnvironment`, D90 nr 6),
             // a ta linia zostaje ta sama.
             new DockerModule($state, $translator, $settings),
-            // Szósta pozycja i **cały koszt modułu klastra w rdzeniu** (krok 52)
+            // Siódma pozycja i **cały koszt modułu klastra w rdzeniu** (krok 52)
             // ponad rozbudowę portu pracy tłowej o wypis pracy trwającej
             // (D91 nr 12) — tamta ma własnego odbiorcę w logach `kubectl -f`
             // i własne testy. Rdzeń nie wie o tym module nic ponad tę linię:

@@ -247,7 +247,7 @@ final class ConfirmOverlay implements OverlayInterface, CopiesContent
      *
      * Spłaca połowę długu nazwanego w D100: treści okna nakładanego nie da się
      * zaznaczyć myszą, bo otwarcie okna kasuje zaznaczenie, a kliknięcie w okno
-     * zużywa okno — więc dopóki nie ma zaznaczania w oknie (krok 76), jedyną
+     * zużywa okno — więc dopóki nie ma zaznaczania w oknie (krok 77), jedyną
      * drogą do tej treści jest `Alt`+`c`.
      *
      * Odbiorcą tej metody jest **jedno konkretne pytanie**, a nie ozdoba

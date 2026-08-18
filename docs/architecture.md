@@ -1015,8 +1015,9 @@ rdzeń rozdaje **bez pytania**, a `core.context`, `browser.cwd` i
 `browser.selection` są tym samym oglądanym przez kanał — z jedną różnicą, która
 uzasadnia ich istnienie: kontekst mówi o panelu **czynnym**, kwerenda o dowolnym.
 
-**Zasięg domknięty w kroku 54.** Kwerendy mają odtąd **wszystkie sześć modułów**
-— `ssh` cztery, `docker` pięć, `k8s` sześć — a strażnik
+**Zasięg domknięty w kroku 54.** Kwerendy mają odtąd **wszystkie moduły** —
+w kroku 54 było ich sześć (`ssh` cztery, `docker` pięć, `k8s` sześć), a od kroku
+60 dochodzi siódmy (`address-book` dwie) — a strażnik
 `QueryIsTheOnlyReadPathTest` nie zna ani jednego zwolnienia. Dopisanie ich do
 gotowych modułów kosztowało **jedną zdolność na moduł** i ani jednej linii
 w `Application/Query/`; to była druga miara tamtego kroku i sprawdza się ją
@@ -1271,10 +1272,59 @@ bloki i-węzła z `lstat`, bez uruchamiania czegokolwiek) i **na żądanie klawi
 `d`**, jak suma kontrolna. Postępu `du` nie zna, więc pasek chodzi w trybie
 „nieznany” — pierwsze prawdziwe użycie tego trybu od kroku 23.
 
+#### Książka adresowa: dana dzielona ma moduł-właściciela (od kroku 60)
+
+Moduł `src/Module/AddressBook/` (`Ctrl`+`W`) trzyma **adresy, pod którymi coś
+stoi**, i oddaje je każdemu, kto zapyta nazwą kwerendy. Jest **siódmym
+sprawdzianem kontraktu modułu i pierwszym modułem istniejącym po to, żeby dzielić
+dane** — poprzednie sześć powstało dla własnych funkcji.
+
+**Zdanie graniczne całego rozwiązania: adres mieszka w książce, a poświadczenie
+u tego, kto się nim przedstawia.** Wynika z reguły 11w, nie z porządku: kwerenda
+książki jest czytelna dla **każdego** modułu, więc ścieżka klucza prywatnego
+w jej wierszu mówiłaby obcemu, gdzie tego klucza szukać. Moduł sesji zdalnej
+trzyma przez to sposób uwierzytelnienia i ścieżkę klucza w **swojej** sekcji
+dokumentu stanu, kluczowane identyfikatorem wpisu.
+
+**Wpis jest pojemnikiem z własną tożsamością** (D105 nr 2 i 4). Zawsze niesie
+identyfikator (losowy, ośmioznakowy, szesnastkowy), nazwę i adres — a nazwa
+i adres **mogą być puste**. Tożsamością jest identyfikator, a nie nazwa, i to jest
+odwrócenie wzorca trzech wcześniejszych książek (`HostBook`, `EnvironmentBook`,
+`ClusterBook`): nazwę wolno zmienić, bywa pusta i bywa powtórzona, a odniesienia
+do wpisu trzymają **obcy** — wpis tunelowy modułu Dockera trzyma napis, za którym
+książka nie umie pójść.
+
+**Pola poza nazwą i adresem dokładają moduły — rozdziałami** (D105 nr 3). Moduł
+zakłada swój rozdział **komendą** `address-book.chapter`, podając trzy napisy:
+własny identyfikator, nazwę **własnej kwerendy** deklarującej pola i klucz napisu
+z tytułem rozdziału. Książka czyta z tej kwerendy wiersze (klucz, etykieta,
+rodzaj, wartość domyślna) i pyta o nie w tym samym łańcuchu okien, co o nazwę
+i adres. **Rdzeń nie bierze w tym udziału i nie wie o rozdziałach nic** — D42
+zostaje nietknięte, a droga jest w całości drogą reguły 15g: napisy tam, napisy
+z powrotem.
+
+Trzy rzeczy warte zapamiętania przy dopisywaniu rozdziału do własnego modułu:
+**zakładaj go w takcie** (`NeedsTick`), a nie przy pierwszym odczycie — inaczej
+użytkownik, który zaczyna od książki, otworzy wpis bez twoich pól; **deklarację
+oddawaj kwerendą o stałym pokoleniu**, bo nie zmienia się w czasie uruchomienia;
+**pola sekretne deklaruj u siebie, nie tutaj** — rozdział niesie dane, które
+oddajesz wszystkim.
+
+**Rozdziały nie są zapisywane na dysk.** Zakłada się je przy każdym uruchomieniu,
+więc moduł wyłączony albo odrzucony po prostu nie ma rozdziału — a jego wartości
+we wpisach **zostają nietknięte** i wracają, gdy moduł wróci. Spis rozdziałów
+zapisany na dysku musiałby być sprzątany, a nie ma komu.
+
+**Moduł nie odmawia startu nigdy** (nie deklaruje `RequiresEnvironment`) i to jest
+druga miara kroku 60: brak klienta `ssh` odrzuca moduł sesji zdalnej, ale **nie ma
+prawa odebrać użytkownikowi adresów**, z których korzysta też moduł Dockera.
+
 #### Sesja zdalna: praca poza maszyną (od kroku 48)
 
 Moduł `src/Module/Ssh/` nawiązuje i utrzymuje połączenie SSH z hostem ze spisu,
-który użytkownik prowadzi z ekranu (`Ctrl`+`S`). Jest **czwartym sprawdzianem
+który użytkownik prowadzi z ekranu (`Ctrl`+`S`) — **a od kroku 60 spis ten nie
+należy do niego**: adresy czyta kwerendą z książki adresowej, a u siebie trzyma
+poświadczenia i zapamiętane katalogi. Jest **czwartym sprawdzianem
 kontraktu modułu** — po module rysującym główną funkcję (21), module bez ekranu
 (36) i module pracującym, gdy go nie widać (45), przyszedł moduł **rozmawiający
 z czymś poza maszyną**.
@@ -1530,7 +1580,7 @@ druga droga do tej samej danej.
 **Spis ma dwa źródła** (D96 nr 3): konteksty klienta `docker` czyta się pracą
 tłową (`docker context ls --format json`, NDJSON), a wpisy własne dochodzą
 z książki w pliku stanu modułu `~/.light-manager/docker.json` (tryb `0600`,
-nieznane klucze przeżywają zapis — krok 60 dopisze tam książkę rejestrów).
+nieznane klucze przeżywają zapis — krok 61 dopisze tam książkę rejestrów).
 Trzy reguły scalania: **pochodzenie jest widoczne**, przy zbieżnej nazwie
 **wygrywa wpis własny** (kolizja zostaje w spisie jako wiersz przysłonięty),
 a **brak klienta nie jest awarią** — lista schodzi do wpisów własnych plus
@@ -1624,17 +1674,63 @@ idzie **argumentem**, nigdy wejściem standardowym — ta sama reguła unieważn
 `kubectl apply -f -`, więc manifest podaje się ścieżką. Powód maskowania jest
 wymierny: `core.dump` z kroku 38 zapisuje klatkę na dysk.
 
-**Stan „nie ma klastra” jest stanem zwykłym, nie awarią**, i rozpada się na trzy:
-brak bieżącego kontekstu (spis czyta się z pliku, więc pada także bez sieci —
-ekran mówi, co wybrać), klaster nieosiągalny (powód pochodzi ze strumienia błędów
-klienta, nie z domysłu) i klaster gotowy. **Wersje klienta i serwera są widoczne,
-a różnica większa niż jedno wydanie jest ostrzeżeniem, nie odmową** — Kubernetes
-nazywa ją niewspieraną, a nie niemożliwą.
+**Stan „nie ma klastra” jest stanem zwykłym, nie awarią**, i rozpada się na
+**pięć** (trzy do kroku 59): brak wybranego klastra (spis czyta się z plików,
+więc pada także bez sieci — ekran mówi, co wybrać), **nie ma pliku**, **nie ma
+w pliku takiego kontekstu**, klaster nieosiągalny (powód pochodzi ze strumienia
+błędów klienta, nie z domysłu) i klaster gotowy. **Wersje klienta i serwera są
+widoczne, a różnica większa niż jedno wydanie jest ostrzeżeniem, nie odmową** —
+Kubernetes nazywa ją niewspieraną, a nie niemożliwą.
+
+**Miejsce jest parą — plik `kubeconfig` i kontekst — a jego tożsamością jest
+nazwa wpisu książki** (krok 59, D96 nr 4). Do kroku 59 współrzędna była jedna,
+flaga `--kubeconfig` nie padała nigdzie, a klucze czterech klas stanu brały się
+z nazwy kontekstu — więc `default` w dwóch plikach był dla aplikacji **jednym
+miejscem** i mieszał drzewo, listy oraz otwarty opis po cichu. Odtąd
+`ClusterPlace` jedzie w każdym wywołaniu dwiema flagami (także w `config view`,
+bo to ono ma wypisać zawartość *wskazanego* pliku), a `ClusterSession::key()`
+jest kluczem `TreeState`, `SectionState`, `ScrollWindow` i `ResourceCache`.
+Klastry prowadzi się **książką wpisów** (klawisz `c`, piąta postać ekranu) obok
+kontekstów czytanych z `~/.kube/config` i ze ścieżek w `KUBECONFIG` — z trzema
+regułami dwóch źródeł znanymi ze środowisk Dockera: pochodzenie widoczne, wpis
+własny wygrywa przy zbieżnej nazwie, wpisu czytanego nie da się z aplikacji
+skasować, bo **do `kubeconfig` moduł nie pisze** i to zdanie z kroku 52 zostaje
+w mocy. Konteksty tej samej nazwy z dwóch plików dostają przez to **różne nazwy
+wierszy**; brak pliku rozstrzyga się `is_file()` **przed** procesem potomnym, bo
+`kubectl` oddaje wtedy pustą konfigurację z kodem zero.
 
 Rdzeń kosztuje **jedną linię w `Bootstrapie` plus rozbudowę portu pracy tłowej**
 o wypis pracy trwającej (niżej, rozdz. o pracy tłowej) — plan kroku zakładał, że
 mechanizmu rdzenia nie ruszy żadnego, i to założenie zostało odwołane
-rozstrzygnięciem użytkownika (D91 nr 12).
+rozstrzygnięciem użytkownika (D91 nr 12). **Krok 59 dołożył do tego rachunku
+dwie rzeczy** i obie są wynikiem przeglądu reguły 15e, nie potrzebą modułu:
+wspólną książkę wpisów i wspólny dokument stanu (niżej).
+
+#### Stan aplikacji: jeden dokument, sekcja na właściciela (od kroku 59)
+
+Przegląd z reguły 15e — obowiązkowy przy trzecim powtórzeniu wzorca — wypadł
+w kroku 59 **na przeprowadzkę**, i to szerszą, niż rekomendował plan (D103).
+Wzorzec książki wpisów stał wtedy po raz trzeci (`HostBook`, `EnvironmentBook`,
+`ClusterBook`), a mechanizm zapisu pliku stanu — po raz **piąty**: trzy usługi
+modułów plus konfiguracja i historia komend, skopiowany niemal co do znaku.
+
+Do rdzenia wyszło jedno i drugie. **Pojęcie**: `Application\State\Book` —
+kolejność dopisywania i tożsamość po nazwie własnej, z ładunkiem
+**nieprzezroczystym**, bo pola trzech książek są rozłączne, a D42 („rdzeń nie
+wie, czym jest wpis”) zostaje w mocy; moduł nadal trzyma własny typ wpisu.
+**Mechanizm**: `Application\Port\StateDocumentPort` z usługą
+`Infrastructure\Config\StateDocumentService` — jeden plik
+`~/.light-manager/state.json` z **sekcją na właściciela** — oraz
+`Infrastructure\Config\StateFile`, jedyna droga zapisu pliku stanu (`0600`,
+plik tymczasowy i `rename()`), z której korzystają także `settings.json`
+i historia komend.
+
+Trzy zdania graniczne: **właściciel sięga wyłącznie po sekcję o własnym
+identyfikatorze** (po cudzą daną drogą jest rejestr kwerend), **cudze sekcje
+i nieznane klucze przeżywają zapis**, a **migracja mieszka za portem** — sekcja
+nieobecna w dokumencie czyta się ze starego `<sekcja>.json`, stary plik zostaje
+na dysku nietknięty (nikt go już nie czyta, a skasowanie nie ma odbiorcy),
+a sekcją dokumentu staje się przy pierwszym zapisie któregokolwiek właściciela.
 
 #### Kosz i cofnięcie ostatniej operacji (od kroku 44)
 

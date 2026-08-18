@@ -33,8 +33,9 @@ use LightManager\Presentation\Ui\OverlayOutcome;
  * implementacją tej samej czynności, a taka pamiętałaby o odcisku dopóty, dopóki
  * ktoś nie poprawiłby jednej z nich.
  *
- * Podpowiedzi biorą się z **książki hostów**, bo to jedyny spis nazw, które ta
- * komenda przyjmuje.
+ * Podpowiedzi biorą się z **książki adresowej** (krok 60), bo to jedyny spis
+ * nazw, które ta komenda przyjmuje — a od tamtego kroku niosą także
+ * identyfikatory wpisów, bo nazwa bywa pusta.
  */
 final class ConnectCommand implements CommandInterface, SuggestsArguments, OpensOverlay
 {
@@ -76,9 +77,14 @@ final class ConnectCommand implements CommandInterface, SuggestsArguments, Opens
 
         $matching = [];
 
-        foreach ($this->reader->book()->names() as $name) {
-            if ($prefix === '' || stripos($name, $prefix) === 0) {
-                $matching[] = $name;
+        // Podpowiada **nazwę, a od kroku 60 także identyfikator wpisu**: nazwa
+        // bywa pusta i powtórzona, więc bez identyfikatora część książki byłaby
+        // nie do wskazania z wiersza komendy.
+        foreach ($this->reader->hosts() as $host) {
+            foreach ([$host->name, $host->id] as $candidate) {
+                if ($candidate !== '' && ($prefix === '' || stripos($candidate, $prefix) === 0)) {
+                    $matching[] = $candidate;
+                }
             }
         }
 
@@ -117,6 +123,6 @@ final class ConnectCommand implements CommandInterface, SuggestsArguments, Opens
 
     private function profileFrom(CommandInput $input): ?HostProfile
     {
-        return $this->reader->book()->find(trim($input->text(self::ARGUMENT)));
+        return $this->reader->hostFor(trim($input->text(self::ARGUMENT)));
     }
 }

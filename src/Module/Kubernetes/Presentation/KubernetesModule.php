@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LightManager\Module\Kubernetes\Presentation;
 
 use LightManager\Application\Command\CommandInterface;
+use LightManager\Application\Dto\Settings;
 use LightManager\Application\Module\DeclaresEvents;
 use LightManager\Application\Module\ModuleInterface;
 use LightManager\Application\Module\ModuleSettingsTab;
@@ -19,21 +20,26 @@ use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Module\Kubernetes\Application\ApiCatalog;
 use LightManager\Module\Kubernetes\Application\ClusterActions;
+use LightManager\Module\Kubernetes\Application\Clusters;
 use LightManager\Module\Kubernetes\Application\ClusterSession;
 use LightManager\Module\Kubernetes\Application\ClusterState;
+use LightManager\Module\Kubernetes\Application\ConfigCatalog;
 use LightManager\Module\Kubernetes\Application\KubernetesEvent;
 use LightManager\Module\Kubernetes\Application\KubernetesSettings;
 use LightManager\Module\Kubernetes\Application\LogStream;
+use LightManager\Module\Kubernetes\Application\Port\ClusterBookPort;
 use LightManager\Module\Kubernetes\Application\Port\KubectlPort;
 use LightManager\Module\Kubernetes\Application\ResourceCache;
 use LightManager\Module\Kubernetes\Application\ResourceDetail;
 use LightManager\Module\Kubernetes\Infrastructure\KubectlService;
+use LightManager\Module\Kubernetes\Infrastructure\KubernetesStateService;
 use LightManager\Module\Kubernetes\Presentation\Command\ApplyCommand;
 use LightManager\Module\Kubernetes\Presentation\Command\ContextCommand;
 use LightManager\Module\Kubernetes\Presentation\Command\DeployImageCommand;
 use LightManager\Module\Kubernetes\Presentation\Command\GetCommand;
 use LightManager\Module\Kubernetes\Presentation\Command\NamespaceCommand;
 use LightManager\Module\Kubernetes\Presentation\Query\ClusterQuery;
+use LightManager\Module\Kubernetes\Presentation\Query\ClustersQuery;
 use LightManager\Module\Kubernetes\Presentation\Query\ContextsQuery;
 use LightManager\Module\Kubernetes\Presentation\Query\DeploymentsQuery;
 use LightManager\Module\Kubernetes\Presentation\Query\KindsQuery;
@@ -103,6 +109,12 @@ final class KubernetesModule implements
 
     private ?ClusterState $cluster = null;
 
+    private ?Clusters $clusters = null;
+
+    private ?ConfigCatalog $configs = null;
+
+    private ?ClusterBookScreen $bookScreen = null;
+
     private ?ApiCatalog $catalog = null;
 
     private ?ResourceCache $cache = null;
@@ -117,10 +129,8 @@ final class KubernetesModule implements
 
     private ?ClusterActions $actions = null;
 
-    /** Ostatnio zapamiętane miejsce — po to, żeby nie zapisywać ustawień co klatkę. */
-    private string $savedContext = '';
-
-    private string $savedNamespace = '';
+    /** Czy migracja zapamiętanego miejsca z ustawień do książki już padła (krok 59). */
+    private bool $migrated = false;
 
     /**
      * @param ?KubectlPort $kubectl wstrzyknięcie istnieje **wyłącznie dla testów**,
@@ -133,6 +143,8 @@ final class KubernetesModule implements
         private readonly TranslatorPort $translator,
         private readonly SettingsPort $settings,
         private readonly ?KubectlPort $kubectl = null,
+        /** Wstrzyknięcie książki — **wyłącznie dla testów**, jak port `kubectl`. */
+        private readonly ?ClusterBookPort $bookPort = null,
     ) {
     }
 
@@ -208,6 +220,8 @@ final class KubernetesModule implements
     {
         return $this->screen ??= new ClusterScreen(
             $this->cluster(),
+            $this->clusters(),
+            $this->bookScreen(),
             $this->catalog(),
             $this->cache(),
             $this->detail(),
@@ -246,10 +260,9 @@ final class KubernetesModule implements
         $settings = $this->settings->current();
         $this->session()->useTimeout(KubernetesSettings::timeoutFrom($settings));
         $this->logs()->useLimit(KubernetesSettings::logLinesFrom($settings));
-        $this->cluster()->remember(KubernetesSettings::contextFrom($settings));
+        $this->migrateOnce($settings);
 
         $this->screen()->tick($now, KubernetesSettings::refreshFrom($settings));
-        $this->rememberPlace();
     }
 
     public function helpKeys(): array
@@ -267,30 +280,33 @@ final class KubernetesModule implements
     }
 
     /**
-     * Zapamiętuje wybrane miejsce w ustawieniach modułu.
+     * Przenosi zapamiętane miejsce z pozycji ustawień do książki — **raz, przy
+     * pierwszym takcie po wejściu tej wersji modułu** (krok 59, plan punkt 7).
      *
-     * Zapis pada **wyłącznie po zmianie**, a nie co takt — porównanie dwóch
-     * napisów kosztuje nic, a zapis pliku trzydzieści razy na sekundę kosztowałby
-     * dysk. Ta sama zasada, co przy zapamiętywaniu rozmiaru okna w kroku 37:
-     * „zapis następuje po uspokojeniu zmian”, tyle że tutaj zmiana jest
-     * pojedynczym wyborem, więc uspokajać nie ma czego.
+     * Do kroku 59 wybór miejsca mieszkał w dwóch pozycjach ustawień (`context`
+     * i `namespace`) i zapisywał się po każdej zmianie. Odtąd mieszka
+     * w książce, bo miejsce ma dwie współrzędne i własną tożsamość — a dwie
+     * pozycje, których użytkownik nie przestawia strzałkami, były obejściem
+     * braku książki, nie ustawieniami.
+     *
+     * Wartości nie giną, a stare pozycje zostają w `settings.json` nietknięte:
+     * nikt ich już nie czyta, a ich skasowanie nie ma odbiorcy.
      */
-    private function rememberPlace(): void
+    private function migrateOnce(Settings $settings): void
     {
-        $context = $this->session()->context()->value ?? '';
-        $namespace = $this->session()->namespace()->value ?? '';
-
-        if ($context === $this->savedContext && $namespace === $this->savedNamespace) {
+        if ($this->migrated) {
             return;
         }
 
-        $this->savedContext = $context;
-        $this->savedNamespace = $namespace;
+        $this->migrated = true;
 
-        $this->settings->save(
-            $this->settings->current()
-                ->withModuleValue(KubernetesSettings::ID, KubernetesSettings::CONTEXT, $context)
-                ->withModuleValue(KubernetesSettings::ID, KubernetesSettings::NAMESPACE, $namespace),
+        if (!$this->clusters()->isFresh()) {
+            return;
+        }
+
+        $this->clusters()->migrate(
+            KubernetesSettings::contextFrom($settings),
+            KubernetesSettings::namespaceFrom($settings),
         );
     }
 
@@ -341,6 +357,7 @@ final class KubernetesModule implements
         return [
             new ContextsQuery($this->cluster()),
             new ClusterQuery($this->cluster()),
+            new ClustersQuery($this->clusters()),
             new NamespacesQuery($this->session(), $this->cache()),
             new KindsQuery($this->catalog()),
             new ResourcesQuery($this->catalog(), $this->cache()),
@@ -350,7 +367,32 @@ final class KubernetesModule implements
 
     private function cluster(): ClusterState
     {
-        return $this->cluster ??= new ClusterState($this->kubectl(), $this->session());
+        return $this->cluster ??= new ClusterState($this->kubectl(), $this->session(), $this->clusters());
+    }
+
+    /** Koordynator spisu klastrów — jeden na moduł (krok 59). */
+    private function clusters(): Clusters
+    {
+        return $this->clusters ??= new Clusters(
+            $this->bookPort ?? KubernetesStateService::getInstance(),
+            $this->configs(),
+            $this->session(),
+        );
+    }
+
+    private function configs(): ConfigCatalog
+    {
+        return $this->configs ??= new ConfigCatalog($this->kubectl(), $this->session());
+    }
+
+    private function bookScreen(): ClusterBookScreen
+    {
+        return $this->bookScreen ??= new ClusterBookScreen(
+            $this->clusters(),
+            new ClusterFlow($this->clusters(), $this->translator),
+            $this->translator,
+            $this->reader(),
+        );
     }
 
     private function catalog(): ApiCatalog

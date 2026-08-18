@@ -23,7 +23,7 @@ use LightManager\Module\Docker\Domain\Exception\InvalidDockerEnvironmentExceptio
  *
  * **Cel tunelu bywa dwiema rzeczami naraz** i rozstrzyga się to dopiero przy
  * podnoszeniu tunelu: napis równy nazwie wpisu książki hostów znaczy „weź dane
- * kwerendą `ssh.hosts`" (reguła 15g — trzy napisy, ani jednego typu), każdy inny
+ * kwerendą `address-book.entry`" (reguła 15g — same napisy, ani jednego typu), każdy inny
  * czyta się jako `[user@]host`. Dokładne dopasowanie do książki wygrywa, więc
  * wpis książki o nazwie z dwukropkiem przegrywa z rozbiorem `host:port` —
  * znana, rzadka cena jednego pola zamiast dwóch.

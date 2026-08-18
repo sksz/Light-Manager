@@ -18,8 +18,8 @@ use LightManager\Module\Ssh\Application\SshSession;
 use LightManager\Module\Ssh\Application\SshSettings;
 use LightManager\Module\Ssh\Domain\Exception\InvalidHostProfileException;
 use LightManager\Module\Ssh\Domain\ValueObject\AuthMethod;
+use LightManager\Module\Ssh\Domain\ValueObject\HostCredentials;
 use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
-use LightManager\Module\Ssh\Domain\ValueObject\HostTarget;
 use LightManager\Presentation\Ui\AcceptsPointer;
 use LightManager\Presentation\Ui\Component\Align;
 use LightManager\Presentation\Ui\Component\Column;
@@ -29,7 +29,6 @@ use LightManager\Presentation\Ui\Component\TableRow;
 use LightManager\Presentation\Ui\DeclaresFocus;
 use LightManager\Presentation\Ui\FocusHint;
 use LightManager\Presentation\Ui\KeyBinding;
-use LightManager\Presentation\Ui\Overlay\ConfirmOverlay;
 use LightManager\Presentation\Ui\Overlay\PromptOverlay;
 use LightManager\Presentation\Ui\OverlayOutcome;
 use LightManager\Presentation\Ui\PointerRow;
@@ -40,6 +39,13 @@ use LightManager\Presentation\Ui\ScreenZone;
 use LightManager\Presentation\Ui\ScrollWindow;
 
 /**
+ * Spis hostów — **czytany z książki adresowej od kroku 60**.
+ *
+ * Ekran zostaje tym, czym był (rozstrzygnięcie D105 nr 5), ale przestaje być
+ * właścicielem spisu: wpisy przychodzą kwerendą `address-book.entries`, a
+ * dopisanie i usunięcie adresu należą odtąd do książki (`Ctrl`+`W`). Zostaje
+ * tu to, czego książka nie wie: **z kim stoi sesja** i **czym się przedstawiamy**.
+ *
  * Spis hostów — jedyny ekran modułu sesji zdalnej (krok 48).
  *
  * **Nie dokłada ani jednego komponentu** i jest to jego drugi, cichy sprawdzian:
@@ -115,8 +121,9 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable, A
      * Górny pas mówi **z kim aplikacja jest połączona** — to jest zdanie
      * z kryteriów ukończenia kroku, a nie ozdoba.
      *
-     * Gdy nic nie stoi, pokazuje położenie pliku książki: ekran bez sesji ma
-     * powiedzieć, skąd bierze to, co wypisuje.
+     * Gdy nic nie stoi, mówi **skąd bierze spis** — od kroku 60 jest nim książka
+     * adresowa, a nie własny plik modułu. Położenia dokumentu ten ekran nie
+     * pokazuje i nie ma po co: to nie on nim rządzi.
      */
     public function header(): ScreenZone
     {
@@ -128,7 +135,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable, A
                 'stage' => $this->text($state->stage->labelKey()),
                 'host' => $host->label(),
             ])
-            : $this->reader->hostBook()->location;
+            : $this->text('module.' . SshSettings::ID . '.header.book');
 
         return new ScreenZone($this->labelKey(), new Label($text));
     }
@@ -142,21 +149,21 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable, A
     public function draw(Rect $bounds): array
     {
         $this->lastBounds = $bounds;
-        $book = $this->reader->book();
+        $hosts = $this->reader->hosts();
 
-        if ($book->isEmpty()) {
+        if ($hosts === []) {
             return (new Label($this->text('module.' . SshSettings::ID . '.empty'), '', Role::Muted))->draw($bounds);
         }
 
         $this->clampSelection();
         $capacity = Table::capacityOf($bounds, withHeader: true);
-        $this->window->keepVisible($this->selected, $book->count(), $capacity);
+        $this->window->keepVisible($this->selected, count($hosts), $capacity);
 
         return (new Table(
             $this->columns(),
-            $this->rows(),
+            $this->rows($hosts),
             $this->selected,
-            $this->window->position($book->count(), $capacity),
+            $this->window->position(count($hosts), $capacity),
             withHeader: true,
         ))->draw($bounds);
     }
@@ -168,8 +175,6 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable, A
             KeyBinding::of([Key::Enter], 'module.' . SshSettings::ID . '.key.connect', 'module.' . SshSettings::ID . '.key.connect.short'),
             KeyBinding::of([Key::F4], 'module.' . SshSettings::ID . '.key.auth', 'module.' . SshSettings::ID . '.key.auth.short'),
             KeyBinding::of([Key::F5], 'module.' . SshSettings::ID . '.key.refresh', 'module.' . SshSettings::ID . '.key.refresh.short'),
-            KeyBinding::of([Key::F7], 'module.' . SshSettings::ID . '.key.add', 'module.' . SshSettings::ID . '.key.add.short'),
-            KeyBinding::of([Key::F8], 'module.' . SshSettings::ID . '.key.remove', 'module.' . SshSettings::ID . '.key.remove.short'),
         ];
     }
 
@@ -213,7 +218,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable, A
             $bounds,
             $this->window->offset(),
             withHeader: true,
-            total: $this->reader->book()->count(),
+            total: count($this->reader->hosts()),
         );
 
         return $row === null ? ScreenOutcome::stay() : $this->putSelection($row);
@@ -225,12 +230,10 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable, A
             Key::ArrowUp => $this->select(-1),
             Key::ArrowDown => $this->select(1),
             Key::Home => $this->putSelection(0),
-            Key::End => $this->putSelection($this->reader->book()->count() - 1),
+            Key::End => $this->putSelection(count($this->reader->hosts()) - 1),
             Key::Enter => $this->activate(),
             Key::F4 => $this->cycleAuth(),
             Key::F5 => $this->refresh(),
-            Key::F7 => $this->askForHost(),
-            Key::F8 => $this->askToRemove(),
             default => ScreenOutcome::stay(),
         };
     }
@@ -286,7 +289,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable, A
         if ($next === AuthMethod::Key) {
             return ScreenOutcome::opens(new PromptOverlay(
                 'module.' . SshSettings::ID . '.prompt.key',
-                ['host' => $profile->name],
+                ['host' => $profile->displayName()],
                 $profile->keyPath ?? '',
                 fn (string $path): OverlayOutcome => OverlayOutcome::close($this->reauthenticated($profile, $next, $path)),
                 $this->translator,
@@ -305,10 +308,13 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable, A
             return Message::error($this->text($exception->problemKey(), $exception->problemParameters()));
         }
 
-        $this->session->add($changed);
+        // Poświadczenie zapisuje **ten moduł u siebie**, a nie książka: sposób
+        // uwierzytelnienia i ścieżka klucza są materiałem, którego kwerenda
+        // czytana przez wszystkich nie oddaje (11w, krok 60).
+        $this->session->saveCredentials($changed->id, new HostCredentials($auth, $keyPath));
 
         return Message::info($this->text('module.' . SshSettings::ID . '.message.auth', [
-            'host' => $changed->name,
+            'host' => $changed->displayName(),
             'auth' => $this->text('module.' . SshSettings::ID . '.auth.' . $auth->value),
         ]));
     }
@@ -331,65 +337,6 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable, A
         $this->session->refresh();
 
         return ScreenOutcome::stay();
-    }
-
-    /**
-     * `F7`: nowy wpis z jednego napisu `[użytkownik@]host[:port]`.
-     *
-     * Jedno pole, a nie formularz, i to jest świadome: rdzeń nie ma komponentu
-     * formularza, a dokładanie go dla trzech pól znaczyłoby nowy komponent bez
-     * drugiego użytkownika (reguła 13). Postać `użytkownik@host:port` jest przy
-     * tym tą, którą użytkownik zna z `ssh`.
-     */
-    private function askForHost(): ScreenOutcome
-    {
-        return ScreenOutcome::opens(new PromptOverlay(
-            'module.' . SshSettings::ID . '.prompt.host',
-            [],
-            '',
-            fn (string $value): OverlayOutcome => OverlayOutcome::close($this->added($value)),
-            $this->translator,
-            'module.' . SshSettings::ID . '.prompt.host.field',
-        ));
-    }
-
-    private function added(string $value): Message
-    {
-        try {
-            $profile = HostTarget::parse($value, $this->session->defaultAuth());
-        } catch (InvalidHostProfileException $exception) {
-            return Message::error($this->text($exception->problemKey(), $exception->problemParameters()));
-        }
-
-        $this->session->add($profile);
-        $this->selected = max(0, $this->reader->book()->count() - 1);
-
-        return Message::info(
-            $this->text('module.' . SshSettings::ID . '.message.added', ['host' => $profile->name]),
-        );
-    }
-
-    private function askToRemove(): ScreenOutcome
-    {
-        $profile = $this->underCursor();
-
-        if ($profile === null) {
-            return ScreenOutcome::stay();
-        }
-
-        return ScreenOutcome::opens(new ConfirmOverlay(
-            'module.' . SshSettings::ID . '.confirm.remove',
-            ['host' => $profile->name],
-            function () use ($profile): OverlayOutcome {
-                $this->session->remove($profile->name);
-                $this->clampSelection();
-
-                return OverlayOutcome::close(Message::info(
-                    $this->text('module.' . SshSettings::ID . '.message.removed', ['host' => $profile->name]),
-                ));
-            },
-            $this->translator,
-        ));
     }
 
     /** @return list<Column> */
@@ -420,18 +367,22 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable, A
         ];
     }
 
-    /** @return list<TableRow> */
-    private function rows(): array
+    /**
+     * @param list<HostProfile> $hosts
+     *
+     * @return list<TableRow>
+     */
+    private function rows(array $hosts): array
     {
         $state = $this->reader->session();
         $rows = [];
 
-        foreach ($this->reader->book()->all() as $profile) {
+        foreach ($hosts as $profile) {
             $stage = $state->concerns($profile) ? $state->stage : SessionStage::Idle;
 
             $rows[] = new TableRow(
                 [
-                    $profile->name,
+                    $profile->displayName(),
                     $profile->label(),
                     $this->text('module.' . SshSettings::ID . '.auth.' . $profile->auth->value),
                     $this->text($stage->labelKey()),
@@ -465,7 +416,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable, A
     {
         $this->clampSelection();
 
-        return $this->reader->book()->at($this->selected);
+        return $this->reader->hosts()[$this->selected] ?? null;
     }
 
     private function select(int $delta): ScreenOutcome
@@ -475,7 +426,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable, A
 
     private function putSelection(int $index): ScreenOutcome
     {
-        $count = $this->reader->book()->count();
+        $count = count($this->reader->hosts());
 
         if ($count === 0) {
             $this->selected = 0;
@@ -490,7 +441,7 @@ final class HostsScreen implements ScreenInterface, DeclaresFocus, Resettable, A
 
     private function clampSelection(): void
     {
-        $count = $this->reader->book()->count();
+        $count = count($this->reader->hosts());
         $this->selected = $count === 0 ? 0 : max(0, min($this->selected, $count - 1));
     }
 

@@ -3,14 +3,14 @@
 > **Skąd ten krok.** Powstał 2026-08-16 jako **zarys całej Fazy XIX** pod tytułem
 > „Mysz, zaznaczanie treści i schowek" — wzmianka z rozpoznaniem, mająca
 > unieruchomić fakty i wypisać pytania. Rozpisany tego samego dnia, po
-> rozstrzygnięciu wszystkich siedmiu ([00-decyzje.md](00-decyzje.md), D95).
+> rozstrzygnięciu wszystkich siedmiu ([00-decyzje.md](../00-decyzje.md), D95).
 > Jedno z nich rozsadziło zarys: zakres myszy wyszedł na **komplet**, więc trzy
 > mechanizmy z tytułu stały się **trzema krokami** (55, 56, 57), a ten bierze
 > pierwszy z nich.
 
 ## Status
 
-**Ukończony 2026-08-16.** Rozstrzygnięcia startowe: [00-decyzje.md](00-decyzje.md),
+**Ukończony 2026-08-16.** Rozstrzygnięcia startowe: [00-decyzje.md](../00-decyzje.md),
 D95 — dziesięć pytań rozstrzygniętych przed pierwszą linią kodu, w tym trzy,
 których zarys nie przewidywał. Na starcie doszły **cztery rozstrzygnięcia
 użytkownika** (D99), z których jedno odwraca zdanie planu, a jedno wypadło
@@ -344,7 +344,7 @@ mysz wśród sposobów obsługi i pozycja ustawień.
 ## Rozstrzygnięcia startowe (2026-08-16, D95)
 
 Pełna treść wraz z odrzuconymi alternatywami:
-[00-decyzje.md](00-decyzje.md), D95. Dotyczą tego kroku:
+[00-decyzje.md](../00-decyzje.md), D95. Dotyczą tego kroku:
 
 1. **Wskaźnik wchodzi jako wspólny nadtyp `InputEvent`**, w jednej kolejce
    z klawiszami — nie jako drugi kanał portu i nie jako pola w `KeyPress`.

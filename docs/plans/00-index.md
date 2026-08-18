@@ -607,9 +607,9 @@ ma się do czego odnieść) i **klatki pod XTermem nikt jeszcze nie oglądał**.
 | 55 | Mysz: wskaźnik wchodzi do słownika wejścia | [55-mysz-wskaznik.md](archiwum/55-mysz-wskaznik.md) | 6, 9, 14, 15, 18, 19, 21, 24, 32, 33, 34, 35, 40 | Fable⁶ | xhigh | Ukończony z zastrzeżeniem |
 | 56 | Zaznaczanie treści: klatka uczy się mówić, co na niej pisze | [56-zaznaczanie-tresci.md](archiwum/56-zaznaczanie-tresci.md) | 8, 13, 18, 30, 35, 38, 55 | Opus⁷ | xhigh | Ukończony z zastrzeżeniem |
 | 57 | Schowek systemowy: trzy tory, dwie drogi, jedno miejsce | [57-schowek.md](archiwum/57-schowek.md) | 6, 7, 14, 15, 19, 32, 33, 34, 43, 48, 49, 53, 55, 56 | Opus⁷ | high | Ukończony |
-| 76 | Zaznaczanie treści w oknie nakładanym | [76-zaznaczanie-w-oknie.md](76-zaznaczanie-w-oknie.md) | 19, 28, 51, 52, 55, 56, 57 | Opus⁷ | high | Zarys |
+| 77 | Zaznaczanie treści w oknie nakładanym | [77-zaznaczanie-w-oknie.md](77-zaznaczanie-w-oknie.md) | 19, 28, 51, 52, 55, 56, 57 | Opus⁷ | high | Zarys |
 
-**Krok 76 powstał 2026-08-17, na starcie kroku 57** ([00-decyzje.md](00-decyzje.md),
+**Krok 77 powstał 2026-08-17, na starcie kroku 57** ([00-decyzje.md](00-decyzje.md),
 D101 nr 4), i jest w tej fazie czwarty, choć numer ma najwyższy w planie. Powód
 jest ten sam, dla którego dług w ogóle powstał: krok 57 spłaca **połowę** długu
 z D100 — treść okna nakładanego da się skopiować `Alt`+`c`, bo okno deklaruje
@@ -625,14 +625,14 @@ i dotyka wszystkich trzech torów naraz, bo raportowanie myszy włącza się tak
 w torze tekstowym (D95 nr 7). Zapowiadany wariant tańszy (`Opus / high` przy
 zakresie zawężonym do schowka bez myszy) **odpadł** wraz z rozstrzygnięciem nr 3.
 
-⁷ Kroki 56, 57 i 76 **nie spełniają** warunku z przypisów ¹ i ²: słownik wejścia
+⁷ Kroki 56, 57 i 77 **nie spełniają** warunku z przypisów ¹ i ²: słownik wejścia
 rośnie w nich najwyżej o **postać zdarzenia** (`ClipboardText`), nigdy
 o modyfikator ani klawisz, a słownik prymitywów zostaje zamknięty — zaznaczenie
 rysuje się `TextMark`ami z kroku 30, więc trzej tłumacze zostają nietknięci.
 Wysiłek kroku 56 trzyma **rachunek na ścieżce klatki** (warstwa tekstowa wychodzi
 z renderera tekstowego do wspólnego miejsca, więc rozlicza się trzema osiami
 pomiaru); kroku 57 — **asynchroniczność odczytu** (terminal odpowiada na wejściu
-klatkę później albo nie odpowiada wcale); kroku 76 — **przeliczenie reguł
+klatkę później albo nie odpowiada wcale); kroku 77 — **przeliczenie reguł
 kasowania** i pierwszeństwo wskaźnika przy oknie modalnym, czyli to samo miejsce,
 w którym krok 56 pomylił się co do `InputHandler`a.
 
@@ -668,7 +668,7 @@ co w kroku 53**, i z tego samego powodu: prymitywów nie przybywa, słownik
 wejścia nie rośnie, trzy renderery zostają nietknięte. Wysiłek trzyma
 choreografia czynności przechodzącej przez dwa moduły i pracę trwającą minuty.
 
-### Faza XX — Wiele miejsc: środowiska Dockera, klastry Kubernetesa i rejestry obrazów
+### Faza XX — Wiele miejsc: środowiska Dockera, klastry Kubernetesa, książka adresowa i rejestry obrazów
 
 Faza **zaplanowana 2026-08-16**, na polecenie użytkownika
 ([00-decyzje.md](00-decyzje.md), D96). Odwraca założenie, które oba moduły
@@ -681,11 +681,28 @@ rzeczy w **spis prowadzony przez użytkownika** i dokłada drogi, którymi da si
 sięgnąć poza własną maszynę.
 
 Trzy kroki po jednej rzeczy każdy (D96 nr 1), rytmem Faz VII, XIV i XVII; krok
-60 stoi ostatni, bo konsumuje oba poprzednie. Faza jest **łańcuchem**: bez
+61 stoi ostatni, bo konsumuje oba poprzednie. Faza jest **łańcuchem**: bez
 książki środowisk nie ma gdzie trzymać rejestrów (jeden plik stanu, jeden
 zapis), a bez wybranego klastra nie ma gdzie założyć sekretu.
 
-**Rdzeń faza kosztuje zero zmian** i to jest jej osobne kryterium: książki, drogi
+**Krok czwarty dołożony 2026-08-18, na polecenie użytkownika: książka adresowa
+jako osobny moduł** ([60-ksiazka-adresowa.md](60-ksiazka-adresowa.md),
+rozstrzygnięcia w [00-decyzje.md](00-decyzje.md), D104). Wszedł
+**przed** rejestrami obrazów i przesunął je — wraz z całym planem od dawnego
+kroku 60 wzwyż — o jeden numer w górę. Powód kolejności jest treścią fazy: trzy
+pierwsze kroki zamieniają miejsca w spisy prowadzone przez użytkownika, a przy
+czwartym spisie widać, że **adres bywa wspólny, a poświadczenie nigdy**. Wpis
+tunelowy z kroku 58 sięga dziś po adres do książki hostów **cudzego modułu**
+(kwerenda `ssh.hosts`, trzy napisy), a moduł, który tę książkę trzyma, odmawia
+startu bez klienta `ssh` — czyli adresy znikają razem z narzędziem, które nie ma
+z nimi nic wspólnego. Krok 60 przenosi książkę do własnego modułu z kompletem
+elementów (ekran, cztery komendy, dwie kwerendy, zdarzenia, sekcja stanu wraz
+z migracją) i zostawia poświadczenia u tych, którzy się nimi przedstawiają.
+
+**Rdzeń faza kosztuje zero zmian** i to było jej osobne kryterium — założenie
+padło w kroku 59 jawnie (patrz niżej), a krok 60 kosztuje ponadto **jedną
+pozycję na liście w `Bootstrapie`**, czyli dokładnie tyle, ile reguła 15
+przewiduje dla nowego modułu. Poza tym: książki, drogi
 transportu i rozmowa z rejestrem są własnością modułów, a wszystko, czego
 potrzebują od rdzenia — port pracy tłowej (26, 51), kwerendy (53, 54), komendy,
 zdarzenia (46) i okna (28, 32) — stoi tam od dawna. Jedno miejsce jest wyjątkiem
@@ -725,20 +742,78 @@ w kwantyzacji, wedle lekcji kroku 43). Pomiar `--loop` **+2,5% / −0,9%**
 demona, compose zdalny nie był podnoszony na żywo, a klatki spisu środowisk pod
 XTermem nikt nie oglądał.
 
+**Dwie z tych trzech granic zdjęto 2026-08-18 wieczorem** (dziennik kroku 58,
+wpis drugi). `compose up` przez tunel przeszedł na żywo prawdziwym kodem —
+kontener powstał na zdalnym demonie, `down` i usunięcie obrazu wróciły host do
+stanu zerowego; tunel przeszedł także **kluczem**, nie tylko hasłem. Klatka
+spisu środowisk obejrzana pod XTermem po raz pierwszy **i to obejrzenie
+znalazło usterkę, której nie widział żaden test**: kolumna „Rodzaj" ucinała
+`gniazdo lokalne` do `gniazdo lo…` — poprawione, złota klatka odnowiona, para
+`environments`/`columns` bez regresji. Niesprawdzone zostaje **TCP z TLS** — odłożone
+rozstrzygnięciem użytkownika, ale z drogą rozpoznaną i zapisaną w dzienniku
+kroku 58: kontener `docker:dind` na loopbacku plus zwykły `ssh -L`, bez
+wystawiania demona do sieci i bez ruszania demona hosta.
+
+**Krok 59 wykonany — i to przegląd reguły 15e, zapowiadany jako „obowiązek
+postawienia pytania", rozsadził założenie całej fazy.** D96 zakładał, że rdzeń
+nie urośnie w tej fazie o nic; krok 59 dołożył mu **dwie rzeczy**, bo materiał
+przeglądu okazał się inny, niż liczył plan: wzorzec książki stał po raz trzeci,
+ale **mechanizm zapisu pliku stanu — po raz piąty** (trzy usługi modułów plus
+konfiguracja i historia komend), skopiowany niemal co do znaku. Rozstrzygnięcie
+użytkownika poszło **dalej niż rekomendacja planu** (D103): do rdzenia wyszło
+i pojęcie (`Application\State\Book` — porządek i tożsamość, ładunek
+nieprzezroczysty), i mechanizm (`StateDocumentPort` z jednym plikiem
+`~/.light-manager/state.json` dzielonym na sekcje, plus `StateFile` jako jedyna
+droga zapisu). Trzy pliki stanu modułów zamieniły się w trzy sekcje, migracja
+mieszka **za portem**, a `KubernetesStateService` jest pierwszą usługą stanu
+w projekcie **bez ani jednej linii mechanizmu zapisu**. Reszta kroku poszła
+wedle planu: miejsce ma dwie współrzędne, jego tożsamością jest nazwa wpisu,
+a dwa nowe stany (`MissingFile`, `UnknownContext`) mówią, **którą** współrzędną
+poprawić. Dwie pułapki taktu kosztowały po jednym warunku i mają testy: plik
+czytany w tej chwili musi wypaść z ponownego zamówienia, a pytanie o wersje musi
+wiązać się z pokoleniem sesji — inaczej klaster nieosiągalny jest pytany
+trzydzieści razy na sekundę. Pomiar: oś `--loop` **+0,1% / +0,8%**, tor sixelowy
+bez regresji w dwudziestu dwóch scenariuszach; **wzorca sixelowego narzędzie
+odmówiło zapisać dwukrotnie** (strażnik rozrzutu z reguły 17, jak w kroku 22).
+Scenariusz spisu klastrów **nie powstał** — krok 58 dowiózł dokładnie ten
+kształt, więc powód pominięcia stoi w `docs/pomiary/README.md`.
+
+**Krok 60 wykonany — a rozstrzygnięcia startowe odwróciły dwie rekomendacje
+planu naraz** (D105). Plan chciał wpisu o polach znanych z góry („sam adres");
+użytkownik rozstrzygnął **pojemnik z własnym identyfikatorem**, do którego pola
+dokładają moduły **rozdziałami** — zakładanymi komendą, ze spisem pól czytanym
+z kwerendy zakładającego. Rdzeń nie wie o tym nic (D42 nietknięte), a granica
+11w wyszła z kroku **mocniejsza**: materiał uwierzytelnienia nie wchodzi do
+książki w ogóle, bo kwerenda książki jest czytelna dla każdego modułu. Trzy
+poprawki wymusił przebieg, nie projekt: rozdział zakłada się **w takcie**
+(inaczej użytkownik zaczynający od książki widzi wpis bez cudzych pól), fasada
+nie może zapamiętać rejestru komend w konstruktorze (wchodzi do stanu pętli
+później) i wpis powstaje **po adresie**, a pola dopisują się po nim — bo
+`PromptOverlay` na pustym polu świadomie nic nie robi (krok 41). Rdzeń urósł
+o **jedną pozycję w `Bootstrapie`**; z modułu Ssh zniknęły cztery klasy książki
+i kwerenda `ssh.hosts`, a moduł Dockera zmienił jedną metodę. `make qa` zielone
+(2412 testów). **Nieobejrzane zostają dwie rzeczy**: oś `--loop` „przed i po"
+i klatka pod XTermem — obie czekają na zwolnienie maszyny (reguła 17).
+
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
 | 58 | Środowiska Dockera: jeden demon przestaje być założeniem | [58-srodowiska-dockera.md](archiwum/58-srodowiska-dockera.md) | 14, 15, 24, 26, 27, 28, 30, 32, 40, 45, 46, 48, 51, 53, 54 | Opus⁸ | xhigh | Ukończony z zastrzeżeniem |
-| 59 | Klastry Kubernetesa: połączenie przestaje być jednym kontekstem | [59-klastry-kubernetesa.md](59-klastry-kubernetesa.md) | 14, 15, 22, 24, 27, 28, 31, 48, 52, 53, 54, 58 | Opus⁸ | high | Nie rozpoczęty |
-| 60 | Rejestry obrazów: książka, zawartość i sekret w klastrze | [60-rejestry-obrazow.md](60-rejestry-obrazow.md) | 19, 27, 28, 32, 48, 51, 52, 53, 54, 58, 59 | Opus⁸ | xhigh | Nie rozpoczęty |
+| 59 | Klastry Kubernetesa: połączenie przestaje być jednym kontekstem | [59-klastry-kubernetesa.md](archiwum/59-klastry-kubernetesa.md) | 14, 15, 22, 24, 27, 28, 31, 48, 52, 53, 54, 58 | Opus⁸ | high | Ukończony |
+| 60 | Książka adresowa: adres przestaje być własnością jednego modułu | [60-ksiazka-adresowa.md](60-ksiazka-adresowa.md) | 14, 15, 20, 27, 28, 30, 32, 40, 46, 47, 48, 53, 54, 55, 57, 58, 59 | Opus⁸ | xhigh | Ukończony z zastrzeżeniem |
+| 61 | Rejestry obrazów: książka, zawartość i sekret w klastrze | [61-rejestry-obrazow.md](61-rejestry-obrazow.md) | 19, 27, 28, 32, 48, 51, 52, 53, 54, 58, 59 | Opus⁸ | xhigh | Nie rozpoczęty |
 
-⁸ Warunek `Fable` z przypisów ¹ i ² **nie zachodzi w żadnym z trzech kroków**:
+⁸ Warunek `Fable` z przypisów ¹ i ² **nie zachodzi w żadnym z czterech kroków**:
 prymitywów nie przybywa, słownik wejścia nie rośnie, trzej tłumacze zostają
 nietknięci. Wysiłek kroku 58 trzymają **dwie drogi transportu naraz** wraz
 z przestawieniem reguły odrzucania modułu (11s) i pracą tłową, która przeżywa
-swój uchwyt; kroku 60 — **dwa moduły naraz** i rozmówca, którego aplikacja nie
-miała (rejestr HTTP z uwierzytelnieniem dwustopniowym). Krok 59 jest z tej trójki
+swój uchwyt; kroku 61 — **dwa moduły naraz** i rozmówca, którego aplikacja nie
+miała (rejestr HTTP z uwierzytelnieniem dwustopniowym). Krok 59 jest z tej czwórki
 **najlżejszy i taki ma być**: nowej drogi nie wnosi, a jego ciężar leży
-w przeliczeniu tożsamości miejsca przez cztery klasy stanu naraz.
+w przeliczeniu tożsamości miejsca przez cztery klasy stanu naraz. Wysiłek kroku
+60 trzymają dwie rzeczy, z których żadna nie jest rozmiarem kodu: rusza **trzy
+moduły naraz** (nowy, Ssh i Docker), a żaden z nich nie ma prawa zobaczyć typu
+drugiego, i przeprowadza **dane, które użytkownik już ma**, między sekcjami
+jednego dokumentu stanu.
 
 ### Faza XXI — Dokumentacja: podręcznik, przewodnik, onboarding i obrona przed rozjazdem
 
@@ -750,16 +825,16 @@ naraz na dwa różne pytania — jak używać i jak rozwijać. Nie ma ani jedneg
 wiersza onboardingu, ani jednego przewodnika „jak dodać X" i **ani jednego
 diagramu**.
 
-Pięć kroków (D97 nr 1): **61** porządek i granice, **62** podręcznik
-użytkownika, **63** dokumentacja dewelopera, **64** onboarding, **65** diagramy
-i pilnowanie. Krok 61 stoi pierwszy z powodu mechanicznego — cztery pozostałe
-muszą wiedzieć, gdzie pisać; krok 65 ostatni, bo testy nie mają czego pilnować,
+Pięć kroków (D97 nr 1): **62** porządek i granice, **63** podręcznik
+użytkownika, **64** dokumentacja dewelopera, **65** onboarding, **66** diagramy
+i pilnowanie. Krok 62 stoi pierwszy z powodu mechanicznego — cztery pozostałe
+muszą wiedzieć, gdzie pisać; krok 66 ostatni, bo testy nie mają czego pilnować,
 dopóki nie ma tekstu. Onboarding dostał **własny krok**, bo jest ścieżką
 przechodzoną raz, a przewodnik referencją, do której się wraca.
 
 Faza **nie dotyka ścieżki klatki ani razu** i jest przez to drugą taką
-w projekcie po XII: reguła 17 nie zachodzi w krokach 61–64 w ogóle, a kod
-produkcyjny powstaje **wyłącznie w kroku 65** i jest kodem testów. Rdzeń
+w projekcie po XII: reguła 17 nie zachodzi w krokach 62–65 w ogóle, a kod
+produkcyjny powstaje **wyłącznie w kroku 66** i jest kodem testów. Rdzeń
 aplikacji nie rośnie o nic; rosną `Makefile` (cel `docs-check`), drzewo
 analizowane PHPStanem (`examples/`) i zestaw `tests/Documentation/`.
 
@@ -785,19 +860,19 @@ poprawiony** (D97 nr 4 i 5).
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 61 | Porządek: jedno źródło, dwa języki, jedna konwencja rysunku | [61-porzadek-dokumentacji.md](61-porzadek-dokumentacji.md) | 4, 15, 39 | Opus⁹ | high | Nie rozpoczęty |
-| 62 | Podręcznik użytkownika: od pierwszego uruchomienia do scenariuszy | [62-podrecznik-uzytkownika.md](62-podrecznik-uzytkownika.md) | 14, 15, 38, 40, 61 | Opus⁹ | xhigh | Nie rozpoczęty |
-| 63 | Dokumentacja dewelopera: mapa kodu i przewodniki „jak dodać X" | [63-dokumentacja-dewelopera.md](63-dokumentacja-dewelopera.md) | 18, 19, 20, 21, 26, 38, 39, 53, 54, 61, 62 | Opus⁹ | xhigh | Nie rozpoczęty |
-| 64 | Onboarding: pierwsze trzydzieści minut w projekcie | [64-onboarding.md](64-onboarding.md) | 39, 61, 62, 63 | Opus⁹ | high | Nie rozpoczęty |
-| 65 | Diagramy i pilnowanie: dokumentacja, która czerwieni bramkę, gdy kłamie | [65-diagramy-i-pilnowanie.md](65-diagramy-i-pilnowanie.md) | 15, 38, 40, 53, 54, 61, 62, 63, 64 | Opus⁹ | high | Nie rozpoczęty |
+| 62 | Porządek: jedno źródło, dwa języki, jedna konwencja rysunku | [62-porzadek-dokumentacji.md](62-porzadek-dokumentacji.md) | 4, 15, 39 | Opus⁹ | high | Nie rozpoczęty |
+| 63 | Podręcznik użytkownika: od pierwszego uruchomienia do scenariuszy | [63-podrecznik-uzytkownika.md](63-podrecznik-uzytkownika.md) | 14, 15, 38, 40, 62 | Opus⁹ | xhigh | Nie rozpoczęty |
+| 64 | Dokumentacja dewelopera: mapa kodu i przewodniki „jak dodać X" | [64-dokumentacja-dewelopera.md](64-dokumentacja-dewelopera.md) | 18, 19, 20, 21, 26, 38, 39, 53, 54, 62, 63 | Opus⁹ | xhigh | Nie rozpoczęty |
+| 65 | Onboarding: pierwsze trzydzieści minut w projekcie | [65-onboarding.md](65-onboarding.md) | 39, 62, 63, 64 | Opus⁹ | high | Nie rozpoczęty |
+| 66 | Diagramy i pilnowanie: dokumentacja, która czerwieni bramkę, gdy kłamie | [66-diagramy-i-pilnowanie.md](66-diagramy-i-pilnowanie.md) | 15, 38, 40, 53, 54, 62, 63, 64, 65 | Opus⁹ | high | Nie rozpoczęty |
 
 ⁹ Warunek `Fable` z przypisów ¹ i ² **nie zachodzi w żadnym z pięciu kroków**:
 prymitywów nie przybywa, słownik wejścia nie rośnie, trzej tłumacze zostają
 nietknięci — a cztery pierwsze kroki nie dotykają kodu aplikacji w ogóle.
-Wysiłek `xhigh` w krokach 62 i 63 trzyma **objętość podwojona przez parę
+Wysiłek `xhigh` w krokach 63 i 64 trzyma **objętość podwojona przez parę
 językową** wraz z wymaganiem, żeby spisy zgadzały się ze 167 wiązaniami
 w kodzie, a przewodniki były sprawdzone **wykonaniem**, nie przeczytaniem.
-Krok 64 jest najmniejszy objętościowo i **najdroższy w sprawdzeniu**: weryfikuje
+Krok 65 jest najmniejszy objętościowo i **najdroższy w sprawdzeniu**: weryfikuje
 go przejście ścieżki przez kogoś innego niż autor.
 
 ### Fazy XXII–XXIV — Zarządzanie aplikacjami, projektami i zespołem (zarys)
@@ -834,30 +909,30 @@ pierwszym z nich, a nie w każdym z osobna** (D98 nr 4):
 - **Gdzie mieszka sekret.** `ModuleSetting::secret()` (krok 54, D94 nr 7)
   maskuje wartość **w interfejsie**, a plik ustawień ma tryb `0600` — czyli
   token leży w nim jawnym tekstem, tak samo jak w `~/.docker/config.json`. Czy
-  to wystarcza, dotyczy naraz kroków **69**, **70** i **73**.
+  to wystarcza, dotyczy naraz kroków **70**, **71** i **74**.
 - **Biblioteka w procesie kontra proces potomny.** Załadowane są `pdo_pgsql`,
   `pdo_mysql`, `pgsql`, `mysqli`, `mongodb`, `amqp` i `ssh2` — wszystkie kuszą
   tym samym, czym `ext-ssh2` przed **D87**: wywołaniem blokującym bez limitu
   czasu. Drogą domyślną zostaje proces potomny; wywołanie w procesie wymaga
   uzasadnienia, nie odwrotnie.
 - **Wzorzec książki wpisów.** Po krokach 58 i 59 stoi trzy razy i uruchamia
-  przegląd z reguły 15e **w kroku 59**; kroki **73**, **70** i ewentualnie
-  **69** postawiłyby go po raz czwarty, piąty i szósty — czyli mają wynik tamtego
+  przegląd z reguły 15e **w kroku 59**; kroki **74**, **71** i ewentualnie
+  **70** postawiłyby go po raz czwarty, piąty i szósty — czyli mają wynik tamtego
   przeglądu **zastosować**, a nie powtórzyć rachunek od zera.
 
 #### Faza XXII — Praca nad projektem: repozytorium, zadania, zależności
 
 Trzy moduły bez sieci rozległej, bez sekretu i bez cudzego systemu po drugiej
-stronie. **Krok 66 stoi pierwszy z powodu mechanicznego**, nie z sympatii: jego
-kwerendy są zależnością kroków 69 i 74, a `git.head` jest tą daną, po którą
+stronie. **Krok 67 stoi pierwszy z powodu mechanicznego**, nie z sympatii: jego
+kwerendy są zależnością kroków 70 i 75, a `git.head` jest tą daną, po którą
 sięgnąłby `docker.build`, żeby znakować obraz wersją źródła — czyli łańcuch
 z kroku 54 odwrócony.
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 66 | Moduł `git`: repozytorium przestaje być niewidzialne | [66-modul-git.md](66-modul-git.md) | 20, 21, 24, 26, 27, 28, 29, 30, 31, 32, 51, 53, 54 | Opus¹⁰ | xhigh | Zarys |
-| 67 | Moduł `runner`: zadania projektu uruchamiane stamtąd, gdzie się stoi | [67-modul-runner.md](67-modul-runner.md) | 20, 21, 24, 26, 29, 30, 32, 46, 51, 53 | Opus¹⁰ | high | Zarys |
-| 68 | Moduł `deps`: zależności projektu i to, co w nich przeterminowane | [68-modul-deps.md](68-modul-deps.md) | 20, 21, 26, 27, 30, 53 | Opus¹⁰ | medium | Zarys |
+| 67 | Moduł `git`: repozytorium przestaje być niewidzialne | [67-modul-git.md](67-modul-git.md) | 20, 21, 24, 26, 27, 28, 29, 30, 31, 32, 51, 53, 54 | Opus¹⁰ | xhigh | Zarys |
+| 68 | Moduł `runner`: zadania projektu uruchamiane stamtąd, gdzie się stoi | [68-modul-runner.md](68-modul-runner.md) | 20, 21, 24, 26, 29, 30, 32, 46, 51, 53 | Opus¹⁰ | high | Zarys |
+| 69 | Moduł `deps`: zależności projektu i to, co w nich przeterminowane | [69-modul-deps.md](69-modul-deps.md) | 20, 21, 26, 27, 30, 53 | Opus¹⁰ | medium | Zarys |
 
 ¹⁰ Warunek `Fable` z przypisów ¹ i ² **nie zachodzi w żadnym z dziesięciu kroków
 Faz XXII–XXIV**: prymitywów nie przybywa, słownik wejścia nie rośnie, trzej
@@ -865,41 +940,41 @@ tłumacze zostają nietknięci, a rdzeń nie rośnie o ani jedną linię poza po
 w `Bootstrapie`. Wysiłek jest przy tym **wstępny** — potwierdza się go przy
 rozpisaniu kroku, bo zarys nie zna jeszcze zakresu rozstrzygniętego przez
 użytkownika. Rozpiętość `medium`–`xhigh` bierze się z powierzchni modułu, nie
-z ryzyka dla rdzenia: `xhigh` dostają kroki 66, 69 i 73 (odpowiednio: cztery
+z ryzyka dla rdzenia: `xhigh` dostają kroki 67, 70 i 74 (odpowiednio: cztery
 widoki z sześcioma czynnościami, nowy rodzaj rozmówcy wraz z rozstrzygnięciem
 o sekretach, dwa silniki baz danych i dostęp do danych produkcyjnych), `medium`
-— kroki 68, 72 i 75, w których nie ma ani sieci rozległej, ani stanu trwałego.
+— kroki 69, 73 i 76, w których nie ma ani sieci rozległej, ani stanu trwałego.
 
 #### Faza XXIII — Zespół i cudze systemy
 
 Cztery moduły, z których trzy pierwsze **rozmawiają z czymś spoza maszyny albo
 zmieniają coś widocznego poza aplikacją**, a czwarty domyka fazę najtańszą
 pozycją całej propozycji. Faza jest tą, w której zapada rozstrzygnięcie
-o sekretach — dlatego krok **69** stoi na jej początku mimo największego
+o sekretach — dlatego krok **70** stoi na jej początku mimo największego
 zakresu: pozostałe dwa moduły z tokenem czekają na jego odpowiedź.
 
-Krok 69 jest przy tym jedynym, który odpowiada na oś **„zespół deweloperski"**
+Krok 70 jest przy tym jedynym, który odpowiada na oś **„zespół deweloperski"**
 wprost, i ma **najwięcej pytań otwartych z dziesięciu**. Jedno z nich jest
 środowiskowe i sprawdzone: **`gh` ani `glab` nie ma na maszynie**, więc droga
 przez cudzego klienta znaczy zależność ogłoszoną zdolnością `RequiresEnvironment`
-(krok 48), a droga własna — rozmowę HTTP wzorowaną na kroku 60, nie na 51.
+(krok 48), a droga własna — rozmowę HTTP wzorowaną na kroku 61, nie na 51.
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 69 | Moduł `forge`: PR-y, zgłoszenia i przeglądy zespołu | [69-modul-forge.md](69-modul-forge.md) | 20, 26, 27, 28, 29, 30, 48, 53, 54, 60, 66 | Opus¹⁰ | xhigh | Zarys |
-| 70 | Moduł `http`: endpointy aplikacji i pytanie „czy to jeszcze żyje" | [70-modul-http.md](70-modul-http.md) | 20, 26, 27, 29, 45, 46, 51, 53 | Opus¹⁰ | high | Zarys |
-| 71 | Moduł `services`: jednostki systemd i ich dziennik | [71-modul-services.md](71-modul-services.md) | 20, 22, 26, 27, 28, 29, 30, 48, 51, 53 | Opus¹⁰ | high | Zarys |
-| 72 | Moduł `env`: pliki środowiskowe i różnica, której nikt nie widzi | [72-modul-env.md](72-modul-env.md) | 20, 21, 24, 27, 29, 30, 41, 53 | Opus¹⁰ | medium | Zarys |
+| 70 | Moduł `forge`: PR-y, zgłoszenia i przeglądy zespołu | [70-modul-forge.md](70-modul-forge.md) | 20, 26, 27, 28, 29, 30, 48, 53, 54, 61, 67 | Opus¹⁰ | xhigh | Zarys |
+| 71 | Moduł `http`: endpointy aplikacji i pytanie „czy to jeszcze żyje" | [71-modul-http.md](71-modul-http.md) | 20, 26, 27, 29, 45, 46, 51, 53 | Opus¹⁰ | high | Zarys |
+| 72 | Moduł `services`: jednostki systemd i ich dziennik | [72-modul-services.md](72-modul-services.md) | 20, 22, 26, 27, 28, 29, 30, 48, 51, 53 | Opus¹⁰ | high | Zarys |
+| 73 | Moduł `env`: pliki środowiskowe i różnica, której nikt nie widzi | [73-modul-env.md](73-modul-env.md) | 20, 21, 24, 27, 29, 30, 41, 53 | Opus¹⁰ | medium | Zarys |
 
 #### Faza XXIV — Uruchomione aplikacje i obraz zespołu
 
-Trzy moduły domykające propozycję: największy zakresem (**73**), pierwszy
-zbudowany w całości na cudzych kwerendach (**74**) i najbardziej samodzielny
-z dziesięciu (**75**).
+Trzy moduły domykające propozycję: największy zakresem (**74**), pierwszy
+zbudowany w całości na cudzych kwerendach (**75**) i najbardziej samodzielny
+z dziesięciu (**76**).
 
-Krok **74** jest z nich najciekawszy dla architektury, a nie dla użytkownika:
-**nie ma własnego źródła danych w ogóle** — wkład liczy z `git.log` (krok 66),
-a czas życia próśb o scalenie z `forge.pulls` (krok 69). Byłby przez to
+Krok **75** jest z nich najciekawszy dla architektury, a nie dla użytkownika:
+**nie ma własnego źródła danych w ogóle** — wkład liczy z `git.log` (krok 67),
+a czas życia próśb o scalenie z `forge.pulls` (krok 70). Byłby przez to
 pierwszym prawdziwym sprawdzianem zdania z reguły 15g: **moduł pytający musi
 umieć żyć bez odpowiedzi.** Ma też jedyne w całej trójce pytanie nietechniczne —
 liczy pracę imiennie, więc zarys nie domyka się bez odpowiedzi, po co te liczby
@@ -907,9 +982,9 @@ są pokazywane.
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 73 | Moduł `db`: bazy danych, do których zagląda się w trakcie pracy | [73-modul-db.md](73-modul-db.md) | 20, 26, 27, 29, 30, 31, 48, 53, 54, 58, 59 | Opus¹⁰ | xhigh | Zarys |
-| 74 | Moduł `team`: obraz zespołu policzony z tego, co już jest zapisane | [74-modul-team.md](74-modul-team.md) | 27, 30, 53, 54, 66, 69 | Opus¹⁰ | high | Zarys |
-| 75 | Moduł `procs`: procesy i odpowiedź na pytanie „co zajęło ten port" | [75-modul-procs.md](75-modul-procs.md) | 20, 26, 27, 28, 30, 53 | Opus¹⁰ | medium | Zarys |
+| 74 | Moduł `db`: bazy danych, do których zagląda się w trakcie pracy | [74-modul-db.md](74-modul-db.md) | 20, 26, 27, 29, 30, 31, 48, 53, 54, 58, 59 | Opus¹⁰ | xhigh | Zarys |
+| 75 | Moduł `team`: obraz zespołu policzony z tego, co już jest zapisane | [75-modul-team.md](75-modul-team.md) | 27, 30, 53, 54, 67, 70 | Opus¹⁰ | high | Zarys |
+| 76 | Moduł `procs`: procesy i odpowiedź na pytanie „co zajęło ten port" | [76-modul-procs.md](76-modul-procs.md) | 20, 26, 27, 28, 30, 53 | Opus¹⁰ | medium | Zarys |
 
 ### Dokumenty towarzyszące (praca projektowa)
 
@@ -1443,13 +1518,16 @@ tej listy). Łańcuchami są ponadto Fazy XV (45–46) i XVII (48–50). Poza pr
     **43** nazwy zaznaczonych wpisów jako drugie źródło treści, od **32** pozycje
     w menu, od **48** zdolność `RequiresEnvironment` dla komendy, której nie ma
     czym wykonać.
-- **58–60** (Faza XX) są **łańcuchem**, i to z powodu prostszego niż w Fazie XIX:
+- **58–61** (Faza XX) są **łańcuchem**, i to z powodu prostszego niż w Fazie XIX:
   nie chodzi o mechanizm, którego nie ma, tylko o **jeden dokument i jedno
-  miejsce**. Książka rejestrów mieszka w tym samym pliku stanu, co książka
+  miejsce**. Czwarte ogniwo (**60**, książka adresowa) doszło 2026-08-18
+  i łańcucha nie zrywa: stoi po dwóch pierwszych, bo dopiero one pokazują, ilu
+  czytelników ma jeden adres, i przed czwartym, bo rejestr obrazów jest kolejnym
+  adresem z poświadczeniem. Książka rejestrów mieszka w tym samym pliku stanu, co książka
   środowisk (dwa niezależne zapisy jednego pliku to wyścig przy pierwszym
   zapisie z dwóch miejsc naraz), a sekret rejestru zakłada się **w wybranym
   klastrze**, więc bez kroku 59 nie ma go gdzie położyć. Faza stoi poza Fazą XIX
-  zupełnie — kroki 55–60 nie mają ani jednej wspólnej zależności i wolno je
+  zupełnie — kroki 55–61 nie mają ani jednej wspólnej zależności i wolno je
   wykonać w dowolnej kolejności względem siebie.
   - **58** (środowiska Dockera) zależy od **51** całkowicie, a od **48**
     w sposób, który warto nazwać: bierze stamtąd **dwa wzorce naraz** —
@@ -1465,7 +1543,17 @@ tej listy). Łańcuchami są ponadto Fazy XV (45–46) i XVII (48–50). Poza pr
     kwerendy, które zmieniają treść (`k8s.cluster` i `k8s.contexts` dostają nazwę
     wpisu), od **31** drzewo, którego klucze trzeba przeliczyć, od **22** sekcje
     opisu, od **14** migrację dwóch pozycji ustawień do książki.
-  - **60** (rejestry) zależy od **54** jako jego dokończenie — `RegistryAuth`,
+  - **60** (książka adresowa) zależy od **48** materią (książka hostów, jej
+    ekran i łańcuch okien to jest to, co się przenosi), od **59** rdzeniową
+    `Book` i sekcjami dokumentu stanu — bez nich krok powtórzyłby mechanizm,
+    czego 15e zabrania — oraz od **53 i 54** drogą, którą adres wychodzi do
+    obcych. Od **58** zależy **odbiorcą**: to wpis tunelowy jest dowodem, że
+    adres ma więcej niż jednego czytelnika. Od **47** bierze `OpensOverlay`
+    (komenda otwierająca łańcuch okien wpisu), od **46** zdarzenia, od
+    **27, 28, 30, 32 i 40** klocki ekranu, od **55 i 57** wskaźnik i schowek.
+    Modułów Ssh i Docker dotyka **wyłącznie przez nazwy** kwerend i komend
+    (15g) — i to jest jego główne kryterium.
+  - **61** (rejestry) zależy od **54** jako jego dokończenie — `RegistryAuth`,
     `docker.push` i `k8s.deploy-image` powstały tam z jednym rejestrem i bez
     `imagePullSecret` (D94 nr 3). Od **58** bierze plik stanu i jeden port
     zapisu, od **59** klaster, w którym powstaje sekret, od **51** rozmowę
@@ -1474,57 +1562,57 @@ tej listy). Łańcuchami są ponadto Fazy XV (45–46) i XVII (48–50). Poza pr
     dwóch modułów naraz** — po 54, i tą samą drogą: komendą, kwerendą
     i zdarzeniem, nigdy typem.
 
-- **61–65** (Faza XXI) są **łańcuchem**, i jest to łańcuch innego rodzaju niż
+- **62–66** (Faza XXI) są **łańcuchem**, i jest to łańcuch innego rodzaju niż
   wszystkie poprzednie: nie brakuje w nim mechanizmu, tylko **miejsca i języka**.
-  Krok 61 rozstrzyga, gdzie mieszka który rodzaj tekstu, jak wygląda diagram
+  Krok 62 rozstrzyga, gdzie mieszka który rodzaj tekstu, jak wygląda diagram
   i czym jest przykład — więc każdy krok pisany przed nim trafiałby w próżnię;
-  krok 65 pilnuje tego, co napisały cztery poprzednie, więc przed nimi nie ma
+  krok 66 pilnuje tego, co napisały cztery poprzednie, więc przed nimi nie ma
   czego pilnować. Faza stoi **poza Fazami XIX i XX zupełnie** — nie ma z nimi ani
   jednej wspólnej zależności technicznej i wolno ją wykonać przed nimi, po nich
   albo pomiędzy. Jedna zależność jest za to **odwrotna i nazwana w D97**: reguła
-  utrzymania z kroku 61 obowiązuje wszystkie kroki wykonane po nim, także te
+  utrzymania z kroku 62 obowiązuje wszystkie kroki wykonane po nim, także te
   z Faz XIX i XX.
-  - **61** (porządek) zależy od **04** — to tamten krok ustanowił dzisiejszy
+  - **62** (porządek) zależy od **04** — to tamten krok ustanowił dzisiejszy
     układ (architektura + Skill + wskaźnik w `CLAUDE.md`), a ten go **nie
     odwołuje**, tylko dopisuje brakującą granicę pierwszeństwa. Od **39** bierze
     rozumowanie „plik, o którym dokumenty milczą, przegrywa z nawykiem"
     zastosowane do samych dokumentów, od **15** — precedens pary językowej
     utrzymywanej w jednym repozytorium.
-  - **62** (podręcznik) zależy od **61** całkowicie, a od **38** materiałem:
+  - **63** (podręcznik) zależy od **62** całkowicie, a od **38** materiałem:
     26 nazwanych przebiegów funkcjonalnych to gotowe drogi użytkownika, z których
     wywodzi się sześć scenariuszy. Od **40** bierze podział klawiszy **wedle
     miejsca** — stopka pokazuje go dziś w działaniu, więc podręcznik musi
     powtórzyć ten sam układ, a nie wymyślić drugi. Od **14 i 15** ustawienia
     i języki interfejsu.
-  - **63** (przewodnik) zależy od **62** kolejnością: to tam README zaczyna
+  - **64** (przewodnik) zależy od **63** kolejnością: to tam README zaczyna
     chudnąć, a tu kończy — żeby żaden fragment nie zniknął po drodze. Od **20,
     21, 19, 26, 18, 27–31, 53 i 54** bierze wszystko, o czym przewodniki mają
     opowiedzieć, a od **39** — wejścia procesów, bez których workflow byłby listą
     poleceń do przepisania.
-  - **64** (onboarding) zależy od **63** w sposób, który warto nazwać: kończy się
+  - **65** (onboarding) zależy od **64** w sposób, który warto nazwać: kończy się
     **wskazaniem** właściwego przewodnika, a nie powtórzeniem go. Od **39** bierze
     `make check-env`, `make install` i `make qa` jako gotowe przystanki ścieżki.
-  - **65** (pilnowanie) zależy od **61–64** wszystkimi naraz, a od **15 i 40**
+  - **66** (pilnowanie) zależy od **62–65** wszystkimi naraz, a od **15 i 40**
     wzorcem: test czytający **oba** katalogi napisów i `StatusHintsFlowTest`
     porównujący deklarację z rzeczywistością to dwaj strażnicy, na których wzoruje
     się siedmiu nowych. Od **53 i 54** bierze rejestry jako źródło spisów.
 
-- **66–75** (Fazy XXII–XXIV) **łańcuchem nie są** — i to jest ich cecha
+- **67–76** (Fazy XXII–XXIV) **łańcuchem nie są** — i to jest ich cecha
   wyróżniająca, nie niedopatrzenie. Dziesięć modułów zależy od rdzenia, a nie od
   siebie nawzajem, więc wolno je wykonywać w dowolnej kolejności i pojedynczo.
   Wyjątki są **trzy i wszystkie idą przez kwerendy**, nigdy przez typ:
-  - **74** (`team`) zależy od **66** treścią — bez `git.log` nie ma czego
-    liczyć — i od **69** częścią treści; jest jedynym modułem projektu **bez
+  - **75** (`team`) zależy od **67** treścią — bez `git.log` nie ma czego
+    liczyć — i od **70** częścią treści; jest jedynym modułem projektu **bez
     własnego źródła danych**.
-  - **69** (`forge`) zależy od **66** wiedzą o gałęzi i zatwierdzeniu katalogu,
-    a od **60** wzorem rozmowy HTTP z uwierzytelnieniem.
-  - **73** (`db`) i ewentualnie **70** oraz **69** zależą od **59** *wynikiem
+  - **70** (`forge`) zależy od **67** wiedzą o gałęzi i zatwierdzeniu katalogu,
+    a od **61** wzorem rozmowy HTTP z uwierzytelnieniem.
+  - **74** (`db`) i ewentualnie **71** oraz **70** zależą od **59** *wynikiem
     przeglądu reguły 15e* — to jest zależność od **rozstrzygnięcia**, nie od
     kodu, i pierwsza taka w całym grafie.
 
   Numeracja odwzorowuje przez to **kolejność wartości**, a nie wymuszoną
   kolejność wykonania (D98 nr 1). Fazy stoją **poza Fazami XIX, XX i XXI
-  zupełnie**: jedyne wskazania idą do **60** (wzór rozmowy HTTP) i do **59**
+  zupełnie**: jedyne wskazania idą do **61** (wzór rozmowy HTTP) i do **59**
   (wynik przeglądu 15e), a żaden z dziesięciu kroków nie potrzebuje myszy,
   schowka ani dokumentacji, żeby powstać.
 
@@ -1535,9 +1623,10 @@ z tabel powyżej.
 
 Katalog `docs/plans/` trzyma **wyłącznie kroki, przed którymi jeszcze praca**:
 zarysy, nierozpoczęte, w toku i zablokowane. Kroki ukończone przenoszą się do
-[archiwum/](archiwum/) — dziś jest ich 54 z 75, więc bez tego podziału lista
-tego, co zostało do zrobienia (kroki **55–57**, Faza XIX, **58–60**, Faza XX,
-**61–65**, Faza XXI, i **66–75**, Fazy XXII–XXIV) ginęłaby w historii projektu.
+[archiwum/](archiwum/) — dziś jest ich 59 z 77, więc bez tego podziału lista
+tego, co zostało do zrobienia (kroki **60–61**, Faza XX, **62–66**, Faza XXI,
+**67–76**, Fazy XXII–XXIV, i **77**, dług Fazy XIX) ginęłaby w historii
+projektu.
 
 Trzy rzeczy, które przy tym **nie** zmieniają miejsca, bo są dokumentami
 żywymi, a nie zamkniętymi: ten indeks, [00-decyzje.md](00-decyzje.md) i tabele
@@ -1550,7 +1639,7 @@ z nich.
 ## Śledzenie postępu
 
 **Zarys** jest stanem wcześniejszym niż „nie rozpoczęty" i wszedł do słownika
-2026-08-16 wraz z krokami **66–75** ([00-decyzje.md](00-decyzje.md), D98 nr 2):
+2026-08-16 wraz z krokami **67–76** ([00-decyzje.md](00-decyzje.md), D98 nr 2):
 krok ma cel, zarys zakresu, stan zastany i spis pytań, ale **nie ma
 rozstrzygnięć startowych ani planu** — więc nie da się go zacząć, dopóki nie
 zostanie rozpisany. Rozpisanie zamienia jego status na „nie rozpoczęty".
@@ -1666,7 +1755,7 @@ zakończeniu pracy nad krokiem:
 - ~~Rejestry obrazów (`docker login`, `push`, `pull`)~~ — wyłączone z kroku
   **51**; wypchnięcie weszło z krokiem **54** (jeden rejestr, trzy pozycje
   ustawień), a spis rejestrów wraz z pobraniem, widokiem zawartości i sekretem
-  w klastrze wszedł do planu jako krok **60** (D96). `docker login` zostaje
+  w klastrze wszedł do planu jako krok **61** (D96). `docker login` zostaje
   wykluczony na trwałe: demon nie czyta `~/.docker/config.json`
 - ~~Konteksty Dockera i demony zdalne po TCP/TLS~~ — wyłączone z kroku **51**,
   weszły do planu jako krok **58** (D96 nr 2 i 3): konteksty klienta są

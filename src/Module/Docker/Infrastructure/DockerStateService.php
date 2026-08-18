@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Docker\Infrastructure;
 
+use LightManager\Application\Port\StateDocumentPort;
+use LightManager\Infrastructure\Config\StateDocumentService;
 use LightManager\Infrastructure\Support\AbstractSingleton;
 use LightManager\Module\Docker\Application\EnvironmentBook;
 use LightManager\Module\Docker\Application\Port\EnvironmentBookPort;
@@ -13,29 +15,24 @@ use LightManager\Module\Docker\Domain\ValueObject\DockerEnvironment;
 use LightManager\Module\Docker\Domain\ValueObject\EnvironmentKind;
 
 /**
- * Stan modułu Dockera w pliku `~/.light-manager/docker.json` (krok 58).
+ * Stan modułu Dockera — sekcja `docker` dokumentu stanu (krok 58; od kroku 59
+ * w `~/.light-manager/state.json`, D103).
  *
- * **Plik stanu modułu, nie plik książki** — dokładnie tak, jak `ssh.json`
- * w kroku 48 i z tego samego powodu: krok 60 dopisze do tego samego dokumentu
- * książkę rejestrów **kluczami**, a nie drugim plikiem. Klucze, których ta
- * wersja nie zna, przeżywają zapis nietknięte.
- *
- * Droga zapisu ta sama, co wszędzie: plik tymczasowy i `rename()` w tym samym
- * katalogu, prawa `0600` — wpisy mówią, z jakimi maszynami użytkownik rozmawia
- * i gdzie leżą jego klucze TLS.
+ * Usłudze została **treść sekcji**: klucze `environments` i `currentEnvironment`
+ * oraz zamiana wiersza na wpis środowiska i z powrotem. Mechanizm — plik, zapis
+ * tymczasowy z `rename()`, przetrwanie nieznanych kluczy, migracja ze starego
+ * `docker.json` — mieszka od kroku 59 za rdzeniowym `StateDocumentPort` (wynik
+ * przeglądu 15e). Krok 60 dopisze książkę rejestrów **kluczami tej samej
+ * sekcji**, nie drugą sekcją.
  *
  * **Żadna ścieżka nie rzuca** (zasada portu). Wiersz nie do przyjęcia wypada,
- * a plik zostaje — jeden zepsuty wpis nie odbiera użytkownikowi całej książki.
+ * a sekcja zostaje — jeden zepsuty wpis nie odbiera użytkownikowi całej książki.
  */
 final class DockerStateService extends AbstractSingleton implements EnvironmentBookPort
 {
-    private const DIRECTORY = '.light-manager';
+    private const SECTION = 'docker';
 
-    private const FILE = 'docker.json';
-
-    private const TEMPORARY_PREFIX = '.docker-';
-
-    /** Klucz książki w dokumencie; obok stanie klucz rejestrów z kroku 60. */
+    /** Klucz książki w sekcji; obok stanie klucz rejestrów z kroku 61. */
     private const ENVIRONMENTS_KEY = 'environments';
 
     /** Nazwa środowiska bieżącego — wybór przeżywa uruchomienie. */
@@ -57,34 +54,36 @@ final class DockerStateService extends AbstractSingleton implements EnvironmentB
 
     private const CA_KEY = 'ca';
 
-    private const FILE_MODE = 0o600;
-
-    private const DIRECTORY_MODE = 0o700;
+    private ?StateDocumentPort $documents = null;
 
     /**
-     * Ostatnio wczytany dokument — po to, żeby zapis nie skasował kluczy,
+     * Ostatnio wczytana sekcja — po to, żeby zapis nie skasował kluczy,
      * których ta wersja nie zna.
      *
-     * @var array<string, mixed>
+     * @var array<string, mixed>|null
      */
-    private array $document = [];
+    private ?array $section = null;
 
-    private bool $documentRead = false;
+    private bool $sectionRead = false;
+
+    /** Podstawienie dokumentu stanu — **wyłącznie dla testów** (szew jak w `KubectlService`). */
+    public function useSeam(StateDocumentPort $documents): void
+    {
+        $this->documents = $documents;
+        $this->section = null;
+        $this->sectionRead = false;
+    }
 
     public function load(): LoadedEnvironmentBook
     {
-        if (!is_file($this->location())) {
-            return new LoadedEnvironmentBook(new EnvironmentBook());
-        }
+        $section = $this->section();
 
-        $document = $this->document();
-
-        if ($document === null) {
+        if ($section === null) {
             return new LoadedEnvironmentBook(new EnvironmentBook(), 'module.docker.env.book.unreadable');
         }
 
-        $stored = $document[self::ENVIRONMENTS_KEY] ?? [];
-        $current = $document[self::CURRENT_KEY] ?? EnvironmentBook::DEFAULT_NAME;
+        $stored = $section[self::ENVIRONMENTS_KEY] ?? [];
+        $current = $section[self::CURRENT_KEY] ?? EnvironmentBook::DEFAULT_NAME;
 
         if (!is_array($stored)) {
             return new LoadedEnvironmentBook(new EnvironmentBook(), 'module.docker.env.book.unreadable');
@@ -98,15 +97,16 @@ final class DockerStateService extends AbstractSingleton implements EnvironmentB
 
     public function save(EnvironmentBook $book): void
     {
-        $this->document();
-        $this->document[self::ENVIRONMENTS_KEY] = self::documentOf($book);
-        $this->document[self::CURRENT_KEY] = $book->current();
-        $this->write();
+        $section = $this->section() ?? [];
+        $section[self::ENVIRONMENTS_KEY] = self::documentOf($book);
+        $section[self::CURRENT_KEY] = $book->current();
+        $this->section = $section;
+        $this->documents()->saveSection(self::SECTION, $section);
     }
 
     public function location(): string
     {
-        return $this->directory() . DIRECTORY_SEPARATOR . self::FILE;
+        return $this->documents()->location();
     }
 
     /**
@@ -196,7 +196,7 @@ final class DockerStateService extends AbstractSingleton implements EnvironmentB
             ];
 
             // Pól bez znaczenia dla rodzaju nie zapisujemy — dokument ma się
-            // dać przeczytać oczami (wzorem `ssh.json`).
+            // dać przeczytać oczami (wzorem sekcji `ssh`).
             if ($entry->kind !== EnvironmentKind::Tcp) {
                 $item[self::SOCKET_KEY] = $entry->socketPath;
             }
@@ -219,73 +219,23 @@ final class DockerStateService extends AbstractSingleton implements EnvironmentB
     }
 
     /**
-     * Dokument z dysku, przeczytany raz; `null` znaczy „nie da się go
+     * Sekcja z dokumentu stanu, przeczytana raz; `null` znaczy „nie da się jej
      * przeczytać".
      *
      * @return array<string, mixed>|null
      */
-    private function document(): ?array
+    private function section(): ?array
     {
-        if ($this->documentRead) {
-            return $this->document;
+        if (!$this->sectionRead) {
+            $this->sectionRead = true;
+            $this->section = $this->documents()->section(self::SECTION);
         }
 
-        $this->documentRead = true;
-        $path = $this->location();
-
-        if (!is_file($path)) {
-            return $this->document;
-        }
-
-        $raw = @file_get_contents($path);
-        /** @var mixed $decoded */
-        $decoded = $raw === false ? null : json_decode($raw, true);
-
-        if (!is_array($decoded)) {
-            return null;
-        }
-
-        /** @var array<string, mixed> $decoded */
-        return $this->document = $decoded;
+        return $this->section;
     }
 
-    private function write(): void
+    private function documents(): StateDocumentPort
     {
-        $directory = $this->directory();
-
-        if (!is_dir($directory) && !@mkdir($directory, self::DIRECTORY_MODE, true) && !is_dir($directory)) {
-            return;
-        }
-
-        $content = json_encode($this->document, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        if ($content === false) {
-            return;
-        }
-
-        $temporary = $directory . DIRECTORY_SEPARATOR . self::TEMPORARY_PREFIX . getmypid() . '.tmp';
-
-        if (@file_put_contents($temporary, $content . "\n") === false) {
-            return;
-        }
-
-        @chmod($temporary, self::FILE_MODE);
-
-        if (!@rename($temporary, $this->location())) {
-            @unlink($temporary);
-        }
-    }
-
-    /** Katalog domowy z `HOME`, a w jego braku — katalog roboczy (jak w konfiguracji). */
-    private function directory(): string
-    {
-        $home = getenv('HOME');
-
-        if (!is_string($home) || $home === '') {
-            $working = getcwd();
-            $home = $working === false ? '.' : $working;
-        }
-
-        return rtrim($home, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::DIRECTORY;
+        return $this->documents ?? StateDocumentService::getInstance();
     }
 }

@@ -4,40 +4,38 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Kubernetes\Application;
 
-use LightManager\Application\Dto\BackgroundStage;
 use LightManager\Module\Kubernetes\Application\Port\KubectlPort;
-use LightManager\Module\Kubernetes\Domain\Exception\InvalidClusterNameException;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ClusterVersion;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ContextName;
-use LightManager\Module\Kubernetes\Domain\ValueObject\NamespaceName;
 use LightManager\Module\Kubernetes\Infrastructure\ClusterInfoParser;
 
 /**
- * Gdzie jesteśmy i czy klaster odpowiada (krok 52).
+ * Gdzie jesteśmy i czy klaster odpowiada (krok 52; miejsce i dwa nowe stany —
+ * krok 59).
  *
  * **Stan „nie ma klastra” jest tu stanem zwykłym, a nie awarią** — i to on, a nie
  * widok pełen podów, jest pierwszym, który krok musi narysować poprawnie
- * (zastrzeżenie startowe planu, potwierdzone na maszynie projektu: jedyny
- * kontekst `ca-dev` nie jest bieżący, a minikube nie istnieje). Stąd
- * rozróżnienie na **trzy** stany zamiast dwóch:
+ * (zastrzeżenie startowe planu kroku 52, potwierdzone na maszynie projektu:
+ * jedyny kontekst `ca-dev` nie jest bieżący, a minikube nie istnieje). Stanów
+ * „nie ma podów" jest odtąd **pięć** i różnią się tym, co użytkownik ma z tym
+ * zrobić:
  *
- * - **bez kontekstu** — plik konfiguracyjny nie wskazuje żadnego jako bieżącego;
- *   ekran ma powiedzieć, co wybrać, a nie „connection refused”;
- * - **nieosiągalny** — kontekst jest, ale klaster nie odpowiada; powód pochodzi
- *   ze strumienia błędów, a nie z domysłu;
+ * - **bez klastra** — spis nie wskazuje żadnego jako bieżącego; ekran ma
+ *   powiedzieć, co wybrać, a nie „connection refused”;
+ * - **nie ma pliku** i **nie ma w nim kontekstu** (krok 59) — miejsce ma dwie
+ *   współrzędne i każda umie być nie tak; rozstrzyga o nich `Clusters`, bo to
+ *   on czyta pliki;
+ * - **nieosiągalny** — miejsce jest, klaster nie odpowiada; powód pochodzi ze
+ *   strumienia błędów, a nie z domysłu;
  * - **gotowy** — obie wersje znane, można pytać o zasoby.
  *
- * Spis kontekstów czyta się **z pliku, nie z sieci** (`config view`), więc pada
+ * Spis kontekstów czyta się **z plików, nie z sieci** (`config view`), więc pada
  * także wtedy, gdy nie ma czego zapytać — to jest cała przyczyna, dla której
- * pierwszy z tych stanów w ogóle daje się narysować.
+ * pierwsze cztery z tych stanów w ogóle dają się narysować. Od kroku 59 robi to
+ * `ConfigCatalog`, dla wszystkich plików, a nie dla jednego domyślnego.
  */
 final class ClusterState
 {
-    /** @var list<ContextName> */
-    private array $contexts = [];
-
-    private ?ContextName $current = null;
-
     private ?ClusterVersion $versions = null;
 
     private ClusterStage $stage = ClusterStage::Unknown;
@@ -47,42 +45,37 @@ final class ClusterState
     /** @var array<string, string|int|float> */
     private array $problemParameters = [];
 
-    private readonly KubectlWork $configWork;
-
     private readonly KubectlWork $versionWork;
 
-    /** Przestrzeń nazw zapisana przy kontekście w `kubeconfig` — propozycja, nie nakaz. */
-    private ?string $configuredNamespace = null;
-
-    private string $configOutput = '';
+    /** Czy zamówiono już pierwszy odczyt plików — start ma być leniwy. */
+    private bool $started = false;
 
     /**
-     * Kontekst zapamiętany w ustawieniach modułu — **wybór z poprzedniego
-     * uruchomienia**.
+     * Pokolenie sesji, dla którego padło pytanie o wersje.
      *
-     * Napis, a nie `ContextName`, bo pochodzi z pliku konfiguracyjnego aplikacji
-     * i może wskazywać klaster, którego już nie ma. Obiektem wartości staje się
-     * dopiero wtedy, gdy znajdzie się na liście z `kubeconfig`.
+     * Bez tego licznika pytanie wracałoby **co takt** przy klastrze, który
+     * wersji serwera nie podaje — czyli dokładnie przy tym nieosiągalnym,
+     * o który chodzi najbardziej. Jedno miejsce, jedno pytanie.
      */
-    private string $rememberedContext = '';
+    private int $askedGeneration = -1;
 
     public function __construct(
-        private readonly KubectlPort $kubectl,
+        KubectlPort $kubectl,
         private readonly ClusterSession $session,
+        private readonly Clusters $clusters,
     ) {
-        $this->configWork = new KubectlWork($kubectl);
         $this->versionWork = new KubectlWork($kubectl);
     }
 
-    /** @return list<ContextName> */
+    /** @return list<ContextName> konteksty pliku miejsca bieżącego — dla okna wyboru */
     public function contexts(): array
     {
-        return $this->contexts;
+        return $this->clusters->contextsOfCurrentFile();
     }
 
     public function current(): ?ContextName
     {
-        return $this->current;
+        return $this->session->context();
     }
 
     public function versions(): ?ClusterVersion
@@ -108,123 +101,116 @@ final class ClusterState
 
     public function isWorking(): bool
     {
-        return $this->configWork->isWorking() || $this->versionWork->isWorking();
+        return $this->versionWork->isWorking();
     }
 
     /**
-     * Pyta plik konfiguracyjny o konteksty — **pierwsze wywołanie modułu**.
+     * Pyta pliki o konteksty — **pierwsze wywołanie modułu**.
      *
-     * Zaczyna się od pliku, a nie od klastra, bo bez kontekstu żadne pytanie do
+     * Zaczyna się od plików, a nie od klastra, bo bez miejsca żadne pytanie do
      * klastra nie ma adresu. Zamówienie jest **leniwe**: pada, kiedy ktoś otworzy
      * ekran, a nie przy uruchomieniu aplikacji — start nie ma prawa kosztować
      * procesu potomnego.
      */
     public function begin(): void
     {
+        $this->started = true;
         $this->stage = ClusterStage::Reading;
-        $this->configWork->begin(KubectlCall::contexts(), $this->session->timeoutSeconds());
+        $this->clusters->refresh();
     }
 
-    /**
-     * Podaje wybór z poprzedniego uruchomienia — **zanim** padnie pierwsze
-     * pytanie.
-     *
-     * Napis idzie prosto z ustawień modułu i nie jest tu sprawdzany: sprawdzi go
-     * porównanie z listą z `kubeconfig`, a nazwa, której na tej liście nie ma,
-     * i tak do niczego nie posłuży.
-     */
-    public function remember(string $context): void
+    /** Przestawia się na wskazany kontekst **w pliku miejsca bieżącego**. */
+    public function useContext(ContextName $context): ?string
     {
-        $this->rememberedContext = $context;
+        return $this->clusters->selectContext($context);
     }
 
     /**
-     * Przestawia się na wskazany kontekst i pyta go o wersję.
+     * Posuwa pytanie o wersje i rozstrzyga etap.
      *
-     * **Pliku konfiguracyjnego nie zmieniamy** — `kubectl config use-context`
-     * zapisałby wybór poza aplikacją, a wybór zrobiony w menadżerze plików nie ma
-     * prawa zmieniać tego, co zastanie użytkownik w swoim terminalu. Kontekst
-     * jedzie odtąd argumentem `--context` przy każdym wywołaniu, a zapamiętuje go
-     * pozycja ustawień modułu.
-     */
-    public function useContext(ContextName $context): void
-    {
-        $this->current = $context;
-        $this->session->useContext($context);
-        $this->applyConfiguredNamespace();
-        $this->askForVersions();
-    }
-
-    /**
-     * Posuwa oba pytania. Wołane raz na takt, jak wszystko w tym module.
+     * Kolejność jest tu regułą: **najpierw plik, potem klaster**. Wpis
+     * wskazujący nieistniejący plik nie ma czego zapytać po sieci, a zdanie
+     * „klaster nie odpowiada" schowałoby literówkę w ścieżce.
      */
     public function advance(): void
     {
-        $this->advanceConfig();
+        if (!$this->started) {
+            return;
+        }
+
+        $fileStage = $this->clusters->fileStage();
+
+        if ($fileStage !== null) {
+            // Znacznik przełączenia **zdejmujemy**, choć o wersje nie pytamy:
+            // pytanie do klastra, którego pliku nie ma, nie ma dokąd pójść,
+            // a znacznik zostawiony na później wystrzeliłby je w chwili, gdy
+            // użytkownik akurat poprawia ścieżkę.
+            $this->clusters->takeSwitched();
+            $this->versionWork->stop();
+            $this->versions = null;
+            $this->stage = $fileStage;
+            $this->problemKey = $fileStage->labelKey();
+            $this->problemParameters = $this->clusters->stageParameters();
+
+            return;
+        }
+
+        if ($this->clusters->takeSwitched()) {
+            $this->askForVersions();
+        }
+
+        if (!$this->session->isTargeted()) {
+            $this->chooseIfPossible();
+
+            return;
+        }
+
+        // Miejsce jest, a pytania o nie jeszcze nie było: tak wygląda powrót
+        // pliku, który przed chwilą był nieobecny — przełączenia nie było, więc
+        // pytanie musi paść stąd. Pokolenie pilnuje, żeby padło **raz**.
+        if ($this->askedGeneration !== $this->session->generation() && !$this->versionWork->isWorking()) {
+            $this->askForVersions();
+
+            return;
+        }
+
         $this->advanceVersions();
     }
 
     public function stop(): void
     {
-        $this->configWork->stop();
         $this->versionWork->stop();
     }
 
     /**
-     * Wybiera kontekst na starcie: zapamiętany, a w jego braku — bieżący z pliku.
+     * Wybiera miejsce, gdy jeszcze żadne nie stoi — dopiero po tym, jak pliki
+     * odpowiedziały.
      *
-     * Kolejność jest taka, a nie odwrotna, bo zapamiętany jest **wyborem
-     * użytkownika zrobionym w tej aplikacji**, a bieżący — wyborem zrobionym
-     * gdzie indziej. Zapamiętany, którego w pliku już nie ma, ustępuje bieżącemu:
-     * klaster bywa kasowany, a moduł nie ma się przez to zaciąć.
+     * Dopóki odczyt trwa, etapem jest `Reading`: „nie ma klastra" powiedziane,
+     * zanim przeczytano pliki, byłoby zdaniem o tym, czego jeszcze nie
+     * sprawdzono.
      */
-    private function chooseContext(string $remembered): void
+    private function chooseIfPossible(): void
     {
-        foreach ($this->contexts as $context) {
-            if ($context->value === $remembered) {
-                $this->useContext($context);
-
-                return;
-            }
-        }
-
-        $current = ClusterInfoParser::currentContext($this->configOutput);
-
-        if ($current !== null) {
-            $this->useContext($current);
+        if ($this->clusters->isReading()) {
+            $this->stage = ClusterStage::Reading;
 
             return;
         }
 
-        // Ani zapamiętany, ani bieżący — to jest ten stan, który plan kroku każe
-        // narysować jako miejsce z wyborem.
+        if ($this->clusters->chooseCurrent()) {
+            // Pytanie o wersje pada **w następnym takcie**, bo wybór podniósł
+            // znacznik przełączenia — a ten odbiera się na początku `advance()`.
+            // Jedna droga do pytania zamiast dwóch: klawisz i start miejsca
+            // wyglądają odtąd tak samo.
+            $this->stage = ClusterStage::Reading;
+
+            return;
+        }
+
+        // Ani zapamiętanego, ani bieżącego — to jest ten stan, który plan kroku
+        // 52 każe narysować jako miejsce z wyborem.
         $this->stage = ClusterStage::NoContext;
-    }
-
-    private function advanceConfig(): void
-    {
-        $state = $this->configWork->advance();
-
-        if ($state === null) {
-            return;
-        }
-
-        if ($state->stage === BackgroundStage::Failed) {
-            $this->fail($state->problemKey ?? 'module.k8s.problem.config', $state->problemParameters);
-
-            return;
-        }
-
-        $this->configOutput = $state->output;
-        $this->contexts = ClusterInfoParser::contexts($state->output);
-
-        if ($this->contexts === []) {
-            $this->stage = ClusterStage::NoContext;
-
-            return;
-        }
-
-        $this->chooseContext($this->rememberedContext);
     }
 
     private function advanceVersions(): void
@@ -248,45 +234,20 @@ final class ClusterState
             return;
         }
 
-        $this->fail('module.k8s.problem.unreachable', ['reason' => self::reasonOf($state->errorOutput)]);
+        $this->stage = ClusterStage::Unreachable;
+        $this->problemKey = 'module.k8s.problem.unreachable';
+        $this->problemParameters = ['reason' => self::reasonOf($state->errorOutput)];
     }
 
     private function askForVersions(): void
     {
+        $this->versions = null;
+        $this->askedGeneration = $this->session->generation();
         $this->stage = ClusterStage::Reading;
         $this->versionWork->begin(
-            KubectlCall::version($this->session->context()),
+            KubectlCall::version($this->session->place()),
             $this->session->timeoutSeconds(),
         );
-    }
-
-    /** @param array<string, string|int|float> $parameters */
-    private function fail(string $problemKey, array $parameters): void
-    {
-        $this->stage = ClusterStage::Unreachable;
-        $this->problemKey = $problemKey;
-        $this->problemParameters = $parameters;
-    }
-
-    private function applyConfiguredNamespace(): void
-    {
-        $context = $this->current;
-
-        if ($context === null) {
-            return;
-        }
-
-        $this->configuredNamespace = ClusterInfoParser::namespaceOf($this->configOutput, $context);
-
-        try {
-            $this->session->useNamespace(
-                $this->configuredNamespace === null
-                    ? NamespaceName::fallback()
-                    : NamespaceName::of($this->configuredNamespace),
-            );
-        } catch (InvalidClusterNameException) {
-            $this->session->useNamespace(NamespaceName::fallback());
-        }
     }
 
     /**

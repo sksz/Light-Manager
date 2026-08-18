@@ -9,8 +9,8 @@ use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntry;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntryType;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteNameFilter;
-use LightManager\Tests\Support\StubHostBook;
 use LightManager\Tests\Support\StubRemoteDirectory;
+use LightManager\Tests\Support\StubSshState;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -24,7 +24,7 @@ final class RemoteBrowserTest extends TestCase
 {
     private StubRemoteDirectory $directories;
 
-    private StubHostBook $storage;
+    private StubSshState $storage;
 
     protected function setUp(): void
     {
@@ -42,7 +42,7 @@ final class RemoteBrowserTest extends TestCase
                 new RemoteEntry('jan', RemoteEntryType::Directory),
             ],
         ]);
-        $this->storage = new StubHostBook();
+        $this->storage = new StubSshState();
     }
 
     public function testOpeningAHostAsksForTheStartingDirectory(): void
@@ -59,7 +59,7 @@ final class RemoteBrowserTest extends TestCase
     /** Zapamiętany katalog ma pierwszeństwo przed startowym z profilu. */
     public function testTheRememberedDirectoryWins(): void
     {
-        $this->storage->rememberDirectory('biuro', '/home/anna/dokumenty');
+        $this->storage->rememberDirectory('00000001', '/home/anna/dokumenty');
 
         $browser = $this->browser();
         $browser->open(self::host(remoteDirectory: '/srv'));
@@ -198,7 +198,9 @@ final class RemoteBrowserTest extends TestCase
         $browser->enter();
         $browser->tick();
 
-        self::assertSame('/home/anna/dokumenty', $this->storage->directories['biuro'] ?? null);
+        // Katalog zapamiętuje się od kroku 60 pod **identyfikatorem wpisu**
+        // książki adresowej, a nie pod nazwą: nazwa bywa pusta i powtórzona.
+        self::assertSame('/home/anna/dokumenty', $this->storage->directories['00000001'] ?? null);
     }
 
     /** Kursor przeżywa oczekiwanie: lista przychodzi później, a ruch po niej wcześniej. */
@@ -245,6 +247,6 @@ final class RemoteBrowserTest extends TestCase
 
     private static function host(?string $remoteDirectory = null): HostProfile
     {
-        return new HostProfile('biuro', 'example.com', 22, 'anna', remoteDirectory: $remoteDirectory);
+        return new HostProfile('00000001', 'biuro', 'example.com', 22, 'anna', remoteDirectory: $remoteDirectory);
     }
 }

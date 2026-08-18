@@ -117,8 +117,12 @@ Kolumna **Stan** mówi, co się z decyzją stało w kodzie:
 | [D95](#d95--wskaźnik-wchodzi-jako-wspólny-nadtyp-zdarzeń-trafienie-deklaruje-ekran-a-faza-xix-dzieli-się-na-trzy-kroki) | Wskaźnik wchodzi jako wspólny nadtyp zdarzeń, trafienie deklaruje ekran, a Faza XIX dzieli się na trzy kroki | Faza XIX — kroki 55, 56 i 57 (przez nr 9 — powstają 56 i 57) | 2026-08-16 | Wdrożona w kroku 55; nr 4–6 czekają na kroki 56 i 57 |
 | [D99](#d99--rozstrzygnięcia-startowe-kroku-55-okno-odczepia-się-od-kursora-zobowiązanie-jest-ostre-a-proporcja-podziału-przeżywa-uruchomienie) | Rozstrzygnięcia startowe kroku 55: okno odczepia się od kursora, zobowiązanie jest ostre, a proporcja podziału przeżywa uruchomienie | krok 55 (przez nr 1 — rdzeniowy `ScrollWindow`; przez nr 3 — pięć modułów) | 2026-08-16 | Wdrożona |
 | [D100](#d100--rozstrzygnięcia-startowe-kroku-56-trzynasta-rola-przeciągnięcie-deklarowane-przez-ekran-warstwa-tekstowa-z-rolami-i-kursor-belki) | Rozstrzygnięcia startowe kroku 56: trzynasta rola, przeciągnięcie deklarowane przez ekran, warstwa tekstowa z rolami i kursor belki | krok 56 (przez nr 1–3 — rdzeniowe: rola motywu, warstwa tekstowa klatki, zdolność ekranu) | 2026-08-16 | Wdrożona |
-| [D98](#d98--dziesięć-modułów-wchodzi-jako-zarysy-podział-wedle-poziomów-wartości-jeden-plik-na-krok-trzy-pytania-przecinające-całość) | Dziesięć modułów wchodzi jako zarysy: podział wedle poziomów wartości, jeden plik na krok, trzy pytania przecinające całość | Fazy XXII–XXIV — kroki 66–75 (rozstrzygnięcia o kształcie planu, nie o modułach) | 2026-08-16 | Czeka |
-| [D101](#d101--rozstrzygnięcia-startowe-kroku-57-kontekst-jako-źródło-ścieżki-prośba-z-terminem-bez-referencji-wklejanie-przy-polu-a-dług-d100-spłacony-do-połowy) | Rozstrzygnięcia startowe kroku 57: kontekst jako źródło ścieżki, prośba z terminem bez referencji, wklejanie przy polu, a dług D100 spłacony do połowy | krok 57 (przez nr 4 — powstaje zarys kroku 76) | 2026-08-17 | Wdrożona |
+| [D98](#d98--dziesięć-modułów-wchodzi-jako-zarysy-podział-wedle-poziomów-wartości-jeden-plik-na-krok-trzy-pytania-przecinające-całość) | Dziesięć modułów wchodzi jako zarysy: podział wedle poziomów wartości, jeden plik na krok, trzy pytania przecinające całość | Fazy XXII–XXIV — kroki 67–76 (rozstrzygnięcia o kształcie planu, nie o modułach) | 2026-08-16 | Czeka |
+| [D101](#d101--rozstrzygnięcia-startowe-kroku-57-kontekst-jako-źródło-ścieżki-prośba-z-terminem-bez-referencji-wklejanie-przy-polu-a-dług-d100-spłacony-do-połowy) | Rozstrzygnięcia startowe kroku 57: kontekst jako źródło ścieżki, prośba z terminem bez referencji, wklejanie przy polu, a dług D100 spłacony do połowy | krok 57 (przez nr 4 — powstaje zarys kroku 77) | 2026-08-17 | Wdrożona |
+| [D102](#d102--rozstrzygnięcia-startowe-kroku-58-gniazdo-tunelu-ma-zapas-w-light-manager-wpis-powstaje-łańcuchem-okien-a-bieżącym-środowiskiem-pierwszego-uruchomienia-jest-gniazdo-lokalne) | Rozstrzygnięcia startowe kroku 58: gniazdo tunelu ma zapas w `~/.light-manager`, wpis powstaje łańcuchem okien, a bieżącym środowiskiem pierwszego uruchomienia jest gniazdo lokalne | krok 58 | 2026-08-18 | Wdrożona |
+| [D103](#d103--rozstrzygnięcia-startowe-kroku-59-przegląd-15e-kończy-się-wspólną-książką-w-rdzeniu-dzieloną-na-sekcje-a-wspólny-zapis-obejmuje-też-rdzeń) | Rozstrzygnięcia startowe kroku 59: przegląd 15e kończy się wspólną książką w rdzeniu, dzieloną na sekcje, a wspólny zapis obejmuje też rdzeń | krok 59 (przez nr 1 i 4 — rdzeniowe: `Book`, `StateDocumentPort`, `StateFile`) | 2026-08-18 | Wdrożona |
+| [D104](#d104--książka-adresowa-wychodzi-do-własnego-modułu-jako-krok-60-fazy-xx-dostępna-dla-rdzenia-znaczy-rejestry-globalne-a-plan-przenumerowuje-się-od-60-wzwyż) | Książka adresowa wychodzi do własnego modułu jako krok 60 Fazy XX, „dostępna dla rdzenia" znaczy rejestry globalne, a plan przenumerowuje się od 60 wzwyż | krok 60 (nowy) oraz przenumerowanie kroków 61–77 | 2026-08-18 | Czeka |
+| [D105](#d105--rozstrzygnięcia-startowe-kroku-60-wpis-jest-pojemnikiem-z-własnym-identyfikatorem-a-pola-dokładają-moduły-rozdziałami-zakładanymi-komendą) | Rozstrzygnięcia startowe kroku 60: wpis jest pojemnikiem z własnym identyfikatorem, a pola dokładają moduły rozdziałami zakładanymi komendą | krok 60 | 2026-08-18 | Czeka |
 
 > **Indeks jest niekompletny od D62 wzwyż.** Wpisy **D62–D76** stoją w treści
 > dziennika, ale wiersza tutaj nie dostały — regułę „nowy wpis to dwie czynności”
@@ -7153,7 +7157,7 @@ pozostały bezalternatywne):
 ### D95 — Wskaźnik wchodzi jako wspólny nadtyp zdarzeń, trafienie deklaruje ekran, a Faza XIX dzieli się na trzy kroki
 
 **Dotyczy:** Fazy XIX w całości — kroków **55** ([55-mysz-wskaznik.md](archiwum/55-mysz-wskaznik.md)),
-**56** ([56-zaznaczanie-tresci.md](56-zaznaczanie-tresci.md)) i **57**
+**56** ([56-zaznaczanie-tresci.md](archiwum/56-zaznaczanie-tresci.md)) i **57**
 ([57-schowek.md](archiwum/57-schowek.md)), które powstały z podziału zarysu; klas
 `Application\Dto\KeyPress`, `Application\Port\InputPort`,
 `Infrastructure\Terminal\TerminalService`,
@@ -7291,9 +7295,9 @@ faktów, wszystkie sprawdzone przy rozpisywaniu:
 ### D96 — Środowiska, klastry i rejestry wchodzą jako spisy prowadzone przez użytkownika: trzy kroki, dwie drogi do zdalnego demona, cudze pliki czytane
 
 **Dotyczy:** Fazy XX w całości — kroków **58**
-([58-srodowiska-dockera.md](58-srodowiska-dockera.md)), **59**
-([59-klastry-kubernetesa.md](59-klastry-kubernetesa.md)) i **60**
-([60-rejestry-obrazow.md](60-rejestry-obrazow.md)); klas
+([58-srodowiska-dockera.md](archiwum/58-srodowiska-dockera.md)), **59**
+([59-klastry-kubernetesa.md](archiwum/59-klastry-kubernetesa.md)) i **61**
+([61-rejestry-obrazow.md](61-rejestry-obrazow.md)); klas
 `Module/Docker/Infrastructure/DockerApiService`,
 `Module/Docker/Infrastructure/ComposeCliService`,
 `Module/Docker/Presentation/DockerModule`,
@@ -7339,7 +7343,7 @@ pytanie.** Sześć faktów:
 
 1. **Faza dzieli się na trzy kroki — 58 środowiska Dockera, 59 klastry
    Kubernetesa, 60 rejestry obrazów** — po jednej rzeczy na krok, wzorem Faz VII,
-   XIV i XVII. Krok 60 stoi ostatni, bo konsumuje oba poprzednie. Odrzucone:
+   XIV i XVII. Krok 61 stoi ostatni, bo konsumuje oba poprzednie. Odrzucone:
    cztery kroki z compose wydzielonym osobno (dokładniejsze w pomiarze, droższe
    w utrzymaniu planu) oraz dwa kroki po modułach (krok o Dockerze byłby wtedy
    większy niż 51, czyli największy w projekcie, a pomiar „przed i po" nie
@@ -7369,7 +7373,7 @@ pytanie.** Sześć faktów:
    Dotyczy `TreeState`, `SectionState`, `ScrollWindow` i `ResourceCache`
    w module k8s.
 5. **Rejestry dostają komplet: książkę, wypchnięcie i pobranie, widok zawartości
-   oraz sekret zakładany w klastrze.** Krok 60 dotyka przez to obu modułów
+   oraz sekret zakładany w klastrze.** Krok 61 dotyka przez to obu modułów
    naraz i domyka pozycję, której krok 54 świadomie nie dowiózł (D94 nr 3:
    `imagePullSecret` nie był zakładany, więc rejestr musiał być publiczny).
    Odrzucone: sama książka z push/pull, książka z sekretem bez widoku zawartości
@@ -7392,18 +7396,18 @@ pytanie.** Sześć faktów:
   Rozstrzyga użytkownik na starcie kroku 59.
 - **Dwie rzeczy są tezami do sprawdzenia przed pisaniem kodu, nie założeniami**:
   czy `kubectl patch` łatą strategiczną **dopisuje** `imagePullSecrets`, zamiast
-  podmieniać listę (krok 60, po lekcji D94 o `--type=merge`), oraz które
+  podmieniać listę (krok 61, po lekcji D94 o `--type=merge`), oraz które
   z osiągalnych rejestrów wystawiają `/v2/_catalog` — bo specyfikacja OCI go nie
   wymaga, a GHCR i Docker Hub go nie mają. Oba wyniki idą do dzienników kroków.
 - **Granica poświadczeń zostaje ta sama, co w krokach 48 i 54, i dostaje trzecie
   zdanie**: token nie wychodzi wierszami kwerendy (reguła 11w) ani wierszem
   polecenia (krok 48) — a między modułami przechodzi **ścieżką pliku o prawach
   `0600`**, kasowanego zaraz po użyciu. To jest wariant proponowany przez plan
-  kroku 60 i podlega potwierdzeniu na jego starcie.
+  kroku 61 i podlega potwierdzeniu na jego starcie.
 - **Modele:** krok 58 — `Opus / xhigh` (dwie drogi transportu naraz, przestawienie
   reguły odrzucania modułu, praca tłowa przeżywająca swój uchwyt), krok 59 —
   `Opus / high` (żadnej nowej drogi, ciężar w przeliczeniu tożsamości miejsca),
-  krok 60 — `Opus / xhigh` (dwa moduły naraz i rozmówca, którego aplikacja nie
+  krok 61 — `Opus / xhigh` (dwa moduły naraz i rozmówca, którego aplikacja nie
   miała). Warunek `Fable` z przypisów ¹ i ² nie zachodzi w żadnym z trzech:
   prymitywów nie przybywa, słownik wejścia nie rośnie, trzej tłumacze zostają
   nietknięci.
@@ -7412,12 +7416,12 @@ pytanie.** Sześć faktów:
 
 ### D97 — Dokumentacja dostaje pięć kroków, dwa języki, diagramy w mermaidzie i obronę w bramce jakości
 
-**Dotyczy:** Fazy XXI w całości — kroków **61**
-([61-porzadek-dokumentacji.md](61-porzadek-dokumentacji.md)), **62**
-([62-podrecznik-uzytkownika.md](62-podrecznik-uzytkownika.md)), **63**
-([63-dokumentacja-dewelopera.md](63-dokumentacja-dewelopera.md)), **64**
-([64-onboarding.md](64-onboarding.md)) i **65**
-([65-diagramy-i-pilnowanie.md](65-diagramy-i-pilnowanie.md)); plików
+**Dotyczy:** Fazy XXI w całości — kroków **62**
+([62-porzadek-dokumentacji.md](62-porzadek-dokumentacji.md)), **63**
+([63-podrecznik-uzytkownika.md](63-podrecznik-uzytkownika.md)), **64**
+([64-dokumentacja-dewelopera.md](64-dokumentacja-dewelopera.md)), **65**
+([65-onboarding.md](65-onboarding.md)) i **66**
+([66-diagramy-i-pilnowanie.md](66-diagramy-i-pilnowanie.md)); plików
 `docs/architecture.md`, `README.md`, `CLAUDE.md`,
 `.claude/skills/light-manager-conventions/SKILL.md`, `Makefile`,
 `phpstan.neon.dist`, `phpunit.xml.dist` oraz nowych drzew `docs/architektura/`,
@@ -7457,7 +7461,7 @@ wszystkie policzone w repozytorium:
 
 1. **Faza dzieli się na pięć kroków — 61 porządek, 62 podręcznik użytkownika,
    63 dokumentacja dewelopera, 64 onboarding, 65 diagramy i pilnowanie.**
-   Krok 61 stoi pierwszy z powodu mechanicznego: cztery pozostałe muszą wiedzieć,
+   Krok 62 stoi pierwszy z powodu mechanicznego: cztery pozostałe muszą wiedzieć,
    gdzie pisać. Onboarding dostaje **własny krok**, bo jest ścieżką przechodzoną
    raz, a przewodnik — referencją, do której się wraca; mieszanie ich daje
    dokument, który nie jest ani jednym, ani drugim. Odrzucone: wariant czterech
@@ -7479,7 +7483,7 @@ wszystkie policzone w repozytorium:
    **zostają jednojęzyczne** wraz z powodem: to są dokumenty pracy nad projektem,
    nie dokumenty projektu. **Polski jest źródłem, angielski tłumaczeniem**,
    a wersja, która została w tyle, jest **usterką widoczną w bramce** (test
-   z kroku 65), nie stanem normalnym. Cena przyjęta świadomie: podwojenie
+   z kroku 66), nie stanem normalnym. Cena przyjęta świadomie: podwojenie
    objętości każdego kroku tej fazy i stały koszt przy każdej późniejszej
    zmianie. Odrzucone: tylko polski (spójne z dzisiejszym stanem, ale zamyka
    projekt) i dwujęzyczny sam podręcznik.
@@ -7498,8 +7502,8 @@ wszystkie policzone w repozytorium:
 
 - **Faza nie dotyka ścieżki klatki ani razu** i jest przez to **drugą taką
   w projekcie po XII (Makefile)**: reguła 17 (pomiar i oglądanie klatki na
-  zwolnionej maszynie) nie zachodzi w krokach 61–64 w ogóle, a w 65 tylko przy
-  pokazie ścieżki onboardingu. Kod produkcyjny powstaje **wyłącznie w kroku 65**
+  zwolnionej maszynie) nie zachodzi w krokach 62–65 w ogóle, a w 65 tylko przy
+  pokazie ścieżki onboardingu. Kod produkcyjny powstaje **wyłącznie w kroku 66**
   i jest kodem testów.
 - **Rdzeń aplikacji nie rośnie o nic.** Rosną: `Makefile` (cel `docs-check`),
   drzewo analizowane PHPStanem (`examples/`) i zestaw testów
@@ -7507,7 +7511,7 @@ wszystkie policzone w repozytorium:
 - **Dokument źródłowy zostaje pod swoim adresem.** `docs/architecture.md` staje
   się spisem rozdziałów, a rozdziały przenoszą się do `docs/architektura/` —
   wyłącznie dlatego, że 40 z 51 wskazań leży w archiwum, którego nie wolno
-  przepisywać. Kotwice utracone przy podziale wchodzą do dziennika kroku 61 jako
+  przepisywać. Kotwice utracone przy podziale wchodzą do dziennika kroku 62 jako
   **jawna strata**, nie po cichu.
 - **`SKILL.md` przestaje być źródłem i mówi o tym sam.** Reguła powstaje
   w rozdziale architektury, Skill ją streszcza, a `SkillMatchesArchitectureTest`
@@ -7525,23 +7529,23 @@ wszystkie policzone w repozytorium:
   nie zachodzi w żadnym z pięciu: prymitywów nie przybywa, słownik wejścia nie
   rośnie, trzej tłumacze zostają nietknięci.
 - **Faza ma jedną granicę wobec przyszłości, nazwaną z góry**: reguła utrzymania
-  z kroku 61 („krok, który zmienia klawisz, ustawienie, komendę, kwerendę albo
+  z kroku 62 („krok, który zmienia klawisz, ustawienie, komendę, kwerendę albo
   moduł, aktualizuje dokumentację **w tym samym kroku**") obowiązuje **od kroku
-  62 wzwyż**, także kroki Faz XIX i XX, jeśli wykonają się później. Dokumentacja
+  63 wzwyż**, także kroki Faz XIX i XX, jeśli wykonają się później. Dokumentacja
   bez tej reguły rozjechałaby się w pierwszym kroku po fazie — a wtedy testy
-  z kroku 65 zamieniłyby się z obrony w przeszkodę.
+  z kroku 66 zamieniłyby się z obrony w przeszkodę.
 
 ## Decyzje z planowania Faz XXII–XXIV (2026-08-16)
 
 ### D98 — Dziesięć modułów wchodzi jako zarysy: podział wedle poziomów wartości, jeden plik na krok, trzy pytania przecinające całość
 
-**Dotyczy:** Faz **XXII–XXIV** w całości — kroków **66**
-([66-modul-git.md](66-modul-git.md)), **67** ([67-modul-runner.md](67-modul-runner.md)),
-**68** ([68-modul-deps.md](68-modul-deps.md)), **69** ([69-modul-forge.md](69-modul-forge.md)),
-**70** ([70-modul-http.md](70-modul-http.md)), **71** ([71-modul-services.md](71-modul-services.md)),
-**72** ([72-modul-env.md](72-modul-env.md)), **73** ([73-modul-db.md](73-modul-db.md)),
-**74** ([74-modul-team.md](74-modul-team.md)) i **75**
-([75-modul-procs.md](75-modul-procs.md)).
+**Dotyczy:** Faz **XXII–XXIV** w całości — kroków **67**
+([67-modul-git.md](67-modul-git.md)), **68** ([68-modul-runner.md](68-modul-runner.md)),
+**69** ([69-modul-deps.md](69-modul-deps.md)), **70** ([70-modul-forge.md](70-modul-forge.md)),
+**71** ([71-modul-http.md](71-modul-http.md)), **72** ([72-modul-services.md](72-modul-services.md)),
+**73** ([73-modul-env.md](73-modul-env.md)), **74** ([74-modul-db.md](74-modul-db.md)),
+**75** ([75-modul-team.md](75-modul-team.md)) i **76**
+([76-modul-procs.md](76-modul-procs.md)).
 
 **Data:** 2026-08-16, przy przekuwaniu propozycji modułów na kroki planu —
 czyli **przed** rozpisaniem którejkolwiek z faz i przed pierwszą linią kodu.
@@ -7577,16 +7581,16 @@ na maszynie i w kodzie 2026-08-16:
   bez limitu czasu, czyli wszystkie w tej samej pułapce, którą **D87** rozbroił
   w kroku 48.
 - **Repozytorium projektu:** `origin` na GitHubie, jedna gałąź, 25 zatwierdzeń,
-  **jeden autor** — czyli moduł `team` (krok 74) nie ma odbiorcy w tym
+  **jeden autor** — czyli moduł `team` (krok 75) nie ma odbiorcy w tym
   repozytorium i jego odbiorcą jest projekt cudzy, oglądany przeglądarką. Fakt
   zapisany w zarysie kroku wprost, żeby nie wyszedł na jaw przy rozpisywaniu.
 
 **Decyzje użytkownika:**
 
 1. **Podział idzie wedle poziomów wartości, nie wedle osi tematycznej** — trzy
-   fazy: **XXII** (66–68) o najlepszym stosunku wartości do rozmiaru i z
-   odbiorcą już w kodzie, **XXIII** (69–72) wymagająca rozstrzygnięć przed
-   pierwszą linią, **XXIV** (73–75) o największym zakresie albo najdalszym
+   fazy: **XXII** (67–69) o najlepszym stosunku wartości do rozmiaru i z
+   odbiorcą już w kodzie, **XXIII** (70–73) wymagająca rozstrzygnięć przed
+   pierwszą linią, **XXIV** (74–76) o największym zakresie albo najdalszym
    odbiorcy. Numeracja odwzorowuje przez to **kolejność wartości**, a nie
    wymuszoną kolejność wykonania: dziesięć modułów zależy od rdzenia, nie od
    siebie, więc łańcuchem nie są. Odrzucone: podział wedle osi „aplikacje /
@@ -7609,13 +7613,13 @@ na maszynie i w kodzie 2026-08-16:
    - **Gdzie mieszka sekret.** `ModuleSetting::secret()` (D94 nr 7) maskuje
      wartość w interfejsie, a `SettingsService` pisze plik trybem `0600` —
      token leżałby w nim **jawnym tekstem**, jak w `~/.docker/config.json`.
-     Dotyczy naraz kroków 69, 70 i 73.
+     Dotyczy naraz kroków 70, 71 i 74.
    - **Biblioteka w procesie kontra proces potomny.** Drogą domyślną zostaje
      proces potomny; wywołanie w procesie wymaga uzasadnienia. Powód jest
      zapisany w D87 i kosztował już raz odwrócenie drogi technicznej całej
      Fazy XVII na jej starcie.
    - **Wzorzec książki wpisów.** Przegląd z reguły 15e należy do kroku 59;
-     kroki 73, 70 i ewentualnie 69 mają jego **wynik zastosować**, a nie
+     kroki 74, 71 i ewentualnie 69 mają jego **wynik zastosować**, a nie
      powtórzyć rachunek od zera.
 
 **Czego ten wpis nie rozstrzyga.** Każdy z dziesięciu zarysów niesie własną
@@ -7623,15 +7627,15 @@ sekcję „Pytania do rozstrzygnięcia" — od trzech do pięciu pytań — i **
 z nich nie ma dziś odpowiedzi**. Najcięższe z nich, wymienione tu, bo wyznaczają
 zakres, a nie sposób wykonania:
 
-- **Krok 66:** czy moduł tylko czyta, czy także zatwierdza i wypycha (zapis
+- **Krok 67:** czy moduł tylko czyta, czy także zatwierdza i wypycha (zapis
   wymaga okna edycji wielowierszowej, którego `TextInput` nie ma).
-- **Krok 67:** co moduł robi z zadaniem, które chce terminala sterującego —
+- **Krok 68:** co moduł robi z zadaniem, które chce terminala sterującego —
   `make run` tej właśnie aplikacji jest tego najbliższym przykładem.
-- **Krok 69:** cudzy klient czy własne HTTP, jeden serwis czy książka, czy
+- **Krok 70:** cudzy klient czy własne HTTP, jeden serwis czy książka, czy
   moduł pisze w imieniu użytkownika.
-- **Krok 71:** czy pierwszy krok obejmuje wyłącznie zakres użytkownika
+- **Krok 72:** czy pierwszy krok obejmuje wyłącznie zakres użytkownika
   (`--user`), skoro aplikacja nie ma i nie chce mieć drogi do `sudo`.
-- **Krok 74:** **po co pokazywane są liczby o ludziach.** Jedyne pytanie
+- **Krok 75:** **po co pokazywane są liczby o ludziach.** Jedyne pytanie
   nietechniczne w całej trójce; rekomendacja zarysu to miary opisujące kod,
   a nie rankingi osób — rozstrzyga użytkownik.
 
@@ -7639,7 +7643,7 @@ zakres, a nie sposób wykonania:
 
 - **Kolejność wykonania jest wolna, ale trzy zależności są prawdziwe** i idą
   przez kwerendy, nigdy przez typ: 74 stoi na `git.log` i `forge.pulls`, 69 na
-  wiedzy o gałęzi z kroku 66 i na wzorze rozmowy z kroku 60, a 73 na **wyniku
+  wiedzy o gałęzi z kroku 67 i na wzorze rozmowy z kroku 61, a 74 na **wyniku
   przeglądu** z kroku 59 — pierwsza w całym grafie zależność od rozstrzygnięcia,
   a nie od kodu.
 - **Reguła 15 wychodzi z trójki nietknięta**, i to jest kryterium wspólne
@@ -7851,8 +7855,8 @@ a kodem**, a nie wyborem między wariantami.
 ### D101 — Rozstrzygnięcia startowe kroku 57: kontekst jako źródło ścieżki, prośba z terminem bez referencji, wklejanie przy polu, a dług D100 spłacony do połowy
 
 **Dotyczy:** kroku **57** ([57-schowek.md](archiwum/57-schowek.md)) oraz — przez
-rozstrzygnięcie nr 4 — nowego kroku **76**
-([76-zaznaczanie-w-oknie.md](76-zaznaczanie-w-oknie.md)); klas
+rozstrzygnięcie nr 4 — nowego kroku **77**
+([77-zaznaczanie-w-oknie.md](77-zaznaczanie-w-oknie.md)); klas
 `Application\Port\ClipboardPort`, `Application\Dto\ClipboardText`,
 `Infrastructure\Terminal\TerminalClipboardService`,
 `Infrastructure\Terminal\KeySequenceParser`,
@@ -7950,7 +7954,7 @@ planem a kodem**, a nie wyborem między wariantami.
    `AcceptsPointer`/`AcceptsPointerInOverlay`, gdzie różnią się typy odpowiedzi).
    `Alt`+`c` w pytaniu o klucz hosta kopiuje przez to odcisk `SHA256:…`, którego
    nie widać nigdzie indziej. **Zaznaczania myszą w oknie to nie dodaje**
-   i dlatego druga połowa długu wychodzi z tego kroku jako **zarys kroku 76**:
+   i dlatego druga połowa długu wychodzi z tego kroku jako **zarys kroku 77**:
    otwarcie okna przestaje kasować zaznaczenie, a przeciągnięcie w oknie
    przestaje być przez nie zużywane — czyli zmiana trzech reguł kasowania
    i pierwszeństwa wskaźnika, a to jest krok, nie punkt. Odrzucone: pozostawienie
@@ -8060,3 +8064,186 @@ znaczy klucz" był rozważany i **odpadł**: `PromptOverlay` na pustym polu
 świadomie nie robi nic (krok 41) i nie ma powodu tego ruszać dla jednego okna.
 Pomocnik `bin/ssh-askpass` jest narzędziem repozytorium, nie kodem modułu Ssh,
 więc reguła 15 zostaje nietknięta.
+
+### D103 — Rozstrzygnięcia startowe kroku 59: przegląd 15e kończy się wspólną książką w rdzeniu, dzieloną na sekcje, a wspólny zapis obejmuje też rdzeń
+
+**Dotyczy:** kroku **59** ([59-klastry-kubernetesa.md](archiwum/59-klastry-kubernetesa.md));
+nowych klas `Application/State/Book`, `Application/Port/StateDocumentPort`,
+`Infrastructure/Config/StateDocumentService` i `Infrastructure/Config/StateFile`;
+klas `Infrastructure/Config/SettingsService`,
+`Infrastructure/Config/CommandHistoryService`,
+`Module/Audio/Infrastructure/AudioStateService`,
+`Module/Ssh/Infrastructure/SshStateService`,
+`Module/Docker/Infrastructure/DockerStateService` oraz plików stanu
+`~/.light-manager/{audio,ssh,docker}.json`, które zastępuje jeden
+`~/.light-manager/state.json`.
+
+**Data:** 2026-08-18, przed pierwszą linią kodu kroku. Jedno pytanie planowe
+(przegląd reguły 15e — obowiązek postawiony w D96) i dwa doprecyzowujące;
+rozstrzygnięcia zakresu stoją w D96 (nr 1, 3 i 4) i żadne nie było tu otwierane.
+
+**Materiał przeglądu, policzony przed pytaniem.** Metody `document()`, `write()`
+i `directory()` (tryb `0600`, plik tymczasowy + `rename()`, nieznane klucze
+przeżywają zapis) stoją skopiowane niemal co do znaku w **trzech** usługach
+stanu modułów (`audio`, `ssh`, `docker`), a ten sam wzorzec zapisu — czwarty
+i piąty raz — w `SettingsService` i `CommandHistoryService` rdzenia. Pojęcia
+(pola wpisów) są między książkami rozłączne; wspólny jest wyłącznie mechanizm.
+
+**Decyzje użytkownika:**
+
+1. **Przegląd 15e kończy się wspólną książką w rdzeniu, dzieloną na sekcje —
+   każdy moduł ma własną sekcję.** Odrzucona rekomendacja planu (wydzielenie
+   samego zapisu przy pojęciach zostających w modułach) i wariant „nadal
+   powtórzenie" (czwarta kopia zapisu w `KubernetesStateService`). To jest
+   trzecie w projekcie odwrócenie rekomendacji planu przez użytkownika na
+   starcie kroku (po D80 i D99 nr 3).
+2. **Na dysku leży jeden plik z sekcjami** — `~/.light-manager/state.json`,
+   sekcje po identyfikatorach modułów. Istniejące `audio.json`, `ssh.json`
+   i `docker.json` migrują do niego przy pierwszym wczytaniu (stare pliki
+   zostają nietknięte, wzorem migracji ustawień z planu kroku); `settings.json`
+   i `history` **zostają osobnymi plikami** i przechodzą wyłącznie na wspólny
+   mechanizm zapisu. Odrzucone: pliki per moduł (wspólna książka byłaby wtedy
+   tylko kodem, nie miejscem) i jeden plik na wszystko łącznie z ustawieniami
+   i historią (ruszałby format historii, która nie jest JSON-em).
+3. **Rdzeń zna o wpisie wyłącznie tożsamość i porządek**: wpis to nazwa własna
+   plus nieprzezroczysty ładunek; typowanie i walidacja zostają w module.
+   Zgodne z D42 („rdzeń nie wie, czym jest wpis") — pola trzech książek są
+   rozłączne, więc rdzeń nie ma czego o nich wiedzieć. „Bieżący" i zapamiętane
+   katalogi hostów to klucze sekcji modułu, nie pojęcia rdzenia. Odrzucony
+   wariant pól wspólnych (bieżący, pochodzenie) — rdzeń zaczynałby znać pojęcia
+   połączeń.
+4. **Wspólny mechanizm zapisu obejmuje też rdzeń** — `SettingsService`
+   i `CommandHistoryService` przechodzą na wspólną drogę zapisu (`StateFile`),
+   znikają więc wszystkie kopie mechanizmu naraz. Odrzucone zasięgi węższe
+   (same książki; książki plus dźwięk).
+
+**Co z tego wynika — i czego krok pilnuje:**
+
+- Założenie D96 („rdzeń nie rośnie w tej fazie o nic") **pada w kroku 59
+  jawnie**, dokładnie w miejscu, które D96 nazwał z góry możliwym wyjątkiem.
+  Rdzeń rośnie o dwie rzeczy: pojęcie (`Book` — porządek i tożsamość wpisów,
+  ładunek nieprzezroczysty) i mechanizm (`StateDocumentPort` +
+  `StateDocumentService` — sekcje jednego pliku stanu). Obie wchodzą
+  z odbiorcami od pierwszego dnia (reguła 13): książki trzech modułów
+  i sekcje czterech.
+- Moduł sięga po sekcję **przez port rdzenia** (`StateDocumentPort`), nigdy po
+  cudzą sekcję: usługa stanu modułu zna wyłącznie sekcję o własnym
+  identyfikatorze. Granica reguły 15 zostaje nietknięta.
+- Migracja jest **leniwa i nieniszcząca**: sekcja nieobecna w `state.json`
+  czyta się ze starego pliku modułu, a sekcją staje się przy pierwszym zapisie;
+  stary plik zostaje na dysku (nikt go już nie czyta, a jego skasowanie nie ma
+  odbiorcy — to samo zdanie, co przy migracji ustawień w planie kroku 59).
+
+## Decyzje z zamówienia kroku 60 (2026-08-18)
+
+### D104 — Książka adresowa wychodzi do własnego modułu jako krok 60 Fazy XX, „dostępna dla rdzenia" znaczy rejestry globalne, a plan przenumerowuje się od 60 wzwyż
+
+**Dotyczy:** **nowego kroku 60** ([60-ksiazka-adresowa.md](60-ksiazka-adresowa.md));
+Fazy XX, która rośnie z trzech kroków do czterech; **wszystkich kroków od dawnego
+60 do dawnego 76**, przesuniętych o jeden numer; modułów `Ssh` i `Docker` jako
+przyszłych czytelników książki; nowego katalogu `src/Module/AddressBook/`.
+
+**Data:** 2026-08-18, przy zamawianiu kroku — czyli **przed** jego rozpisaniem,
+nie przed pierwszą linią kodu. Rozstrzygnięcia startowe kroku (pola wpisu,
+identyfikator, litera skrótu, kształt ekranu modułu Ssh, zakładka ustawień)
+**nie zapadły** i czekają w planie jako pięć pytań.
+
+**Decyzje użytkownika:**
+
+1. **Książka adresowa wychodzi z modułu Ssh do osobnego, dedykowanego modułu**,
+   dostępnego dla innych modułów i rdzenia, **z kompletem elementów modułu** —
+   ekranem, komendami, kwerendami, zdarzeniami, ustawieniami, napisami, pomocą
+   i własną sekcją stanu. Powodem jest stan zastany: adresu używa dziś moduł,
+   który książki nie trzyma (wpis tunelowy Dockera sięga po `ssh.hosts`), a moduł,
+   który ją trzyma, **odmawia startu bez klienta `ssh`** — czyli adresy znikają
+   razem z narzędziem, które nie ma z nimi nic wspólnego.
+2. **„Dostępna dla rdzenia" znaczy widoczna w rejestrach globalnych** — w oknie
+   komend, w oknie kwerend i w menu `F9`, dokładnie tak, jak każdy inny moduł.
+   Odrzucone: **rdzeń czytający nazwą kwerendy** (byłby to pierwszy raz, kiedy
+   rdzeń sięga po daną modułu — precedens wart osobnej decyzji, nie skutek
+   uboczny) oraz **port rdzenia** wzorem wyjątku 15b (rdzeń zacząłby znać
+   pojęcie adresu, czyli D42 padłoby wprost). **D42 zostaje nietknięte.**
+3. **Krok wchodzi jako 60, przed rejestrami obrazów**, a cały plan od dawnego
+   kroku 60 wzwyż **przenumerowuje się o jeden**. Kolejność ma powód:
+   rejestr obrazów jest kolejnym adresem z poświadczeniem, więc książka ma stać,
+   zanim powstanie czwarty spis — inaczej wzorzec książki stanąłby po raz
+   czwarty, co po D103 wymagałoby osobnego uzasadnienia.
+
+**Co z tego wynika:**
+
+- **Rdzeń rośnie o jedną pozycję na liście w `Bootstrapie`** i o nic więcej —
+  tyle, ile reguła 15 przewiduje dla nowego modułu. Kryterium fazy „rdzeń
+  kosztuje zero zmian" jest już i tak przekroczone (D103), ale nie tutaj.
+- **Granica danych jest treścią kroku, nie skutkiem ubocznym**: adres idzie do
+  książki, materiał uwierzytelnienia zostaje u tego, kto się nim przedstawia
+  (reguła 11w przestaje wymagać czujności, bo poświadczenia w książce **nie
+  ma**). Rachunek za tę granicę wychodzi zero: jedyny dzisiejszy czytelnik obcy
+  bierze z `ssh.hosts` cztery pola adresowe, a piątego (`auth`) nie czyta nikt.
+- **Przenumerowanie objęło**: 17 plików kroków (dawne 60–76 → 61–77), indeks
+  wraz z tabelami, grafem zależności i licznikiem archiwum, dziennik decyzji,
+  `docs/architecture.md`, dwa pliki archiwum (kroki 57 i 58) oraz cztery
+  komentarze w `src/` i `tests/`. Odnośniki markdown sprawdzone maszynowo —
+  wszystkie prowadzą do istniejących plików.
+
+## Decyzje ze startu kroku 60 (2026-08-18)
+
+### D105 — Rozstrzygnięcia startowe kroku 60: wpis jest pojemnikiem z własnym identyfikatorem, a pola dokładają moduły rozdziałami zakładanymi komendą
+
+**Dotyczy:** kroku **60** ([60-ksiazka-adresowa.md](60-ksiazka-adresowa.md));
+nowego modułu `src/Module/AddressBook/`; modułów `Ssh` i `Docker` jako
+czytelników; sekcji `address-book` dokumentu stanu.
+
+**Data:** 2026-08-18, przed pierwszą linią kodu kroku. Pytań było pięć
+(plan kroku); rozstrzygnięto **cztery** — piąte (rejestry obrazów) należy do
+kroku 61 i implementacji nie blokuje. Dwa z rozstrzygnięć **odwracają
+rekomendację planu**, i to jest w nich najważniejsze.
+
+**Decyzje użytkownika:**
+
+1. **Identyfikator `address-book`, skrót `Ctrl`+`W`** — wzorem `file-info`;
+   kwerendy `address-book.entries` i `address-book.entry`, napisy pod
+   `module.address-book.`. Odrzucone: `hosts` (nazwa kłamie, gdy w książce
+   stanie adres bazy) i `book` (myli się z rdzeniową `Application\State\Book`).
+2. **Wpis jest pojemnikiem, a nie zestawem pól z góry znanych.** Zawsze niesie
+   **własny identyfikator**, **nazwę** i **adres**; nazwa i adres **mogą być
+   puste**. Reszta **zależy od modułu** — plan rekomendował sztywne „sam adres"
+   i ta rekomendacja **upada**.
+3. **Pola dokładają moduły rozdziałami, a rozdział zakłada się komendą
+   wskazującą własną kwerendę modułu.** Książka czyta z niej deklarację pól
+   (klucz, etykieta, rodzaj, wartość domyślna) — czyli **wiersze napisów, ani
+   jednego typu przez granicę** (15g). **Rdzeń nie wie o tym nic**: odrzucone
+   zostały obie drogi przez rdzeń — kontrakt wzorem `ModuleSetting`
+   (rdzeń zacząłby znać pojęcie wpisu adresowego) i przeszukiwanie
+   `core.modules` przez książkę (książka pytałaby moduły, których nikt jej nie
+   przedstawił).
+4. **Identyfikator wpisu to losowy napis** — osiem znaków szesnastkowych.
+   Odrzucone: kolejny numer (krótszy w komendzie, ale numer zwolniony przez
+   usunięcie kusi, żeby go użyć ponownie) i slug z nazwy (przestaje być stały
+   dokładnie wtedy, gdy nazwa się zmienia — czyli traci to, po co powstał).
+5. **Ekran modułu Ssh zostaje spisem** czytanym kwerendą, wraz ze stanem sesji;
+   `F7` i `F8` schodzą z niego do książki. Odrzucone: zejście do
+   `ChoiceOverlay` przy `ssh.connect` (mniej kodu, ale znika widok „co jest
+   w książce i z kim stoję" naraz).
+6. **Zakładka ustawień powstaje z jedną pozycją — kolejnością spisu**
+   (dopisywania albo alfabetycznie). Odrzucony brak zakładki, rekomendowany
+   przez plan.
+
+**Co z tego wynika — cztery rzeczy, każda zmienia plan kroku:**
+
+- **Zmiana nazwy wpisu wchodzi do zakresu.** Plan wykluczał ją wprost („nazwa
+  jest tożsamością, a odniesienia do niej trzymają obcy"), a rozstrzygnięcie nr
+  4 usuwa ten powód: odniesienia idą po identyfikatorze, więc nazwa jest
+  zwykłym polem i zmienia się zwykłą edycją.
+- **Nazwa przestaje być kluczem wyszukiwania.** Komendy i kwerendy biorą
+  identyfikator; nazwa może być pusta i powtarzalna, więc rozstrzyganie po niej
+  byłoby zgadywaniem. Wygodę odzyskuje się podpowiedziami argumentu
+  (`SuggestsArguments`), które pokazują nazwę **obok** identyfikatora.
+- **Granica 11w zostaje nietknięta i to jest warunek, nie skutek uboczny.**
+  Rozdział niesie dane, które moduł oddaje **wszystkim** (kwerenda książki jest
+  czytelna dla każdego); materiał uwierzytelnienia — ścieżka klucza, hasło,
+  token — **do książki nie wchodzi** i zostaje w sekcji modułu, kluczowany
+  identyfikatorem wpisu.
+- **Deklaracja pól jest daną, nie kodem.** Rodzaje pól ograniczają się do tych,
+  które ekran książki umie pokazać i przyjąć; rodzaj nieznany książce jest
+  **pomijany**, a nie powodem odmowy — moduł nowszy od książki nie ma prawa jej
+  zepsuć.

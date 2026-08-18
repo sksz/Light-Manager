@@ -58,6 +58,9 @@ final class SshSettings
      */
     public const SHOW_HIDDEN = 'showHidden';
 
+    /** Port, który książka adresowa podpowiada w nowym wpisie (krok 60). */
+    public const DEFAULT_ADDRESS_PORT = 22;
+
     /** @var list<int> */
     public const TIMEOUT_CHOICES = [5, 10, 15, 20, 30, 60];
 

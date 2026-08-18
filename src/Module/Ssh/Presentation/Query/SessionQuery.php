@@ -23,7 +23,7 @@ use LightManager\Module\Ssh\Application\SshSettings;
  * i host, bo tyle wystarcza obcemu, żeby wiedzieć, czy ma z czym rozmawiać;
  * `SessionState` z listą odcisków dostaje przez ładunek ekran modułu, bo to on
  * pyta o zaufanie nieznanemu kluczowi (krok 48). Ta granica jest tą samą, którą
- * `ssh.hosts` przykłada do ścieżki klucza prywatnego.
+ * książka adresowa przykłada do ścieżki klucza prywatnego (krok 60).
  */
 final class SessionQuery implements QueryInterface
 {

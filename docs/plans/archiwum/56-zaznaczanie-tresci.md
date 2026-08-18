@@ -1,7 +1,7 @@
 # Krok 56 — Zaznaczanie treści: klatka uczy się mówić, co na niej pisze
 
 > **Skąd ten krok.** Powstał 2026-08-16 z podziału zarysu Fazy XIX
-> ([00-decyzje.md](00-decyzje.md), D95 nr 9). Zarys nosił tytuł całej fazy
+> ([00-decyzje.md](../00-decyzje.md), D95 nr 9). Zarys nosił tytuł całej fazy
 > i mieścił trzy mechanizmy; rozstrzygnięcie nr 3 (mysz w komplecie) rozbiło go
 > na trzy kroki. Ten bierze drugi mechanizm — ten, który w tej aplikacji jest
 > trudniejszy niż gdzie indziej, i to z powodu, który jest jej podstawą.
@@ -13,7 +13,7 @@ krok się zaczynał i co było w nim zaplanowane: **zaznaczenia nie ma gdzie
 skopiować**, bo schowek przychodzi w kroku 57. Zaznaczenie jest do tego czasu
 niekompletne i tak też jest opisane w changelogu.
 
-Rozstrzygnięcia startowe: [00-decyzje.md](00-decyzje.md), D95 (nr 4 i nr 9 wraz
+Rozstrzygnięcia startowe: [00-decyzje.md](../00-decyzje.md), D95 (nr 4 i nr 9 wraz
 z jawnym wyjątkiem od reguły 13) oraz **D100** — cztery rozstrzygnięcia podjęte
 na starcie, z których **dwa są sprostowaniem tego planu**, a nie wyborem między
 wariantami.
