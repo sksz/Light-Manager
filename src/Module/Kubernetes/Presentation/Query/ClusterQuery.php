@@ -19,7 +19,7 @@ use LightManager\Module\Kubernetes\Application\KubernetesSettings;
  * razem z poświadczeniami do klastra, a moduł czyta stamtąd wyłącznie nazwy
  * kontekstów (`ClusterInfoParser`) — adres trzeba by dopiero wydobyć, czyli
  * **dołożyć odczyt** po to, żeby oddać obcemu modułowi punkt wejścia do cudzej
- * infrastruktury. Ta sama granica, którą książka adresowa przykłada do ścieżki klucza
+ * infrastruktury. Ta sama granica, którą `ssh.hosts` przykłada do ścieżki klucza
  * prywatnego.
  *
  * Pole `skewed` jest za to warte wiersza: różnica wersji klienta i serwera jest

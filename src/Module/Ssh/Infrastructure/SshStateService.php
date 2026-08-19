@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Ssh\Infrastructure;
 
+use LightManager\Application\Port\StateDocumentPort;
+use LightManager\Infrastructure\Config\StateDocumentService;
 use LightManager\Infrastructure\Support\AbstractSingleton;
 use LightManager\Module\Ssh\Application\HostBook;
 use LightManager\Module\Ssh\Application\Port\HostBookPort;
@@ -13,32 +15,25 @@ use LightManager\Module\Ssh\Domain\ValueObject\AuthMethod;
 use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
 
 /**
- * Stan modułu sesji zdalnej w pliku `~/.light-manager/ssh.json` (krok 48).
+ * Stan modułu sesji zdalnej — sekcja `ssh` dokumentu stanu (krok 48; od kroku
+ * 59 w `~/.light-manager/state.json`, D103).
  *
- * **Plik stanu modułu, nie plik książki hostów** — dokładnie tak, jak
- * `audio.json` w kroku 45 (D82 nr 3): kroki 49 i 50 dopiszą **kluczami**, a nie
- * drugim plikiem, więc dokument ma od pierwszego dnia kształt, który to
- * uniesie. Klucze, których ta wersja nie zna, przeżywają zapis nietknięte.
- *
- * Droga zapisu ta sama, co w historii komend, w konfiguracji i w pliku dźwięku:
- * plik tymczasowy i `rename()` w tym samym katalogu, więc przerwany zapis
- * zostawia poprzednią, poprawną wersję zamiast obciętej. Prawa `0600`, bo wpisy
- * mówią, do jakich maszyn i jako kto użytkownik się loguje.
+ * Usłudze została **treść sekcji**: co znaczą klucze `hosts` i `directories`,
+ * jak wiersz staje się profilem i którędy wraca. Mechanizm — plik, zapis
+ * tymczasowy z `rename()`, przetrwanie nieznanych kluczy i sekcji, migracja ze
+ * starego `ssh.json` — mieszka od kroku 59 za rdzeniowym `StateDocumentPort`
+ * i nie jest tu powtórzony ani wierszem (wynik przeglądu 15e).
  *
  * **Żadna ścieżka nie rzuca** (zasada portu). Wyjątek samowalidacji profilu jest
- * tu łapany celowo: wiersz nie do przyjęcia **wypada, a plik zostaje** — ta sama
- * reguła, co przy pozycji playlisty bez ścieżki, i z tego samego powodu. Jeden
- * zepsuty wpis nie ma prawa odebrać użytkownikowi całej książki.
+ * tu łapany celowo: wiersz nie do przyjęcia **wypada, a sekcja zostaje** — ta
+ * sama reguła, co przy pozycji playlisty bez ścieżki, i z tego samego powodu.
+ * Jeden zepsuty wpis nie ma prawa odebrać użytkownikowi całej książki.
  */
 final class SshStateService extends AbstractSingleton implements HostBookPort
 {
-    private const DIRECTORY = '.light-manager';
+    private const SECTION = 'ssh';
 
-    private const FILE = 'ssh.json';
-
-    private const TEMPORARY_PREFIX = '.ssh-';
-
-    /** Klucz książki w dokumencie; obok niego stoi klucz kroku 49, a stanie klucz kroku 50. */
+    /** Klucz książki w sekcji; obok niego stoi klucz kroku 49. */
     private const HOSTS_KEY = 'hosts';
 
     /** Ostatni oglądany katalog, po jednym na wpis książki (krok 49). */
@@ -58,33 +53,39 @@ final class SshStateService extends AbstractSingleton implements HostBookPort
 
     private const REMOTE_DIRECTORY_KEY = 'directory';
 
-    private const FILE_MODE = 0o600;
-
-    private const DIRECTORY_MODE = 0o700;
+    private ?StateDocumentPort $documents = null;
 
     /**
-     * Ostatnio wczytany dokument — po to, żeby zapis nie skasował kluczy,
+     * Ostatnio wczytana sekcja — po to, żeby zapis nie skasował kluczy,
      * których ta wersja nie zna.
      *
-     * @var array<string, mixed>
+     * @var array<string, mixed>|null
      */
-    private array $document = [];
+    private ?array $section = null;
 
-    private bool $documentRead = false;
+    private bool $sectionRead = false;
+
+    /** Podstawienie dokumentu stanu — **wyłącznie dla testów** (szew jak w `KubectlService`). */
+    public function useSeam(StateDocumentPort $documents): void
+    {
+        $this->documents = $documents;
+        $this->section = null;
+        $this->sectionRead = false;
+    }
 
     public function load(): LoadedHostBook
     {
-        if (!is_file($this->location())) {
-            return new LoadedHostBook(new HostBook(), null, fresh: true);
-        }
+        $section = $this->section();
 
-        $document = $this->document();
-
-        if ($document === null) {
+        if ($section === null) {
             return new LoadedHostBook(new HostBook(), 'module.ssh.book.unreadable');
         }
 
-        $stored = $document[self::HOSTS_KEY] ?? [];
+        if ($section === [] && !$this->documents()->hasSection(self::SECTION)) {
+            return new LoadedHostBook(new HostBook(), null, fresh: true);
+        }
+
+        $stored = $section[self::HOSTS_KEY] ?? [];
 
         if (!is_array($stored)) {
             return new LoadedHostBook(new HostBook(), 'module.ssh.book.unreadable');
@@ -95,22 +96,23 @@ final class SshStateService extends AbstractSingleton implements HostBookPort
 
     public function save(HostBook $book): void
     {
-        $this->document();
-        $this->document[self::HOSTS_KEY] = self::documentOf($book);
-        $this->write();
+        $section = $this->section() ?? [];
+        $section[self::HOSTS_KEY] = self::documentOf($book);
+        $this->section = $section;
+        $this->documents()->saveSection(self::SECTION, $section);
     }
 
     public function location(): string
     {
-        return $this->directory() . DIRECTORY_SEPARATOR . self::FILE;
+        return $this->documents()->location();
     }
 
     public function lastDirectory(string $hostName): ?string
     {
-        // Dokument nieczytelny (`null`) traktujemy jak pusty: brak zapamiętanego
+        // Sekcja nieczytelna (`null`) traktowana jak pusta: brak zapamiętanego
         // katalogu jest tu stanem zwykłym, a powód nieczytelności pokazuje już
         // odczyt książki i drugi raz nie ma po co go powtarzać.
-        $stored = ($this->document() ?? [])[self::DIRECTORIES_KEY] ?? null;
+        $stored = ($this->section() ?? [])[self::DIRECTORIES_KEY] ?? null;
 
         if (!is_array($stored)) {
             return null;
@@ -122,9 +124,6 @@ final class SshStateService extends AbstractSingleton implements HostBookPort
     }
 
     /**
-     * Zapis idzie **całym dokumentem**, jak przy książce — plik jest mały,
-     * a `rename()` niepodzielny.
-     *
      * Zapis, który niczego nie zmienia, **nie dotyka dysku** i to nie jest
      * mikrooptymalizacja: metoda woła się przy każdym przyjęciu listy, więc bez
      * tego warunku odświeżenie katalogu klawiszem `F5` przepisywałoby plik za
@@ -132,7 +131,8 @@ final class SshStateService extends AbstractSingleton implements HostBookPort
      */
     public function rememberDirectory(string $hostName, string $path): void
     {
-        $stored = ($this->document() ?? [])[self::DIRECTORIES_KEY] ?? [];
+        $section = $this->section() ?? [];
+        $stored = $section[self::DIRECTORIES_KEY] ?? [];
 
         if (!is_array($stored)) {
             $stored = [];
@@ -144,8 +144,9 @@ final class SshStateService extends AbstractSingleton implements HostBookPort
 
         /** @var array<string, mixed> $stored */
         $stored[$hostName] = $path;
-        $this->document[self::DIRECTORIES_KEY] = $stored;
-        $this->write();
+        $section[self::DIRECTORIES_KEY] = $stored;
+        $this->section = $section;
+        $this->documents()->saveSection(self::SECTION, $section);
     }
 
     /**
@@ -236,73 +237,23 @@ final class SshStateService extends AbstractSingleton implements HostBookPort
     }
 
     /**
-     * Dokument z dysku, przeczytany raz; `null` znaczy „nie da się go
+     * Sekcja z dokumentu stanu, przeczytana raz; `null` znaczy „nie da się jej
      * przeczytać".
      *
      * @return array<string, mixed>|null
      */
-    private function document(): ?array
+    private function section(): ?array
     {
-        if ($this->documentRead) {
-            return $this->document;
+        if (!$this->sectionRead) {
+            $this->sectionRead = true;
+            $this->section = $this->documents()->section(self::SECTION);
         }
 
-        $this->documentRead = true;
-        $path = $this->location();
-
-        if (!is_file($path)) {
-            return $this->document;
-        }
-
-        $raw = @file_get_contents($path);
-        /** @var mixed $decoded */
-        $decoded = $raw === false ? null : json_decode($raw, true);
-
-        if (!is_array($decoded)) {
-            return null;
-        }
-
-        /** @var array<string, mixed> $decoded */
-        return $this->document = $decoded;
+        return $this->section;
     }
 
-    private function write(): void
+    private function documents(): StateDocumentPort
     {
-        $directory = $this->directory();
-
-        if (!is_dir($directory) && !@mkdir($directory, self::DIRECTORY_MODE, true) && !is_dir($directory)) {
-            return;
-        }
-
-        $content = json_encode($this->document, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        if ($content === false) {
-            return;
-        }
-
-        $temporary = $directory . DIRECTORY_SEPARATOR . self::TEMPORARY_PREFIX . getmypid() . '.tmp';
-
-        if (@file_put_contents($temporary, $content . "\n") === false) {
-            return;
-        }
-
-        @chmod($temporary, self::FILE_MODE);
-
-        if (!@rename($temporary, $this->location())) {
-            @unlink($temporary);
-        }
-    }
-
-    /** Katalog domowy z `HOME`, a w jego braku — katalog roboczy (jak w konfiguracji). */
-    private function directory(): string
-    {
-        $home = getenv('HOME');
-
-        if (!is_string($home) || $home === '') {
-            $working = getcwd();
-            $home = $working === false ? '.' : $working;
-        }
-
-        return rtrim($home, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::DIRECTORY;
+        return $this->documents ?? StateDocumentService::getInstance();
     }
 }

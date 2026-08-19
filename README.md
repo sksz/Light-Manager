@@ -788,19 +788,6 @@ Wbudowanych jest dziś siedem:
   potrzebuje przy tym okna: silnik audio startuje bez kontekstu OpenGL, więc
   muzyka gra także w obu torach terminalowych.
 
-- **Książka adresowa** (`address-book`, `Ctrl`+`W`) — spis miejsc, pod które
-  łączą się pozostałe moduły. `F7` dopisuje adres, `F4` zmienia, `F8` usuwa,
-  `Ctrl`+`F` zawęża spis; to samo robią komendy `address-book.show`,
-  `address-book.add [nazwa] [adres]` i `address-book.remove <wpis>`.
-
-  Trzy rzeczy warto o niej wiedzieć. **Wpis ma własny identyfikator** i to on
-  jest jego tożsamością — nazwę wolno zmienić, zostawić pustą albo powtórzyć,
-  a odniesienia innych modułów tego nie zauważą; identyfikator widać w ostatniej
-  kolumnie i to jego przyjmują komendy. **Pola poza nazwą i adresem dokładają
-  moduły**: sesja zdalna dopisuje port i użytkownika, a książka pyta o nie w tym
-  samym łańcuchu okien. **Haseł, kluczy ani certyfikatów w książce nie ma** —
-  trzyma je ten moduł, który się nimi przedstawia.
-
 - **Sesja zdalna** (`ssh`, `Ctrl`+`S`) — połączenie SSH z hostem z książki
   adresowej. `Enter` łączy z podświetlonym wpisem albo rozłącza, gdy to z nim
   stoi sesja; `F4` przestawia sposób uwierzytelnienia, `F5` sprawdza stan sesji.

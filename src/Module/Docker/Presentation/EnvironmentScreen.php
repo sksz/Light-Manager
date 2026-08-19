@@ -54,8 +54,20 @@ use LightManager\Presentation\Ui\ScrollWindow;
  */
 final class EnvironmentScreen
 {
-    /** Szerokość kolumny rodzaju — mieści najdłuższą nazwę rodzaju. */
-    private const KIND_COLUMN = 12;
+    /**
+     * Szerokość kolumny rodzaju — mieści najdłuższą nazwę rodzaju.
+     *
+     * **Szesnaście, a nie dwanaście** (poprawka z 2026-08-18, przy pierwszym
+     * obejrzeniu klatki pod XTermem): `gniazdo lokalne` ma piętnaście znaków,
+     * więc dwunastoznakowa kolumna ucinała go do `gniazdo lo…` — w każdym
+     * wierszu tego rodzaju, czyli w wierszu domyślnym pierwszego uruchomienia.
+     * **Szesnaście, bo kolumna oddaje ostatni znak na odstęp** od sąsiadki:
+     * przy piętnastu napis nadal tracił literę (sprawdzone złotą klatką, nie
+     * rachunkiem). Lekcja jest ta sama, co przy roli `Marked` w kroku 43:
+     * **miara dobrana z głowy, bez obejrzenia klatki, bywa miarą nietrafioną**,
+     * a napisy katalogu są jedyną, którą wolno się tu kierować.
+     */
+    private const KIND_COLUMN = 16;
 
     /** Szerokość kolumny pochodzenia — mieści „klient docker". */
     private const ORIGIN_COLUMN = 14;

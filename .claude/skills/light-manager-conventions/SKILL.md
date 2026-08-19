@@ -1004,27 +1004,6 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     `QueryIsTheOnlyReadPathTest`, gdzie zakazane jest czytanie obiektem, który
     wolno trzymać).
 
-15h. **Dana dzielona przez kilka modułów dostaje moduł-właściciela, nie miejsce
-    w rdzeniu** (krok 60, D104/D105). Adres, pod którym coś stoi, był do tamtego
-    kroku własnością modułu sesji zdalnej, a sięgał po niego moduł Dockera —
-    kwerendą, więc reguła 15g była spełniona, ale **odrzucenie właściciela
-    zabierało dane wszystkim**: brak klienta `ssh` znaczył brak adresów także dla
-    tunelu, który z `ssh` nie ma nic wspólnego. Rozwiązaniem jest **siódmy
-    moduł** (`src/Module/AddressBook/`), a nie port ani pojęcie w rdzeniu —
-    D42 zostaje nietknięte. Cztery zdania graniczne tego wzorca:
-    **wpis jest pojemnikiem z własną tożsamością** (identyfikator losowy,
-    ośmioznakowy; nazwa i adres wolno puste, bo tożsamości nie niosą);
-    **pola dokładają moduły rozdziałami**, zakładanymi **komendą** wskazującą
-    **własną kwerendę** z deklaracją pól (klucz, etykieta, rodzaj, domyślna) —
-    czyli napisy w obie strony, ani jednego typu przez granicę;
-    **rozdział zakłada się w takcie**, nie przy pierwszym odczycie, bo inaczej
-    użytkownik zaczynający od cudzego ekranu zobaczy wpis bez twoich pól;
-    **materiał uwierzytelnienia do dzielonej danej nie wchodzi** (11w) —
-    zostaje w sekcji tego, kto się nim przedstawia, kluczowany identyfikatorem
-    wpisu. Próba na przyszłość jest ta sama, co przy 15b, tylko przyłożona do
-    odczytu: dana chcąca własny moduł musi mieć **dwóch czytelników** i koszt
-    utraty **niezależny od tego, który z nich akurat działa**.
-
 15b. **Reguła 15 ma dokładnie jeden wyjątek i jest on nazwany: zapis na dysk**
     (krok 41, D66/D75). Rdzeń ma port operacji na plikach
     (`Application\Port\FileOperationsPort` + `Infrastructure\FileSystem\FileOperationsService`),

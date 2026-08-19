@@ -1016,8 +1016,7 @@ rdzeń rozdaje **bez pytania**, a `core.context`, `browser.cwd` i
 uzasadnia ich istnienie: kontekst mówi o panelu **czynnym**, kwerenda o dowolnym.
 
 **Zasięg domknięty w kroku 54.** Kwerendy mają odtąd **wszystkie moduły** —
-w kroku 54 było ich sześć (`ssh` cztery, `docker` pięć, `k8s` sześć), a od kroku
-60 dochodzi siódmy (`address-book` dwie) — a strażnik
+w kroku 54 było ich sześć (`ssh` cztery, `docker` pięć, `k8s` sześć) — a strażnik
 `QueryIsTheOnlyReadPathTest` nie zna ani jednego zwolnienia. Dopisanie ich do
 gotowych modułów kosztowało **jedną zdolność na moduł** i ani jednej linii
 w `Application/Query/`; to była druga miara tamtego kroku i sprawdza się ją
@@ -1272,59 +1271,10 @@ bloki i-węzła z `lstat`, bez uruchamiania czegokolwiek) i **na żądanie klawi
 `d`**, jak suma kontrolna. Postępu `du` nie zna, więc pasek chodzi w trybie
 „nieznany” — pierwsze prawdziwe użycie tego trybu od kroku 23.
 
-#### Książka adresowa: dana dzielona ma moduł-właściciela (od kroku 60)
-
-Moduł `src/Module/AddressBook/` (`Ctrl`+`W`) trzyma **adresy, pod którymi coś
-stoi**, i oddaje je każdemu, kto zapyta nazwą kwerendy. Jest **siódmym
-sprawdzianem kontraktu modułu i pierwszym modułem istniejącym po to, żeby dzielić
-dane** — poprzednie sześć powstało dla własnych funkcji.
-
-**Zdanie graniczne całego rozwiązania: adres mieszka w książce, a poświadczenie
-u tego, kto się nim przedstawia.** Wynika z reguły 11w, nie z porządku: kwerenda
-książki jest czytelna dla **każdego** modułu, więc ścieżka klucza prywatnego
-w jej wierszu mówiłaby obcemu, gdzie tego klucza szukać. Moduł sesji zdalnej
-trzyma przez to sposób uwierzytelnienia i ścieżkę klucza w **swojej** sekcji
-dokumentu stanu, kluczowane identyfikatorem wpisu.
-
-**Wpis jest pojemnikiem z własną tożsamością** (D105 nr 2 i 4). Zawsze niesie
-identyfikator (losowy, ośmioznakowy, szesnastkowy), nazwę i adres — a nazwa
-i adres **mogą być puste**. Tożsamością jest identyfikator, a nie nazwa, i to jest
-odwrócenie wzorca trzech wcześniejszych książek (`HostBook`, `EnvironmentBook`,
-`ClusterBook`): nazwę wolno zmienić, bywa pusta i bywa powtórzona, a odniesienia
-do wpisu trzymają **obcy** — wpis tunelowy modułu Dockera trzyma napis, za którym
-książka nie umie pójść.
-
-**Pola poza nazwą i adresem dokładają moduły — rozdziałami** (D105 nr 3). Moduł
-zakłada swój rozdział **komendą** `address-book.chapter`, podając trzy napisy:
-własny identyfikator, nazwę **własnej kwerendy** deklarującej pola i klucz napisu
-z tytułem rozdziału. Książka czyta z tej kwerendy wiersze (klucz, etykieta,
-rodzaj, wartość domyślna) i pyta o nie w tym samym łańcuchu okien, co o nazwę
-i adres. **Rdzeń nie bierze w tym udziału i nie wie o rozdziałach nic** — D42
-zostaje nietknięte, a droga jest w całości drogą reguły 15g: napisy tam, napisy
-z powrotem.
-
-Trzy rzeczy warte zapamiętania przy dopisywaniu rozdziału do własnego modułu:
-**zakładaj go w takcie** (`NeedsTick`), a nie przy pierwszym odczycie — inaczej
-użytkownik, który zaczyna od książki, otworzy wpis bez twoich pól; **deklarację
-oddawaj kwerendą o stałym pokoleniu**, bo nie zmienia się w czasie uruchomienia;
-**pola sekretne deklaruj u siebie, nie tutaj** — rozdział niesie dane, które
-oddajesz wszystkim.
-
-**Rozdziały nie są zapisywane na dysk.** Zakłada się je przy każdym uruchomieniu,
-więc moduł wyłączony albo odrzucony po prostu nie ma rozdziału — a jego wartości
-we wpisach **zostają nietknięte** i wracają, gdy moduł wróci. Spis rozdziałów
-zapisany na dysku musiałby być sprzątany, a nie ma komu.
-
-**Moduł nie odmawia startu nigdy** (nie deklaruje `RequiresEnvironment`) i to jest
-druga miara kroku 60: brak klienta `ssh` odrzuca moduł sesji zdalnej, ale **nie ma
-prawa odebrać użytkownikowi adresów**, z których korzysta też moduł Dockera.
-
 #### Sesja zdalna: praca poza maszyną (od kroku 48)
 
 Moduł `src/Module/Ssh/` nawiązuje i utrzymuje połączenie SSH z hostem ze spisu,
-który użytkownik prowadzi z ekranu (`Ctrl`+`S`) — **a od kroku 60 spis ten nie
-należy do niego**: adresy czyta kwerendą z książki adresowej, a u siebie trzyma
-poświadczenia i zapamiętane katalogi. Jest **czwartym sprawdzianem
+który użytkownik prowadzi z ekranu (`Ctrl`+`S`). Jest **czwartym sprawdzianem
 kontraktu modułu** — po module rysującym główną funkcję (21), module bez ekranu
 (36) i module pracującym, gdy go nie widać (45), przyszedł moduł **rozmawiający
 z czymś poza maszyną**.

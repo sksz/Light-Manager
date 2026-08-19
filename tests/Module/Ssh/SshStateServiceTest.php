@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Tests\Module\Ssh;
 
+use LightManager\Infrastructure\Config\StateDocumentService;
 use LightManager\Module\Ssh\Application\HostBook;
 use LightManager\Module\Ssh\Domain\ValueObject\AuthMethod;
 use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
@@ -12,7 +13,8 @@ use LightManager\Tests\Support\ResetsSingletons;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Plik stanu modułu `~/.light-manager/ssh.json` (krok 48).
+ * Stan modułu sesji zdalnej — sekcja `ssh` dokumentu stanu (krok 48; od kroku
+ * 59 w `~/.light-manager/state.json`, D103).
  *
  * Test podstawia `HOME` na katalog tymczasowy — tą samą drogą, którą robi to
  * test pliku dźwięku. Sprawdza dwie rzeczy, których z kodu wołającego nie
@@ -37,6 +39,7 @@ final class SshStateServiceTest extends TestCase
         putenv('HOME=' . $this->home);
 
         $this->resetSingleton(SshStateService::class);
+        $this->resetSingleton(StateDocumentService::class);
     }
 
     protected function tearDown(): void
@@ -53,6 +56,7 @@ final class SshStateServiceTest extends TestCase
         putenv($this->previousHome === false ? 'HOME' : 'HOME=' . $this->previousHome);
 
         $this->resetSingleton(SshStateService::class);
+        $this->resetSingleton(StateDocumentService::class);
     }
 
     public function testAMissingFileIsAFreshStartWithoutAProblem(): void
@@ -105,11 +109,15 @@ final class SshStateServiceTest extends TestCase
         mkdir($directory, 0o700, true);
 
         file_put_contents($service->location(), json_encode([
-            'hosts' => [],
-            'transfers' => ['ostatni' => '/var/log/syslog'],
+            'ssh' => [
+                'hosts' => [],
+                'transfers' => ['ostatni' => '/var/log/syslog'],
+            ],
+            'docker' => ['environments' => [['name' => 'cudza', 'kind' => 'local']]],
         ]));
 
         $this->resetSingleton(SshStateService::class);
+        $this->resetSingleton(StateDocumentService::class);
         $service = SshStateService::getInstance();
         $service->load();
         $service->save(new HostBook([new HostProfile('biuro', 'example.com')]));
@@ -117,10 +125,51 @@ final class SshStateServiceTest extends TestCase
         $document = json_decode((string) file_get_contents($service->location()), true);
 
         self::assertIsArray($document);
-        self::assertArrayHasKey('transfers', $document);
-        self::assertSame(['ostatni' => '/var/log/syslog'], $document['transfers']);
-        self::assertIsArray($document['hosts']);
-        self::assertCount(1, $document['hosts']);
+        self::assertIsArray($document['ssh'] ?? null);
+        self::assertSame(['ostatni' => '/var/log/syslog'], $document['ssh']['transfers'] ?? null);
+        $hosts = $document['ssh']['hosts'] ?? null;
+
+        self::assertIsArray($hosts);
+        self::assertCount(1, $hosts);
+        self::assertSame(
+            ['environments' => [['name' => 'cudza', 'kind' => 'local']]],
+            $document['docker'] ?? null,
+            'cudza sekcja przeżywa zapis książki hostów',
+        );
+    }
+
+    /**
+     * Stary `ssh.json` czyta się jak sekcja (D103): książka wraca w całości,
+     * a plik zostaje na dysku nietknięty — sekcją dokumentu staje się dopiero
+     * przy pierwszym zapisie.
+     */
+    public function testTheLegacyFileIsReadAsASectionAndSurvivesUntouched(): void
+    {
+        $directory = $this->home . '/.light-manager';
+        mkdir($directory, 0o700, true);
+        $legacy = json_encode(['hosts' => [['name' => 'biuro', 'host' => 'example.com']]]);
+        file_put_contents($directory . '/ssh.json', $legacy);
+
+        $service = SshStateService::getInstance();
+        $loaded = $service->load();
+
+        self::assertSame(['biuro'], $loaded->book->names());
+        self::assertFalse($loaded->fresh, 'stara książka nie jest świeżym startem');
+
+        $service->save($loaded->book);
+
+        self::assertSame($legacy, file_get_contents($directory . '/ssh.json'), 'stary plik nietknięty');
+        $document = json_decode((string) file_get_contents($directory . '/state.json'), true);
+
+        self::assertIsArray($document);
+
+        $section = $document['ssh'] ?? null;
+
+        self::assertIsArray($section);
+        $sectionHosts = $section['hosts'] ?? null;
+
+        self::assertIsArray($sectionHosts);
+        self::assertCount(1, $sectionHosts);
     }
 
     /**

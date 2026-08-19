@@ -148,6 +148,8 @@ final class ScreenFixture
         public readonly StubContextCatalog $contexts = new StubContextCatalog(),
         public readonly StubTunnel $tunnel = new StubTunnel(),
         public readonly StubKubectl $kubectl = new StubKubectl(),
+        /** Książka klastrów w pamięci (krok 59) — dokumentu stanu maszyny test nie dotyka. */
+        public readonly StubClusterBook $clusterBook = new StubClusterBook(),
         public readonly StubClipboard $clipboard = new StubClipboard(),
     ) {
         $translator = new StubTranslator();
@@ -260,7 +262,7 @@ final class ScreenFixture
         // kroku brzmi „żaden test nie wywołuje `kubectl`”**, a bez podstawionego
         // portu przebieg zależałby od tego, czy maszyna testująca ma klienta —
         // i czy akurat wskazuje na czyjś klaster.
-        $kubernetesModule = new KubernetesModule($this->state, $translator, $settingsStore, $kubectl);
+        $kubernetesModule = new KubernetesModule($this->state, $translator, $settingsStore, $kubectl, $clusterBook);
         $this->kubernetesScreen = $kubernetesModule->screen();
 
         $this->modules = new ModuleRegistry(
