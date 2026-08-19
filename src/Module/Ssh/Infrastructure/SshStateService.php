@@ -4,188 +4,305 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Ssh\Infrastructure;
 
-use LightManager\Application\Port\StateDocumentPort;
-use LightManager\Infrastructure\Config\StateDocumentService;
 use LightManager\Infrastructure\Support\AbstractSingleton;
-use LightManager\Module\Ssh\Application\Port\SshStatePort;
+use LightManager\Module\Ssh\Application\HostBook;
+use LightManager\Module\Ssh\Application\Port\HostBookPort;
+use LightManager\Module\Ssh\Application\Port\LoadedHostBook;
+use LightManager\Module\Ssh\Domain\Exception\InvalidHostProfileException;
 use LightManager\Module\Ssh\Domain\ValueObject\AuthMethod;
-use LightManager\Module\Ssh\Domain\ValueObject\HostCredentials;
+use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
 
 /**
- * Stan modułu sesji zdalnej — sekcja `ssh` dokumentu stanu (krok 48; od kroku
- * 59 w `~/.light-manager/state.json`; kształt z kroku 60).
+ * Stan modułu sesji zdalnej w pliku `~/.light-manager/ssh.json` (krok 48).
  *
- * Usłudze została **treść sekcji**: co znaczą klucze i którędy wiersz staje się
- * poświadczeniem. Mechanizm — plik, zapis tymczasowy z `rename()`, przetrwanie
- * nieznanych kluczy i sekcji — mieszka od kroku 59 za rdzeniowym
- * `StateDocumentPort` i nie jest tu powtórzony ani wierszem (wynik przeglądu 15e).
+ * **Plik stanu modułu, nie plik książki hostów** — dokładnie tak, jak
+ * `audio.json` w kroku 45 (D82 nr 3): kroki 49 i 50 dopiszą **kluczami**, a nie
+ * drugim plikiem, więc dokument ma od pierwszego dnia kształt, który to
+ * uniesie. Klucze, których ta wersja nie zna, przeżywają zapis nietknięte.
  *
- * **Klucz `hosts` przestał być czytany w kroku 60 i nie jest już zapisywany** —
- * adresy przeniosły się do książki adresowej. Zostaje jednak na dysku
- * **nietknięty** i wciąż ma jedno zadanie: jest **drogą awaryjną odczytu**
- * poświadczeń wpisów sprzed migracji, których nie da się odnaleźć po
- * identyfikatorze, bo ten powstał losowo dopiero przy przenosinach. To ta sama
- * zasada, co przy migracji plików modułów w kroku 59: stare zostaje, nowe rośnie
- * obok.
+ * Droga zapisu ta sama, co w historii komend, w konfiguracji i w pliku dźwięku:
+ * plik tymczasowy i `rename()` w tym samym katalogu, więc przerwany zapis
+ * zostawia poprzednią, poprawną wersję zamiast obciętej. Prawa `0600`, bo wpisy
+ * mówią, do jakich maszyn i jako kto użytkownik się loguje.
+ *
+ * **Żadna ścieżka nie rzuca** (zasada portu). Wyjątek samowalidacji profilu jest
+ * tu łapany celowo: wiersz nie do przyjęcia **wypada, a plik zostaje** — ta sama
+ * reguła, co przy pozycji playlisty bez ścieżki, i z tego samego powodu. Jeden
+ * zepsuty wpis nie ma prawa odebrać użytkownikowi całej książki.
  */
-final class SshStateService extends AbstractSingleton implements SshStatePort
+final class SshStateService extends AbstractSingleton implements HostBookPort
 {
-    private const SECTION = 'ssh';
+    private const DIRECTORY = '.light-manager';
 
-    /** Poświadczenia po identyfikatorze wpisu książki (krok 60). */
-    private const CREDENTIALS_KEY = 'credentials';
+    private const FILE = 'ssh.json';
 
-    /** Ostatni oglądany katalog, po jednym na wpis (krok 49; od kroku 60 po `id`). */
+    private const TEMPORARY_PREFIX = '.ssh-';
+
+    /** Klucz książki w dokumencie; obok niego stoi klucz kroku 49, a stanie klucz kroku 50. */
+    private const HOSTS_KEY = 'hosts';
+
+    /** Ostatni oglądany katalog, po jednym na wpis książki (krok 49). */
     private const DIRECTORIES_KEY = 'directories';
 
-    /** Książka hostów sprzed kroku 60 — **czytana wyłącznie awaryjnie**, nigdy zapisywana. */
-    private const LEGACY_HOSTS_KEY = 'hosts';
-
     private const NAME_KEY = 'name';
+
+    private const HOST_KEY = 'host';
+
+    private const PORT_KEY = 'port';
+
+    private const USER_KEY = 'user';
 
     private const AUTH_KEY = 'auth';
 
     private const KEY_PATH_KEY = 'keyPath';
 
-    private ?StateDocumentPort $documents = null;
+    private const REMOTE_DIRECTORY_KEY = 'directory';
+
+    private const FILE_MODE = 0o600;
+
+    private const DIRECTORY_MODE = 0o700;
 
     /**
-     * Ostatnio wczytana sekcja — po to, żeby zapis nie skasował kluczy,
+     * Ostatnio wczytany dokument — po to, żeby zapis nie skasował kluczy,
      * których ta wersja nie zna.
      *
-     * @var array<string, mixed>|null
+     * @var array<string, mixed>
      */
-    private ?array $section = null;
+    private array $document = [];
 
-    private bool $sectionRead = false;
+    private bool $documentRead = false;
 
-    /** Podstawienie dokumentu stanu — **wyłącznie dla testów** (szew jak w `KubectlService`). */
-    public function useSeam(StateDocumentPort $documents): void
+    public function load(): LoadedHostBook
     {
-        $this->documents = $documents;
-        $this->section = null;
-        $this->sectionRead = false;
-    }
-
-    public function credentials(string $entryId, string $entryName = ''): HostCredentials
-    {
-        $credentials = ($this->section() ?? [])[self::CREDENTIALS_KEY] ?? null;
-        $stored = is_array($credentials) ? ($credentials[$entryId] ?? null) : null;
-
-        if (is_array($stored)) {
-            return self::credentialsFrom($stored);
+        if (!is_file($this->location())) {
+            return new LoadedHostBook(new HostBook(), null, fresh: true);
         }
 
-        return $this->legacyCredentials($entryName);
-    }
+        $document = $this->document();
 
-    public function saveCredentials(string $entryId, HostCredentials $credentials): void
-    {
-        if ($entryId === '') {
-            return;
+        if ($document === null) {
+            return new LoadedHostBook(new HostBook(), 'module.ssh.book.unreadable');
         }
 
-        $section = $this->section() ?? [];
-        $entry = [self::AUTH_KEY => $credentials->auth->value];
+        $stored = $document[self::HOSTS_KEY] ?? [];
 
-        if ($credentials->keyPath !== null) {
-            $entry[self::KEY_PATH_KEY] = $credentials->keyPath;
+        if (!is_array($stored)) {
+            return new LoadedHostBook(new HostBook(), 'module.ssh.book.unreadable');
         }
 
-        $stored = $section[self::CREDENTIALS_KEY] ?? [];
-        $section[self::CREDENTIALS_KEY] = is_array($stored) ? $stored : [];
-        $section[self::CREDENTIALS_KEY][$entryId] = $entry;
-        $this->section = $section;
-        $this->documents()->saveSection(self::SECTION, $section);
+        return new LoadedHostBook(new HostBook(self::profilesFrom($stored)));
     }
 
-    public function lastDirectory(string $entryId, string $entryName = ''): ?string
+    public function save(HostBook $book): void
     {
-        // Sekcja nieczytelna (`null`) traktowana jak pusta: brak zapamiętanego
+        $this->document();
+        $this->document[self::HOSTS_KEY] = self::documentOf($book);
+        $this->write();
+    }
+
+    public function location(): string
+    {
+        return $this->directory() . DIRECTORY_SEPARATOR . self::FILE;
+    }
+
+    public function lastDirectory(string $hostName): ?string
+    {
+        // Dokument nieczytelny (`null`) traktujemy jak pusty: brak zapamiętanego
         // katalogu jest tu stanem zwykłym, a powód nieczytelności pokazuje już
         // odczyt książki i drugi raz nie ma po co go powtarzać.
-        $stored = ($this->section() ?? [])[self::DIRECTORIES_KEY] ?? null;
+        $stored = ($this->document() ?? [])[self::DIRECTORIES_KEY] ?? null;
 
         if (!is_array($stored)) {
             return null;
         }
 
-        foreach ([$entryId, $entryName] as $key) {
-            $directory = $key === '' ? null : ($stored[$key] ?? null);
+        $path = $stored[$hostName] ?? null;
 
-            if (is_string($directory) && $directory !== '') {
-                return $directory;
-            }
-        }
-
-        return null;
-    }
-
-    public function rememberDirectory(string $entryId, string $path): void
-    {
-        if ($entryId === '' || $path === '') {
-            return;
-        }
-
-        $section = $this->section() ?? [];
-        $stored = $section[self::DIRECTORIES_KEY] ?? [];
-        $section[self::DIRECTORIES_KEY] = is_array($stored) ? $stored : [];
-        $section[self::DIRECTORIES_KEY][$entryId] = $path;
-        $this->section = $section;
-        $this->documents()->saveSection(self::SECTION, $section);
-    }
-
-    public function location(): string
-    {
-        return $this->documents()->location();
+        return is_string($path) && $path !== '' ? $path : null;
     }
 
     /**
-     * Poświadczenia wpisu sprzed kroku 60 — po nazwie, z nietkniętego klucza
-     * `hosts`.
+     * Zapis idzie **całym dokumentem**, jak przy książce — plik jest mały,
+     * a `rename()` niepodzielny.
+     *
+     * Zapis, który niczego nie zmienia, **nie dotyka dysku** i to nie jest
+     * mikrooptymalizacja: metoda woła się przy każdym przyjęciu listy, więc bez
+     * tego warunku odświeżenie katalogu klawiszem `F5` przepisywałoby plik za
+     * każdym razem.
      */
-    private function legacyCredentials(string $entryName): HostCredentials
+    public function rememberDirectory(string $hostName, string $path): void
     {
-        $hosts = ($this->section() ?? [])[self::LEGACY_HOSTS_KEY] ?? null;
+        $stored = ($this->document() ?? [])[self::DIRECTORIES_KEY] ?? [];
 
-        if ($entryName === '' || !is_array($hosts)) {
-            return new HostCredentials();
+        if (!is_array($stored)) {
+            $stored = [];
         }
 
-        foreach ($hosts as $host) {
-            if (is_array($host) && ($host[self::NAME_KEY] ?? null) === $entryName) {
-                return self::credentialsFrom($host);
+        if (($stored[$hostName] ?? null) === $path) {
+            return;
+        }
+
+        /** @var array<string, mixed> $stored */
+        $stored[$hostName] = $path;
+        $this->document[self::DIRECTORIES_KEY] = $stored;
+        $this->write();
+    }
+
+    /**
+     * @param array<mixed> $stored
+     *
+     * @return list<HostProfile>
+     */
+    private static function profilesFrom(array $stored): array
+    {
+        $profiles = [];
+
+        foreach ($stored as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $profile = self::profileFrom($item);
+
+            if ($profile !== null) {
+                $profiles[] = $profile;
             }
         }
 
-        return new HostCredentials();
+        return $profiles;
     }
 
-    /** @param array<mixed> $stored */
-    private static function credentialsFrom(array $stored): HostCredentials
+    /** @param array<mixed> $item */
+    private static function profileFrom(array $item): ?HostProfile
     {
-        $auth = $stored[self::AUTH_KEY] ?? null;
-        $keyPath = $stored[self::KEY_PATH_KEY] ?? null;
+        $name = $item[self::NAME_KEY] ?? null;
+        $host = $item[self::HOST_KEY] ?? null;
 
-        return new HostCredentials(
-            (is_string($auth) ? AuthMethod::of($auth) : null) ?? AuthMethod::Agent,
-            is_string($keyPath) && $keyPath !== '' ? $keyPath : null,
-        );
-    }
-
-    /** @return array<string, mixed>|null */
-    private function section(): ?array
-    {
-        if (!$this->sectionRead) {
-            $this->section = $this->documents()->section(self::SECTION);
-            $this->sectionRead = true;
+        if (!is_string($name) || !is_string($host)) {
+            return null;
         }
 
-        return $this->section;
+        $port = $item[self::PORT_KEY] ?? HostProfile::DEFAULT_PORT;
+        $user = $item[self::USER_KEY] ?? '';
+        $auth = $item[self::AUTH_KEY] ?? null;
+        $keyPath = $item[self::KEY_PATH_KEY] ?? null;
+        $directory = $item[self::REMOTE_DIRECTORY_KEY] ?? null;
+
+        try {
+            return new HostProfile(
+                $name,
+                $host,
+                is_int($port) ? $port : HostProfile::DEFAULT_PORT,
+                is_string($user) ? $user : '',
+                is_string($auth) ? AuthMethod::of($auth) ?? AuthMethod::Agent : AuthMethod::Agent,
+                is_string($keyPath) && $keyPath !== '' ? $keyPath : null,
+                is_string($directory) && $directory !== '' ? $directory : null,
+            );
+        } catch (InvalidHostProfileException) {
+            // Wpis nie do przyjęcia wypada; reszta książki jest w porządku i nie
+            // ma powodu jej tracić. Port nie rzuca (reguła 8).
+            return null;
+        }
     }
 
-    private function documents(): StateDocumentPort
+    /** @return list<array<string, bool|int|string>> */
+    private static function documentOf(HostBook $book): array
     {
-        return $this->documents ??= StateDocumentService::getInstance();
+        $stored = [];
+
+        foreach ($book->all() as $profile) {
+            $entry = [
+                self::NAME_KEY => $profile->name,
+                self::HOST_KEY => $profile->host,
+                self::PORT_KEY => $profile->port,
+                self::USER_KEY => $profile->user,
+                self::AUTH_KEY => $profile->auth->value,
+            ];
+
+            // Pól pustych nie zapisujemy: dokument ma się dać przeczytać oczami,
+            // a `"keyPath": null` w każdym wpisie tylko go zaśmieca.
+            if ($profile->keyPath !== null) {
+                $entry[self::KEY_PATH_KEY] = $profile->keyPath;
+            }
+
+            if ($profile->remoteDirectory !== null) {
+                $entry[self::REMOTE_DIRECTORY_KEY] = $profile->remoteDirectory;
+            }
+
+            $stored[] = $entry;
+        }
+
+        return $stored;
+    }
+
+    /**
+     * Dokument z dysku, przeczytany raz; `null` znaczy „nie da się go
+     * przeczytać".
+     *
+     * @return array<string, mixed>|null
+     */
+    private function document(): ?array
+    {
+        if ($this->documentRead) {
+            return $this->document;
+        }
+
+        $this->documentRead = true;
+        $path = $this->location();
+
+        if (!is_file($path)) {
+            return $this->document;
+        }
+
+        $raw = @file_get_contents($path);
+        /** @var mixed $decoded */
+        $decoded = $raw === false ? null : json_decode($raw, true);
+
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        /** @var array<string, mixed> $decoded */
+        return $this->document = $decoded;
+    }
+
+    private function write(): void
+    {
+        $directory = $this->directory();
+
+        if (!is_dir($directory) && !@mkdir($directory, self::DIRECTORY_MODE, true) && !is_dir($directory)) {
+            return;
+        }
+
+        $content = json_encode($this->document, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        if ($content === false) {
+            return;
+        }
+
+        $temporary = $directory . DIRECTORY_SEPARATOR . self::TEMPORARY_PREFIX . getmypid() . '.tmp';
+
+        if (@file_put_contents($temporary, $content . "\n") === false) {
+            return;
+        }
+
+        @chmod($temporary, self::FILE_MODE);
+
+        if (!@rename($temporary, $this->location())) {
+            @unlink($temporary);
+        }
+    }
+
+    /** Katalog domowy z `HOME`, a w jego braku — katalog roboczy (jak w konfiguracji). */
+    private function directory(): string
+    {
+        $home = getenv('HOME');
+
+        if (!is_string($home) || $home === '') {
+            $working = getcwd();
+            $home = $working === false ? '.' : $working;
+        }
+
+        return rtrim($home, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::DIRECTORY;
     }
 }

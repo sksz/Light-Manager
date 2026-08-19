@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Ssh\Application;
 
+use LightManager\Module\Ssh\Application\Port\HostBookPort;
 use LightManager\Module\Ssh\Application\Port\RemoteDirectoryPort;
-use LightManager\Module\Ssh\Application\Port\SshStatePort;
 use LightManager\Module\Ssh\Domain\Aggregate\RemoteDirectory;
 use LightManager\Module\Ssh\Domain\Exception\InvalidRemotePathException;
 use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
@@ -56,7 +56,7 @@ final class RemoteBrowser
 
     public function __construct(
         private readonly RemoteDirectoryPort $directories,
-        private readonly SshStatePort $storage,
+        private readonly HostBookPort $storage,
         bool $includeHidden = false,
     ) {
         $this->filter = RemoteNameFilter::none();
@@ -338,7 +338,7 @@ final class RemoteBrowser
         $host = $this->host;
 
         if ($host !== null) {
-            $this->storage->rememberDirectory($host->id, $directory->path->value);
+            $this->storage->rememberDirectory($host->name, $directory->path->value);
         }
     }
 
@@ -353,7 +353,7 @@ final class RemoteBrowser
      */
     private function startingPath(HostProfile $host): ?RemotePath
     {
-        foreach ([$this->storage->lastDirectory($host->id, $host->name), $host->remoteDirectory] as $candidate) {
+        foreach ([$this->storage->lastDirectory($host->name), $host->remoteDirectory] as $candidate) {
             if ($candidate === null || !str_starts_with($candidate, RemotePath::SEPARATOR)) {
                 continue;
             }

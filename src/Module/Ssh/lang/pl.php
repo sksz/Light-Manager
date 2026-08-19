@@ -28,7 +28,6 @@ return [
 
     // Kwerendy modułu (krok 54).
     'module.ssh.query.hosts' => 'książka hostów wraz ze sposobem uwierzytelnienia',
-    'module.ssh.query.addressFields' => 'pola dokładane wpisowi książki adresowej',
     'module.ssh.query.session' => 'etap sesji, host i powód niepowodzenia',
     'module.ssh.query.entries' => 'zdalny katalog wraz z etapem odczytu',
     'module.ssh.query.transfer' => 'stan przesyłu: kierunek, plik, bajty, etap',
@@ -50,9 +49,6 @@ return [
     'module.ssh.column.auth' => 'Sposób',
     'module.ssh.column.state' => 'Stan',
     'module.ssh.empty' => 'Spis jest pusty — dopisz host klawiszem F7.',
-    'module.ssh.header.book' => 'Spis czytany z książki adresowej — Ctrl+W otwiera ją do zmian.',
-    'module.ssh.field.port' => 'Port SSH',
-    'module.ssh.field.user' => 'Użytkownik',
     'module.ssh.header.session' => '{stage}: {host}',
 
     // Zdalny katalog (krok 49).

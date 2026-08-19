@@ -23,7 +23,6 @@ use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Application\UseCase\ChangeSettingUseCase;
 use LightManager\Application\UseCase\RestoreDefaultSettingsUseCase;
 use LightManager\Domain\ValueObject\RendererMode;
-use LightManager\Module\AddressBook\Presentation\AddressBookModule;
 use LightManager\Module\Audio\Presentation\AudioModule;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Domain\Repository\DirectoryRepositoryInterface;
@@ -101,9 +100,6 @@ final class ScreenFixture
     /** Spis hostów modułu sesji zdalnej (krok 48). */
     public readonly ScreenInterface $sshScreen;
 
-    /** Ekran książki adresowej (krok 60). */
-    public readonly ScreenInterface $addressBookScreen;
-
     /** Ekran modułu Dockera (krok 51) — kontenery, obrazy i logi w jednym. */
     public readonly ScreenInterface $dockerScreen;
 
@@ -143,9 +139,7 @@ final class ScreenFixture
         public readonly StubTrackFiles $tracks = new StubTrackFiles(),
         public readonly StubEffectStorage $effects = new StubEffectStorage(),
         public readonly StubSshSession $sessions = new StubSshSession(),
-        public readonly StubSshState $sshState = new StubSshState(),
-        /** Książka adresowa w pamięci (krok 60) — dokumentu stanu maszyny test nie dotyka. */
-        public readonly StubAddressBook $addressBook = new StubAddressBook(),
+        public readonly StubHostBook $hosts = new StubHostBook(),
         public readonly StubRemoteDirectory $remote = new StubRemoteDirectory(),
         public readonly StubRemoteTransfer $remoteTransfers = new StubRemoteTransfer(),
         public readonly StubDockerApi $docker = new StubDockerApi(),
@@ -154,8 +148,6 @@ final class ScreenFixture
         public readonly StubContextCatalog $contexts = new StubContextCatalog(),
         public readonly StubTunnel $tunnel = new StubTunnel(),
         public readonly StubKubectl $kubectl = new StubKubectl(),
-        /** Książka klastrów w pamięci (krok 59) — dokumentu stanu maszyny test nie dotyka. */
-        public readonly StubClusterBook $clusterBook = new StubClusterBook(),
         public readonly StubClipboard $clipboard = new StubClipboard(),
     ) {
         $translator = new StubTranslator();
@@ -215,9 +207,7 @@ final class ScreenFixture
 
         // Moduł sesji zdalnej wchodzi z atrapami **wszystkich trzech** portów —
         // sesji i odczytu katalogu (bo test nie ma prawa wyjść do sieci) oraz
-        // stanu modułu (bo nie ma prawa dotknąć dokumentu w katalogu domowym);
-        // od kroku 60 ten trzeci niesie poświadczenia i zapamiętane katalogi,
-        // a adresy przyszły z książki adresowej. Podstawiony
+        // książki hostów (bo nie ma prawa dotknąć katalogu domowego). Podstawiony
         // port sesji jest zarazem odpowiedzią na `RequiresEnvironment`: bez niego
         // zestaw modułów zależałby od tego, czy maszyna uruchamiająca testy ma
         // zainstalowanego klienta OpenSSH (krok 48).
@@ -230,19 +220,12 @@ final class ScreenFixture
         // i stawka jest tu wyższa: przesył nie tylko wychodzi do sieci, ale
         // **pisze po dysku**, więc przebieg bez atrapy zostawiałby po sobie pliki
         // w katalogu, w którym akurat stoi test.
-        // Książka adresowa (krok 60) — **przed** modułem sesji zdalnej, bo to
-        // z niej bierze on odtąd adresy. Atrapa portu z tego samego powodu, co
-        // przy wszystkich pozostałych książkach: dokument stanu w katalogu
-        // domowym należy do osoby uruchamiającej testy, a nie do nich.
-        $addressBookModule = new AddressBookModule($this->state, $translator, $settingsStore, $addressBook);
-        $this->addressBookScreen = $addressBookModule->screen();
-
         $sshModule = new SshModule(
             $this->state,
             $translator,
             $settingsStore,
             $sessions,
-            $sshState,
+            $hosts,
             $remote,
             $remoteTransfers,
         );
@@ -277,11 +260,11 @@ final class ScreenFixture
         // kroku brzmi „żaden test nie wywołuje `kubectl`”**, a bez podstawionego
         // portu przebieg zależałby od tego, czy maszyna testująca ma klienta —
         // i czy akurat wskazuje na czyjś klaster.
-        $kubernetesModule = new KubernetesModule($this->state, $translator, $settingsStore, $kubectl, $clusterBook);
+        $kubernetesModule = new KubernetesModule($this->state, $translator, $settingsStore, $kubectl);
         $this->kubernetesScreen = $kubernetesModule->screen();
 
         $this->modules = new ModuleRegistry(
-            [$browser, $fileInfo, $audioModule, $addressBookModule, $sshModule, $dockerModule, $kubernetesModule],
+            [$browser, $fileInfo, $audioModule, $sshModule, $dockerModule, $kubernetesModule],
             $settingsStore->current()->modules,
             Bootstrap::LAST_RESORT_MODULE,
         );

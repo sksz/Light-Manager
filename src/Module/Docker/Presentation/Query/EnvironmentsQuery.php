@@ -19,7 +19,7 @@ use LightManager\Module\Docker\Domain\ValueObject\EnvironmentKind;
  * **Poświadczenia nie wychodzą wierszami** (reguła 11w, kryterium kroku):
  * ścieżek kluczy TLS ani celu SSH tu nie ma — adresem wpisu tunelowego jest
  * gniazdo lokalne, czyli to, z czym moduł faktycznie rozmawia. Ta sama granica,
- * którą książka adresowa trzyma dla materiału uwierzytelnienia (krok 60).
+ * którą `ssh.hosts` trzyma dla odcisku klucza.
  *
  * Pokolenie jest prawdziwym licznikiem: koordynator bije je przy każdej
  * zmianie książki, kontekstów, wyboru i stanu tunelu — czyli źródło umie

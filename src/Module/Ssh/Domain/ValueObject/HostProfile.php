@@ -7,7 +7,7 @@ namespace LightManager\Module\Ssh\Domain\ValueObject;
 use LightManager\Module\Ssh\Domain\Exception\InvalidHostProfileException;
 
 /**
- * Cel połączenia: z kim, jako kto i czym się przedstawiając (kroki 48 i 60).
+ * Wpis książki hostów: z kim, jako kto i czym się przedstawiając (krok 48).
  *
  * **Obiekt wartości, więc pilnuje się sam** (reguła 6) — i tutaj samowalidacja
  * robi więcej niż zwykle. Trzy z tych pól trafiają do wiersza polecenia
@@ -20,18 +20,6 @@ use LightManager\Module\Ssh\Domain\Exception\InvalidHostProfileException;
  * a nie jedyną — i pilnują rzeczy, której cytowanie upilnować nie może: **żadna
  * wartość nie zaczyna się od `-`**, bo `ssh` przeczytałby ją jako opcję,
  * niezależnie od tego, jak dokładnie zacytowała ją powłoka.
- *
- * **Od kroku 60 nie jest to wpis książki, tylko cel złożony z dwóch źródeł** —
- * i to jest cała zmiana, jaką ten krok robi w tej klasie. Adres, nazwa, port
- * i login przychodzą **wierszem kwerendy** z książki adresowej (`id`, `name`,
- * `address`, `ssh.port`, `ssh.user` — same napisy i liczby, ani jednego typu,
- * reguła 15g), a sposób uwierzytelnienia i ścieżka klucza — z **własnej sekcji
- * modułu**, bo materiał uwierzytelnienia do książki czytanej przez wszystkich
- * nie wchodzi (reguła 11w).
- *
- * **Tożsamością jest `id` wpisu książki, a nie nazwa** (D105 nr 4): nazwa bywa
- * pusta, bywa powtórzona i wolno ją zmienić. Nazwa została polem opisowym
- * i dlatego wolno jej być pustą — `label()` pokazuje wtedy adres.
  *
  * `remoteDirectory` nie ma dziś odbiorcy w kodzie i **jest to świadome**: pole
  * niesie się w pliku stanu od pierwszego dnia, bo krok 49 dopisze do tego samego
@@ -47,8 +35,8 @@ final readonly class HostProfile
 
     private const MAX_HOST_LENGTH = 255;
 
-    /** Nazwa własna: cokolwiek czytelnego albo nic, byle bez znaków sterujących. */
-    private const NAME_PATTERN = '/^[^\x00-\x1F\x7F]*$/u';
+    /** Nazwa własna: cokolwiek czytelnego, byle bez znaków sterujących. */
+    private const NAME_PATTERN = '/^[^\x00-\x1F\x7F]+$/u';
 
     /**
      * Host: nazwa domenowa, adres IPv4 albo IPv6 (stąd dwukropki i nawiasy).
@@ -60,8 +48,6 @@ final readonly class HostProfile
     private const USER_PATTERN = '/^[A-Za-z0-9_][A-Za-z0-9._-]*$/';
 
     public function __construct(
-        /** Identyfikator wpisu książki adresowej — tożsamość celu (krok 60). */
-        public string $id,
         public string $name,
         public string $host,
         public int $port = self::DEFAULT_PORT,
@@ -87,57 +73,34 @@ final readonly class HostProfile
             : $this->target() . ':' . $this->port;
     }
 
-    /** Nazwa wpisu albo — gdy jej nie ma — to, co widać zamiast niej. */
-    public function displayName(): string
-    {
-        return $this->name === '' ? $this->label() : $this->name;
-    }
-
     /**
-     * Tożsamość celu to **identyfikator wpisu książki** (krok 60, D105 nr 4).
+     * Tożsamość wpisu to jego **nazwa własna**, a nie `użytkownik@host`.
      *
-     * Do kroku 60 była nią nazwa własna i miało to swój powód — dwa wpisy o tym
-     * samym adresie i różnym sposobie uwierzytelnienia są dwoma wpisami. Powód
-     * został, zmienił się nośnik: identyfikator jest stały, a nazwa bywa pusta
-     * i powtórzona, więc porównanie po niej myliłoby dwa różne miejsca.
+     * Dwa wpisy o tym samym adresie i różnym sposobie uwierzytelnienia są dwoma
+     * wpisami — inaczej nie dałoby się mieć jednego przez agenta i drugiego przez
+     * hasło, a to jest zwyczajna sytuacja przy serwerze zapasowym.
      */
     public function equals(self $other): bool
     {
-        return $this->id === $other->id;
+        return $this->name === $other->name;
     }
 
     public function withAuth(AuthMethod $auth, ?string $keyPath = null): self
     {
-        return new self(
-            $this->id,
-            $this->name,
-            $this->host,
-            $this->port,
-            $this->user,
-            $auth,
-            $keyPath,
-            $this->remoteDirectory,
-        );
+        return new self($this->name, $this->host, $this->port, $this->user, $auth, $keyPath, $this->remoteDirectory);
     }
 
     public function withRemoteDirectory(?string $directory): self
     {
-        return new self(
-            $this->id,
-            $this->name,
-            $this->host,
-            $this->port,
-            $this->user,
-            $this->auth,
-            $this->keyPath,
-            $directory,
-        );
+        return new self($this->name, $this->host, $this->port, $this->user, $this->auth, $this->keyPath, $directory);
     }
 
     private function validate(): void
     {
-        // Nazwa **wolno jest pusta** od kroku 60: tożsamość niesie `id`, a nazwa
-        // jest polem opisowym wpisu książki, którego użytkownik nie musi nadawać.
+        if (trim($this->name) === '') {
+            throw InvalidHostProfileException::emptyName();
+        }
+
         if (mb_strlen($this->name) > self::MAX_NAME_LENGTH || preg_match(self::NAME_PATTERN, $this->name) !== 1) {
             throw InvalidHostProfileException::invalidName($this->name);
         }

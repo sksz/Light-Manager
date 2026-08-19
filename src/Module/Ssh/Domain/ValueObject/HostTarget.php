@@ -29,51 +29,31 @@ use LightManager\Module\Ssh\Domain\Exception\InvalidHostProfileException;
 final class HostTarget
 {
     /**
-     * Cel złożony z wpisu książki adresowej i własnych poświadczeń modułu
-     * (krok 60).
+     * @param AuthMethod $auth sposób uwierzytelnienia dla nowego wpisu — z zakładki
+     *                         ustawień, bo okno o niego nie pyta
      *
-     * Adres rozbiera się na `[użytkownik@]host[:port]`, bo tak go zwykle pisze
-     * człowiek — ale **pola rozdziału `ssh` wygrywają**, gdy są. Powód jest
-     * praktyczny: wpis dopisany komendą `address-book.add biuro admin@10.0.0.5`
-     * ma login w adresie i nikt go potem nie przepisuje do osobnego pola,
-     * a wpis wypełniony w oknach książki ma pola i pusty login w adresie.
-     *
-     * @param ?int    $port port z rozdziału albo `null`, gdy rozdział go nie ma
-     * @param ?string $user login z rozdziału albo `null`, jw.
-     *
-     * @throws InvalidHostProfileException gdy adresu nie da się przeczytać albo
+     * @throws InvalidHostProfileException gdy napisu nie da się przeczytać albo
      *                                     gdy profil odmówi samowalidacji
      */
-    public static function of(
-        string $id,
-        string $name,
-        string $address,
-        HostCredentials $credentials,
-        ?int $port = null,
-        ?string $user = null,
-    ): HostProfile {
-        $address = trim($address);
+    public static function parse(string $value, AuthMethod $auth = AuthMethod::Agent, ?string $name = null): HostProfile
+    {
+        $value = trim($value);
 
-        if ($address === '') {
-            throw InvalidHostProfileException::invalidHost($address);
+        if ($value === '') {
+            throw InvalidHostProfileException::emptyName();
         }
 
-        [$parsedUser, $rest] = self::splitUser($address);
-        [$host, $parsedPort] = self::splitPort($rest);
+        [$user, $rest] = self::splitUser($value);
+        [$host, $port] = self::splitPort($rest);
 
         if ($host === '') {
             throw InvalidHostProfileException::invalidHost($rest);
         }
 
-        return new HostProfile(
-            $id,
-            $name,
-            $host,
-            $port ?? $parsedPort,
-            $user === null || $user === '' ? $parsedUser : $user,
-            $credentials->auth,
-            $credentials->keyPath,
-        );
+        // Nazwą własną jest domyślnie to, co użytkownik wpisał — bo to jest
+        // napis, którym sam ten host nazwał. Osobne pytanie o nazwę byłoby
+        // drugim oknem dla wpisu, który zwykle nazywa się tak, jak adres.
+        return new HostProfile($name ?? $value, $host, $port, $user, $auth);
     }
 
     /** @return array{string, string} login (pusty, gdy go nie podano) i reszta */

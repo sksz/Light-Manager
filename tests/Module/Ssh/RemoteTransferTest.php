@@ -16,7 +16,6 @@ use LightManager\Module\Ssh\Application\RemoteBrowser;
 use LightManager\Module\Ssh\Application\RemoteTransferItem;
 use LightManager\Module\Ssh\Application\RemoteTransferState;
 use LightManager\Module\Ssh\Application\SshEvent;
-use LightManager\Module\Ssh\Application\SshSession;
 use LightManager\Module\Ssh\Application\SshSettings;
 use LightManager\Module\Ssh\Application\TransferDirection;
 use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
@@ -27,16 +26,13 @@ use LightManager\Module\Ssh\Presentation\Query\EntriesQuery;
 use LightManager\Module\Ssh\Presentation\Query\TransferQuery;
 use LightManager\Module\Ssh\Presentation\RemoteTransfer;
 use LightManager\Module\Ssh\Presentation\SshQueries;
-use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Ui\Component\TextInput;
 use LightManager\Presentation\Ui\Overlay\ChoiceOverlay;
 use LightManager\Presentation\Ui\Overlay\ProgressOverlay;
 use LightManager\Presentation\Ui\Overlay\PromptOverlay;
-use LightManager\Tests\Support\InMemorySettings;
+use LightManager\Tests\Support\StubHostBook;
 use LightManager\Tests\Support\StubRemoteDirectory;
 use LightManager\Tests\Support\StubRemoteTransfer;
-use LightManager\Tests\Support\StubSshSession;
-use LightManager\Tests\Support\StubSshState;
 use LightManager\Tests\Support\StubTranslator;
 use PHPUnit\Framework\TestCase;
 
@@ -232,8 +228,8 @@ final class RemoteTransferTest extends TestCase
     {
         $port ??= new StubRemoteTransfer();
 
-        $browser = new RemoteBrowser($this->directories, new StubSshState(), false);
-        $browser->open(new HostProfile('00000001', 'biuro', 'example.com', 22, 'anna'));
+        $browser = new RemoteBrowser($this->directories, new StubHostBook(), false);
+        $browser->open(new HostProfile('biuro', 'example.com', 22, 'anna'));
         $browser->tick();
         $browser->putCursor($cursor);
 
@@ -243,24 +239,13 @@ final class RemoteTransferTest extends TestCase
         // rejestr, więc powstaje **przed** kwerendami, a `TransferQuery` dostaje
         // gotowy obiekt pracy.
         $registry = new QueryRegistry();
-        // Fasada modułu potrzebuje od kroku 60 sesji (poświadczenia do celu)
-        // i rejestru komend (zakłada rozdział książki adresowej). Przesyłu ani
-        // jedno, ani drugie nie dotyczy — ale fasada jest jedna na moduł (11n),
-        // więc test składa ją tak, jak składa ją moduł.
-        $settings = new InMemorySettings();
-        $session = new SshSession(new StubSshSession(), new StubSshState(), $settings, $this->events);
-        // Stan pętli podaje fasadzie oba rejestry — i podaje je **w chwili
-        // użycia**, bo rejestr komend wchodzi tam później niż powstaje fasada
-        // (krok 60). Rejestr kwerend jest tu ten sam, który niżej dostaje
-        // kwerendy modułu.
-        $loop = new LoopState($settings->current(), $this->events, $registry);
         $transfers = new RemoteTransfer(
             $browser,
             $port,
             $this->local,
             new StubTranslator(),
             $this->events,
-            new SshQueries($loop, $session),
+            new SshQueries($registry),
         );
         $registry->add(SshSettings::ID, [
             new EntriesQuery($browser, new StubTranslator()),

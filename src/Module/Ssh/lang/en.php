@@ -26,7 +26,6 @@ return [
 
     // Module queries (step 54).
     'module.ssh.query.hosts' => 'host book along with the authentication method',
-    'module.ssh.query.addressFields' => 'fields added to an address book entry',
     'module.ssh.query.session' => 'session stage, host and failure reason',
     'module.ssh.query.entries' => 'remote directory along with the listing stage',
     'module.ssh.query.transfer' => 'transfer state: direction, file, bytes, stage',
@@ -46,9 +45,6 @@ return [
     'module.ssh.column.auth' => 'Method',
     'module.ssh.column.state' => 'State',
     'module.ssh.empty' => 'The book is empty — add a host with F7.',
-    'module.ssh.header.book' => 'List read from the address book — Ctrl+W opens it for changes.',
-    'module.ssh.field.port' => 'SSH port',
-    'module.ssh.field.user' => 'User',
     'module.ssh.header.session' => '{stage}: {host}',
 
     'module.ssh.screen.remote' => 'Remote directory',

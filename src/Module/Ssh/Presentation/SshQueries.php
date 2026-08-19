@@ -4,18 +4,16 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Ssh\Presentation;
 
-use LightManager\Application\Command\CommandInput;
+use LightManager\Application\Query\QueryRegistry;
+use LightManager\Module\Ssh\Application\HostBook;
+use LightManager\Module\Ssh\Application\HostBookView;
 use LightManager\Module\Ssh\Application\RemoteTransferProgress;
 use LightManager\Module\Ssh\Application\RemoteView;
 use LightManager\Module\Ssh\Application\SessionState;
-use LightManager\Module\Ssh\Application\SshSession;
 use LightManager\Module\Ssh\Application\SshSettings;
-use LightManager\Module\Ssh\Domain\Exception\InvalidHostProfileException;
 use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
-use LightManager\Module\Ssh\Domain\ValueObject\HostTarget;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntry;
 use LightManager\Module\Ssh\Domain\ValueObject\RemotePath;
-use LightManager\Presentation\Cli\LoopState;
 
 /**
  * Odczyt danych modułu sesji zdalnej — **przez rejestr kwerend, jak każdy inny**
@@ -32,150 +30,23 @@ use LightManager\Presentation\Cli\LoopState;
  * brak odpowiedzi jest zwykłym stanem (reguła 8), a moduł bywa wyłączony,
  * odrzucony albo nieobecny (15g).
  */
-final class SshQueries
+final readonly class SshQueries
 {
-    /** Nazwy, którymi ten moduł zna książkę adresową — **napisy, ani jednego typu** (15g). */
-    private const BOOK_ENTRIES = 'address-book.entries';
-
-    private const BOOK_CHAPTER = 'address-book.chapter';
-
-    /** Czy rozdział `ssh` został już w tym uruchomieniu założony. */
-    private bool $chapterDeclared = false;
-
-    /**
-     * Rejestry bierze się **ze stanu pętli, a nie w konstruktorze** — i to jest
-     * poprawka, którą wymusił krok 60.
-     *
-     * Rejestr komend wchodzi do stanu pętli **po** złożeniu modułów
-     * (`Bootstrap::useCommands()`), a fasada powstaje razem z ekranem, czyli
-     * wcześniej. Zapamiętany w konstruktorze byłby przez to rejestrem pustym na
-     * zawsze — a rozdział książki adresowej zakładałby się w próżnię. Rejestr
-     * kwerend tej wady nie ma (żyje od pierwszej linii `LoopState`), ale idzie
-     * tą samą drogą, żeby nie było dwóch zasad w jednej klasie.
-     */
     public function __construct(
-        private readonly LoopState $state,
-        private readonly SshSession $session,
+        private QueryRegistry $queries,
     ) {
     }
 
-    /**
-     * Cele połączenia — wpisy książki adresowej złożone z własnymi
-     * poświadczeniami (krok 60).
-     *
-     * **To jest cała droga, którą ten moduł widzi adresy.** Wiersz książki
-     * niesie identyfikator, nazwę, adres oraz pola rozdziału `ssh` (port
-     * i login); sposób uwierzytelnienia i ścieżkę klucza dokłada sekcja tego
-     * modułu, bo do książki czytanej przez wszystkich nie wchodzą (11w).
-     *
-     * Wpis **bez adresu wypada**: nie da się z niego zrobić celu, a spis
-     * hostów, w którym połowa wierszy nie daje się otworzyć, obiecywałby.
-     *
-     * @return list<HostProfile>
-     */
-    public function hosts(): array
+    public function hostBook(): HostBookView
     {
-        $this->declareChapter();
-        $hosts = [];
+        $payload = $this->ask('hosts');
 
-        foreach ($this->state->queries()->ask(self::BOOK_ENTRIES, new CommandInput(['chapter' => SshSettings::ID]))->rows() as $row) {
-            $host = $this->hostFrom($row);
-
-            if ($host !== null) {
-                $hosts[] = $host;
-            }
-        }
-
-        return $hosts;
+        return $payload instanceof HostBookView ? $payload : HostBookView::empty();
     }
 
-    /**
-     * Cel wskazany identyfikatorem wpisu albo jego nazwą; `null`, gdy takiego
-     * nie ma.
-     *
-     * Nazwa jest tu **drogą drugą, nie pierwszą** (D105 nr 4): przyjmuje ją
-     * komenda `ssh.connect`, bo identyfikatora nikt nie pamięta, ale wpis
-     * o powtórzonej nazwie znajdzie się wtedy pierwszy — i to jest cena, którą
-     * płaci się za wygodę wpisywania nazwy.
-     */
-    public function hostFor(string $reference): ?HostProfile
+    public function book(): HostBook
     {
-        foreach ($this->hosts() as $host) {
-            if ($host->id === $reference || ($host->name !== '' && $host->name === $reference)) {
-                return $host;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Zakłada rozdział `ssh` w książce — **raz na uruchomienie, komendą**
-     * (krok 60, D105 nr 3).
-     *
-     * Wołane z **taktu modułu**, a nie tylko przy pierwszym odczycie hostów,
-     * i to nie jest ostrożność: użytkownik, który zaczyna od książki, otwierałby
-     * inaczej wpis **bez pól rozdziału** — bo moduł sesji zdalnej nie zdążyłby
-     * się jeszcze przedstawić. Takt biegnie niezależnie od tego, na co
-     * użytkownik patrzy (11o'), więc jest jedynym miejscem, które tej kolejności
-     * nie ma.
-     *
-     * Zamówienie idzie rejestrem komend ze stanu pętli (11x) i trzema napisami:
-     * identyfikatorem tego modułu, nazwą własnej kwerendy deklarującej pola
-     * i kluczem napisu z tytułem rozdziału. Książka wyłączona albo nieobecna
-     * odpowiada odmową z powodem — i to jest zwykły stan, bo moduł pytający musi
-     * umieć żyć bez odpowiedzi (15g). Bez książki spis hostów będzie pusty
-     * i powie o tym zdaniem.
-     */
-    public function declareChapter(): void
-    {
-        if ($this->chapterDeclared) {
-            return;
-        }
-
-        $this->chapterDeclared = true;
-        $command = $this->state->commands()->find(self::BOOK_CHAPTER);
-
-        // Książki nie ma — moduł wyłączony, odrzucony albo nieobecny. To jest
-        // **zwykły stan**, nie awaria: spis hostów będzie wtedy pusty i powie
-        // o tym zdaniem, a moduł pytający musi umieć żyć bez odpowiedzi (15g).
-        $command?->execute(new CommandInput([
-            'module' => SshSettings::ID,
-            'query' => SshSettings::ID . '.address-fields',
-            'label' => 'module.' . SshSettings::ID . '.name',
-        ]));
-    }
-
-    /**
-     * @param array<string, string|int|bool> $row
-     */
-    private function hostFrom(array $row): ?HostProfile
-    {
-        $id = $row['id'] ?? '';
-        $name = $row['name'] ?? '';
-        $address = $row['address'] ?? '';
-
-        if (!is_string($id) || $id === '' || !is_string($name) || !is_string($address) || $address === '') {
-            return null;
-        }
-
-        $port = $row[SshSettings::ID . '.port'] ?? null;
-        $user = $row[SshSettings::ID . '.user'] ?? null;
-
-        try {
-            return HostTarget::of(
-                $id,
-                $name,
-                $address,
-                $this->session->credentials($id, $name),
-                is_int($port) && $port > 0 ? $port : null,
-                is_string($user) ? $user : null,
-            );
-        } catch (InvalidHostProfileException) {
-            // Wpis nie do przyjęcia **wypada, a spis zostaje** — ta sama reguła,
-            // co przy wierszu książki hostów przed tym krokiem.
-            return null;
-        }
+        return $this->hostBook()->book;
     }
 
     public function session(): SessionState
@@ -242,6 +113,6 @@ final class SshQueries
 
     private function ask(string $name): ?object
     {
-        return $this->state->queries()->ask(SshSettings::ID . '.' . $name)->payloadFor(SshSettings::ID);
+        return $this->queries->ask(SshSettings::ID . '.' . $name)->payloadFor(SshSettings::ID);
     }
 }
