@@ -5,16 +5,14 @@ declare(strict_types=1);
 namespace LightManager\Tests\Module\Kubernetes;
 
 use LightManager\Application\Dto\BackgroundState;
-use LightManager\Module\Kubernetes\Application\ClusterBook;
 use LightManager\Module\Kubernetes\Application\Clusters;
 use LightManager\Module\Kubernetes\Application\ClusterSession;
 use LightManager\Module\Kubernetes\Application\ClusterStage;
 use LightManager\Module\Kubernetes\Application\ClusterState;
 use LightManager\Module\Kubernetes\Application\ConfigCatalog;
-use LightManager\Module\Kubernetes\Application\Port\ClusterBookPort;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ClusterProfile;
-use LightManager\Tests\Support\StubClusterBook;
 use LightManager\Tests\Support\StubKubectl;
+use LightManager\Tests\Support\StubKubernetesState;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -114,7 +112,7 @@ final class ClusterStateTest extends TestCase
     public function testRememberedClusterWinsOverTheCurrentContext(): void
     {
         $kubectl = (new StubKubectl())->willReturn(self::CONFIG_WITH_CURRENT)->willReturn(self::VERSIONS);
-        [$cluster, $clusters] = $this->build($kubectl, book: $this->bookWith('ca-dev'));
+        [$cluster, $clusters] = $this->build($kubectl, entries: $this->bookWith('ca-dev'));
 
         $cluster->begin();
         $this->pump($cluster, $clusters, times: 4);
@@ -126,7 +124,7 @@ final class ClusterStateTest extends TestCase
     public function testAForgottenContextGetsItsOwnState(): void
     {
         $kubectl = (new StubKubectl())->willReturn(self::CONFIG_WITH_CURRENT);
-        [$cluster, $clusters] = $this->build($kubectl, book: $this->bookWith('klaster-którego-nie-ma'));
+        [$cluster, $clusters] = $this->build($kubectl, entries: $this->bookWith('klaster-którego-nie-ma'));
 
         $cluster->begin();
         $this->pump($cluster, $clusters, times: 4);
@@ -146,8 +144,8 @@ final class ClusterStateTest extends TestCase
     public function testAMissingFileGetsItsOwnStateWithoutRunningTheClient(): void
     {
         $kubectl = (new StubKubectl())->willReturn(self::CONFIG_WITH_CURRENT);
-        $book = new StubClusterBook(self::bookOf('zdalny', $this->home . '/nie-ma-mnie.yaml', 'ca-dev'));
-        [$cluster, $clusters] = $this->build($kubectl, book: $book);
+        $book = self::bookOf('zdalny', $this->home . '/nie-ma-mnie.yaml', 'ca-dev');
+        [$cluster, $clusters] = $this->build($kubectl, entries: $book);
 
         $cluster->begin();
         $this->pump($cluster, $clusters, times: 4);
@@ -173,7 +171,7 @@ final class ClusterStateTest extends TestCase
     {
         $kubectl = (new StubKubectl())->willReturn(self::CONFIG_WITH_CURRENT)->willReturn(self::VERSIONS);
         $session = new ClusterSession();
-        $book = new StubClusterBook(self::bookOf('praca', $this->home . '/.kube/config', 'ca-dev', 'produkcja'));
+        $book = self::bookOf('praca', $this->home . '/.kube/config', 'ca-dev', 'produkcja');
         [$cluster, $clusters] = $this->build($kubectl, $session, $book);
 
         $cluster->begin();
@@ -264,36 +262,42 @@ final class ClusterStateTest extends TestCase
     }
 
     /** @return array{ClusterState, Clusters} */
+    /**
+     * @param list<ClusterProfile> $entries
+     *
+     * @return array{ClusterState, Clusters}
+     */
     private function build(
         StubKubectl $kubectl,
         ?ClusterSession $session = null,
-        ?ClusterBookPort $book = null,
+        array $entries = [],
     ): array {
         $session ??= new ClusterSession();
-        $clusters = new Clusters(
-            $book ?? new StubClusterBook(),
-            new ConfigCatalog($kubectl, $session),
-            $session,
-        );
+        $state = new StubKubernetesState();
+
+        if ($entries !== []) {
+            $state->makeCurrent($entries[0]->id);
+        }
+
+        $clusters = new Clusters($state, new ConfigCatalog($kubectl, $session), $session);
+        $clusters->useEntries($entries);
 
         return [new ClusterState($kubectl, $session, $clusters), $clusters];
     }
 
-    private function bookWith(string $context): StubClusterBook
+    /** @return list<ClusterProfile> */
+    private function bookWith(string $context): array
     {
-        return new StubClusterBook(self::bookOf($context, $this->home . '/.kube/config', $context));
+        return self::bookOf($context, $this->home . '/.kube/config', $context);
     }
 
+    /** @return list<ClusterProfile> */
     private static function bookOf(
         string $name,
         string $kubeconfig,
         string $context,
         string $namespace = '',
-    ): ClusterBook {
-        $book = new ClusterBook();
-        $book->add(ClusterProfile::of($name, $kubeconfig, $context, $namespace));
-        $book->makeCurrent($name);
-
-        return $book;
+    ): array {
+        return [ClusterProfile::of($name, $kubeconfig, $context, $namespace, id: 'a1b2c3d4e5f6')];
     }
 }

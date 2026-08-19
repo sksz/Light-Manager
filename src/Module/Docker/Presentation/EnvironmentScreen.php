@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Docker\Presentation;
 
+use LightManager\Application\Command\CommandInput;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Dto\PointerAction;
@@ -28,7 +29,6 @@ use LightManager\Presentation\Ui\Component\Table;
 use LightManager\Presentation\Ui\Component\TableRow;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\Overlay\ChoiceOverlay;
-use LightManager\Presentation\Ui\Overlay\ConfirmOverlay;
 use LightManager\Presentation\Ui\Overlay\PromptOverlay;
 use LightManager\Presentation\Ui\OverlayOutcome;
 use LightManager\Presentation\Ui\PointerRow;
@@ -87,7 +87,6 @@ final class EnvironmentScreen
 
     public function __construct(
         private readonly Environments $environments,
-        private readonly EnvironmentFlow $flow,
         private readonly TranslatorPort $translator,
         private readonly DockerQueries $reader,
         private readonly LoopState $state,
@@ -157,9 +156,6 @@ final class EnvironmentScreen
         return [
             KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move', 'help.key.move.short'),
             KeyBinding::of([Key::Enter], $this->key('env.key.select'), $this->key('env.key.select.short')),
-            KeyBinding::of([Key::F4], $this->key('env.key.edit'), $this->key('env.key.edit.short')),
-            KeyBinding::of([Key::F7], $this->key('env.key.add'), $this->key('env.key.add.short')),
-            KeyBinding::of([Key::F8, Key::Delete], $this->key('env.key.remove'), $this->key('env.key.remove.short')),
             KeyBinding::ctrl('r', $this->key('env.key.refresh'), $this->key('key.refresh.short')),
             KeyBinding::of([Key::Escape], $this->key('key.back'), $this->key('key.back.short')),
         ];
@@ -202,9 +198,6 @@ final class EnvironmentScreen
             Key::Home => $this->putSelection(0),
             Key::End => $this->putSelection($this->reader->environments()->count() - 1),
             Key::Enter => $this->activate(),
-            Key::F4 => $this->askToEdit(),
-            Key::F7 => ScreenOutcome::opens($this->flow->add()),
-            Key::F8, Key::Delete => $this->askToRemove(),
             default => ScreenOutcome::stay(),
         };
     }
@@ -235,7 +228,7 @@ final class EnvironmentScreen
             return ScreenOutcome::stay();
         }
 
-        $entry = $this->environments->find($row->name);
+        $entry = $this->environments->find($row->id === '' ? $row->name : $row->id);
 
         if ($entry !== null && $entry->kind === EnvironmentKind::SshTunnel) {
             [$target, $port] = $this->resolveTunnelTarget($entry);
@@ -249,25 +242,25 @@ final class EnvironmentScreen
                     'cancel' => $this->key('env.prompt.cancel'),
                 ],
                 fn (string $choice): OverlayOutcome => match ($choice) {
-                    'key' => OverlayOutcome::close($this->selected($row->name, $target, $port, null)),
-                    'password' => OverlayOutcome::replace($this->passwordPrompt($row->name, $target, $port)),
+                    'key' => OverlayOutcome::close($this->selected($row, $target, $port, null)),
+                    'password' => OverlayOutcome::replace($this->passwordPrompt($row, $target, $port)),
                     default => OverlayOutcome::close(),
                 },
                 $this->translator,
             ));
         }
 
-        return ScreenOutcome::stay($this->selected($row->name, null, null, null));
+        return ScreenOutcome::stay($this->selected($row, null, null, null));
     }
 
-    private function passwordPrompt(string $name, ?string $target, ?int $port): PromptOverlay
+    private function passwordPrompt(EnvironmentRow $row, ?string $target, ?int $port): PromptOverlay
     {
         return new PromptOverlay(
             $this->key('env.prompt.tunnelPassword'),
-            ['target' => $target ?? $name],
+            ['target' => $target ?? $row->name],
             '',
             fn (string $password): OverlayOutcome => OverlayOutcome::close(
-                $this->selected($name, $target, $port, $password),
+                $this->selected($row, $target, $port, $password),
             ),
             $this->translator,
             $this->key('env.prompt.tunnelPassword.field'),
@@ -275,31 +268,57 @@ final class EnvironmentScreen
         );
     }
 
-    /** Wspólne zakończenie wyboru — zdanie o skutku dla obu dróg. */
-    private function selected(string $name, ?string $target, ?int $port, ?string $password): Message
+    /**
+     * Wspólne zakończenie wyboru — zdanie o skutku dla obu dróg.
+     *
+     * **Wybiera się identyfikatorem, a mówi nazwą** (krok 60): tożsamością wpisu
+     * jest identyfikator, ale zdanie w pasku stanu ma powiedzieć to, co
+     * użytkownik widzi w spisie. Bez tego rozdzielenia komunikat brzmiał
+     * „przełączono na bbbbbbbbbbbb".
+     */
+    private function selected(EnvironmentRow $row, ?string $target, ?int $port, ?string $password): Message
     {
-        $problem = $this->environments->select($name, $target, $port, $password);
+        $problem = $this->environments->select(
+            $row->id === '' ? $row->name : $row->id,
+            $target,
+            $port,
+            $password,
+        );
 
         if ($problem !== null) {
-            return Message::error($this->translator->translate($problem, ['name' => $name]));
+            return Message::error($this->translator->translate($problem, ['name' => $row->name]));
         }
 
-        return Message::info($this->text($target !== null ? 'env.switching' : 'env.switched', ['name' => $name]));
+        return Message::info($this->text($target !== null ? 'env.switching' : 'env.switched', ['name' => $row->name]));
     }
 
     /**
-     * Cel tunelu: dokładne dopasowanie do książki hostów wygrywa z adresem
-     * wpisanym wprost (opis w `DockerEnvironment`).
+     * Cel tunelu — **odniesienie do wpisu książki, nie nazwa** (krok 60,
+     * etap 2).
+     *
+     * Pole `target` rozdziału `docker` jest rodzaju `entry`, więc niesie
+     * identyfikator wpisu, a nie napis, za którym nikt nie umie pójść. Adres
+     * bierze się stąd **jednym pytaniem o cudzy rozdział** (`address-book.entry`
+     * z argumentem `ssh`) i jest to droga zamierzona, nie obejście: rozdział nie
+     * jest przegrodą (D104 nr 1).
+     *
+     * Zysk widać przy zmianie nazwy hosta: przed tym krokiem wpis tunelowy
+     * trzymał nazwę i psuł się po cichu, gdy ktoś ją poprawił.
      *
      * @return array{?string, ?int}
      */
     private function resolveTunnelTarget(DockerEnvironment $entry): array
     {
-        foreach ($this->state->queries()->ask('ssh.hosts')->rows() as $row) {
-            if (($row['name'] ?? null) !== $entry->target) {
-                continue;
-            }
+        if ($entry->target === '') {
+            return [null, $entry->port];
+        }
 
+        $rows = $this->state->queries()->ask(
+            'address-book.entry',
+            new CommandInput(['entry' => $entry->target, 'chapter' => 'ssh']),
+        )->rows();
+
+        foreach ($rows as $row) {
             $host = $row['host'] ?? '';
             $user = $row['user'] ?? '';
             $port = $row['port'] ?? DockerEnvironment::DEFAULT_TUNNEL_PORT;
@@ -310,55 +329,11 @@ final class EnvironmentScreen
 
             return [
                 is_string($user) && $user !== '' ? $user . '@' . $host : $host,
-                is_int($port) ? $port : DockerEnvironment::DEFAULT_TUNNEL_PORT,
+                is_int($port) ? $port : $entry->port,
             ];
         }
 
-        return [$entry->target, $entry->port];
-    }
-
-    private function askToEdit(): ScreenOutcome
-    {
-        $row = $this->underCursor();
-
-        if ($row === null) {
-            return ScreenOutcome::stay();
-        }
-
-        if ($row->entry === null) {
-            return ScreenOutcome::stay(Message::warning($this->text('env.clientEntry', ['name' => $row->name])));
-        }
-
-        return ScreenOutcome::opens($this->flow->edit($row->entry));
-    }
-
-    private function askToRemove(): ScreenOutcome
-    {
-        $row = $this->underCursor();
-
-        if ($row === null) {
-            return ScreenOutcome::stay();
-        }
-
-        if ($row->entry === null) {
-            // Wpis czytany od klienta nie daje się skasować (D96 nr 3) —
-            // kryterium przebiegu funkcjonalnego, nie uprzejmość.
-            return ScreenOutcome::stay(Message::warning($this->text('env.clientEntry', ['name' => $row->name])));
-        }
-
-        $name = $row->entry->name;
-
-        return ScreenOutcome::opens(new ConfirmOverlay(
-            $this->key('env.confirm.remove'),
-            ['name' => $name],
-            function () use ($name): OverlayOutcome {
-                $this->environments->remove($name);
-                $this->clampSelection();
-
-                return OverlayOutcome::close(Message::info($this->text('env.removed', ['name' => $name])));
-            },
-            $this->translator,
-        ));
+        return [null, $entry->port];
     }
 
     /** @return list<Column> */
@@ -443,7 +418,6 @@ final class EnvironmentScreen
 
         return Role::Marked;
     }
-
     private function underCursor(): ?EnvironmentRow
     {
         $this->clampSelection();

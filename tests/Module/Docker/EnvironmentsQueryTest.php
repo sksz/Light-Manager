@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace LightManager\Tests\Module\Docker;
 
 use LightManager\Application\Command\CommandInput;
-use LightManager\Module\Docker\Application\EnvironmentBook;
 use LightManager\Module\Docker\Application\Environments;
 use LightManager\Module\Docker\Domain\ValueObject\DockerEnvironment;
 use LightManager\Module\Docker\Presentation\Query\EnvironmentsQuery;
 use LightManager\Tests\Support\StubContextCatalog;
-use LightManager\Tests\Support\StubEnvironmentBook;
+use LightManager\Tests\Support\StubDockerState;
 use LightManager\Tests\Support\StubTunnel;
 use PHPUnit\Framework\TestCase;
 
@@ -22,14 +21,13 @@ final class EnvironmentsQueryTest extends TestCase
 {
     public function testRowsCarryNeitherTlsPathsNorTheSshTarget(): void
     {
-        $environments = new Environments(
-            new StubEnvironmentBook(new EnvironmentBook([
-                DockerEnvironment::sshTunnel('serwer', 'anna@tajny.example.com', 2222),
+        $environments = new Environments(new StubDockerState(), new StubContextCatalog(), new StubTunnel());
+        // Wpisy własne podaje moduł raz na takt — od kroku 60 mieszkają
+        // w książce adresowej, nie w tym module.
+        $environments->useEntries([
+            DockerEnvironment::sshTunnel('serwer', 'anna@tajny.example.com', 2222),
                 DockerEnvironment::tcp('chmura', 'daemon.example.com', 2376, '/sekrety/cert.pem', '/sekrety/key.pem', '/sekrety/ca.pem'),
-            ])),
-            new StubContextCatalog(),
-            new StubTunnel(),
-        );
+        ]);
 
         $rows = (new EnvironmentsQuery($environments))->ask(new CommandInput())->rows();
 
@@ -49,13 +47,12 @@ final class EnvironmentsQueryTest extends TestCase
     public function testTheCurrentTunnelRowCarriesTheTunnelStage(): void
     {
         $tunnel = new StubTunnel();
-        $environments = new Environments(
-            new StubEnvironmentBook(new EnvironmentBook([
-                DockerEnvironment::sshTunnel('serwer', 'anna@example.com'),
-            ])),
-            new StubContextCatalog(),
-            $tunnel,
-        );
+        $environments = new Environments(new StubDockerState(), new StubContextCatalog(), $tunnel);
+        // Wpisy własne podaje moduł raz na takt — od kroku 60 mieszkają
+        // w książce adresowej, nie w tym module.
+        $environments->useEntries([
+            DockerEnvironment::sshTunnel('serwer', 'anna@example.com'),
+        ]);
         $environments->select('serwer', 'anna@example.com', 22);
         $environments->tick();
 
@@ -69,13 +66,12 @@ final class EnvironmentsQueryTest extends TestCase
     /** Pokolenie bije przy zmianie wyboru i stanu tunelu — źródło umie powiedzieć, że się zmieniło. */
     public function testTheGenerationMovesWithTheChoiceAndTheTunnel(): void
     {
-        $environments = new Environments(
-            new StubEnvironmentBook(new EnvironmentBook([
-                DockerEnvironment::sshTunnel('serwer', 'anna@example.com'),
-            ])),
-            new StubContextCatalog(),
-            new StubTunnel(),
-        );
+        $environments = new Environments(new StubDockerState(), new StubContextCatalog(), new StubTunnel());
+        // Wpisy własne podaje moduł raz na takt — od kroku 60 mieszkają
+        // w książce adresowej, nie w tym module.
+        $environments->useEntries([
+            DockerEnvironment::sshTunnel('serwer', 'anna@example.com'),
+        ]);
         $query = new EnvironmentsQuery($environments);
 
         $before = $query->generation();

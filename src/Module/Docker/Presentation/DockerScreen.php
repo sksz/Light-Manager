@@ -22,11 +22,11 @@ use LightManager\Module\Docker\Application\ContainerList;
 use LightManager\Module\Docker\Application\DockerAction;
 use LightManager\Module\Docker\Application\DockerEvent;
 use LightManager\Module\Docker\Application\DockerSettings;
-use LightManager\Module\Docker\Application\EnvironmentBook;
 use LightManager\Module\Docker\Application\ImageList;
 use LightManager\Module\Docker\Application\LogStream;
 use LightManager\Module\Docker\Application\Port\ComposePort;
 use LightManager\Module\Docker\Domain\ValueObject\Container;
+use LightManager\Module\Docker\Domain\ValueObject\DockerEnvironment;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Cli\Query\CoreReader;
 use LightManager\Presentation\Cli\SplitSetting;
@@ -776,7 +776,7 @@ final class DockerScreen implements
         // (miara kroku 58). Gniazdo lokalne zostaje przy dawnym zdaniu.
         $environment = $this->reader->environments();
 
-        if ($environment->current !== '' && $environment->current !== EnvironmentBook::DEFAULT_NAME) {
+        if ($environment->current !== '' && $environment->current !== DockerEnvironment::DEFAULT_NAME_LOCAL) {
             return $this->text(
                 $this->view === DockerView::Containers ? 'containers.headerAt' : 'images.headerAt',
                 ['name' => $environment->current],

@@ -30,9 +30,9 @@ use LightManager\Presentation\Ui\Component\TextInput;
 use LightManager\Presentation\Ui\Overlay\ChoiceOverlay;
 use LightManager\Presentation\Ui\Overlay\ProgressOverlay;
 use LightManager\Presentation\Ui\Overlay\PromptOverlay;
-use LightManager\Tests\Support\StubHostBook;
 use LightManager\Tests\Support\StubRemoteDirectory;
 use LightManager\Tests\Support\StubRemoteTransfer;
+use LightManager\Tests\Support\StubSshState;
 use LightManager\Tests\Support\StubTranslator;
 use PHPUnit\Framework\TestCase;
 
@@ -228,8 +228,8 @@ final class RemoteTransferTest extends TestCase
     {
         $port ??= new StubRemoteTransfer();
 
-        $browser = new RemoteBrowser($this->directories, new StubHostBook(), false);
-        $browser->open(new HostProfile('biuro', 'example.com', 22, 'anna'));
+        $browser = new RemoteBrowser($this->directories, new StubSshState(), false);
+        $browser->open(new HostProfile('a1b2c3d4e5f6', 'biuro', 'example.com', 22, 'anna'));
         $browser->tick();
         $browser->putCursor($cursor);
 

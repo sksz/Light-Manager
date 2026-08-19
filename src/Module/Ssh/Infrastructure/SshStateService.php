@@ -7,12 +7,7 @@ namespace LightManager\Module\Ssh\Infrastructure;
 use LightManager\Application\Port\StateDocumentPort;
 use LightManager\Infrastructure\Config\StateDocumentService;
 use LightManager\Infrastructure\Support\AbstractSingleton;
-use LightManager\Module\Ssh\Application\HostBook;
-use LightManager\Module\Ssh\Application\Port\HostBookPort;
-use LightManager\Module\Ssh\Application\Port\LoadedHostBook;
-use LightManager\Module\Ssh\Domain\Exception\InvalidHostProfileException;
-use LightManager\Module\Ssh\Domain\ValueObject\AuthMethod;
-use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
+use LightManager\Module\Ssh\Application\Port\SshStatePort;
 
 /**
  * Stan modułu sesji zdalnej — sekcja `ssh` dokumentu stanu (krok 48; od kroku
@@ -29,7 +24,7 @@ use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
  * sama reguła, co przy pozycji playlisty bez ścieżki, i z tego samego powodu.
  * Jeden zepsuty wpis nie ma prawa odebrać użytkownikowi całej książki.
  */
-final class SshStateService extends AbstractSingleton implements HostBookPort
+final class SshStateService extends AbstractSingleton implements SshStatePort
 {
     private const SECTION = 'ssh';
 
@@ -51,7 +46,8 @@ final class SshStateService extends AbstractSingleton implements HostBookPort
 
     private const KEY_PATH_KEY = 'keyPath';
 
-    private const REMOTE_DIRECTORY_KEY = 'directory';
+    /** Znacznik przeniesienia starego spisu do książki adresowej (krok 60). */
+    private const MIGRATED_KEY = 'migrated';
 
     private ?StateDocumentPort $documents = null;
 
@@ -73,31 +69,48 @@ final class SshStateService extends AbstractSingleton implements HostBookPort
         $this->sectionRead = false;
     }
 
-    public function load(): LoadedHostBook
+    /**
+     * Stary spis hostów — **czytany, nigdy niekasowany** (krok 60).
+     *
+     * Wiersze wychodzą stąd jako tablice napisów i liczb, a nie jako profile:
+     * przenosi je do książki **komendami** ten, kto je tu zostawił, a komenda
+     * bierze napisy. Usługa nie musi przez to znać ani `HostProfile`, ani
+     * książki — i nie zna.
+     */
+    public function legacyHosts(): array
     {
-        $section = $this->section();
-
-        if ($section === null) {
-            return new LoadedHostBook(new HostBook(), 'module.ssh.book.unreadable');
-        }
-
-        if ($section === [] && !$this->documents()->hasSection(self::SECTION)) {
-            return new LoadedHostBook(new HostBook(), null, fresh: true);
-        }
-
-        $stored = $section[self::HOSTS_KEY] ?? [];
+        $stored = ($this->section() ?? [])[self::HOSTS_KEY] ?? null;
 
         if (!is_array($stored)) {
-            return new LoadedHostBook(new HostBook(), 'module.ssh.book.unreadable');
+            return [];
         }
 
-        return new LoadedHostBook(new HostBook(self::profilesFrom($stored)));
+        $hosts = [];
+
+        foreach ($stored as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $host = self::legacyHostFrom($item);
+
+            if ($host !== null) {
+                $hosts[] = $host;
+            }
+        }
+
+        return $hosts;
     }
 
-    public function save(HostBook $book): void
+    public function isMigrated(): bool
+    {
+        return (($this->section() ?? [])[self::MIGRATED_KEY] ?? false) === true;
+    }
+
+    public function markMigrated(): void
     {
         $section = $this->section() ?? [];
-        $section[self::HOSTS_KEY] = self::documentOf($book);
+        $section[self::MIGRATED_KEY] = true;
         $this->section = $section;
         $this->documents()->saveSection(self::SECTION, $section);
     }
@@ -107,7 +120,38 @@ final class SshStateService extends AbstractSingleton implements HostBookPort
         return $this->documents()->location();
     }
 
-    public function lastDirectory(string $hostName): ?string
+    /**
+     * @param array<mixed> $item
+     *
+     * @return array<string, string|int>|null
+     */
+    private static function legacyHostFrom(array $item): ?array
+    {
+        $name = $item[self::NAME_KEY] ?? null;
+        $host = $item[self::HOST_KEY] ?? null;
+
+        if (!is_string($name) || $name === '' || !is_string($host) || $host === '') {
+            return null;
+        }
+
+        $legacy = [self::NAME_KEY => $name, self::HOST_KEY => $host];
+
+        foreach ([self::PORT_KEY, self::USER_KEY, self::AUTH_KEY, self::KEY_PATH_KEY] as $key) {
+            $value = $item[$key] ?? null;
+
+            if (is_string($value) && $value !== '') {
+                $legacy[$key] = $value;
+            }
+
+            if (is_int($value)) {
+                $legacy[$key] = $value;
+            }
+        }
+
+        return $legacy;
+    }
+
+    public function lastDirectory(string $entryId): ?string
     {
         // Sekcja nieczytelna (`null`) traktowana jak pusta: brak zapamiętanego
         // katalogu jest tu stanem zwykłym, a powód nieczytelności pokazuje już
@@ -118,7 +162,7 @@ final class SshStateService extends AbstractSingleton implements HostBookPort
             return null;
         }
 
-        $path = $stored[$hostName] ?? null;
+        $path = $stored[$entryId] ?? null;
 
         return is_string($path) && $path !== '' ? $path : null;
     }
@@ -129,7 +173,7 @@ final class SshStateService extends AbstractSingleton implements HostBookPort
      * tego warunku odświeżenie katalogu klawiszem `F5` przepisywałoby plik za
      * każdym razem.
      */
-    public function rememberDirectory(string $hostName, string $path): void
+    public function rememberDirectory(string $entryId, string $path): void
     {
         $section = $this->section() ?? [];
         $stored = $section[self::DIRECTORIES_KEY] ?? [];
@@ -138,102 +182,15 @@ final class SshStateService extends AbstractSingleton implements HostBookPort
             $stored = [];
         }
 
-        if (($stored[$hostName] ?? null) === $path) {
+        if (($stored[$entryId] ?? null) === $path) {
             return;
         }
 
         /** @var array<string, mixed> $stored */
-        $stored[$hostName] = $path;
+        $stored[$entryId] = $path;
         $section[self::DIRECTORIES_KEY] = $stored;
         $this->section = $section;
         $this->documents()->saveSection(self::SECTION, $section);
-    }
-
-    /**
-     * @param array<mixed> $stored
-     *
-     * @return list<HostProfile>
-     */
-    private static function profilesFrom(array $stored): array
-    {
-        $profiles = [];
-
-        foreach ($stored as $item) {
-            if (!is_array($item)) {
-                continue;
-            }
-
-            $profile = self::profileFrom($item);
-
-            if ($profile !== null) {
-                $profiles[] = $profile;
-            }
-        }
-
-        return $profiles;
-    }
-
-    /** @param array<mixed> $item */
-    private static function profileFrom(array $item): ?HostProfile
-    {
-        $name = $item[self::NAME_KEY] ?? null;
-        $host = $item[self::HOST_KEY] ?? null;
-
-        if (!is_string($name) || !is_string($host)) {
-            return null;
-        }
-
-        $port = $item[self::PORT_KEY] ?? HostProfile::DEFAULT_PORT;
-        $user = $item[self::USER_KEY] ?? '';
-        $auth = $item[self::AUTH_KEY] ?? null;
-        $keyPath = $item[self::KEY_PATH_KEY] ?? null;
-        $directory = $item[self::REMOTE_DIRECTORY_KEY] ?? null;
-
-        try {
-            return new HostProfile(
-                $name,
-                $host,
-                is_int($port) ? $port : HostProfile::DEFAULT_PORT,
-                is_string($user) ? $user : '',
-                is_string($auth) ? AuthMethod::of($auth) ?? AuthMethod::Agent : AuthMethod::Agent,
-                is_string($keyPath) && $keyPath !== '' ? $keyPath : null,
-                is_string($directory) && $directory !== '' ? $directory : null,
-            );
-        } catch (InvalidHostProfileException) {
-            // Wpis nie do przyjęcia wypada; reszta książki jest w porządku i nie
-            // ma powodu jej tracić. Port nie rzuca (reguła 8).
-            return null;
-        }
-    }
-
-    /** @return list<array<string, bool|int|string>> */
-    private static function documentOf(HostBook $book): array
-    {
-        $stored = [];
-
-        foreach ($book->all() as $profile) {
-            $entry = [
-                self::NAME_KEY => $profile->name,
-                self::HOST_KEY => $profile->host,
-                self::PORT_KEY => $profile->port,
-                self::USER_KEY => $profile->user,
-                self::AUTH_KEY => $profile->auth->value,
-            ];
-
-            // Pól pustych nie zapisujemy: dokument ma się dać przeczytać oczami,
-            // a `"keyPath": null` w każdym wpisie tylko go zaśmieca.
-            if ($profile->keyPath !== null) {
-                $entry[self::KEY_PATH_KEY] = $profile->keyPath;
-            }
-
-            if ($profile->remoteDirectory !== null) {
-                $entry[self::REMOTE_DIRECTORY_KEY] = $profile->remoteDirectory;
-            }
-
-            $stored[] = $entry;
-        }
-
-        return $stored;
     }
 
     /**

@@ -260,12 +260,6 @@ return [
     'module.k8s.cluster.problem.unknown' => 'There is no cluster named {name}.',
     'module.k8s.cluster.key.select' => 'Select cluster',
     'module.k8s.cluster.key.select.short' => 'select',
-    'module.k8s.cluster.key.add' => 'Add cluster',
-    'module.k8s.cluster.key.add.short' => 'add',
-    'module.k8s.cluster.key.edit' => 'Edit entry',
-    'module.k8s.cluster.key.edit.short' => 'edit',
-    'module.k8s.cluster.key.remove' => 'Remove entry',
-    'module.k8s.cluster.key.remove.short' => 'remove',
     'module.k8s.cluster.key.refresh' => 'Read the files again',
     'module.k8s.cluster.confirm.remove' => 'Remove entry {name} from the cluster list?',
     'module.k8s.cluster.prompt.name' => 'Cluster name',
@@ -279,4 +273,11 @@ return [
     'module.k8s.name.subject.cluster' => 'cluster name',
     'module.k8s.name.subject.kubeconfig' => 'kubeconfig path',
     'module.k8s.query.clusters' => 'cluster list from the book and from kubeconfig files',
+
+    // Pola rozdziału `k8s` książki adresowej (krok 60).
+    'module.k8s.field.kubeconfig' => 'Kubeconfig file',
+    'module.k8s.field.context' => 'Context',
+    'module.k8s.field.namespace' => 'Namespace',
+    'module.k8s.field.timeout' => 'Timeout (s)',
+
 ];

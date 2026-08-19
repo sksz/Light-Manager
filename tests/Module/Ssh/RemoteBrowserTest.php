@@ -9,8 +9,8 @@ use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntry;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntryType;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteNameFilter;
-use LightManager\Tests\Support\StubHostBook;
 use LightManager\Tests\Support\StubRemoteDirectory;
+use LightManager\Tests\Support\StubSshState;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -22,9 +22,11 @@ use PHPUnit\Framework\TestCase;
  */
 final class RemoteBrowserTest extends TestCase
 {
+    private const ID = 'a1b2c3d4e5f6';
+
     private StubRemoteDirectory $directories;
 
-    private StubHostBook $storage;
+    private StubSshState $storage;
 
     protected function setUp(): void
     {
@@ -42,7 +44,7 @@ final class RemoteBrowserTest extends TestCase
                 new RemoteEntry('jan', RemoteEntryType::Directory),
             ],
         ]);
-        $this->storage = new StubHostBook();
+        $this->storage = new StubSshState();
     }
 
     public function testOpeningAHostAsksForTheStartingDirectory(): void
@@ -56,30 +58,48 @@ final class RemoteBrowserTest extends TestCase
         self::assertSame(3, $browser->count());
     }
 
-    /** Zapamiętany katalog ma pierwszeństwo przed startowym z profilu. */
-    public function testTheRememberedDirectoryWins(): void
+    /**
+     * Oglądanie zaczyna się od katalogu zapamiętanego — a pamięć jest
+     * **kluczowana identyfikatorem wpisu** (krok 60), więc przeżywa zmianę
+     * jego nazwy.
+     */
+    public function testTheRememberedDirectoryStartsTheListing(): void
     {
-        $this->storage->rememberDirectory('biuro', '/home/anna/dokumenty');
+        $this->storage->rememberDirectory(self::ID, '/home/anna/dokumenty');
 
         $browser = $this->browser();
-        $browser->open(self::host(remoteDirectory: '/srv'));
+        $browser->open(self::host());
 
         self::assertSame('/home/anna/dokumenty', $this->directories->requested?->value);
     }
 
-    public function testTheProfileDirectoryIsUsedWhenNothingIsRemembered(): void
+    /** Nic niezapamiętane znaczy „niech rozstrzygnie serwer" — czyli katalog domowy. */
+    public function testWithoutMemoryTheServerDecides(): void
     {
         $browser = $this->browser();
-        $browser->open(self::host(remoteDirectory: '/srv'));
+        $browser->open(self::host());
 
-        self::assertSame('/srv', $this->directories->requested?->value);
+        self::assertNull($this->directories->requested);
     }
 
-    /** Ścieżka względna w pliku stanu odpada po cichu — kończy się katalogiem domowym. */
+    /** Katalog zapamiętany pod **cudzym** identyfikatorem nie dotyczy tego wpisu. */
+    public function testMemoryOfAnotherEntryIsNotUsed(): void
+    {
+        $this->storage->rememberDirectory('f6e5d4c3b2a1', '/srv');
+
+        $browser = $this->browser();
+        $browser->open(self::host());
+
+        self::assertNull($this->directories->requested);
+    }
+
+    /** Ścieżka względna w pamięci odpada po cichu — kończy się katalogiem domowym. */
     public function testARelativeStartingDirectoryIsIgnored(): void
     {
+        $this->storage->rememberDirectory(self::ID, 'srv/dane');
+
         $browser = $this->browser();
-        $browser->open(self::host(remoteDirectory: 'srv/dane'));
+        $browser->open(self::host());
 
         self::assertNull($this->directories->requested);
     }
@@ -137,7 +157,8 @@ final class RemoteBrowserTest extends TestCase
     public function testTheRootHasNowhereToGo(): void
     {
         $browser = $this->browser();
-        $browser->open(self::host(remoteDirectory: '/'));
+        $this->storage->rememberDirectory(self::ID, '/');
+        $browser->open(self::host());
         $browser->tick();
 
         self::assertFalse($browser->goUp());
@@ -190,7 +211,11 @@ final class RemoteBrowserTest extends TestCase
         self::assertSame(3, $browser->count());
     }
 
-    /** Katalog zapamiętuje się **pod nazwą wpisu książki**, bo to ona jest tożsamością. */
+    /**
+     * Katalog zapamiętuje się **pod identyfikatorem wpisu książki**, bo to on
+     * jest tożsamością (krok 60) — nazwę wolno zmienić, a pamięć ma za nią
+     * pójść.
+     */
     public function testTheVisitedDirectoryIsRemembered(): void
     {
         $browser = $this->opened();
@@ -198,7 +223,7 @@ final class RemoteBrowserTest extends TestCase
         $browser->enter();
         $browser->tick();
 
-        self::assertSame('/home/anna/dokumenty', $this->storage->directories['biuro'] ?? null);
+        self::assertSame('/home/anna/dokumenty', $this->storage->directories[self::ID] ?? null);
     }
 
     /** Kursor przeżywa oczekiwanie: lista przychodzi później, a ruch po niej wcześniej. */
@@ -243,8 +268,8 @@ final class RemoteBrowserTest extends TestCase
         return new RemoteBrowser($this->directories, $this->storage);
     }
 
-    private static function host(?string $remoteDirectory = null): HostProfile
+    private static function host(): HostProfile
     {
-        return new HostProfile('biuro', 'example.com', 22, 'anna', remoteDirectory: $remoteDirectory);
+        return new HostProfile(self::ID, 'biuro', 'example.com', 22, 'anna');
     }
 }

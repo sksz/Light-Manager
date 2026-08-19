@@ -5,22 +5,18 @@ declare(strict_types=1);
 namespace LightManager\Tests\Module\Ssh;
 
 use LightManager\Infrastructure\Config\StateDocumentService;
-use LightManager\Module\Ssh\Application\HostBook;
-use LightManager\Module\Ssh\Domain\ValueObject\AuthMethod;
-use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
 use LightManager\Module\Ssh\Infrastructure\SshStateService;
 use LightManager\Tests\Support\ResetsSingletons;
 use PHPUnit\Framework\TestCase;
 
 /**
  * Stan modułu sesji zdalnej — sekcja `ssh` dokumentu stanu (krok 48; od kroku
- * 59 w `~/.light-manager/state.json`, D103).
+ * 59 w `~/.light-manager/state.json`, **a od kroku 60 bez książki**).
  *
- * Test podstawia `HOME` na katalog tymczasowy — tą samą drogą, którą robi to
- * test pliku dźwięku. Sprawdza dwie rzeczy, których z kodu wołającego nie
- * widać: **plik ruszony ręcznie nie wywraca startu** i **klucze, których ta
- * wersja nie zna, przeżywają zapis** — bo kroki 49 i 50 dopiszą do tego samego
- * dokumentu ostatni katalog zdalny i historię przesyłów.
+ * Sekcji zostały dwie rzeczy i obie są tu sprawdzane: **zapamiętany katalog per
+ * identyfikator wpisu** oraz **stary spis hostów, czytany do przeniesienia
+ * i nigdy niekasowany**. Test podstawia `HOME` na katalog tymczasowy — tą samą
+ * drogą, którą robi to test pliku dźwięku.
  */
 final class SshStateServiceTest extends TestCase
 {
@@ -59,195 +55,133 @@ final class SshStateServiceTest extends TestCase
         $this->resetSingleton(StateDocumentService::class);
     }
 
-    public function testAMissingFileIsAFreshStartWithoutAProblem(): void
-    {
-        $loaded = SshStateService::getInstance()->load();
-
-        self::assertTrue($loaded->book->isEmpty());
-        self::assertNull($loaded->problemKey);
-        self::assertTrue($loaded->fresh);
-    }
-
-    public function testWhatWasSavedComesBack(): void
+    public function testFreshSectionHasNothingToMigrate(): void
     {
         $service = SshStateService::getInstance();
-        $service->save(new HostBook([
-            new HostProfile('biuro', 'example.com', 2222, 'anna', AuthMethod::Key, '/home/anna/.ssh/id_ed25519'),
-            new HostProfile('dom', '192.168.1.10'),
-        ]));
 
-        $this->resetSingleton(SshStateService::class);
-        $book = SshStateService::getInstance()->load()->book;
-
-        self::assertSame(['biuro', 'dom'], $book->names());
-
-        $first = $book->find('biuro');
-        self::assertNotNull($first);
-        self::assertSame(2222, $first->port);
-        self::assertSame('anna', $first->user);
-        self::assertSame(AuthMethod::Key, $first->auth);
-        self::assertSame('/home/anna/.ssh/id_ed25519', $first->keyPath);
-    }
-
-    /** Prawa `0600`: wpisy mówią, do jakich maszyn i jako kto użytkownik się loguje. */
-    public function testTheFileIsReadableOnlyByItsOwner(): void
-    {
-        $service = SshStateService::getInstance();
-        $service->save(new HostBook([new HostProfile('biuro', 'example.com')]));
-
-        self::assertSame('0600', substr(sprintf('%o', fileperms($service->location())), -4));
+        self::assertSame([], $service->legacyHosts());
+        self::assertFalse($service->isMigrated());
     }
 
     /**
-     * **Warunek, bez którego kroki 49 i 50 musiałyby założyć drugi plik.**
-     * Zapis książki nie ma prawa skasować klucza, którego ta wersja nie zna.
+     * Stary spis wychodzi stąd **napisami**, a nie profilami: przenosi go do
+     * książki komendami ten, kto go tu zostawił (krok 60).
      */
-    public function testUnknownKeysSurviveASave(): void
+    public function testLegacyHostsComeOutAsPlainRows(): void
     {
-        $service = SshStateService::getInstance();
-        $directory = $this->home . '/.light-manager';
-        mkdir($directory, 0o700, true);
-
-        file_put_contents($service->location(), json_encode([
-            'ssh' => [
-                'hosts' => [],
-                'transfers' => ['ostatni' => '/var/log/syslog'],
+        $this->writeSection([
+            'hosts' => [
+                ['name' => 'biuro', 'host' => 'example.com', 'port' => 2222, 'user' => 'anna', 'auth' => 'key', 'keyPath' => '/klucz'],
+                ['name' => 'dom', 'host' => '10.0.0.1'],
             ],
-            'docker' => ['environments' => [['name' => 'cudza', 'kind' => 'local']]],
-        ]));
+        ]);
 
-        $this->resetSingleton(SshStateService::class);
-        $this->resetSingleton(StateDocumentService::class);
-        $service = SshStateService::getInstance();
-        $service->load();
-        $service->save(new HostBook([new HostProfile('biuro', 'example.com')]));
+        $hosts = SshStateService::getInstance()->legacyHosts();
 
-        $document = json_decode((string) file_get_contents($service->location()), true);
+        self::assertCount(2, $hosts);
+        self::assertSame('biuro', $hosts[0]['name']);
+        self::assertSame(2222, $hosts[0]['port']);
+        self::assertSame('/klucz', $hosts[0]['keyPath']);
+        self::assertSame(['name' => 'dom', 'host' => '10.0.0.1'], $hosts[1]);
+    }
 
-        self::assertIsArray($document);
-        self::assertIsArray($document['ssh'] ?? null);
-        self::assertSame(['ostatni' => '/var/log/syslog'], $document['ssh']['transfers'] ?? null);
-        $hosts = $document['ssh']['hosts'] ?? null;
+    public function testBrokenLegacyRowFallsOutAndTheRestSurvives(): void
+    {
+        $this->writeSection([
+            'hosts' => [
+                ['name' => 'bez adresu'],
+                'wcale nie wiersz',
+                ['name' => 'dobry', 'host' => 'example.com'],
+            ],
+        ]);
 
-        self::assertIsArray($hosts);
+        $hosts = SshStateService::getInstance()->legacyHosts();
+
         self::assertCount(1, $hosts);
-        self::assertSame(
-            ['environments' => [['name' => 'cudza', 'kind' => 'local']]],
-            $document['docker'] ?? null,
-            'cudza sekcja przeżywa zapis książki hostów',
-        );
+        self::assertSame('dobry', $hosts[0]['name']);
     }
 
     /**
-     * Stary `ssh.json` czyta się jak sekcja (D103): książka wraca w całości,
-     * a plik zostaje na dysku nietknięty — sekcją dokumentu staje się dopiero
-     * przy pierwszym zapisie.
+     * **Migracja jest nieniszcząca** (D103): znacznik mówi, że się odbyła,
+     * a stary klucz zostaje na dysku nietknięty.
      */
-    public function testTheLegacyFileIsReadAsASectionAndSurvivesUntouched(): void
+    public function testMarkingTheMigrationLeavesTheOldKeyAlone(): void
     {
-        $directory = $this->home . '/.light-manager';
-        mkdir($directory, 0o700, true);
-        $legacy = json_encode(['hosts' => [['name' => 'biuro', 'host' => 'example.com']]]);
-        file_put_contents($directory . '/ssh.json', $legacy);
+        $this->writeSection(['hosts' => [['name' => 'biuro', 'host' => 'example.com']]]);
 
         $service = SshStateService::getInstance();
-        $loaded = $service->load();
+        $service->markMigrated();
 
-        self::assertSame(['biuro'], $loaded->book->names());
-        self::assertFalse($loaded->fresh, 'stara książka nie jest świeżym startem');
+        $this->resetSingleton(SshStateService::class);
+        $fresh = SshStateService::getInstance();
 
-        $service->save($loaded->book);
+        self::assertTrue($fresh->isMigrated());
+        self::assertCount(1, $fresh->legacyHosts(), 'stary spis zostaje na dysku');
+    }
 
-        self::assertSame($legacy, file_get_contents($directory . '/ssh.json'), 'stary plik nietknięty');
-        $document = json_decode((string) file_get_contents($directory . '/state.json'), true);
+    /** Katalog jest kluczowany **identyfikatorem wpisu**, więc przeżywa zmianę nazwy. */
+    public function testRememberedDirectoryTravelsUnderTheEntryIdentifier(): void
+    {
+        $service = SshStateService::getInstance();
+        $service->rememberDirectory('a1b2c3d4e5f6', '/srv/www');
+
+        $this->resetSingleton(SshStateService::class);
+
+        self::assertSame('/srv/www', SshStateService::getInstance()->lastDirectory('a1b2c3d4e5f6'));
+        self::assertNull(SshStateService::getInstance()->lastDirectory('nieznany'));
+    }
+
+    /**
+     * Zapis, który niczego nie zmienia, **nie dotyka dysku** — metoda woła się
+     * przy każdym przyjęciu listy.
+     */
+    public function testWritingTheSameDirectoryTwiceDoesNotRewriteTheFile(): void
+    {
+        $service = SshStateService::getInstance();
+        $service->rememberDirectory('a1b2c3d4e5f6', '/srv/www');
+
+        $document = $this->home . '/.light-manager/state.json';
+        $before = filemtime($document);
+        clearstatcache(true, $document);
+
+        $service->rememberDirectory('a1b2c3d4e5f6', '/srv/www');
+
+        self::assertSame($before, filemtime($document));
+    }
+
+    public function testForeignSectionsAndUnknownKeysSurviveTheWrite(): void
+    {
+        $this->writeDocument([
+            'address-book' => ['entries' => [['id' => 'a1b2c3d4e5f6', 'name' => 'biuro']]],
+            'ssh' => ['coNowego' => 'z przyszłej wersji'],
+        ]);
+
+        SshStateService::getInstance()->rememberDirectory('a1b2c3d4e5f6', '/srv');
+
+        $document = json_decode((string) file_get_contents($this->home . '/.light-manager/state.json'), true);
 
         self::assertIsArray($document);
+        self::assertIsArray($document['address-book'] ?? null);
 
         $section = $document['ssh'] ?? null;
 
         self::assertIsArray($section);
-        $sectionHosts = $section['hosts'] ?? null;
-
-        self::assertIsArray($sectionHosts);
-        self::assertCount(1, $sectionHosts);
+        self::assertSame('z przyszłej wersji', $section['coNowego'] ?? null);
     }
 
-    /**
-     * **Zapowiedź kroku 48 rozliczona w kroku 49**: ostatni katalog dopisał się
-     * do tego samego dokumentu, obok książki, bez migracji.
-     */
-    public function testTheRememberedDirectoryLivesBesideTheBook(): void
+    /** @param array<string, mixed> $section */
+    private function writeSection(array $section): void
     {
-        $service = SshStateService::getInstance();
-        $service->save(new HostBook([new HostProfile('biuro', 'example.com')]));
-        $service->rememberDirectory('biuro', '/home/anna/dokumenty');
-
-        $this->resetSingleton(SshStateService::class);
-        $reloaded = SshStateService::getInstance();
-
-        self::assertSame('/home/anna/dokumenty', $reloaded->lastDirectory('biuro'));
-        self::assertCount(1, $reloaded->load()->book->all(), 'książka przeżyła dopisanie katalogu');
+        $this->writeDocument(['ssh' => $section]);
     }
 
-    /** Katalog pamięta się **osobno dla każdego wpisu** — nazwa jest tożsamością hosta. */
-    public function testEachHostRemembersItsOwnDirectory(): void
+    /** @param array<string, mixed> $document */
+    private function writeDocument(array $document): void
     {
-        $service = SshStateService::getInstance();
-        $service->rememberDirectory('biuro', '/srv/www');
-        $service->rememberDirectory('dom', '/home/jan');
-
-        self::assertSame('/srv/www', $service->lastDirectory('biuro'));
-        self::assertSame('/home/jan', $service->lastDirectory('dom'));
-        self::assertNull($service->lastDirectory('nieznany'));
-    }
-
-    /** Zapis, który niczego nie zmienia, nie dotyka dysku — `F5` przepisywałby plik bez końca. */
-    public function testRememberingTheSameDirectoryTwiceDoesNotRewriteTheFile(): void
-    {
-        $service = SshStateService::getInstance();
-        $service->rememberDirectory('biuro', '/srv/www');
-        $stamp = filemtime($service->location());
-        clearstatcache();
-
-        $service->rememberDirectory('biuro', '/srv/www');
-
-        self::assertSame($stamp, filemtime($service->location()));
-    }
-
-    /** Dokument bez sensu znaczy „nie wiem, co tu jest” — i mówi to zamiast wywracać start. */
-    public function testAnUnreadableFileGivesAnEmptyBookWithAReason(): void
-    {
-        $directory = $this->home . '/.light-manager';
-        mkdir($directory, 0o700, true);
-        file_put_contents($directory . '/ssh.json', 'to nie jest JSON');
-
-        $loaded = SshStateService::getInstance()->load();
-
-        self::assertTrue($loaded->book->isEmpty());
-        self::assertSame('module.ssh.book.unreadable', $loaded->problemKey);
-        self::assertFalse($loaded->fresh);
-    }
-
-    /**
-     * Wpis nie do przyjęcia **wypada, a książka zostaje** — ta sama reguła, co
-     * przy pozycji playlisty bez ścieżki. Port nie rzuca (reguła 8), więc profil
-     * z hostem zaczynającym się od myślnika ginie po cichu zamiast wywrócić
-     * odczyt całego spisu.
-     */
-    public function testASingleBrokenEntryFallsOutAndTheRestSurvives(): void
-    {
-        $directory = $this->home . '/.light-manager';
-        mkdir($directory, 0o700, true);
-
-        file_put_contents($directory . '/ssh.json', json_encode(['hosts' => [
-            ['name' => 'dobry', 'host' => 'example.com'],
-            ['name' => 'zły', 'host' => '-oProxyCommand=touch /tmp/ups'],
-            ['name' => 'bez hosta'],
-            'to nie jest wpis',
-        ]]));
-
-        $book = SshStateService::getInstance()->load()->book;
-
-        self::assertSame(['dobry'], $book->names());
+        mkdir($this->home . '/.light-manager', 0o700, true);
+        file_put_contents(
+            $this->home . '/.light-manager/state.json',
+            (string) json_encode($document, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+        );
     }
 }

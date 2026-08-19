@@ -23,6 +23,7 @@ use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
 use LightManager\Application\UseCase\ChangeSettingUseCase;
 use LightManager\Application\UseCase\RestoreDefaultSettingsUseCase;
 use LightManager\Domain\ValueObject\RendererMode;
+use LightManager\Module\AddressBook\Presentation\AddressBookModule;
 use LightManager\Module\Audio\Presentation\AudioModule;
 use LightManager\Module\Browser\Domain\Aggregate\Directory;
 use LightManager\Module\Browser\Domain\Repository\DirectoryRepositoryInterface;
@@ -106,6 +107,9 @@ final class ScreenFixture
     /** Ekran modułu klastra (krok 52) — drzewo rodzajów i treść obok niego. */
     public readonly ScreenInterface $kubernetesScreen;
 
+    /** Ekran książki adresowej (krok 60) — zakładki rozdziałów nad tabelą wpisów. */
+    public readonly ScreenInterface $addressBookScreen;
+
     public readonly CommandRegistry $commandRegistry;
 
     /** Ekran, który stanął na dnie stosu — i powód, gdy nie ten, o który proszono. */
@@ -139,18 +143,20 @@ final class ScreenFixture
         public readonly StubTrackFiles $tracks = new StubTrackFiles(),
         public readonly StubEffectStorage $effects = new StubEffectStorage(),
         public readonly StubSshSession $sessions = new StubSshSession(),
-        public readonly StubHostBook $hosts = new StubHostBook(),
+        public readonly StubSshState $sshState = new StubSshState(),
         public readonly StubRemoteDirectory $remote = new StubRemoteDirectory(),
         public readonly StubRemoteTransfer $remoteTransfers = new StubRemoteTransfer(),
         public readonly StubDockerApi $docker = new StubDockerApi(),
         public readonly StubCompose $compose = new StubCompose(),
-        public readonly StubEnvironmentBook $environmentBook = new StubEnvironmentBook(),
+        public readonly StubDockerState $dockerState = new StubDockerState(),
         public readonly StubContextCatalog $contexts = new StubContextCatalog(),
         public readonly StubTunnel $tunnel = new StubTunnel(),
         public readonly StubKubectl $kubectl = new StubKubectl(),
-        /** Książka klastrów w pamięci (krok 59) — dokumentu stanu maszyny test nie dotyka. */
-        public readonly StubClusterBook $clusterBook = new StubClusterBook(),
+        /** Sekcja `k8s` w pamięci (krok 60) — dokumentu stanu maszyny test nie dotyka. */
+        public readonly StubKubernetesState $kubernetesState = new StubKubernetesState(),
         public readonly StubClipboard $clipboard = new StubClipboard(),
+        /** Wpisy książki w pamięci (krok 60) — dokumentu stanu maszyny test nie dotyka. */
+        public readonly StubAddressBook $addressBook = new StubAddressBook(),
     ) {
         $translator = new StubTranslator();
         $themes = new FixedThemes();
@@ -214,6 +220,11 @@ final class ScreenFixture
         // zestaw modułów zależałby od tego, czy maszyna uruchamiająca testy ma
         // zainstalowanego klienta OpenSSH (krok 48).
         //
+        // **Od kroku 60 trzeci port nie niesie już książki**, tylko sekcję stanu
+        // tego modułu: wpisy przyszły do wspólnego rejestru, a atrapa zostaje
+        // z tego samego powodu, co była — dokument stanu maszyny testowej należy
+        // do użytkownika.
+        //
         // **Trzeci port doszedł w kroku 49 po tym, jak jego brak wypuścił z testu
         // prawdziwe procesy `sftp`** do hosta z przykładowego wpisu książki.
         // Podstawiona sesja mówiła „połączono", więc ekran zamawiał odczyt
@@ -227,7 +238,7 @@ final class ScreenFixture
             $translator,
             $settingsStore,
             $sessions,
-            $hosts,
+            $sshState,
             $remote,
             $remoteTransfers,
         );
@@ -251,7 +262,7 @@ final class ScreenFixture
             $settingsStore,
             $docker,
             $compose,
-            $environmentBook,
+            $dockerState,
             $contexts,
             $tunnel,
         );
@@ -262,11 +273,20 @@ final class ScreenFixture
         // kroku brzmi „żaden test nie wywołuje `kubectl`”**, a bez podstawionego
         // portu przebieg zależałby od tego, czy maszyna testująca ma klienta —
         // i czy akurat wskazuje na czyjś klaster.
-        $kubernetesModule = new KubernetesModule($this->state, $translator, $settingsStore, $kubectl, $clusterBook);
+        $kubernetesModule = new KubernetesModule($this->state, $translator, $settingsStore, $kubectl, $kubernetesState);
         $this->kubernetesScreen = $kubernetesModule->screen();
 
+        // Książka adresowa wchodzi z atrapą swojej sekcji dokumentu stanu —
+        // z tego samego powodu, co książki hostów, środowisk i klastrów: test nie
+        // ma prawa czytać ani pisać `~/.light-manager/state.json` maszyny, na
+        // której akurat biegnie. **Portu środowiska nie ma i mieć nie będzie**:
+        // książka nie deklaruje `RequiresEnvironment`, bo odrzucona zabrałaby
+        // wpisy wszystkim pozostałym modułom (krok 60).
+        $addressBookModule = new AddressBookModule($this->state, $translator, $addressBook);
+        $this->addressBookScreen = $addressBookModule->screen();
+
         $this->modules = new ModuleRegistry(
-            [$browser, $fileInfo, $audioModule, $sshModule, $dockerModule, $kubernetesModule],
+            [$browser, $fileInfo, $audioModule, $sshModule, $dockerModule, $kubernetesModule, $addressBookModule],
             $settingsStore->current()->modules,
             Bootstrap::LAST_RESORT_MODULE,
         );

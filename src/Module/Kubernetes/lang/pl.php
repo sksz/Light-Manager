@@ -280,12 +280,6 @@ return [
     'module.k8s.cluster.problem.unknown' => 'Nie ma klastra o nazwie {name}.',
     'module.k8s.cluster.key.select' => 'Wybierz klaster',
     'module.k8s.cluster.key.select.short' => 'wybierz',
-    'module.k8s.cluster.key.add' => 'Dopisz klaster',
-    'module.k8s.cluster.key.add.short' => 'dopisz',
-    'module.k8s.cluster.key.edit' => 'Zmień wpis',
-    'module.k8s.cluster.key.edit.short' => 'zmień',
-    'module.k8s.cluster.key.remove' => 'Usuń wpis',
-    'module.k8s.cluster.key.remove.short' => 'usuń',
     'module.k8s.cluster.key.refresh' => 'Przeczytaj pliki od nowa',
     'module.k8s.cluster.confirm.remove' => 'Usunąć wpis {name} ze spisu klastrów?',
     'module.k8s.cluster.prompt.name' => 'Nazwa klastra',
@@ -299,4 +293,11 @@ return [
     'module.k8s.name.subject.cluster' => 'nazwa klastra',
     'module.k8s.name.subject.kubeconfig' => 'ścieżka kubeconfig',
     'module.k8s.query.clusters' => 'spis klastrów z książki i z plików kubeconfig',
+
+    // Pola rozdziału `k8s` książki adresowej (krok 60).
+    'module.k8s.field.kubeconfig' => 'Plik kubeconfig',
+    'module.k8s.field.context' => 'Kontekst',
+    'module.k8s.field.namespace' => 'Przestrzeń nazw',
+    'module.k8s.field.timeout' => 'Limit czasu (s)',
+
 ];

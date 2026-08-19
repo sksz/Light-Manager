@@ -115,7 +115,10 @@ final class QueryWindowFlowTest extends TestCase
             $this->app->state->queries()->all(),
         );
 
-        self::assertSame('audio.effects', $names[0], 'rejestr trzyma kolejność alfabetyczną');
+        // Od kroku 60 pierwsza alfabetycznie jest kwerenda książki adresowej —
+        // `address-book` stoi w słowniku przed `audio`. Sprawdzane jest tu
+        // **uporządkowanie rejestru**, więc nazwa jest przykładem, nie treścią.
+        self::assertSame('address-book.chapters', $names[0], 'rejestr trzyma kolejność alfabetyczną');
 
         foreach (array_slice($names, 0, 8) as $name) {
             self::assertStringContainsString($name, $text, 'spis pomija ' . $name);

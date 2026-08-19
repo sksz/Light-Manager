@@ -14,6 +14,7 @@ use LightManager\Module\Kubernetes\Application\KubernetesSettings;
 use LightManager\Module\Kubernetes\Application\NamespaceView;
 use LightManager\Module\Kubernetes\Application\ResourceRow;
 use LightManager\Module\Kubernetes\Application\ResourceView;
+use LightManager\Module\Kubernetes\Domain\ValueObject\ClusterProfile;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ResourceKind;
 
 /**
@@ -31,9 +32,49 @@ use LightManager\Module\Kubernetes\Domain\ValueObject\ResourceKind;
  */
 final readonly class KubernetesQueries
 {
+    /** Rozdział, którym ten moduł opisuje wpis książki (krok 60). */
+    public const CHAPTER = KubernetesSettings::ID;
+
+    private const BOOK_ENTRIES = 'address-book.entries';
+
+    private const BOOK_LAST = 'address-book.last';
+
     public function __construct(
         private QueryRegistry $queries,
     ) {
+    }
+
+    /**
+     * Wpisy własne widziane oczami tego modułu — **cudza kwerenda, własne
+     * pojęcie** (krok 60).
+     *
+     * @return list<ClusterProfile>
+     */
+    public function bookEntries(): array
+    {
+        $entries = [];
+
+        $rows = $this->queries
+            ->ask(self::BOOK_ENTRIES, new CommandInput(['chapter' => self::CHAPTER]))
+            ->rows();
+
+        foreach ($rows as $row) {
+            $entry = ClusterProfile::fromRow($row);
+
+            if ($entry !== null) {
+                $entries[] = $entry;
+            }
+        }
+
+        return $entries;
+    }
+
+    /** Identyfikator wpisu dopisanego przed chwilą — potrzebny migracji (D105 nr 6). */
+    public function lastAddedEntry(): string
+    {
+        $id = $this->queries->ask(self::BOOK_LAST)->rows()[0]['id'] ?? '';
+
+        return is_string($id) ? $id : '';
     }
 
     public function cluster(): ClusterView

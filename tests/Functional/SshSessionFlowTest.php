@@ -4,28 +4,29 @@ declare(strict_types=1);
 
 namespace LightManager\Tests\Functional;
 
+use LightManager\Application\Command\CommandInput;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Module\ContextEntryKind;
 use LightManager\Application\Module\ModuleContext;
 use LightManager\Application\Ui\Primitive\TextRun;
 use LightManager\Application\Ui\Rect;
+use LightManager\Module\AddressBook\Domain\ValueObject\AddressEntry;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
 use LightManager\Module\Browser\Domain\ValueObject\Entry;
-use LightManager\Module\Ssh\Application\HostBook;
 use LightManager\Module\Ssh\Application\RemoteTransferState;
 use LightManager\Module\Ssh\Application\SessionStage;
 use LightManager\Module\Ssh\Application\TransferDirection;
-use LightManager\Module\Ssh\Domain\ValueObject\AuthMethod;
 use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntry;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntryType;
 use LightManager\Presentation\Ui\Module\ReadsContext;
 use LightManager\Tests\Support\InMemoryDirectoryRepository;
 use LightManager\Tests\Support\ScreenFixture;
-use LightManager\Tests\Support\StubHostBook;
+use LightManager\Tests\Support\StubAddressBook;
 use LightManager\Tests\Support\StubRemoteDirectory;
 use LightManager\Tests\Support\StubSshSession;
+use LightManager\Tests\Support\StubSshState;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -53,19 +54,28 @@ final class SshSessionFlowTest extends TestCase
 
     private const ROWS = 24;
 
+    private const BIURO = 'a1b2c3d4e5f6';
+
+    private const DOM = 'b2c3d4e5f6a1';
+
     private ScreenFixture $app;
 
     private StubSshSession $sessions;
 
-    private StubHostBook $hosts;
+    /** Wpisy wspólnej książki — od kroku 60 to stąd bierze się spis hostów. */
+    private StubAddressBook $book;
 
     protected function setUp(): void
     {
         $this->sessions = new StubSshSession();
-        $this->hosts = new StubHostBook(new HostBook([
-            new HostProfile('biuro', 'example.com', 22, 'anna'),
-            new HostProfile('dom', '192.168.1.10', 2222, 'jan'),
-        ]));
+        $this->book = new StubAddressBook([
+            new AddressEntry(self::BIURO, 'biuro', [
+                'ssh' => ['host' => 'example.com', 'port' => 22, 'user' => 'anna'],
+            ]),
+            new AddressEntry(self::DOM, 'dom', [
+                'ssh' => ['host' => '192.168.1.10', 'port' => 2222, 'user' => 'jan'],
+            ]),
+        ]);
         $this->app = $this->fixture();
     }
 
@@ -190,9 +200,11 @@ final class SshSessionFlowTest extends TestCase
      */
     public function testThePasswordMethodAsksBeforeConnecting(): void
     {
-        $this->hosts = new StubHostBook(new HostBook([
-            new HostProfile('biuro', 'example.com', 22, 'anna', AuthMethod::Password),
-        ]));
+        $this->book = new StubAddressBook([
+            new AddressEntry(self::BIURO, 'biuro', [
+                'ssh' => ['host' => 'example.com', 'port' => 22, 'user' => 'anna', 'auth' => 'password'],
+            ]),
+        ]);
         $this->app = $this->fixture();
 
         $this->openHosts();
@@ -237,83 +249,85 @@ final class SshSessionFlowTest extends TestCase
         self::assertNull($this->app->state->overlays()->current(), 'rozłączenie nie potrzebuje okna');
     }
 
-    /** `F7` dopisuje wpis, a ten **przeżywa zapis książki**. */
-    public function testAHostAddedInTheWindowIsPersisted(): void
+    /**
+     * **Zdanie-miara etapu: wpis dopisany w książce widać w spisie hostów bez
+     * restartu** (krok 60).
+     *
+     * Dopisanie idzie **komendami książki** — tak samo, jak zrobiłby to
+     * użytkownik w oknie komend albo klawiszem `F7` na jej ekranie. Moduł sesji
+     * zdalnej nie bierze w tym udziału i nie ma jak: spisu już nie prowadzi.
+     */
+    public function testAnEntryAddedInTheBookShowsUpInTheHostList(): void
     {
         $this->openHosts();
-        $this->press(KeyPress::special(Key::F7, "\e[18~"));
 
-        foreach (mb_str_split('ola@nowy.example.com:2200') as $character) {
-            $this->press(KeyPress::character($character));
-        }
+        self::assertNotContains('serwerownia', $this->drawCurrent());
 
-        $this->press(KeyPress::special(Key::Enter, "\r"));
+        $this->execute('address-book.add', ['name' => 'serwerownia']);
+        $id = (string) ($this->app->state->queries()->ask('address-book.last')->rows()[0]['id'] ?? '');
+        $this->execute('address-book.set', [
+            'entry' => $id,
+            'chapter' => 'ssh',
+            'field' => 'host',
+            'value' => '10.0.0.9',
+        ]);
 
-        self::assertSame(1, $this->hosts->saves);
+        $texts = $this->drawCurrent();
 
-        $book = $this->hosts->load()->book;
-        self::assertSame(3, $book->count());
-
-        $added = $book->find('ola@nowy.example.com:2200');
-        self::assertNotNull($added);
-        self::assertSame('nowy.example.com', $added->host);
-        self::assertSame(2200, $added->port);
-        self::assertSame('ola', $added->user);
+        self::assertContains('serwerownia', $texts, 'spis czyta książkę na bieżąco');
+        self::assertContains('10.0.0.9', $texts);
     }
 
-    /** Wpis nie do przyjęcia kończy się **zdaniem**, a nie śladem stosu. */
-    public function testAnImpossibleHostIsRefusedWithASentence(): void
+    /**
+     * **Stara książka hostów przenosi się sama, przy pierwszym takcie** — a
+     * stare klucze zostają na dysku nietknięte (migracja nieniszcząca, D103).
+     *
+     * Przenosi ją **ten, kto ją zostawił**: książka nie czyta cudzych sekcji
+     * dokumentu stanu, więc moduł sesji zdalnej dopisuje wpisy komendami
+     * i pyta `address-book.last` o ich identyfikatory.
+     */
+    public function testTheOldHostBookMigratesIntoTheSharedBook(): void
     {
-        $this->openHosts();
-        $this->press(KeyPress::special(Key::F7, "\e[18~"));
+        $legacy = new StubSshState([
+            ['name' => 'stary', 'host' => 'stary.example.com', 'port' => 2022, 'user' => 'ola', 'auth' => 'key', 'keyPath' => '/klucz'],
+        ]);
+        $legacy->directories['stary'] = '/srv/dane';
 
-        foreach (mb_str_split('-oProxyCommand=x') as $character) {
-            $this->press(KeyPress::character($character));
-        }
+        $this->book = new StubAddressBook();
+        $this->app = $this->fixtureWith($legacy);
+        $this->app->ticker->tick($this->app->state, self::NOW);
 
-        $this->press(KeyPress::special(Key::Enter, "\r"));
+        $rows = $this->app->state->queries()->ask(
+            'address-book.entries',
+            new CommandInput(['chapter' => 'ssh']),
+        )->rows();
 
-        self::assertSame(0, $this->hosts->saves);
-        self::assertStringContainsString(
-            'module.ssh.profile.host.invalid',
-            $this->message(),
-        );
+        self::assertCount(1, $rows);
+        self::assertSame('stary', $rows[0]['name'] ?? null);
+        self::assertSame('stary.example.com', $rows[0]['host'] ?? null);
+        self::assertSame(2022, $rows[0]['port'] ?? null);
+        self::assertSame('ola', $rows[0]['user'] ?? null);
+        self::assertSame('key', $rows[0]['auth'] ?? null);
+        self::assertSame('set', $rows[0]['keyPath'] ?? null, 'klucz wszedł, ale nie wychodzi wierszem');
+
+        $id = (string) ($rows[0]['id'] ?? '');
+
+        self::assertTrue($legacy->isMigrated(), 'znacznik mówi, że przeniesienie się odbyło');
+        self::assertCount(1, $legacy->legacyHosts(), 'stary spis zostaje nietknięty');
+        self::assertSame('/srv/dane', $legacy->directories[$id] ?? null, 'pamięć przekluczona na identyfikator');
     }
 
-    /** `F8` pyta, zanim usunie — i usuwa dopiero po „tak”. */
-    public function testRemovingAHostAsksFirst(): void
+    /** Przeniesienie pada **raz**: drugi takt niczego nie dokłada. */
+    public function testTheMigrationRunsOnlyOnce(): void
     {
-        $this->openHosts();
-        $this->press(KeyPress::special(Key::F8, "\e[19~"));
+        $legacy = new StubSshState([['name' => 'stary', 'host' => 'stary.example.com']]);
 
-        self::assertSame('confirm', $this->app->state->overlays()->current()?->id());
-        self::assertSame(0, $this->hosts->saves);
+        $this->book = new StubAddressBook();
+        $this->app = $this->fixtureWith($legacy);
+        $this->app->ticker->tick($this->app->state, self::NOW);
+        $this->app->ticker->tick($this->app->state, self::NOW + 1.0);
 
-        $this->press(KeyPress::special(Key::ArrowLeft, "\e[D"));
-        $this->press(KeyPress::special(Key::Enter, "\r"));
-
-        self::assertSame(1, $this->hosts->saves);
-        self::assertSame(['dom'], $this->hosts->load()->book->names());
-    }
-
-    /** `F4` przestawia sposób uwierzytelnienia — bo inaczej dałoby się to zrobić tylko w pliku. */
-    public function testTheAuthenticationMethodCanBeChangedFromTheScreen(): void
-    {
-        $this->openHosts();
-        $this->press(KeyPress::special(Key::F4, "\e[14~"));
-
-        self::assertSame('prompt', $this->app->state->overlays()->current()?->id(), 'klucz pyta o ścieżkę');
-
-        foreach (mb_str_split('/home/anna/.ssh/id_ed25519') as $character) {
-            $this->press(KeyPress::character($character));
-        }
-
-        $this->press(KeyPress::special(Key::Enter, "\r"));
-
-        $changed = $this->hosts->load()->book->find('biuro');
-        self::assertNotNull($changed);
-        self::assertSame(AuthMethod::Key, $changed->auth);
-        self::assertSame('/home/anna/.ssh/id_ed25519', $changed->keyPath);
+        self::assertCount(1, $this->app->state->queries()->ask('address-book.entries')->rows());
     }
 
     /**
@@ -492,12 +506,33 @@ final class SshSessionFlowTest extends TestCase
         $this->app->input->advanceWork($this->app->state, self::NOW);
     }
 
+    /**
+     * Profil taki, jaki złoży sobie moduł z wiersza kwerendy — atrapa sesji
+     * porównuje go z tym, z którym stoi połączenie.
+     */
     private function profile(string $name): HostProfile
     {
-        $profile = $this->hosts->load()->book->find($name);
-        self::assertNotNull($profile);
+        foreach ($this->app->state->queries()->ask(
+            'address-book.entries',
+            new CommandInput(['chapter' => 'ssh']),
+        )->rows() as $row) {
+            if (($row['name'] ?? null) === $name) {
+                $profile = HostProfile::fromRow($row);
+                self::assertNotNull($profile);
 
-        return $profile;
+                return $profile;
+            }
+        }
+
+        self::fail('nie ma wpisu ' . $name);
+    }
+
+    /** @param array<string, string> $arguments */
+    private function execute(string $name, array $arguments): void
+    {
+        $command = $this->app->commandRegistry->find($name);
+        self::assertNotNull($command, 'nie ma komendy ' . $name);
+        $command->execute(new CommandInput($arguments));
     }
 
     /** @return list<string> */
@@ -546,6 +581,11 @@ final class SshSessionFlowTest extends TestCase
 
     private function fixture(): ScreenFixture
     {
+        return $this->fixtureWith(new StubSshState());
+    }
+
+    private function fixtureWith(StubSshState $sshState): ScreenFixture
+    {
         $directories = (new InMemoryDirectoryRepository())->add('/', [Entry::file('plik.txt', 10)]);
 
         // Zdalny katalog ma **treść**, bo od kroku 50 przebieg sięga po wpis pod
@@ -554,7 +594,8 @@ final class SshSessionFlowTest extends TestCase
             $directories->get(new DirectoryPath('/'), false),
             $directories,
             sessions: $this->sessions,
-            hosts: $this->hosts,
+            sshState: $sshState,
+            addressBook: $this->book,
             remote: new StubRemoteDirectory([
                 '/home/anna' => [
                     new RemoteEntry('dokumenty', RemoteEntryType::Directory),

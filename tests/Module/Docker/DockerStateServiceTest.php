@@ -5,16 +5,13 @@ declare(strict_types=1);
 namespace LightManager\Tests\Module\Docker;
 
 use LightManager\Infrastructure\Config\StateDocumentService;
-use LightManager\Module\Docker\Application\EnvironmentBook;
-use LightManager\Module\Docker\Domain\ValueObject\DockerEnvironment;
-use LightManager\Module\Docker\Domain\ValueObject\EnvironmentKind;
 use LightManager\Module\Docker\Infrastructure\DockerStateService;
 use LightManager\Tests\Support\ResetsSingletons;
 use PHPUnit\Framework\TestCase;
 
 /**
  * Stan modułu Dockera — sekcja `docker` dokumentu stanu (krok 58; od kroku 59
- * w `~/.light-manager/state.json`, D103).
+ * w `~/.light-manager/state.json`, **a od kroku 60 bez książki**).
  *
  * Test podstawia `HOME` na katalog tymczasowy — tą samą drogą, co testy sekcji
  * `ssh` i `audio`. Sprawdza to, czego z kodu wołającego nie widać: plik
@@ -59,121 +56,119 @@ final class DockerStateServiceTest extends TestCase
         $this->resetSingleton(StateDocumentService::class);
     }
 
-    public function testAMissingFileIsAFreshStartWithoutAProblem(): void
+    public function testFreshSectionHasNothingToMigrate(): void
     {
-        $loaded = DockerStateService::getInstance()->load();
+        $service = DockerStateService::getInstance();
 
-        self::assertSame([], $loaded->book->all());
-        self::assertSame(EnvironmentBook::DEFAULT_NAME, $loaded->book->current());
-        self::assertNull($loaded->problemKey);
+        self::assertSame([], $service->legacyEnvironments());
+        self::assertFalse($service->isMigrated());
+        self::assertSame('', $service->current());
     }
 
-    public function testWhatWasSavedComesBackIncludingTheChoice(): void
+    /** Wskazanie bieżącego przeżywa uruchomienie — to cała pamięć tej sekcji. */
+    public function testTheChoiceSurvivesARestart(): void
     {
-        $book = new EnvironmentBook([
-            DockerEnvironment::sshTunnel('serwer', 'anna@example.com', 2222, '/run/docker.sock'),
-            DockerEnvironment::tcp('chmura', 'daemon.example.com', 2376, '/c/cert.pem', '/c/key.pem', '/c/ca.pem'),
-        ]);
-        $book->makeCurrent('serwer');
-        DockerStateService::getInstance()->save($book);
+        DockerStateService::getInstance()->makeCurrent('a1b2c3d4e5f6');
 
         $this->resetSingleton(DockerStateService::class);
-        $loaded = DockerStateService::getInstance()->load()->book;
 
-        self::assertSame('serwer', $loaded->current());
-
-        $tunnel = $loaded->find('serwer');
-        self::assertNotNull($tunnel);
-        self::assertSame(EnvironmentKind::SshTunnel, $tunnel->kind);
-        self::assertSame('anna@example.com', $tunnel->target);
-        self::assertSame(2222, $tunnel->port);
-        self::assertSame('/run/docker.sock', $tunnel->socketPath);
-
-        $tcp = $loaded->find('chmura');
-        self::assertNotNull($tcp);
-        self::assertSame('/c/key.pem', $tcp->keyPath);
+        self::assertSame('a1b2c3d4e5f6', DockerStateService::getInstance()->current());
     }
 
-    /** Prawa `0600`: wpisy mówią, z jakimi maszynami użytkownik rozmawia. */
-    public function testTheFileIsReadableOnlyByItsOwner(): void
+    /** Zapis, który niczego nie zmienia, **nie dotyka dysku**. */
+    public function testWritingTheSameChoiceTwiceDoesNotRewriteTheFile(): void
     {
         $service = DockerStateService::getInstance();
-        $service->save(new EnvironmentBook([DockerEnvironment::localSocket('praca')]));
+        $service->makeCurrent('a1b2c3d4e5f6');
 
-        self::assertSame(0o600, fileperms($service->location()) & 0o777);
+        $document = $this->home . '/.light-manager/state.json';
+        $before = filemtime($document);
+        clearstatcache(true, $document);
+
+        $service->makeCurrent('a1b2c3d4e5f6');
+
+        self::assertSame($before, filemtime($document));
     }
 
-    /** Krok 60 dopisze rejestry kluczami tej samej sekcji — dokument ma to unieść bez migracji. */
-    public function testUnknownKeysSurviveASave(): void
+    /** Stary spis wychodzi **napisami i liczbami**, bo przenoszą go komendy książki. */
+    public function testLegacyEnvironmentsComeOutAsPlainRows(): void
     {
-        $service = DockerStateService::getInstance();
-        $location = $service->location();
-
-        mkdir(dirname($location), 0o700, true);
-        file_put_contents($location, json_encode([
-            'docker' => [
-                'registries' => [['name' => 'ghcr']],
-                'environments' => [],
+        $this->writeSection([
+            'environments' => [
+                ['name' => 'serwer', 'kind' => 'tunnel', 'target' => 'biuro', 'port' => 2222, 'socket' => '/run/d.sock'],
+                ['name' => 'chmura', 'kind' => 'tcp', 'target' => 'daemon.example.com', 'port' => 2376, 'cert' => '/c.pem'],
+                ['name' => 'bez rodzaju'],
             ],
-        ]));
+            'currentEnvironment' => 'serwer',
+        ]);
 
-        $service->load();
-        $service->save(new EnvironmentBook([DockerEnvironment::localSocket('praca')]));
+        $service = DockerStateService::getInstance();
+        $legacy = $service->legacyEnvironments();
 
-        /** @var array<string, mixed> $document */
-        $document = json_decode((string) file_get_contents($location), true);
+        self::assertCount(2, $legacy, 'wiersz bez rodzaju wypada, reszta zostaje');
+        self::assertSame('serwer', $legacy[0]['name']);
+        self::assertSame('biuro', $legacy[0]['target']);
+        self::assertSame(2222, $legacy[0]['port']);
+        self::assertSame('/c.pem', $legacy[1]['cert']);
+        self::assertSame('serwer', $service->current());
+    }
+
+    /** **Migracja jest nieniszcząca**: znacznik wchodzi, stary spis zostaje. */
+    public function testMarkingTheMigrationLeavesTheOldKeyAlone(): void
+    {
+        $this->writeSection(['environments' => [['name' => 'serwer', 'kind' => 'local']]]);
+
+        DockerStateService::getInstance()->markMigrated();
+        $this->resetSingleton(DockerStateService::class);
+        $fresh = DockerStateService::getInstance();
+
+        self::assertTrue($fresh->isMigrated());
+        self::assertCount(1, $fresh->legacyEnvironments(), 'stary spis zostaje na dysku');
+    }
+
+    public function testForeignSectionsAndUnknownKeysSurviveTheWrite(): void
+    {
+        $this->writeDocument([
+            'address-book' => ['entries' => [['id' => 'a1b2c3d4e5f6', 'name' => 'serwer']]],
+            'docker' => ['coNowego' => 'z przyszłej wersji'],
+        ]);
+
+        DockerStateService::getInstance()->makeCurrent('a1b2c3d4e5f6');
+
+        $document = json_decode((string) file_get_contents($this->home . '/.light-manager/state.json'), true);
+
+        self::assertIsArray($document);
+        self::assertIsArray($document['address-book'] ?? null);
+
         $section = $document['docker'] ?? null;
 
         self::assertIsArray($section);
-        self::assertSame([['name' => 'ghcr']], $section['registries'] ?? null);
-        self::assertIsArray($section['environments'] ?? null);
+        self::assertSame('z przyszłej wersji', $section['coNowego'] ?? null);
     }
 
-    /** Jeden zepsuty wpis nie odbiera użytkownikowi całej książki. */
-    public function testABrokenEntryFallsOutAndTheRestStays(): void
+    /** Plik prywatny — prawa `0600`, jak każdy zapis przez `StateFile`. */
+    public function testTheFileIsReadableOnlyByItsOwner(): void
     {
-        $service = DockerStateService::getInstance();
-        $location = $service->location();
+        DockerStateService::getInstance()->makeCurrent('a1b2c3d4e5f6');
 
-        mkdir(dirname($location), 0o700, true);
-        file_put_contents($location, json_encode([
-            'docker' => [
-                'environments' => [
-                    ['name' => '-zly', 'kind' => 'tunnel', 'target' => 'example.com'],
-                    ['name' => 'dobry', 'kind' => 'local', 'socket' => '/var/run/docker.sock'],
-                    ['kind' => 'local'],
-                ],
-            ],
-        ]));
+        $mode = fileperms($this->home . '/.light-manager/state.json') & 0o777;
 
-        $book = $service->load()->book;
-
-        self::assertCount(1, $book->all());
-        self::assertNotNull($book->find('dobry'));
+        self::assertSame(0o600, $mode);
     }
 
-    /**
-     * Stary `docker.json` czyta się jak sekcja (D103): książka i wybór wracają,
-     * a plik zostaje na dysku nietknięty.
-     */
-    public function testTheLegacyFileIsReadAsASectionAndSurvivesUntouched(): void
+    /** @param array<string, mixed> $section */
+    private function writeSection(array $section): void
     {
-        $directory = $this->home . '/.light-manager';
-        mkdir($directory, 0o700, true);
-        $legacy = json_encode([
-            'environments' => [['name' => 'praca', 'kind' => 'local', 'socket' => '/var/run/docker.sock']],
-            'currentEnvironment' => 'praca',
-        ]);
-        file_put_contents($directory . '/docker.json', $legacy);
+        $this->writeDocument(['docker' => $section]);
+    }
 
-        $service = DockerStateService::getInstance();
-        $loaded = $service->load();
-
-        self::assertSame('praca', $loaded->book->current());
-        self::assertNotNull($loaded->book->find('praca'));
-
-        $service->save($loaded->book);
-
-        self::assertSame($legacy, file_get_contents($directory . '/docker.json'), 'stary plik nietknięty');
+    /** @param array<string, mixed> $document */
+    private function writeDocument(array $document): void
+    {
+        mkdir($this->home . '/.light-manager', 0o700, true);
+        file_put_contents(
+            $this->home . '/.light-manager/state.json',
+            (string) json_encode($document, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+        );
     }
 }

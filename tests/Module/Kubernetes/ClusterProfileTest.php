@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace LightManager\Tests\Module\Kubernetes;
 
-use LightManager\Module\Kubernetes\Application\ClusterBook;
 use LightManager\Module\Kubernetes\Domain\Exception\InvalidClusterNameException;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ClusterPlace;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ClusterProfile;
@@ -103,29 +102,49 @@ final class ClusterProfileTest extends TestCase
         self::assertTrue($first->equals($second));
     }
 
-    /** Książka zachowuje kolejność dopisywania, a nazwa zajęta **zastępuje** wpis w miejscu. */
-    public function testTheBookKeepsOrderAndReplacesByName(): void
+    /**
+     * Wpis z **wiersza kwerendy** — jedyna droga, którą powstaje od kroku 60,
+     * i idzie wyłącznie przez napisy (15g).
+     */
+    public function testProfileIsBuiltFromAQueryRow(): void
     {
-        $book = new ClusterBook();
-        $book->add(ClusterProfile::of('praca', '/a.yaml', 'ca-dev'));
-        $book->add(ClusterProfile::of('dom', '/b.yaml', 'minikube'));
-        $book->add(ClusterProfile::of('praca', '/c.yaml', 'nowy'));
+        $entry = ClusterProfile::fromRow([
+            'id' => 'a1b2c3d4e5f6',
+            'name' => 'praca',
+            'kubeconfig' => '/home/anna/.kube/config',
+            'context' => 'ca-dev',
+            'namespace' => 'produkcja',
+            'timeout' => 20,
+        ]);
 
-        self::assertSame(['praca', 'dom'], array_map(
-            static fn (ClusterProfile $entry): string => $entry->name,
-            $book->all(),
-        ));
-        self::assertSame('nowy', $book->find('praca')?->context);
+        self::assertNotNull($entry);
+        self::assertSame('a1b2c3d4e5f6', $entry->id);
+        self::assertSame('praca', $entry->name);
+        self::assertSame('ca-dev', $entry->context);
+        self::assertSame('produkcja', $entry->namespace);
+        self::assertSame(20, $entry->timeoutSeconds);
     }
 
-    /** Skasowanie wpisu bieżącego zostawia wybór pusty, a nie wskazujący donikąd. */
-    public function testRemovingTheCurrentEntryClearsTheChoice(): void
+    /** Bez nazwy wpis nazywa się swoim kontekstem — bo tak nazwałby go użytkownik. */
+    public function testAnEntryWithoutANameTakesTheContext(): void
     {
-        $book = new ClusterBook();
-        $book->add(ClusterProfile::of('praca', '/a.yaml', 'ca-dev'));
-        $book->makeCurrent('praca');
+        self::assertSame('ca-dev', ClusterProfile::fromRow([
+            'id' => 'a1b2c3d4e5f6',
+            'kubeconfig' => '/home/anna/.kube/config',
+            'context' => 'ca-dev',
+        ])?->name);
+    }
 
-        self::assertTrue($book->remove('praca'));
-        self::assertSame('', $book->current());
+    /**
+     * **Wpis bez współrzędnych nie jest klastrem** — książka jest wspólna, więc
+     * wpis niosący wyłącznie pola cudzego rozdziału po prostu tu nie należy.
+     */
+    public function testAnEntryWithoutCoordinatesIsNotACluster(): void
+    {
+        self::assertNull(ClusterProfile::fromRow(['id' => 'a1b2c3d4e5f6', 'name' => 'biuro']));
+        self::assertNull(ClusterProfile::fromRow([
+            'id' => 'a1b2c3d4e5f6',
+            'kubeconfig' => '/home/anna/.kube/config',
+        ]));
     }
 }

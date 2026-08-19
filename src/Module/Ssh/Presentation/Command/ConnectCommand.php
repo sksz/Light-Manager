@@ -76,9 +76,11 @@ final class ConnectCommand implements CommandInterface, SuggestsArguments, Opens
 
         $matching = [];
 
-        foreach ($this->reader->book()->names() as $name) {
-            if ($prefix === '' || stripos($name, $prefix) === 0) {
-                $matching[] = $name;
+        foreach ($this->reader->hosts() as $profile) {
+            if ($prefix === '' || stripos($profile->id, $prefix) === 0 || stripos($profile->name, $prefix) === 0) {
+                // Identyfikator **z nazwą obok**: komenda przyjmuje pierwszy,
+                // a pamięta się drugą (krok 60).
+                $matching[] = $profile->name === '' ? $profile->id : $profile->id . ' (' . $profile->name . ')';
             }
         }
 
@@ -117,6 +119,9 @@ final class ConnectCommand implements CommandInterface, SuggestsArguments, Opens
 
     private function profileFrom(CommandInput $input): ?HostProfile
     {
-        return $this->reader->book()->find(trim($input->text(self::ARGUMENT)));
+        $value = trim($input->text(self::ARGUMENT));
+        $space = strpos($value, ' ');
+
+        return $this->reader->entry($space === false ? $value : substr($value, 0, $space));
     }
 }

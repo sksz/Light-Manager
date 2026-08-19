@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace LightManager\Tests\Module\Kubernetes;
 
-use LightManager\Module\Kubernetes\Application\ClusterBook;
 use LightManager\Module\Kubernetes\Application\ClusterOrigin;
 use LightManager\Module\Kubernetes\Application\Clusters;
 use LightManager\Module\Kubernetes\Application\ClusterSession;
 use LightManager\Module\Kubernetes\Application\ConfigCatalog;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ClusterProfile;
-use LightManager\Tests\Support\StubClusterBook;
 use LightManager\Tests\Support\StubKubectl;
+use LightManager\Tests\Support\StubKubernetesState;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -120,9 +119,9 @@ final class ClustersTest extends TestCase
     public function testOriginIsVisible(): void
     {
         $kubectl = (new StubKubectl())->willReturn(self::CONFIG_DEFAULT);
-        $book = new StubClusterBook(self::bookWith(
-            ClusterProfile::of('praca', $this->home . '/klient.yaml', 'default'),
-        ));
+        $book = [
+            ClusterProfile::of('praca', $this->home . '/klient.yaml', 'default', id: 'a1b2c3d4e5f0'),
+        ];
         [$clusters] = $this->build($kubectl, $book);
 
         $clusters->refresh();
@@ -136,9 +135,9 @@ final class ClustersTest extends TestCase
     public function testAnOwnEntryShadowsTheReadOne(): void
     {
         $kubectl = (new StubKubectl())->willReturn(self::CONFIG_DEFAULT);
-        $book = new StubClusterBook(self::bookWith(
-            ClusterProfile::of('ca-dev', $this->home . '/klient.yaml', 'default'),
-        ));
+        $book = [
+            ClusterProfile::of('ca-dev', $this->home . '/klient.yaml', 'default', id: 'a1b2c3d4e5f9'),
+        ];
         [$clusters] = $this->build($kubectl, $book);
 
         $clusters->refresh();
@@ -152,8 +151,15 @@ final class ClustersTest extends TestCase
         self::assertSame($this->home . '/klient.yaml', $clusters->row('ca-dev')?->kubeconfig);
     }
 
-    /** Wpisu czytanego **nie da się skasować** — moduł do `kubeconfig` nie pisze. */
-    public function testAReadEntryCannotBeRemoved(): void
+    /**
+     * **Wpis czytany nie ma identyfikatora** i to jest cała różnica, która po
+     * nim została (krok 60).
+     *
+     * Usuwanie zeszło do książki, a kontekstu czytanego z `kubeconfig`
+     * w książce nie ma — więc nie ma czego usuwać, a wiersz nie znika ze spisu.
+     * Moduł do `kubeconfig` nadal nie pisze.
+     */
+    public function testAReadEntryHasNoIdentifierAndStaysInTheList(): void
     {
         $kubectl = (new StubKubectl())->willReturn(self::CONFIG_DEFAULT);
         [$clusters] = $this->build($kubectl);
@@ -161,40 +167,11 @@ final class ClustersTest extends TestCase
         $clusters->refresh();
         $this->pump($clusters, 4);
 
-        self::assertFalse($clusters->remove('ca-dev'), 'wiersza czytanego nie ma w książce, więc nie ma czego usuwać');
-        self::assertNotNull($clusters->row('ca-dev'), 'i nie znika ze spisu');
-    }
+        $row = $clusters->row('ca-dev');
 
-    /**
-     * **Migracja z ustawień nie gubi zapamiętanego miejsca** (plan, punkt 7).
-     */
-    public function testMigrationMovesTheRememberedPlaceIntoTheBook(): void
-    {
-        $kubectl = (new StubKubectl())->willReturn(self::CONFIG_DEFAULT);
-        $book = new StubClusterBook(new ClusterBook(), null, fresh: true);
-        [$clusters] = $this->build($kubectl, $book);
-
-        self::assertTrue($clusters->isFresh());
-        $clusters->migrate('ca-dev', 'produkcja');
-
-        $entry = $clusters->find('ca-dev');
-
-        self::assertNotNull($entry, 'zapamiętany kontekst stał się wpisem książki');
-        self::assertSame(Clusters::defaultConfigPath(), $entry->kubeconfig, 'wskazuje plik domyślny');
-        self::assertSame('produkcja', $entry->namespace, 'przestrzeń nazw też przeżyła');
-        self::assertSame('ca-dev', $clusters->currentName(), 'i pozostaje wyborem bieżącym');
-        self::assertSame(1, $book->saveCount, 'migracja zapisuje książkę raz');
-    }
-
-    /** Migracja bez zapamiętanego miejsca **nic nie robi** — nie zakłada pustego wpisu. */
-    public function testMigrationWithNothingRememberedWritesNothing(): void
-    {
-        $book = new StubClusterBook(new ClusterBook(), null, fresh: true);
-        [$clusters] = $this->build(new StubKubectl(), $book);
-
-        $clusters->migrate('', '');
-
-        self::assertSame(0, $book->saveCount);
+        self::assertNotNull($row);
+        self::assertSame('', $row->id, 'kontekst czytany nie stoi w książce');
+        self::assertNull($row->entry);
     }
 
     /** Ścieżki z `KUBECONFIG` wchodzą do spisu plików — standard narzędzia. */
@@ -218,23 +195,23 @@ final class ClustersTest extends TestCase
     }
 
     /** @return array{Clusters, ClusterSession} */
-    private function build(StubKubectl $kubectl, ?StubClusterBook $book = null): array
+    /**
+     * Koordynator wraz z wpisami — **podanymi z zewnątrz** (krok 60).
+     *
+     * @param list<ClusterProfile> $entries
+     *
+     * @return array{Clusters, ClusterSession}
+     */
+    private function build(StubKubectl $kubectl, array $entries = [], ?StubKubernetesState $state = null): array
     {
         $session = new ClusterSession();
         $clusters = new Clusters(
-            $book ?? new StubClusterBook(),
+            $state ?? new StubKubernetesState(),
             new ConfigCatalog($kubectl, $session),
             $session,
         );
+        $clusters->useEntries($entries);
 
         return [$clusters, $session];
-    }
-
-    private static function bookWith(ClusterProfile $entry): ClusterBook
-    {
-        $book = new ClusterBook();
-        $book->add($entry);
-
-        return $book;
     }
 }

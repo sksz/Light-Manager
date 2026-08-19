@@ -8,7 +8,6 @@ use LightManager\Application\Event\EventRegistry;
 use LightManager\Application\Module\ListensToEvents;
 use LightManager\Application\Module\ModuleInterface;
 use LightManager\Application\Module\ModuleShortcut;
-use LightManager\Module\Ssh\Application\HostBook;
 use LightManager\Module\Ssh\Application\SessionStage;
 use LightManager\Module\Ssh\Application\SshEvent;
 use LightManager\Module\Ssh\Application\SshSession;
@@ -16,8 +15,8 @@ use LightManager\Module\Ssh\Domain\ValueObject\AuthMethod;
 use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
 use LightManager\Module\Ssh\Presentation\SshModule;
 use LightManager\Tests\Support\InMemorySettings;
-use LightManager\Tests\Support\StubHostBook;
 use LightManager\Tests\Support\StubSshSession;
+use LightManager\Tests\Support\StubSshState;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -30,43 +29,13 @@ use PHPUnit\Framework\TestCase;
  */
 final class SshSessionTest extends TestCase
 {
-    public function testBookIsReadLazilyAndOnlyOnce(): void
-    {
-        $storage = new StubHostBook(new HostBook([new HostProfile('biuro', 'example.com')]));
-        $session = $this->sessionWith(new StubSshSession(), $storage);
-
-        self::assertSame(1, $session->book()->count());
-        self::assertSame('biuro', $session->book()->names()[0]);
-    }
-
-    /** Dopisanie wpisu **zapisuje plik od razu** — spis ma przeżyć ponowne uruchomienie. */
-    public function testAddingAHostPersistsTheBook(): void
-    {
-        $storage = new StubHostBook();
-        $session = $this->sessionWith(new StubSshSession(), $storage);
-
-        $session->add(new HostProfile('biuro', 'example.com'));
-
-        self::assertSame(1, $storage->saves);
-        self::assertSame(1, $session->book()->count());
-    }
-
-    public function testRemovingAHostThatIsNotThereChangesNothing(): void
-    {
-        $storage = new StubHostBook();
-        $session = $this->sessionWith(new StubSshSession(), $storage);
-
-        self::assertFalse($session->remove('nie ma'));
-        self::assertSame(0, $storage->saves);
-    }
-
     /** Ustawienia idą do portu **przy każdym łączeniu**, a nie raz przy składaniu. */
     public function testSettingsReachThePortOnEveryConnection(): void
     {
         $port = new StubSshSession();
-        $session = $this->sessionWith($port, new StubHostBook());
+        $session = $this->sessionWith($port);
 
-        $session->connect(new HostProfile('biuro', 'example.com'));
+        $session->connect(new HostProfile('a1b2c3d4e5f6', 'biuro', 'example.com'));
 
         self::assertCount(1, $port->options);
         self::assertSame(10, $port->options[0]['timeout']);
@@ -75,14 +44,14 @@ final class SshSessionTest extends TestCase
 
     public function testOnlyThePasswordMethodAsksForOne(): void
     {
-        $session = $this->sessionWith(new StubSshSession(), new StubHostBook());
+        $session = $this->sessionWith(new StubSshSession());
 
-        self::assertFalse($session->needsPassword(new HostProfile('a', 'example.com')));
+        self::assertFalse($session->needsPassword(new HostProfile('a1b2c3d4e5f6', 'a', 'example.com')));
         self::assertFalse($session->needsPassword(
-            new HostProfile('b', 'example.com', 22, '', AuthMethod::Key, '/klucz'),
+            new HostProfile('a1b2c3d4e5f6', 'b', 'example.com', 22, '', AuthMethod::Key, '/klucz'),
         ));
         self::assertTrue($session->needsPassword(
-            new HostProfile('c', 'example.com', 22, '', AuthMethod::Password),
+            new HostProfile('a1b2c3d4e5f6', 'c', 'example.com', 22, '', AuthMethod::Password),
         ));
     }
 
@@ -91,8 +60,8 @@ final class SshSessionTest extends TestCase
     {
         $port = new StubSshSession();
         $listener = new RecordingListener();
-        $session = $this->sessionWith($port, new StubHostBook(), $listener);
-        $profile = new HostProfile('biuro', 'example.com');
+        $session = $this->sessionWith($port, $listener);
+        $profile = new HostProfile('a1b2c3d4e5f6', 'biuro', 'example.com');
 
         $session->connect($profile);
         $session->tick();
@@ -109,8 +78,8 @@ final class SshSessionTest extends TestCase
     {
         $port = new StubSshSession();
         $listener = new RecordingListener();
-        $session = $this->sessionWith($port, new StubHostBook(), $listener);
-        $profile = new HostProfile('biuro', 'example.com');
+        $session = $this->sessionWith($port, $listener);
+        $profile = new HostProfile('a1b2c3d4e5f6', 'biuro', 'example.com');
 
         $session->connect($profile);
         $port->settleFailed($profile);
@@ -130,8 +99,8 @@ final class SshSessionTest extends TestCase
     {
         $port = new StubSshSession();
         $listener = new RecordingListener();
-        $session = $this->sessionWith($port, new StubHostBook(), $listener);
-        $profile = new HostProfile('biuro', 'example.com');
+        $session = $this->sessionWith($port, $listener);
+        $profile = new HostProfile('a1b2c3d4e5f6', 'biuro', 'example.com');
 
         $session->tick();
         self::assertSame([], $listener->events, 'sam start niczego nie ogłasza');
@@ -150,8 +119,8 @@ final class SshSessionTest extends TestCase
     {
         $port = new StubSshSession();
         $listener = new RecordingListener();
-        $session = $this->sessionWith($port, new StubHostBook(), $listener);
-        $profile = new HostProfile('biuro', 'example.com');
+        $session = $this->sessionWith($port, $listener);
+        $profile = new HostProfile('a1b2c3d4e5f6', 'biuro', 'example.com');
 
         $session->connect($profile);
         $port->settleAwaitingApproval($profile);
@@ -169,7 +138,7 @@ final class SshSessionTest extends TestCase
             new \LightManager\Tests\Support\StubTranslator(),
             new InMemorySettings(),
             new StubSshSession(),
-            new StubHostBook(),
+            new StubSshState(),
         );
 
         self::assertNull($module->unavailableReason());
@@ -193,7 +162,6 @@ final class SshSessionTest extends TestCase
 
     private function sessionWith(
         StubSshSession $port,
-        StubHostBook $storage,
         ?RecordingListener $listener = null,
     ): SshSession {
         $events = new EventRegistry();
@@ -203,7 +171,7 @@ final class SshSessionTest extends TestCase
             $events->useModules([$listener]);
         }
 
-        return new SshSession($port, $storage, new InMemorySettings(), $events);
+        return new SshSession($port, new InMemorySettings(), $events);
     }
 }
 

@@ -23,6 +23,11 @@ use LightManager\Module\Kubernetes\Domain\ValueObject\ClusterProfile;
 final readonly class ClusterRow
 {
     public function __construct(
+        /**
+         * Identyfikator wpisu książki; **pusty dla kontekstu czytanego
+         * z pliku**, bo ten w książce nie stoi (krok 60).
+         */
+        public string $id,
         public string $name,
         public string $kubeconfig,
         public string $context,

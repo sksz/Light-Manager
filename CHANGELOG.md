@@ -7,6 +7,20 @@ Light Manager — menadżer plików działający w terminalu i we własnym oknie
 Jeden grający, wiele piszczałek: aplikacja przestaje zakładać, że demon,
 klaster i rejestr są po jednym — miejsca stają się spisami, które prowadzisz.
 
+- **Adresy mieszkają w jednej książce, wspólnej dla wszystkich modułów**
+  (2026-08-19). `Ctrl`+`W` otwiera spis miejsc, do których łączy się aplikacja.
+  Zakładki u góry to rozdziały: „Wszystkie” pokazuje wpisy, a każda następna —
+  kolumny jednego modułu. `F7` dopisuje wpis, `F4` prowadzi po polach zakładki,
+  `F8` usuwa, `F6` sortuje, `Ctrl`+`F` szuka. **Jeden wpis może być naraz hostem
+  SSH, demonem Dockera i klastrem Kubernetesa** — adres poprawia się wtedy
+  w jednym miejscu, a nie w trzech. Wpis ma własny identyfikator, więc nazwę
+  wolno zmienić, powtórzyć albo zostawić pustą: tunel Dockera wskazujący host
+  **nie psuje się już po zmianie jego nazwy**. Hasła nigdzie nie są zapisywane,
+  a ścieżki kluczy i certyfikatów są na ekranie zasłonięte. Spisy ze starszej
+  wersji — hosty, środowiska i klastry — przenoszą się do książki same, przy
+  pierwszym uruchomieniu, a stary zapis zostaje nietknięty. Dopisywanie i zmiana
+  wpisów zeszły z trzech ekranów do książki; tamte pokazują odtąd to, czego
+  książka nie wie: z kim stoi sesja i z którym demonem się rozmawia.
 - **Klaster wybiera się ze spisu, a nie z jednej pozycji ustawień**
   (2026-08-18). Litera `c` na ekranie Kubernetesa otwiera spis klastrów: obok
   kontekstów czytanych z `~/.kube/config` i ze ścieżek w `KUBECONFIG` stoją
@@ -32,7 +46,8 @@ klaster i rejestr są po jednym — miejsca stają się spisami, które prowadzi
   montowania i kontekst budowy znaczą tam co innego niż lokalnie.
 
 W przygotowaniu: rejestry obrazów — z wypchnięciem, pobraniem i sekretem
-zakładanym w klastrze.
+zakładanym w klastrze; rejestr będzie kolejnym rozdziałem książki adresowej,
+a nie czwartym osobnym spisem.
 
 ## Niewydane — Kastaniety (Faza XIX): wskaźnik
 

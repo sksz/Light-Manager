@@ -788,11 +788,37 @@ Wbudowanych jest dziś siedem:
   potrzebuje przy tym okna: silnik audio startuje bez kontekstu OpenGL, więc
   muzyka gra także w obu torach terminalowych.
 
+- **Książka adresowa** (`address-book`, `Ctrl`+`W`) — **wspólny spis miejsc**,
+  do których łączą się pozostałe moduły. Zakładki u góry to **rozdziały**:
+  „Wszystkie" pokazuje wpisy z identyfikatorami, a każda następna — kolumny
+  jednego rozdziału, wzięte wprost z tego, co zadeklarował moduł, który go
+  używa. `F7` dopisuje wpis, `F4` (albo `Enter`) prowadzi łańcuchem okien po
+  polach bieżącej zakładki, `F8` usuwa, `F6` przestawia kolumnę porządkującą,
+  a `Ctrl`+`F` zawęża spis. To samo robią komendy `address-book.add`,
+  `address-book.set`, `address-book.rename`, `address-book.remove`
+  i `address-book.forget`.
+
+  Trzy rzeczy warto o niej wiedzieć. **Wpis ma nazwę i identyfikator**, a to
+  identyfikator jest jego tożsamością — nazwę wolno zmienić, powtórzyć albo
+  zostawić pustą, a odniesienia innych modułów tego nie zauważą. **Pola przy
+  wpisie dokładają moduły**: sesja zdalna dopisuje adres, port, użytkownika
+  i sposób uwierzytelnienia, Docker — rodzaj połączenia z demonem, Kubernetes —
+  plik `kubeconfig` i kontekst; jeden wpis może nieść wszystkie trzy naraz
+  i wtedy adres poprawia się **w jednym miejscu**. **Rozdział nie jest niczyj** —
+  każdy moduł czyta i zmienia wszystkie rozdziały tymi samymi komendami, a pola
+  oznaczone jako sekret są na ekranie zasłonięte (plik stanu ma prawa `0600`;
+  szyfrowania nie ma i nie udaje).
+
+  Spisy ze starszych wersji — hosty SSH, środowiska Dockera i klastry
+  Kubernetesa — **przenoszą się do książki same**, przy pierwszym uruchomieniu;
+  stary zapis zostaje na dysku nietknięty.
+
 - **Sesja zdalna** (`ssh`, `Ctrl`+`S`) — połączenie SSH z hostem z książki
   adresowej. `Enter` łączy z podświetlonym wpisem albo rozłącza, gdy to z nim
-  stoi sesja; `F4` przestawia sposób uwierzytelnienia, `F5` sprawdza stan sesji.
-  Adresy dopisuje się i usuwa **w książce** (`Ctrl`+`W`), a nie tutaj: ten sam
-  wpis widzi także moduł Dockera, gdy podnosi tunel do zdalnego demona. Spis
+  stoi sesja; `F5` sprawdza stan sesji. Adres, login i sposób uwierzytelnienia
+  zmienia się **w książce** (`Ctrl`+`W`, zakładka „Sesja zdalna"), a nie tutaj:
+  ten sam wpis widzi także moduł Dockera, gdy podnosi tunel do zdalnego
+  demona. Spis
   mieszka w `~/.light-manager/state.json` i przeżywa ponowne uruchomienie; wpisy
   ze starszej wersji (`ssh.json`, klucz `hosts`) przenoszą się do książki przy
   pierwszym uruchomieniu, a stary zapis zostaje na dysku nietknięty. To samo
@@ -852,18 +878,20 @@ Wbudowanych jest dziś siedem:
   środowiska**, logi na żywo, budowa obrazów i projekty compose. Litera **`e`**
   otwiera spis środowisk: obok gniazda lokalnego i kontekstów klienta `docker`
   (czytanych, nigdy nie zmienianych) stoją tam wpisy własne, prowadzone
-  z ekranu i pamiętane w `~/.light-manager/docker.json`.
+  z ekranu; wpisy mieszkają w książce adresowej, a w sekcji `docker` pliku stanu
+  zostaje wyłącznie to, które z nich jest bieżące.
 
-  **Jak dodać środowisko zdalne:** w spisie (`e`) naciśnij `F7`, wybierz rodzaj
-  i odpowiedz na kolejne pytania:
+  **Jak dodać środowisko zdalne:** w książce adresowej (`Ctrl`+`W`, zakładka
+  „Docker"), bo to tam mieszkają wpisy. `F7` dopisuje wpis, `F4` prowadzi po
+  polach rozdziału:
 
-  - **tunel SSH** — podaj nazwę, cel (`użytkownik@host[:port]` **albo nazwę
-    wpisu książki hostów** modułu sesji zdalnej — dane weźmie stamtąd) i ścieżkę
-    gniazda po stronie zdalnej (domyślnie `/var/run/docker.sock`). Przy wyborze
+  - **tunel SSH** — rodzaj `tunel`, cel **wybierany z listy wpisów** (wskazuje
+    wpis, który ma wypełnioną zakładkę „Sesja zdalna" — dane weźmie stamtąd)
+    i ścieżka gniazda po stronie zdalnej (domyślnie `/var/run/docker.sock`). Przy wyborze
     środowiska padnie pytanie, czy uwierzytelnić **kluczem/agentem, czy
     hasłem** — hasło wpisuje się w polu maskowanym i nie jest nigdzie
     zapisywane;
-  - **TCP z TLS** — podaj nazwę, adres `host[:port]` (domyślnie 2376) i trzy
+  - **TCP z TLS** — rodzaj `tcp`, adres i port (domyślnie 2376) oraz trzy
     ścieżki plików: certyfikat klienta, jego klucz i certyfikat urzędu. Dla
     compose komplet musi leżeć w jednym katalogu pod nazwami
     `cert.pem`/`key.pem`/`ca.pem`, bo klient czyta go zmienną

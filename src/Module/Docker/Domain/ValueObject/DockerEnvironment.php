@@ -32,6 +32,15 @@ final readonly class DockerEnvironment
 {
     public const DEFAULT_SOCKET = '/var/run/docker.sock';
 
+    /**
+     * Nazwa środowiska bieżącego, gdy użytkownik jeszcze żadnego nie wybrał.
+     *
+     * Stała mieszkała do kroku 60 w `EnvironmentBook`; książka zniknęła, a nazwa
+     * została — bo gniazdo lokalne stoi w spisie zawsze, także wtedy, gdy nie
+     * ma ani jednego wpisu i ani jednego kontekstu.
+     */
+    public const DEFAULT_NAME_LOCAL = 'default';
+
     public const DEFAULT_TUNNEL_PORT = 22;
 
     public const DEFAULT_TLS_PORT = 2376;
@@ -58,6 +67,8 @@ final readonly class DockerEnvironment
     private const HOST_PATTERN = '/^[A-Za-z0-9:\[][A-Za-z0-9._:\]-]*$/';
 
     private function __construct(
+        /** Identyfikator wpisu książki — tożsamość środowiska (krok 60). */
+        public string $id,
         public string $name,
         public EnvironmentKind $kind,
         /** `LocalSocket`: gniazdo lokalne; `SshTunnel`: gniazdo po stronie zdalnej. */
@@ -73,9 +84,92 @@ final readonly class DockerEnvironment
         $this->validate();
     }
 
-    public static function localSocket(string $name, string $socketPath = self::DEFAULT_SOCKET): self
+    public static function localSocket(string $name, string $socketPath = self::DEFAULT_SOCKET, string $id = ''): self
     {
-        return new self($name, EnvironmentKind::LocalSocket, $socketPath, '', 0, null, null, null);
+        return new self($id, $name, EnvironmentKind::LocalSocket, $socketPath, '', 0, null, null, null);
+    }
+
+    /**
+     * Środowisko z wiersza kwerendy `address-book.entries docker` albo `null`,
+     * gdy wiersz nie opisuje demona, z którym da się rozmawiać (krok 60).
+     *
+     * **Jedyna droga, którą środowisko powstaje z książki**, i idzie wyłącznie
+     * przez napisy i liczby (reguła 15g). Wiersz bez rodzaju nie jest błędem:
+     * wpis może istnieć po to, żeby nieść pola zupełnie innego rozdziału.
+     *
+     * Ścieżek TLS **tu nie ma i być nie może** — pola są maskowane, więc wiersz
+     * niesie w ich miejsce `set`/`unset`. Dokłada je `DockerQueries::environment()`
+     * osobnym pytaniem, w chwili, gdy trzeba zestawić połączenie; ta sama
+     * lekcja, co przy ścieżce klucza w module sesji zdalnej.
+     *
+     * @param array<string, string|int|bool> $row
+     */
+    public static function fromRow(array $row): ?self
+    {
+        $id = $row['id'] ?? '';
+        $kind = EnvironmentKind::of(is_string($row['kind'] ?? null) ? $row['kind'] : '');
+
+        if (!is_string($id) || $id === '' || $kind === null) {
+            return null;
+        }
+
+        $port = $row['port'] ?? 0;
+        $port = is_int($port) ? $port : (int) (is_string($port) ? $port : 0);
+
+        try {
+            return new self(
+                $id,
+                is_string($row['name'] ?? null) ? $row['name'] : '',
+                $kind,
+                // Gniazdo ma **oba** rodzaje gniazdowe: lokalny wskazuje nim
+                // demona na tej maszynie, a tunelowy — gniazdo **po stronie
+                // zdalnej**, które przywozi `ssh -L`. Pusta wartość znaczy
+                // „domyślne", bo tyle właśnie znaczyła w fabrykach.
+                self::text($row, 'socket', $kind === EnvironmentKind::Tcp ? '' : self::DEFAULT_SOCKET),
+                self::text($row, 'target', ''),
+                $port > 0 ? $port : self::defaultPortOf($kind),
+                null,
+                null,
+                null,
+            );
+        } catch (InvalidDockerEnvironmentException) {
+            // Wpis nie do przyjęcia wypada, a reszta spisu zostaje: książka jest
+            // wspólna, więc wpis nieprzydatny tutaj bywa czyimś poprawnym.
+            return null;
+        }
+    }
+
+    /** @param array<string, string|int|bool> $row */
+    private static function text(array $row, string $key, string $fallback): string
+    {
+        $value = $row[$key] ?? '';
+
+        return is_string($value) && $value !== '' ? $value : $fallback;
+    }
+
+    private static function defaultPortOf(EnvironmentKind $kind): int
+    {
+        return match ($kind) {
+            EnvironmentKind::SshTunnel => self::DEFAULT_TUNNEL_PORT,
+            EnvironmentKind::Tcp => self::DEFAULT_TLS_PORT,
+            EnvironmentKind::LocalSocket => 0,
+        };
+    }
+
+    /** Ten sam wpis z dołożonym materiałem TLS — pola maskowane przychodzą osobno. */
+    public function withTls(?string $certPath, ?string $keyPath, ?string $caPath): self
+    {
+        return new self(
+            $this->id,
+            $this->name,
+            $this->kind,
+            $this->socketPath,
+            $this->target,
+            $this->port,
+            $certPath,
+            $keyPath,
+            $caPath,
+        );
     }
 
     public static function sshTunnel(
@@ -83,8 +177,9 @@ final readonly class DockerEnvironment
         string $target,
         int $port = self::DEFAULT_TUNNEL_PORT,
         string $remoteSocket = self::DEFAULT_SOCKET,
+        string $id = '',
     ): self {
-        return new self($name, EnvironmentKind::SshTunnel, $remoteSocket, $target, $port, null, null, null);
+        return new self($id, $name, EnvironmentKind::SshTunnel, $remoteSocket, $target, $port, null, null, null);
     }
 
     public static function tcp(
@@ -94,8 +189,9 @@ final readonly class DockerEnvironment
         string $certPath,
         string $keyPath,
         string $caPath,
+        string $id = '',
     ): self {
-        return new self($name, EnvironmentKind::Tcp, '', $host, $port, $certPath, $keyPath, $caPath);
+        return new self($id, $name, EnvironmentKind::Tcp, '', $host, $port, $certPath, $keyPath, $caPath);
     }
 
     /**

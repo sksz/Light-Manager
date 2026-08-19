@@ -1274,8 +1274,12 @@ bloki i-węzła z `lstat`, bez uruchamiania czegokolwiek) i **na żądanie klawi
 #### Sesja zdalna: praca poza maszyną (od kroku 48)
 
 Moduł `src/Module/Ssh/` nawiązuje i utrzymuje połączenie SSH z hostem ze spisu,
-który użytkownik prowadzi z ekranu (`Ctrl`+`S`). Jest **czwartym sprawdzianem
-kontraktu modułu** — po module rysującym główną funkcję (21), module bez ekranu
+który użytkownik prowadzi — **a od kroku 60 nie prowadzi go tutaj**: wpisy
+mieszkają we wspólnej książce adresowej, a ten moduł czyta je kwerendą
+`address-book.entries` z argumentem `ssh` i dokłada do nich to, czego książka
+nie wie: z kim stoi sesja. Ekran (`Ctrl`+`S`) pokazuje spis i łączy; dopisanie,
+zmiana i usunięcie wpisu należą do książki (`Ctrl`+`W`). Jest **czwartym
+sprawdzianem kontraktu modułu** — po module rysującym główną funkcję (21), module bez ekranu
 (36) i module pracującym, gdy go nie widać (45), przyszedł moduł **rozmawiający
 z czymś poza maszyną**.
 
@@ -1529,8 +1533,11 @@ druga droga do tej samej danej.
 
 **Spis ma dwa źródła** (D96 nr 3): konteksty klienta `docker` czyta się pracą
 tłową (`docker context ls --format json`, NDJSON), a wpisy własne dochodzą
-z książki w pliku stanu modułu `~/.light-manager/docker.json` (tryb `0600`,
-nieznane klucze przeżywają zapis — krok 61 dopisze tam książkę rejestrów).
+**od kroku 60 z rozdziału `docker` wspólnej książki adresowej** (do tamtego
+kroku — z własnej książki modułu w sekcji `docker`, gdzie został wyłącznie
+wskaźnik bieżącego środowiska). Cel tunelu jest tam polem rodzaju `entry`,
+czyli **odniesieniem do wpisu**, a nie jego nazwą — dzięki temu zmiana nazwy
+hosta przestała psuć tunel po cichu.
 Trzy reguły scalania: **pochodzenie jest widoczne**, przy zbieżnej nazwie
 **wygrywa wpis własny** (kolizja zostaje w spisie jako wiersz przysłonięty),
 a **brak klienta nie jest awarią** — lista schodzi do wpisów własnych plus
@@ -1550,8 +1557,12 @@ postacie** (nie ma / wstaje / stoi / nie wstał z powodem) i jest widoczny
 w górnym pasie — inaczej „demon nie odpowiada" i „tunel nie wstał" wyglądałyby
 identycznie, a wymagają dwóch różnych czynności. Tunel wstaje **na wybór
 środowiska**, nigdy przy starcie aplikacji (start nie ma prawa kosztować
-procesu potomnego), a cel bierze się z kwerendy `ssh.hosts`, gdy wpis wskazuje
-książkę hostów — trzy napisy, ani jednego typu (reguła 15g). Uwierzytelnienie
+procesu potomnego), a cel bierze się z **rozdziału `ssh` książki adresowej**
+(`address-book.entries`), gdy wpis wskazuje host po nazwie — trzy napisy, ani
+jednego typu (reguła 15g). Do kroku 60 szło to kwerendą `ssh.hosts` cudzego
+modułu; ta zniknęła razem z książką hostów, a nowa droga jest zarazem
+pierwszym dowodem zasady kroku 60: **rozdział nie jest przegrodą**, więc moduł
+Dockera czyta cudzy rozdział tą samą kwerendą, co jego właściciel. Uwierzytelnienie
 ma **dwie drogi do wyboru przy połączeniu** (D102 nr 4): klucz albo agent
 (`BatchMode=yes`, odpowiedź domyślna) i hasło — polem maskowanym, przez
 `SSH_ASKPASS` wzorcem hasłowej drogi modułu Ssh z kroku 48: nigdy wierszem
@@ -1640,8 +1651,10 @@ miejscem** i mieszał drzewo, listy oraz otwarty opis po cichu. Odtąd
 `ClusterPlace` jedzie w każdym wywołaniu dwiema flagami (także w `config view`,
 bo to ono ma wypisać zawartość *wskazanego* pliku), a `ClusterSession::key()`
 jest kluczem `TreeState`, `SectionState`, `ScrollWindow` i `ResourceCache`.
-Klastry prowadzi się **książką wpisów** (klawisz `c`, piąta postać ekranu) obok
-kontekstów czytanych z `~/.kube/config` i ze ścieżek w `KUBECONFIG` — z trzema
+Klastry prowadzi się **rozdziałem `k8s` wspólnej książki adresowej** (od kroku
+60; do tamtego kroku — własną książką modułu), a ogląda klawiszem `c`, w piątej
+postaci ekranu, obok kontekstów czytanych z `~/.kube/config` i ze ścieżek
+w `KUBECONFIG` — z trzema
 regułami dwóch źródeł znanymi ze środowisk Dockera: pochodzenie widoczne, wpis
 własny wygrywa przy zbieżnej nazwie, wpisu czytanego nie da się z aplikacji
 skasować, bo **do `kubeconfig` moduł nie pisze** i to zdanie z kroku 52 zostaje
@@ -1681,6 +1694,72 @@ i nieznane klucze przeżywają zapis**, a **migracja mieszka za portem** — sek
 nieobecna w dokumencie czyta się ze starego `<sekcja>.json`, stary plik zostaje
 na dysku nietknięty (nikt go już nie czyta, a skasowanie nie ma odbiorcy),
 a sekcją dokumentu staje się przy pierwszym zapisie któregokolwiek właściciela.
+
+#### Książka adresowa: wspólny rejestr wpisów i pól (od kroku 60)
+
+Moduł `src/Module/AddressBook/` (`Ctrl`+`W`) trzyma **wpisy** — miejsca, do
+których łączą się pozostałe moduły — i **deklaracje pól** przy nich. Jest
+siódmym sprawdzianem kontraktu modułu i **pierwszym modułem istniejącym po to,
+żeby trzymać cudze dane**; poprzednie sześć powstało dla własnych funkcji.
+
+**Zdanie, na którym stoi całość: rozdział nie jest niczyją własnością.**
+Rozdział to **nazwana grupa pól**, a nie przegroda. Jeden zestaw kwerend
+i komend obsługuje **wszystkie** rozdziały — rozdział jest w nich argumentem,
+nie osobnym wejściem — a książka używa tego zestawu **tak samo, jak moduły**:
+jej własny ekran pyta i zmienia przez rejestry rdzenia, nie przez model, i sama
+deklaruje swój rozdział (`general`) tymi samymi komendami. Nie ma tu wyjątku
+dla właściciela, bo nie ma właściciela.
+
+**Wpis niesie dwie rzeczy własne: identyfikator i nazwę.** Identyfikator jest
+losowy (dwanaście znaków szesnastkowych) i jest **tożsamością**; nazwę wolno
+zmienić, powtórzyć i zostawić pustą. Adresu wśród pól własnych **nie ma** —
+adres jest polem rozdziału jak każde inne, bo książka nie wie, co to adres.
+Odwraca to wzorzec trzech książek, które ten moduł zastąpił (`HostBook`,
+`EnvironmentBook`, `ClusterBook`): tam tożsamością była nazwa, więc jej zmiana
+psuła cudze odniesienia po cichu.
+
+**Pola dokłada się deklaracją, a deklaracja jest jednostronna.** Kto zamierza
+z pól korzystać, woła dwie komendy — `address-book.chapter` i po jednym
+`address-book.field` na pole — i **książka po nic nie wraca**. Deklaracja jest
+**zapowiedzią użycia, nie zastrzeżeniem**: wolno ją powtórzyć, wolno ją złożyć
+dwóm modułom naraz, a sprzeczna (ten sam klucz, inny rodzaj) **nie przestawia
+pola, które już stoi**. Deklaracje **nie są zapisywane na dysk** — powstają
+w takcie przy każdym uruchomieniu, więc rozdział, którego dziś nikt nie
+deklaruje, traci opis pól, a jego **wartości we wpisach stoją nietknięte**,
+czytelne i zmienialne. Sprząta je czynność zamawiana wprost
+(`address-book.forget`), nie automat.
+
+Rodzajów pól jest sześć — `text`, `number`, `flag`, `choice`, `secret`
+i `entry`. Rodzaj spoza spisu **pomija się w ciszy**: moduł nowszy od książki
+nie ma prawa jej zepsuć. `secret` znaczy **zasłonę na ekranie i nieobecność
+w domyślnych wierszach** (stoi tam `set`/`unset`), a nie przegrodę: wartość
+oddaje kwerenda przeznaczona do tego wprost i **wolno to każdemu**, bo rejestr
+kwerend nie zna wołającego. Plik stanu ma prawa `0600` i **nie udaje sejfu**.
+`entry` jest odniesieniem do innego wpisu i ma dziś jednego odbiorcę — cel
+tunelu SSH w rozdziale `docker`; to dla niego identyfikator w ogóle rozwiązuje
+jakiś dzisiejszy problem.
+
+**Trzy rozdziały weszły razem z mechanizmem** (`ssh`, `docker`, `k8s`), a wraz
+z nimi zniknęły trzy książki modułów i kwerenda `ssh.hosts`. Każdy z modułów
+zna książkę **wyłącznie z nazw komend i kwerend** (15g) — pilnuje tego
+`NoModuleKnowsAnotherModuleTest` — i każdy sięga po nią z dwóch miejsc: klasy
+`…Chapter` (deklaracja i migracja) oraz własnej fasady odczytu.
+
+Dwa zdania graniczne dla dopisujących czwarty rozdział. **Warstwa `Application`
+nie widzi książki**: koordynator dostaje wpisy podaną listą raz na takt
+(`useEntries()`) i **zamawia** zapisy, które wykonuje `Presentation` komendą —
+bo komendy są tam, a nie tu. **Sekcja modułu w dokumencie stanu trzyma odtąd
+wyłącznie wskaźniki i pamięć podręczną**: który wpis jest bieżący, co moduł
+zapamiętał o sesji, znacznik przeniesienia. Zapamiętany katalog zdalny został
+przez to u modułu sesji zdalnej i **nie jest polem rozdziału** — zapisuje się
+przy każdej zmianie katalogu, więc w książce znaczyłby zapis wspólnego dokumentu
+i zdarzenie kilka razy na sekundę.
+
+**Migrację robi właściciel sekcji, nie książka.** Książka cudzych sekcji
+dokumentu stanu nie czyta; stary spis przenosi ten, kto go tam zostawił —
+czyta własny klucz, dopisuje wpisy komendami i pyta `address-book.last`
+o identyfikator każdego z nich. Stare klucze **zostają na dysku nietknięte**
+(D103), a o tym, że przeniesienie się odbyło, mówi osobny znacznik.
 
 #### Kosz i cofnięcie ostatniej operacji (od kroku 44)
 

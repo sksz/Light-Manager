@@ -61,15 +61,21 @@ final class NoModuleKnowsAnotherModuleTest extends TestCase
      *
      * Test chodzący po pustej liście przechodzi zawsze i nie mówi nic. Ten
      * przypadek pilnuje, żeby zmiana układu katalogów nie zamieniła strażnika
-     * w ozdobę — sześć modułów istnieje od kroku 52.
+     * w ozdobę — sześć modułów istnieje od kroku 52, **siedem od kroku 60**.
+     *
+     * Książka adresowa jest tu wymieniona z osobna, bo jest modułem, którego
+     * dane czytają **wszystkie** pozostałe: gdyby wypadła ze spisu strażnika,
+     * pierwszy `use` z jej przestrzenią w cudzym module przeszedłby
+     * niezauważony.
      */
     public function testTheGuardHasSomethingToWatch(): void
     {
         $modules = self::modules();
 
-        self::assertGreaterThanOrEqual(6, count($modules), 'strażnik nie widzi modułów');
+        self::assertGreaterThanOrEqual(7, count($modules), 'strażnik nie widzi modułów');
         self::assertContains('Docker', $modules);
         self::assertContains('Kubernetes', $modules);
+        self::assertContains('AddressBook', $modules);
     }
 
     /**

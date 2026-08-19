@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace LightManager\Module\Docker\Application;
 
 use LightManager\Module\Docker\Application\Port\ContextCatalogPort;
-use LightManager\Module\Docker\Application\Port\EnvironmentBookPort;
+use LightManager\Module\Docker\Application\Port\DockerStatePort;
 use LightManager\Module\Docker\Application\Port\TunnelPort;
 use LightManager\Module\Docker\Domain\ValueObject\DockerEnvironment;
 use LightManager\Module\Docker\Domain\ValueObject\EnvironmentKind;
@@ -32,9 +32,17 @@ use LightManager\Module\Docker\Domain\ValueObject\EnvironmentKind;
  */
 final class Environments
 {
-    private ?EnvironmentBook $book = null;
-
-    private ?string $bookProblem = null;
+    /**
+     * Wpisy własne — **podane z zewnątrz**, nie czytane stąd (krok 60).
+     *
+     * Mieszkają w książce adresowej, a książki nie widać z warstwy `Application`
+     * i nie ma po co: czyta ją fasada modułu i **podaje tu gotową listę raz na
+     * takt**. Koordynator nie wie, że książka istnieje — dostaje wpisy tak samo,
+     * jak dostawał je z własnego pliku, i tyle się dla niego zmieniło.
+     *
+     * @var list<DockerEnvironment>
+     */
+    private array $entries = [];
 
     /** Ile razy zmieniła się odpowiedź — pokolenie kwerendy `docker.environments`. */
     private int $revision = 0;
@@ -51,10 +59,44 @@ final class Environments
     private string $fingerprint = '';
 
     public function __construct(
-        private readonly EnvironmentBookPort $bookPort,
+        private readonly DockerStatePort $storage,
         private readonly ContextCatalogPort $contexts,
         private readonly TunnelPort $tunnel,
     ) {
+    }
+
+    /**
+     * Podaje wpisy własne przeczytane z książki — **raz na takt, przed
+     * wszystkim innym** (krok 60).
+     *
+     * Podbicie pokolenia zależy od **treści**, a nie od samego wywołania:
+     * lista przychodzi trzydzieści razy na sekundę i prawie zawsze jest ta
+     * sama, a pokolenie, które rośnie co klatkę, unieważniałoby pamięć rejestru
+     * kwerend przy każdym rysowaniu.
+     *
+     * @param list<DockerEnvironment> $entries
+     */
+    public function useEntries(array $entries): void
+    {
+        if (self::fingerprintOf($entries) === self::fingerprintOf($this->entries)) {
+            return;
+        }
+
+        $this->entries = $entries;
+        ++$this->revision;
+    }
+
+    /** @param list<DockerEnvironment> $entries */
+    private static function fingerprintOf(array $entries): string
+    {
+        $parts = [];
+
+        foreach ($entries as $entry) {
+            $parts[] = $entry->id . ':' . $entry->name . ':' . $entry->kind->value
+                . ':' . $entry->target . ':' . $entry->port . ':' . $entry->socketPath;
+        }
+
+        return implode('|', $parts);
     }
 
     /** Zamawia świeży odczyt kontekstów klienta — ekran woła to przy otwarciu i na `Ctrl`+`R`. */
@@ -100,9 +142,19 @@ final class Environments
         return $switched;
     }
 
+    /**
+     * Wskazanie bieżącego środowiska: **identyfikator wpisu albo nazwa
+     * kontekstu** (krok 60).
+     *
+     * Dwa znaczenia jednego napisu, bo bieżącym bywa wpis książki (ma
+     * identyfikator) albo kontekst czytany z cudzego pliku (ma samą nazwę).
+     * Rozstrzyga o tym spis złożony z obu źródeł, nie ten napis.
+     */
     public function currentName(): string
     {
-        return $this->loaded()->current();
+        $current = $this->storage->current();
+
+        return $current === '' ? DockerEnvironment::DEFAULT_NAME_LOCAL : $current;
     }
 
     public function tunnel(): TunnelState
@@ -110,17 +162,12 @@ final class Environments
         return $this->tunnel->state();
     }
 
-    public function find(string $name): ?DockerEnvironment
+    /** Wpis własny wskazany identyfikatorem albo nazwą — spis jest krótki, więc szuka się po obu. */
+    public function find(string $key): ?DockerEnvironment
     {
-        return $this->loaded()->find($name);
-    }
-
-    /** Wiersz spisu o podanej nazwie — z obu źródeł, wedle reguły pierwszeństwa. */
-    public function row(string $name): ?EnvironmentRow
-    {
-        foreach ($this->rows() as $row) {
-            if ($row->name === $name && !$row->shadowed) {
-                return $row;
+        foreach ($this->entries as $entry) {
+            if ($entry->id === $key || $entry->name === $key) {
+                return $entry;
             }
         }
 
@@ -128,33 +175,27 @@ final class Environments
     }
 
     /**
-     * Dopisuje albo zastępuje wpis własny i zapisuje książkę.
+     * Wiersz spisu wskazany **identyfikatorem albo nazwą** — z obu źródeł,
+     * wedle reguły pierwszeństwa.
      *
-     * Zmiana wpisu bieżącego **nie przełącza niczego w locie**: adres demona
-     * zmienia się dopiero przy następnym wyborze, bo cicha podmiana rozmówcy
-     * pod trwającą listą byłaby dokładnie tym zaskoczeniem, przed którym ten
-     * krok ma chronić.
+     * Identyfikator wygrywa, bo jest tożsamością; nazwa zostaje drogą dla
+     * kontekstów klienta, które identyfikatora nie mają.
      */
-    public function add(DockerEnvironment $entry): void
+    public function row(string $key): ?EnvironmentRow
     {
-        $book = $this->loaded();
-        $book->add($entry);
-        $this->bookPort->save($book);
-        ++$this->revision;
-    }
-
-    /** Usuwa wpis własny; wpisu czytanego od klienta nie ma jak usunąć — nie jest w książce. */
-    public function remove(string $name): bool
-    {
-        $book = $this->loaded();
-        $removed = $book->remove($name);
-
-        if ($removed) {
-            $this->bookPort->save($book);
-            ++$this->revision;
+        foreach ($this->rows() as $row) {
+            if ($row->id !== '' && $row->id === $key) {
+                return $row;
+            }
         }
 
-        return $removed;
+        foreach ($this->rows() as $row) {
+            if ($row->name === $key && !$row->shadowed) {
+                return $row;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -203,9 +244,7 @@ final class Environments
             $this->tunnel->open($entry->name, $this->resolvedTarget, $this->resolvedPort, $entry->socketPath, $password);
         }
 
-        $book = $this->loaded();
-        $book->makeCurrent($name);
-        $this->bookPort->save($book);
+        $this->storage->makeCurrent($row->id === '' ? $row->name : $row->id);
         $this->switched = true;
         ++$this->revision;
 
@@ -224,7 +263,7 @@ final class Environments
         $rows = [];
         $ownNames = [];
 
-        foreach ($this->loaded()->all() as $entry) {
+        foreach ($this->entries as $entry) {
             $ownNames[$entry->name] = true;
             $rows[] = $this->ownRow($entry, $current);
         }
@@ -239,13 +278,14 @@ final class Environments
             // Brak klienta nie jest awarią (D96 nr 3): gniazdo lokalne stoi
             // w spisie zawsze, żeby było do czego wrócić.
             $rows[] = new EnvironmentRow(
-                EnvironmentBook::DEFAULT_NAME,
+                '',
+                DockerEnvironment::DEFAULT_NAME_LOCAL,
                 EnvironmentKind::LocalSocket->value,
                 DockerEnvironment::DEFAULT_SOCKET,
                 DockerEnvironment::DEFAULT_SOCKET,
                 EnvironmentOrigin::Default,
-                $current === EnvironmentBook::DEFAULT_NAME && !isset($ownNames[EnvironmentBook::DEFAULT_NAME]),
-                shadowed: isset($ownNames[EnvironmentBook::DEFAULT_NAME]),
+                $current === DockerEnvironment::DEFAULT_NAME_LOCAL && !isset($ownNames[DockerEnvironment::DEFAULT_NAME_LOCAL]),
+                shadowed: isset($ownNames[DockerEnvironment::DEFAULT_NAME_LOCAL]),
                 entry: null,
                 socketPath: DockerEnvironment::DEFAULT_SOCKET,
             );
@@ -256,15 +296,13 @@ final class Environments
 
     public function view(): EnvironmentBookView
     {
-        $this->loaded();
-
         return new EnvironmentBookView(
             $this->rows(),
             $this->currentName(),
-            $this->bookPort->location(),
+            $this->storage->location(),
             $this->tunnel->state(),
             $this->contexts->isReading(),
-            $this->bookProblem ?? $this->contexts->problemKey(),
+            $this->contexts->problemKey(),
         );
     }
 
@@ -369,12 +407,15 @@ final class Environments
         };
 
         return new EnvironmentRow(
+            $entry->id,
             $entry->name,
             $entry->kind->value,
             $entry->label(),
             $publicAddress,
             EnvironmentOrigin::Own,
-            $current === $entry->name,
+            // Bieżący poznaje się po **identyfikatorze**, a nazwa zostaje drogą
+            // zapasową dla wskazań sprzed migracji (krok 60).
+            $current === $entry->id || $current === $entry->name,
             shadowed: false,
             entry: $entry,
             socketPath: null,
@@ -389,6 +430,7 @@ final class Environments
             : (string) strstr($context->endpoint, ':', before_needle: true);
 
         return new EnvironmentRow(
+            '',
             $context->name,
             $kind === '' ? 'context' : $kind,
             $context->endpoint,
@@ -399,16 +441,5 @@ final class Environments
             entry: null,
             socketPath: $socket,
         );
-    }
-
-    private function loaded(): EnvironmentBook
-    {
-        if ($this->book === null) {
-            $loaded = $this->bookPort->load();
-            $this->book = $loaded->book;
-            $this->bookProblem = $loaded->problemKey;
-        }
-
-        return $this->book;
     }
 }

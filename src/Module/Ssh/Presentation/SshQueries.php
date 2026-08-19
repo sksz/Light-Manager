@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Ssh\Presentation;
 
+use LightManager\Application\Command\CommandInput;
 use LightManager\Application\Query\QueryRegistry;
-use LightManager\Module\Ssh\Application\HostBook;
-use LightManager\Module\Ssh\Application\HostBookView;
 use LightManager\Module\Ssh\Application\RemoteTransferProgress;
 use LightManager\Module\Ssh\Application\RemoteView;
 use LightManager\Module\Ssh\Application\SessionState;
@@ -32,21 +31,129 @@ use LightManager\Module\Ssh\Domain\ValueObject\RemotePath;
  */
 final readonly class SshQueries
 {
+    /** Rozdział, którym ten moduł opisuje wpis książki (krok 60). */
+    public const CHAPTER = SshSettings::ID;
+
+    private const BOOK_ENTRIES = 'address-book.entries';
+
+    private const BOOK_ENTRY = 'address-book.entry';
+
+    private const BOOK_VALUE = 'address-book.value';
+
+    private const BOOK_LAST = 'address-book.last';
+
+    private const ARGUMENT_ENTRY = 'entry';
+
+    private const ARGUMENT_CHAPTER = 'chapter';
+
+    private const ARGUMENT_FIELD = 'field';
+
     public function __construct(
         private QueryRegistry $queries,
     ) {
     }
 
-    public function hostBook(): HostBookView
+    /**
+     * Wiersze cudzej kwerendy — **napisy i liczby, nigdy typ** (15g).
+     *
+     * Rozdział dokłada się tu z jednego miejsca, bo wszystkie trzy pytania
+     * dotyczą tego samego: „co ten moduł zapisał przy wpisie".
+     *
+     * @param array<string, string> $arguments
+     *
+     * @return list<array<string, string|int|bool>>
+     */
+    private function rowsOf(string $query, array $arguments = []): array
     {
-        $payload = $this->ask('hosts');
+        $arguments[self::ARGUMENT_CHAPTER] ??= self::CHAPTER;
 
-        return $payload instanceof HostBookView ? $payload : HostBookView::empty();
+        return $this->queries->ask($query, new CommandInput($arguments))->rows();
     }
 
-    public function book(): HostBook
+    /**
+     * Wpisy książki widziane oczami tego modułu — **cudza kwerenda, własne
+     * pojęcie** (krok 60).
+     *
+     * To jest cała droga, którą spis hostów trafia dziś do modułu: pyta się
+     * `address-book.entries` o rozdział `ssh` i składa z **wierszy napisów**
+     * profile połączenia. Ani jeden typ modułu książki nie przechodzi przez tę
+     * granicę (15g), a wpis bez adresu po prostu wypada — książka jest wspólna,
+     * więc wpis nieprzydatny tutaj bywa czyimś poprawnym wpisem.
+     *
+     * @return list<HostProfile>
+     */
+    public function hosts(): array
     {
-        return $this->hostBook()->book;
+        $profiles = [];
+
+        foreach ($this->rowsOf(self::BOOK_ENTRIES) as $row) {
+            $profile = HostProfile::fromRow($row);
+
+            if ($profile !== null) {
+                $profiles[] = $profile;
+            }
+        }
+
+        return $profiles;
+    }
+
+    /**
+     * Jeden wpis wskazany identyfikatorem — **wraz ze ścieżką klucza**;
+     * `null`, gdy nie ma go w książce.
+     *
+     * Ścieżka dokłada się tu, a nie w spisie, bo pole jest maskowane: wiersze
+     * niosą `set`/`unset`, a wartość oddaje osobna kwerenda. Pyta się o nią
+     * dokładnie tam, gdzie jest potrzebna — przed połączeniem — i tylko o ten
+     * jeden wpis.
+     */
+    public function entry(string $id): ?HostProfile
+    {
+        foreach ($this->rowsOf(self::BOOK_ENTRY, [self::ARGUMENT_ENTRY => $id]) as $row) {
+            $profile = HostProfile::fromRow($row);
+
+            if ($profile !== null) {
+                return $profile->withAuth($profile->auth, $this->keyPath($id));
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Identyfikator wpisu dopisanego przed chwilą — **jedyne, czego migracja
+     * nie umie poznać inaczej** (krok 60, D105 nr 6).
+     *
+     * Komenda oddaje zdanie, nie daną, więc `address-book.add` nie mówi, co
+     * właśnie założyła. Pętla jest jednowątkowa, a migracja idzie w jednym
+     * takcie, więc odpowiedź jest w tym miejscu jednoznaczna.
+     */
+    public function lastAddedEntry(): string
+    {
+        $rows = $this->queries->ask(self::BOOK_LAST)->rows();
+        $id = $rows[0]['id'] ?? '';
+
+        return is_string($id) ? $id : '';
+    }
+
+    /**
+     * Ścieżka klucza prywatnego — **osobnym pytaniem, bo pole jest maskowane**.
+     *
+     * W wierszach spisu stoi w jej miejscu `set`/`unset`, żeby nie wyświetlała
+     * się w każdej tabeli; wartość oddaje kwerenda przeznaczona do tego wprost
+     * (krok 60, D104 nr 6). Pyta o nią wyłącznie łączenie, i wyłącznie w chwili,
+     * gdy jej potrzebuje.
+     */
+    public function keyPath(string $id): ?string
+    {
+        $rows = $this->rowsOf(self::BOOK_VALUE, [
+            self::ARGUMENT_ENTRY => $id,
+            self::ARGUMENT_CHAPTER => self::CHAPTER,
+            self::ARGUMENT_FIELD => 'keyPath',
+        ]);
+
+        $value = $rows[0]['value'] ?? '';
+
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     public function session(): SessionState

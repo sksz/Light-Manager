@@ -163,6 +163,9 @@ final class ScenarioFactory
      */
     private const SETTINGS_TABS = ['Wygląd', 'Grafika', 'Moduły', 'przeglądarka', 'opis pliku'];
 
+    /** Zakładki książki adresowej: „wszystkie" plus cztery rozdziały (krok 60). */
+    private const BOOK_TABS = ['Wszystkie', 'Ogólne', 'Sesja zdalna', 'Docker', 'Kubernetes'];
+
     /** @var list<string> */
     private const SETTINGS_LABELS = [
         'Język interfejsu',
@@ -308,6 +311,7 @@ final class ScenarioFactory
             Scenario::Highlight => $this->columns($list, highlighted: true),
             Scenario::Marked => $this->columns($list, marked: true),
             Scenario::Environments => $this->environments($list),
+            Scenario::AddressBook => $this->addressBook($list),
             Scenario::TextView => $this->textView($list),
             Scenario::Tree => $this->tree($list),
             Scenario::Split => $this->splitLists($layout),
@@ -808,6 +812,83 @@ final class ScenarioFactory
             $this->scroll($bounds->rows),
             withHeader: true,
         ))->draw($bounds);
+    }
+
+    /**
+     * Ekran książki adresowej: **pasek zakładek, odstęp i tabela z nagłówkiem**
+     * (krok 60).
+     *
+     * Skład jest przepisany z prawdziwego ekranu, łącznie z tym, czego on nie
+     * robi: wiersze **nie dostają ról**, bo kursor wyróżnia `Table`, a nie
+     * treść wiersza. Kolumna klucza niesie zasłonę stałej długości — tę samą,
+     * którą rysuje pole rodzaju `secret`.
+     *
+     * Wartości pochodzą z licznika (determinizm, reguła pierwsza tej klasy),
+     * a co siódmy wpis jest **pusty w tym rozdziale** — bo tak wygląda książka
+     * dzielona przez kilka modułów: nie każdy wpis ma pola każdego z nich.
+     *
+     * @return list<Primitive>
+     */
+    private function addressBook(Rect $bounds): array
+    {
+        $strip = new Rect($bounds->row, $bounds->column, 1, $bounds->columns);
+        $primitives = (new Tabs(self::BOOK_TABS, 2))->draw($strip);
+
+        // Dwa wiersze zabiera pasek wraz z odstępem — dokładnie tak, jak robi
+        // to ekran; to ta różnica ma się rozliczyć wobec `environments`.
+        $table = $bounds->rowsFrom(2, max(0, $bounds->rows - 2));
+
+        if ($table->isEmpty()) {
+            return $primitives;
+        }
+
+        foreach ((new Table(
+            [
+                // Kolumny pól rozdziału są **elastyczne**, a stały jest wyłącznie
+                // identyfikator — dokładnie tak, jak składa je ekran. Pierwsza
+                // wersja scenariusza dawała im szerokości stałe i obejrzenie
+                // klatki od razu to pokazało: wartości `uzytkownik00` traciły
+                // ostatni znak, a nagłówek „Uwierzytelnienie" ucinał sam siebie.
+                Column::flexible(10, label: 'Nazwa'),
+                Column::flexible(8, label: 'Adres'),
+                Column::flexible(8, align: Align::Right, label: 'Port'),
+                Column::flexible(8, label: 'Użytkownik'),
+                Column::flexible(8, label: 'Uwierzytelnienie'),
+                Column::flexible(8, label: 'Klucz'),
+                Column::fixed(14, yieldOrder: 1, label: 'Identyfikator', role: Role::Muted),
+            ],
+            $this->bookRows($table->rows),
+            2,
+            $this->scroll($table->rows),
+            withHeader: true,
+        ))->draw($table) as $primitive) {
+            $primitives[] = $primitive;
+        }
+
+        return $primitives;
+    }
+
+    /** @return list<TableRow> */
+    private function bookRows(int $count): array
+    {
+        $rows = [];
+        $methods = ['agent', 'klucz z pliku', 'hasło'];
+
+        for ($index = 0; $index < max(0, $count); ++$index) {
+            $blank = $index % 7 === 5;
+
+            $rows[] = new TableRow([
+                sprintf('wpis-%03d', $index),
+                $blank ? '' : sprintf('10.0.%d.%d', intdiv($index, 250), $index % 250),
+                $blank ? '' : (string) (22 + $index % 3),
+                $blank ? '' : sprintf('uzytkownik%02d', $index % 17),
+                $blank ? '' : $methods[$index % 3],
+                $index % 3 === 1 ? '********' : '',
+                sprintf('%012x', 0x5be1dabe6000 + $index),
+            ]);
+        }
+
+        return $rows;
     }
 
     /**

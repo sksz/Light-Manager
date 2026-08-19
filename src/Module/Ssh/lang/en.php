@@ -151,31 +151,17 @@ return [
     'module.ssh.key.move' => 'choose host',
     'module.ssh.key.connect' => 'connect or disconnect',
     'module.ssh.key.connect.short' => 'connect',
-    'module.ssh.key.auth' => 'change authentication method',
-    'module.ssh.key.auth.short' => 'method',
     'module.ssh.key.refresh' => 'check session state',
     'module.ssh.key.refresh.short' => 'state',
-    'module.ssh.key.add' => 'add host',
-    'module.ssh.key.add.short' => 'add',
-    'module.ssh.key.remove' => 'remove host from the book',
-    'module.ssh.key.remove.short' => 'remove',
 
-    'module.ssh.prompt.host' => 'New host',
-    'module.ssh.prompt.host.field' => 'user@host:port ',
-    'module.ssh.prompt.key' => 'Key for {host}',
-    'module.ssh.prompt.key.field' => 'key path ',
     'module.ssh.prompt.password' => 'Password for {host}',
     'module.ssh.prompt.password.field' => 'password ',
     'module.ssh.progress.connecting' => 'Connecting to {host}',
-    'module.ssh.confirm.remove' => 'Remove the entry "{host}" from the book?',
     'module.ssh.confirm.fingerprint' => 'Host {host} is unknown. Key fingerprint: {fingerprint}. Trust it and add it to the known hosts?',
 
     'module.ssh.message.connected' => 'Connected to {host}.',
     'module.ssh.message.disconnected' => 'Disconnected from {host}.',
     'module.ssh.message.cancelled' => 'Connection to {host} cancelled.',
-    'module.ssh.message.added' => 'Host "{host}" added.',
-    'module.ssh.message.removed' => 'Host "{host}" removed.',
-    'module.ssh.message.auth' => 'Host "{host}" now authenticates with: {auth}.',
     'module.ssh.message.unknown' => 'There is no host "{host}" in the book.',
     'module.ssh.message.nothing' => 'No session is open.',
 
@@ -194,14 +180,12 @@ return [
     'module.ssh.problem.dropped' => 'The session with {host} was dropped.',
     'module.ssh.problem.interrupted' => 'Connecting to {host} was interrupted by other background work.',
 
-    'module.ssh.profile.name.empty' => 'The host name is empty.',
     'module.ssh.profile.name.invalid' => 'The name "{name}" is too long or contains control characters.',
     'module.ssh.profile.host.invalid' => 'This is not a valid host name or address: "{host}".',
     'module.ssh.profile.user.invalid' => 'This is not a valid user name: "{user}".',
     'module.ssh.profile.port.invalid' => 'The port number must be between 1 and 65535.',
     'module.ssh.profile.key.invalid' => 'The key path must be absolute: "{path}".',
 
-    'module.ssh.book.unreadable' => 'The host book could not be read — saving will overwrite it.',
 
     'module.ssh.event.connected' => 'remote session opened',
     'module.ssh.event.disconnected' => 'remote session closed',
@@ -218,4 +202,16 @@ return [
     'module.ssh.help.refresh' => 'F5 in the host book refreshes the session state. The application does not check it every frame, because each check is a separate process — a session dropped by the network may briefly show as alive.',
     'module.ssh.help.transfer' => 'F5 downloads the selected remote file into the directory the browser stands in, F6 uploads the selected local file into the directory open in the panel; both also have commands (ssh.get, ssh.put) and entries in the F9 menu. Files are transferred, not directories.',
     'module.ssh.help.collision' => 'The content lands under a working name (a leading dot, .lm-part at the end) and only then gets its final name, so an interrupted transfer never leaves a file that looks complete. Esc stops it and cleans up on both sides; a taken name in the target stops the work with a question.',
+    // Pola rozdziału `ssh` książki adresowej (krok 60) — etykiety widzi
+    // książka, a nie ten moduł: klucz wskazuje ten katalog, bo pola deklaruje
+    // ten, kto ich używa.
+    'module.ssh.field.host' => 'Address',
+    'module.ssh.field.port' => 'Port',
+    'module.ssh.field.user' => 'User',
+    'module.ssh.field.auth' => 'Authentication',
+    'module.ssh.field.auth.agent' => 'agent',
+    'module.ssh.field.auth.key' => 'key file',
+    'module.ssh.field.auth.password' => 'password',
+    'module.ssh.field.keyPath' => 'Private key',
+    'module.ssh.header.book' => 'The list comes from the address book — Ctrl+W opens it.',
 ];

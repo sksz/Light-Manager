@@ -1004,6 +1004,39 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     `QueryIsTheOnlyReadPathTest`, gdzie zakazane jest czytanie obiektem, który
     wolno trzymać).
 
+15h. **Dana dzielona przez kilka modułów dostaje moduł-rejestr, a nie
+    właściciela** (krok 60, D104/D105). Adres, pod którym coś stoi, był do tamtego
+    kroku własnością trzech modułów naraz — każdy prowadził własną książkę wpisów
+    — a jeden sięgał po cudzą kwerendą (`ssh.hosts`). Rozwiązaniem jest **siódmy
+    moduł** (`src/Module/AddressBook/`), a nie port ani pojęcie w rdzeniu: D42
+    zostaje nietknięte, a rdzeń rośnie o **jedną pozycję w `Bootstrapie`**.
+    Sześć zdań granicznych tego wzorca.
+    **Rozdział nie jest niczyją własnością** — jest nazwaną grupą pól, jeden
+    zestaw kwerend i komend obsługuje wszystkie, rozdział jest w nich
+    **argumentem**, a rejestr używa tego zestawu tak samo, jak moduły (jego
+    własny ekran nie ma referencji do modelu i deklaruje swój rozdział tymi
+    samymi komendami).
+    **Deklaracja jest zapowiedzią użycia, nie zastrzeżeniem** — jednostronna
+    (komendy w jedną stronę, **żadnej kwerendy zwrotnej do deklarującego**),
+    idempotentna, a sprzeczna nie przestawia pola, które już stoi. Pada
+    **w takcie**, raz na uruchomienie.
+    **Deklaracji nie zapisuje się na dysk, wartości tak** — moduł nieobecny
+    traci opis pól, a jego wartości we wpisach stoją czytelne i zmienialne;
+    sprząta je czynność zamawiana wprost, nigdy automat.
+    **Tożsamością wpisu jest identyfikator, nie nazwa** — nazwę wolno zmienić
+    i powtórzyć, a odniesienia (pole rodzaju `entry`) tego nie zauważają.
+    **Maskowanie nie jest zamkiem** — rodzaj `secret` zasłania na ekranie
+    i trzyma wartość poza domyślnymi wierszami; rejestr kwerend nie zna
+    wołającego, więc przegrody nie ma i plan ma to mówić wprost.
+    **Warstwa `Application` nie widzi rejestru** — koordynator dostaje wpisy
+    podaną listą raz na takt i **zamawia** zapisy, które wykonuje `Presentation`
+    komendą; sekcja modułu w dokumencie stanu trzyma odtąd wyłącznie wskaźniki
+    i pamięć podręczną, a migrację starych danych robi **właściciel sekcji**,
+    komendami rejestru, nieniszcząco. Próba na przyszłość jest ta sama, co przy
+    15b, tylko przyłożona do odczytu: dana chcąca własny moduł musi mieć
+    **dwóch czytelników** i koszt utraty **niezależny od tego, który z nich
+    akurat działa**.
+
 15b. **Reguła 15 ma dokładnie jeden wyjątek i jest on nazwany: zapis na dysk**
     (krok 41, D66/D75). Rdzeń ma port operacji na plikach
     (`Application\Port\FileOperationsPort` + `Infrastructure\FileSystem\FileOperationsService`),

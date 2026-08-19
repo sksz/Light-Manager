@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace LightManager\Module\Kubernetes\Presentation;
 
 use LightManager\Application\Command\CommandInterface;
-use LightManager\Application\Dto\Settings;
 use LightManager\Application\Module\DeclaresEvents;
 use LightManager\Application\Module\ModuleInterface;
 use LightManager\Application\Module\ModuleSettingsTab;
@@ -27,8 +26,8 @@ use LightManager\Module\Kubernetes\Application\ConfigCatalog;
 use LightManager\Module\Kubernetes\Application\KubernetesEvent;
 use LightManager\Module\Kubernetes\Application\KubernetesSettings;
 use LightManager\Module\Kubernetes\Application\LogStream;
-use LightManager\Module\Kubernetes\Application\Port\ClusterBookPort;
 use LightManager\Module\Kubernetes\Application\Port\KubectlPort;
+use LightManager\Module\Kubernetes\Application\Port\KubernetesStatePort;
 use LightManager\Module\Kubernetes\Application\ResourceCache;
 use LightManager\Module\Kubernetes\Application\ResourceDetail;
 use LightManager\Module\Kubernetes\Infrastructure\KubectlService;
@@ -111,6 +110,8 @@ final class KubernetesModule implements
 
     private ?Clusters $clusters = null;
 
+    private ?KubernetesChapter $chapter = null;
+
     private ?ConfigCatalog $configs = null;
 
     private ?ClusterBookScreen $bookScreen = null;
@@ -130,8 +131,6 @@ final class KubernetesModule implements
     private ?ClusterActions $actions = null;
 
     /** Czy migracja zapamiętanego miejsca z ustawień do książki już padła (krok 59). */
-    private bool $migrated = false;
-
     /**
      * @param ?KubectlPort $kubectl wstrzyknięcie istnieje **wyłącznie dla testów**,
      *                              które nie mają prawa wywołać `kubectl` (kryterium
@@ -144,7 +143,7 @@ final class KubernetesModule implements
         private readonly SettingsPort $settings,
         private readonly ?KubectlPort $kubectl = null,
         /** Wstrzyknięcie książki — **wyłącznie dla testów**, jak port `kubectl`. */
-        private readonly ?ClusterBookPort $bookPort = null,
+        private readonly ?KubernetesStatePort $stateStorage = null,
     ) {
     }
 
@@ -260,7 +259,21 @@ final class KubernetesModule implements
         $settings = $this->settings->current();
         $this->session()->useTimeout(KubernetesSettings::timeoutFrom($settings));
         $this->logs()->useLimit(KubernetesSettings::logLinesFrom($settings));
-        $this->migrateOnce($settings);
+
+        // Zapowiedź użycia rozdziału książki wraz z przeniesieniem starego
+        // spisu i dwóch pozycji ustawień — **raz na uruchomienie** (krok 60).
+        $chapter = $this->chapter();
+        $chapter->tick();
+
+        // Wpisy własne **podaje fasada**, bo mieszkają w cudzej książce.
+        $clusters = $this->clusters();
+        $clusters->useEntries($this->reader()->bookEntries());
+
+        // Zamówione zapisy — koordynator nie ma jak pisać po książce, więc
+        // zostawia je, a wykonuje komenda.
+        foreach ($clusters->takePendingWrites() as [$entry, $field, $value]) {
+            $chapter->write($entry, $field, $value);
+        }
 
         $this->screen()->tick($now, KubernetesSettings::refreshFrom($settings));
     }
@@ -280,33 +293,17 @@ final class KubernetesModule implements
     }
 
     /**
-     * Przenosi zapamiętane miejsce z pozycji ustawień do książki — **raz, przy
-     * pierwszym takcie po wejściu tej wersji modułu** (krok 59, plan punkt 7).
-     *
-     * Do kroku 59 wybór miejsca mieszkał w dwóch pozycjach ustawień (`context`
-     * i `namespace`) i zapisywał się po każdej zmianie. Odtąd mieszka
-     * w książce, bo miejsce ma dwie współrzędne i własną tożsamość — a dwie
-     * pozycje, których użytkownik nie przestawia strzałkami, były obejściem
-     * braku książki, nie ustawieniami.
-     *
-     * Wartości nie giną, a stare pozycje zostają w `settings.json` nietknięte:
-     * nikt ich już nie czyta, a ich skasowanie nie ma odbiorcy.
+     * Rozdział książki — **jeden na moduł** i jedyne miejsce (obok
+     * `KubernetesQueries`), w którym ten moduł wie, że książka adresowa
+     * istnieje.
      */
-    private function migrateOnce(Settings $settings): void
+    private function chapter(): KubernetesChapter
     {
-        if ($this->migrated) {
-            return;
-        }
-
-        $this->migrated = true;
-
-        if (!$this->clusters()->isFresh()) {
-            return;
-        }
-
-        $this->clusters()->migrate(
-            KubernetesSettings::contextFrom($settings),
-            KubernetesSettings::namespaceFrom($settings),
+        return $this->chapter ??= new KubernetesChapter(
+            $this->state,
+            $this->reader(),
+            $this->stateStorage ?? KubernetesStateService::getInstance(),
+            $this->settings,
         );
     }
 
@@ -374,7 +371,7 @@ final class KubernetesModule implements
     private function clusters(): Clusters
     {
         return $this->clusters ??= new Clusters(
-            $this->bookPort ?? KubernetesStateService::getInstance(),
+            $this->stateStorage ?? KubernetesStateService::getInstance(),
             $this->configs(),
             $this->session(),
         );
@@ -389,7 +386,6 @@ final class KubernetesModule implements
     {
         return $this->bookScreen ??= new ClusterBookScreen(
             $this->clusters(),
-            new ClusterFlow($this->clusters(), $this->translator),
             $this->translator,
             $this->reader(),
         );

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Kubernetes\Application;
 
-use LightManager\Module\Kubernetes\Application\Port\ClusterBookPort;
+use LightManager\Module\Kubernetes\Application\Port\KubernetesStatePort;
 use LightManager\Module\Kubernetes\Domain\Exception\InvalidClusterNameException;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ClusterPlace;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ClusterProfile;
@@ -35,12 +35,27 @@ final class Clusters
     /** Domyślny plik konfiguracyjny klienta — ten, który ma każdy. */
     public const DEFAULT_CONFIG = '.kube/config';
 
-    private ?ClusterBook $book = null;
+    /**
+     * Wpisy własne — **podane z zewnątrz**, nie czytane stąd (krok 60).
+     *
+     * Mieszkają w książce adresowej, której z warstwy `Application` nie widać
+     * i nie ma po co: czyta ją fasada modułu i podaje tu gotową listę raz na
+     * takt. Ta sama droga, co w module Dockera, i z tego samego powodu.
+     *
+     * @var list<ClusterProfile>
+     */
+    private array $entries = [];
 
-    private ?string $bookProblem = null;
-
-    /** Czy sekcji jeszcze nigdzie nie było — warunek jednorazowej migracji z ustawień. */
-    private bool $fresh = false;
+    /**
+     * Zapisy do książki — **zamówienia, nie zapisy** (krok 60).
+     *
+     * Koordynator nie ma jak pisać po książce: pisze się do niej komendami,
+     * a te leżą w `Presentation`. Zostawia więc zamówienie, które moduł zabiera
+     * w takcie — wzorem `takeSwitched()`.
+     *
+     * @var list<array{string, string, string}> identyfikator wpisu, pole, wartość
+     */
+    private array $pendingWrites = [];
 
     /** Ile razy zmieniła się odpowiedź — pokolenie kwerendy `k8s.clusters`. */
     private int $revision = 0;
@@ -52,10 +67,57 @@ final class Clusters
     private string $fingerprint = '';
 
     public function __construct(
-        private readonly ClusterBookPort $bookPort,
+        private readonly KubernetesStatePort $storage,
         private readonly ConfigCatalog $configs,
         private readonly ClusterSession $session,
     ) {
+    }
+
+    /**
+     * Podaje wpisy własne przeczytane z książki — **raz na takt, przed
+     * wszystkim innym** (krok 60).
+     *
+     * Pokolenie rośnie po **treści**, nie po samym wywołaniu: lista przychodzi
+     * trzydzieści razy na sekundę i prawie zawsze jest ta sama.
+     *
+     * @param list<ClusterProfile> $entries
+     */
+    public function useEntries(array $entries): void
+    {
+        if (self::fingerprintOf($entries) === self::fingerprintOf($this->entries)) {
+            return;
+        }
+
+        $this->entries = $entries;
+        $this->configs->want($this->paths());
+        ++$this->revision;
+    }
+
+    /** @param list<ClusterProfile> $entries */
+    private static function fingerprintOf(array $entries): string
+    {
+        $parts = [];
+
+        foreach ($entries as $entry) {
+            $parts[] = $entry->id . ':' . $entry->name . ':' . $entry->kubeconfig
+                . ':' . $entry->context . ':' . $entry->namespace . ':' . ($entry->timeoutSeconds ?? 0);
+        }
+
+        return implode('|', $parts);
+    }
+
+    /**
+     * Zabiera zamówione zapisy — **zabierane, nie oglądane** (wzorem
+     * `takeSwitched()`).
+     *
+     * @return list<array{string, string, string}>
+     */
+    public function takePendingWrites(): array
+    {
+        $writes = $this->pendingWrites;
+        $this->pendingWrites = [];
+
+        return $writes;
     }
 
     /** Świeży odczyt wszystkich plików — ekran woła to przy wejściu na spis i na `Ctrl`+`R`. */
@@ -101,55 +163,45 @@ final class Clusters
 
     public function currentName(): string
     {
-        return $this->loaded()->current();
+        return $this->storage->current();
     }
 
-    public function find(string $name): ?ClusterProfile
+    /** Wpis własny wskazany identyfikatorem albo nazwą — spis jest krótki. */
+    public function find(string $key): ?ClusterProfile
     {
-        return $this->loaded()->find($name);
-    }
-
-    /** Wiersz spisu o podanej nazwie — z obu źródeł, wedle reguły pierwszeństwa. */
-    public function row(string $name): ?ClusterRow
-    {
-        foreach ($this->rows() as $row) {
-            if ($row->name === $name && !$row->shadowed) {
-                return $row;
+        foreach ($this->entries as $entry) {
+            if ($entry->id === $key || $entry->name === $key) {
+                return $entry;
             }
         }
 
         return null;
     }
 
-    /** Dopisuje albo zastępuje wpis własny i zapisuje książkę. */
-    public function add(ClusterProfile $entry): void
+    /** Wiersz spisu o podanej nazwie — z obu źródeł, wedle reguły pierwszeństwa. */
+    /**
+     * Wiersz spisu wskazany **identyfikatorem albo nazwą** — z obu źródeł,
+     * wedle reguły pierwszeństwa.
+     *
+     * Identyfikator wygrywa, bo jest tożsamością (krok 60); nazwa zostaje drogą
+     * dla kontekstów czytanych z plików, które identyfikatora nie mają, i dla
+     * wskazań sprzed migracji.
+     */
+    public function row(string $key): ?ClusterRow
     {
-        $book = $this->loaded();
-        $book->add($entry);
-        $this->bookPort->save($book);
-        $this->configs->want([$entry->kubeconfig]);
-        ++$this->revision;
-    }
-
-    /** Usuwa wpis własny; wpisu czytanego nie ma jak usunąć — nie jest w książce. */
-    public function remove(string $name): bool
-    {
-        $book = $this->loaded();
-        $removed = $book->remove($name);
-
-        if ($removed) {
-            $this->bookPort->save($book);
-            ++$this->revision;
-
-            if ($this->session->key() === $name) {
-                // Bieżący właśnie zniknął: miejsce schodzi do niczego, a stan
-                // klastra przy najbliższym takcie wybierze je od nowa.
-                $this->session->usePlace(null);
-                $this->switched = true;
+        foreach ($this->rows() as $row) {
+            if ($row->id !== '' && $row->id === $key) {
+                return $row;
             }
         }
 
-        return $removed;
+        foreach ($this->rows() as $row) {
+            if ($row->name === $key && !$row->shadowed) {
+                return $row;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -179,9 +231,7 @@ final class Clusters
 
         $this->applyNamespace($row);
 
-        $book = $this->loaded();
-        $book->makeCurrent($name);
-        $this->bookPort->save($book);
+        $this->storage->makeCurrent($row->id === '' ? $row->name : $row->id);
         $this->switched = true;
         ++$this->revision;
 
@@ -232,15 +282,18 @@ final class Clusters
         $rows = [];
         $taken = [];
 
-        foreach ($this->loaded()->all() as $entry) {
+        foreach ($this->entries as $entry) {
             $taken[$entry->name] = true;
             $rows[] = new ClusterRow(
+                $entry->id,
                 $entry->name,
                 $entry->kubeconfig,
                 $entry->context,
                 $entry->namespace,
                 ClusterOrigin::Own,
-                $current === $entry->name,
+                // Bieżący poznaje się po **identyfikatorze**, a nazwa zostaje
+                // drogą zapasową dla wskazań sprzed migracji (krok 60).
+                $current === $entry->id || $current === $entry->name,
                 shadowed: false,
                 entry: $entry,
             );
@@ -255,11 +308,12 @@ final class Clusters
                 // Nazwa zajęta znaczy **inne miejsce o tej samej nazwie**, więc
                 // wiersz bierze przyrostek z nazwą pliku; wpis własny o tej
                 // nazwie przysłania kontekst czytany, jak w kroku 58.
-                $shadowed = isset($taken[$context->value]) && $this->loaded()->find($context->value) !== null;
+                $shadowed = isset($taken[$context->value]) && $this->find($context->value) !== null;
                 $name = $shadowed ? $context->value : self::freeName($context->value, $path, $taken);
                 $taken[$name] = true;
 
                 $rows[] = new ClusterRow(
+                    '',
                     $name,
                     $path,
                     $context->value,
@@ -277,14 +331,12 @@ final class Clusters
 
     public function view(): ClustersView
     {
-        $this->loaded();
-
         return new ClustersView(
             $this->rows(),
             $this->currentName(),
-            $this->bookPort->location(),
+            $this->storage->location(),
             $this->configs->isReading(),
-            $this->bookProblem ?? $this->configs->problemKey(),
+            $this->configs->problemKey(),
         );
     }
 
@@ -324,10 +376,14 @@ final class Clusters
         $path = $place->kubeconfig ?? self::defaultConfigPath();
         $entry = $this->find($this->currentName());
 
-        if ($entry !== null) {
-            $this->add(ClusterProfile::of($entry->name, $path, $context->value, $entry->namespace, $entry->timeoutSeconds));
+        if ($entry !== null && $entry->id !== '') {
+            // Wpis własny przestawia się **zamówieniem**, bo pisze się do niego
+            // komendą książki (krok 60). Wybór idzie od razu — zapis dojdzie
+            // w tym samym takcie, a spis i tak czyta się na nowo.
+            $this->pendingWrites[] = [$entry->id, 'kubeconfig', $path];
+            $this->pendingWrites[] = [$entry->id, 'context', $context->value];
 
-            return $this->select($entry->name);
+            return $this->select($entry->id);
         }
 
         foreach ($this->rows() as $row) {
@@ -383,39 +439,6 @@ final class Clusters
     }
 
     /**
-     * Przenosi zapamiętane miejsce z pozycji ustawień do książki (plan, punkt 7).
-     *
-     * Pada **raz**, przy pierwszym wczytaniu książki — bo `LoadedClusterBook`
-     * odróżnia „nie ma sekcji" od „sekcja jest i jest pusta". Wartości nie giną,
-     * a stara pozycja zostaje w `settings.json` nietknięta: nikt jej już nie
-     * czyta, a jej skasowanie nie ma odbiorcy.
-     */
-    public function migrate(string $context, string $namespace): void
-    {
-        if ($context === '') {
-            return;
-        }
-
-        $book = $this->loaded();
-
-        if ($book->find($context) !== null) {
-            return;
-        }
-
-        try {
-            $book->add(ClusterProfile::of($context, self::defaultConfigPath(), $context, $namespace));
-        } catch (InvalidClusterNameException) {
-            // Zapamiętana nazwa nie do przyjęcia: migracja milczy, bo i tak nie
-            // dałoby się jej użyć — a wpis, którego nie ma, nie zaskakuje.
-            return;
-        }
-
-        $book->makeCurrent($context);
-        $this->bookPort->save($book);
-        ++$this->revision;
-    }
-
-    /**
      * Ścieżki wszystkich znanych plików: domyślny, te z `KUBECONFIG` i te
      * z wpisów książki.
      *
@@ -429,7 +452,7 @@ final class Clusters
             $paths[] = $path;
         }
 
-        foreach ($this->loaded()->all() as $entry) {
+        foreach ($this->entries as $entry) {
             $paths[] = $entry->kubeconfig;
         }
 
@@ -511,28 +534,24 @@ final class Clusters
      * Wiersz czytany z cudzego pliku przestrzeni nie zapamiętuje: nie ma gdzie,
      * a do `kubeconfig` moduł nie pisze.
      */
+    /**
+     * Zamawia zapamiętanie przestrzeni nazw przy bieżącym wpisie.
+     *
+     * **Zamawia, a nie zapisuje** (krok 60): wpisy mieszkają w książce, a pisze
+     * się do niej komendami, których z tej warstwy nie widać. Moduł zabiera
+     * zamówienie w takcie i wykonuje je tą samą drogą, co użytkownik w oknie
+     * komend. Kontekstu czytanego z pliku to nie dotyczy — nie ma wpisu, więc
+     * nie ma czego zapamiętać.
+     */
     public function rememberNamespace(string $namespace): void
     {
         $entry = $this->find($this->currentName());
 
-        if ($entry === null || $entry->namespace === $namespace) {
+        if ($entry === null || $entry->id === '' || $entry->namespace === $namespace) {
             return;
         }
 
-        try {
-            $this->add(ClusterProfile::of(
-                $entry->name,
-                $entry->kubeconfig,
-                $entry->context,
-                $namespace,
-                $entry->timeoutSeconds,
-            ));
-        } catch (InvalidClusterNameException) {
-            // Przestrzeń już przeszła samowalidację po stronie ekranu, więc tu
-            // wyjątek znaczy wyłącznie „wpis zmienił się pod nami” — cisza jest
-            // właściwa, zapisu po prostu nie ma.
-            return;
-        }
+        $this->pendingWrites[] = [$entry->id, 'namespace', $namespace];
     }
 
     /**
@@ -556,23 +575,5 @@ final class Clusters
         // Dwa pliki o tej samej nazwie w różnych katalogach: rozstrzyga pełna
         // ścieżka, bo ona jest jedyną rzeczą, która na pewno się różni.
         return $context . ' (' . $path . ')';
-    }
-
-    private function loaded(): ClusterBook
-    {
-        if ($this->book === null) {
-            $loaded = $this->bookPort->load();
-            $this->book = $loaded->book;
-            $this->bookProblem = $loaded->problemKey;
-            $this->fresh = $loaded->fresh;
-        }
-
-        return $this->book;
-    }
-
-    /** Czy książki jeszcze nie ma — warunek migracji z ustawień. */
-    public function isFresh(): bool
-    {
-        return $this->loaded()->count() === 0 && $this->fresh;
     }
 }

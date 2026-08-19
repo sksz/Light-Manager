@@ -4,19 +4,21 @@ declare(strict_types=1);
 
 namespace LightManager\Tests\Functional;
 
+use LightManager\Application\Command\CommandInput;
 use LightManager\Application\Dto\Key;
 use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Ui\Primitive\Primitive;
 use LightManager\Application\Ui\Primitive\TextRun;
 use LightManager\Application\Ui\Rect;
+use LightManager\Module\AddressBook\Domain\ValueObject\AddressEntry;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
 use LightManager\Module\Browser\Domain\ValueObject\Entry;
-use LightManager\Module\Kubernetes\Application\ClusterBook;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ClusterProfile;
 use LightManager\Tests\Support\InMemoryDirectoryRepository;
 use LightManager\Tests\Support\ScreenFixture;
-use LightManager\Tests\Support\StubClusterBook;
+use LightManager\Tests\Support\StubAddressBook;
 use LightManager\Tests\Support\StubKubectl;
+use LightManager\Tests\Support\StubKubernetesState;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -35,6 +37,8 @@ use PHPUnit\Framework\TestCase;
  */
 final class ClusterBookFlowTest extends TestCase
 {
+    private const ENTRY = 'a1b2c3d4e5f6';
+
     private const NOW = 100.0;
 
     private const COLUMNS = 100;
@@ -65,7 +69,10 @@ final class ClusterBookFlowTest extends TestCase
 
     private StubKubectl $kubectl;
 
-    private StubClusterBook $book;
+    /** Wpisy wspólnej książki — od kroku 60 to stąd biorą się klastry. */
+    private StubAddressBook $book;
+
+    private StubKubernetesState $k8sState;
 
     /** Numer wiersza kursora w spisie — prowadzony równolegle do klatki. */
     private int $cursor = 0;
@@ -91,7 +98,8 @@ final class ClusterBookFlowTest extends TestCase
         putenv('KUBECONFIG');
 
         $this->kubectl = new StubKubectl();
-        $this->book = new StubClusterBook();
+        $this->book = new StubAddressBook();
+        $this->k8sState = new StubKubernetesState();
         $this->app = $this->fixture();
     }
 
@@ -226,75 +234,45 @@ final class ClusterBookFlowTest extends TestCase
     }
 
     /**
-     * **Moduł nadal nie pisze do `kubeconfig`** — wpisu czytanego nie da się ani
-     * skasować, ani zmienić, a odmowa jest zdaniem, nie ciszą.
+     * **Wpis czytany z pliku nie ma identyfikatora** — i to jest cała różnica,
+     * która po nim została (krok 60).
+     *
+     * Dopisywanie, zmiana i usuwanie zeszły do książki, więc na tym ekranie nie
+     * ma po nich klawisza. Kontekst czytany z `kubeconfig` w książce nie stoi
+     * i stać nie będzie: moduł do tego pliku nie pisze.
      */
-    public function testAReadEntryRefusesRemovalAndEditingWithASentence(): void
+    public function testAReadEntryHasNoIdentifierAndTheFileStaysUntouched(): void
     {
         $this->withTwoPlaces();
         $this->openClusterList();
         $this->moveTo('minikube');
 
-        $this->press(KeyPress::special(Key::F8, "\e[19~"));
+        $rows = $this->app->state->queries()->ask('k8s.clusters')->rows();
+        $read = null;
 
-        self::assertNull($this->app->state->overlays()->current(), 'okna pytania nie ma — nie ma czego pytać');
-        self::assertSame(
-            'module.k8s.cluster.readEntry(name=minikube)',
-            $this->app->state->message()?->text,
-        );
+        foreach ($rows as $row) {
+            if (($row['name'] ?? null) === 'minikube') {
+                $read = $row;
+            }
+        }
 
-        $this->press(KeyPress::special(Key::F4, "\e[14~"));
-
-        self::assertNull($this->app->state->overlays()->current(), 'zmiany też nie przyjmuje');
-        self::assertNull($this->book->saved?->find('minikube'), 'wpis czytany nie wchodzi do książki');
+        self::assertNotNull($read);
+        self::assertSame('config', $read['origin'] ?? null, 'wiersz pochodzi z pliku, nie z książki');
 
         $config = (string) file_get_contents($this->home . '/.kube/config');
 
         self::assertSame('', $config, 'plik kubeconfig zostaje pusty — moduł do niego nie pisze');
     }
 
-    /** `F7` prowadzi łańcuchem okien, a zapisany wpis staje w spisie. */
-    public function testANewEntryIsAddedThroughTheChainOfPrompts(): void
-    {
-        $this->kubectl->willReturn(self::CONFIG_DEFAULT);
-        $this->openClusterList();
-
-        $this->press(KeyPress::special(Key::F7, "\e[18~"));
-
-        foreach (['nazwa' => 'produkcja', 'plik' => null, 'kontekst' => 'minikube'] as $value) {
-            self::assertSame('prompt', $this->app->state->overlays()->current()?->id());
-
-            if (is_string($value)) {
-                $this->clearField();
-                $this->type($value);
-            }
-
-            $this->press(KeyPress::special(Key::Enter, "\r"));
-        }
-
-        self::assertSame('module.k8s.cluster.saved(name=produkcja)', $this->app->state->message()?->text);
-
-        $saved = $this->book->saved;
-
-        self::assertNotNull($saved, 'książka została zapisana');
-        $entry = $saved->find('produkcja');
-
-        self::assertNotNull($entry, 'wpis trafił do książki');
-        self::assertSame(
-            $this->home . '/.kube/config',
-            $entry->kubeconfig,
-            'plik domyślny był wartością domyślną okna',
-        );
-    }
-
     /**
-     * **Migracja z ustawień nie gubi zapamiętanego miejsca** (plan, punkt 7):
-     * kontekst zapamiętany pozycją ustawień staje się wpisem książki przy
-     * pierwszym takcie modułu.
+     * **Zapamiętany kontekst z pozycji ustawień staje się wpisem książki**
+     * przy pierwszym takcie (plan kroku 59, punkt 7; od kroku 60 celem jest
+     * książka wspólna).
      */
     public function testTheRememberedPlaceMigratesFromSettingsIntoTheBook(): void
     {
-        $this->book = new StubClusterBook(new ClusterBook(), null, fresh: true);
+        $this->book = new StubAddressBook();
+        $this->k8sState = new StubKubernetesState();
         $this->app = $this->fixture();
         $settings = $this->app->settingsStore;
         $settings->save(
@@ -307,15 +285,56 @@ final class ClusterBookFlowTest extends TestCase
         $this->press(KeyPress::ctrl('k'));
         $this->pump(2);
 
-        $saved = $this->book->saved;
+        $rows = $this->app->state->queries()->ask(
+            'address-book.entries',
+            new CommandInput(['chapter' => 'k8s']),
+        )->rows();
 
-        self::assertNotNull($saved, 'migracja zapisała książkę');
-        $entry = $saved->find('minikube');
+        self::assertCount(1, $rows, 'zapamiętany kontekst stał się wpisem książki');
+        self::assertSame('minikube', $rows[0]['name'] ?? null);
+        self::assertSame($this->home . '/.kube/config', $rows[0]['kubeconfig'] ?? null);
+        self::assertSame('produkcja', $rows[0]['namespace'] ?? null, 'przestrzeń nazw też przeżyła');
+        self::assertSame($rows[0]['id'] ?? null, $this->k8sState->current, 'i pozostaje wyborem bieżącym');
+        self::assertTrue($this->k8sState->isMigrated());
+    }
 
-        self::assertNotNull($entry, 'zapamiętany kontekst stał się wpisem książki');
-        self::assertSame($this->home . '/.kube/config', $entry->kubeconfig);
-        self::assertSame('produkcja', $entry->namespace, 'przestrzeń nazw też przeżyła');
-        self::assertSame('minikube', $saved->current(), 'i pozostaje wyborem bieżącym');
+    /**
+     * **Stara książka klastrów przenosi się sama, przy pierwszym takcie** —
+     * a stare klucze zostają na dysku (migracja nieniszcząca, D103).
+     */
+    public function testTheOldClusterBookMigratesIntoTheSharedBook(): void
+    {
+        $this->book = new StubAddressBook();
+        $this->k8sState = new StubKubernetesState([
+            [
+                'name' => 'klient',
+                'kubeconfig' => $this->home . '/klient.yaml',
+                'context' => 'default',
+                'namespace' => 'produkcja',
+                'timeout' => 20,
+            ],
+        ], fresh: false);
+        $this->k8sState->makeCurrent('klient');
+        $this->app = $this->fixture();
+
+        $this->kubectl->willReturn(self::CONFIG_DEFAULT);
+        $this->press(KeyPress::ctrl('k'));
+        $this->pump(2);
+
+        $rows = $this->app->state->queries()->ask(
+            'address-book.entries',
+            new CommandInput(['chapter' => 'k8s']),
+        )->rows();
+
+        self::assertCount(1, $rows);
+        self::assertSame('klient', $rows[0]['name'] ?? null);
+        self::assertSame($this->home . '/klient.yaml', $rows[0]['kubeconfig'] ?? null);
+        self::assertSame('default', $rows[0]['context'] ?? null);
+        self::assertSame('produkcja', $rows[0]['namespace'] ?? null);
+        self::assertSame(20, $rows[0]['timeout'] ?? null);
+        self::assertSame($rows[0]['id'] ?? null, $this->k8sState->current, 'wskaźnik przeliczony');
+        self::assertTrue($this->k8sState->isMigrated());
+        self::assertCount(1, $this->k8sState->legacyClusters(), 'stary spis zostaje nietknięty');
     }
 
     /** Dwa pliki i wpis własny wskazujący ten drugi — punkt wyjścia większości prób. */
@@ -324,12 +343,20 @@ final class ClusterBookFlowTest extends TestCase
         $this->bookWith(ClusterProfile::of('klient', $this->home . '/klient.yaml', 'default'));
     }
 
+    /** Wpis własny jest **wpisem wspólnej książki** z wartościami rozdziału `k8s`. */
     private function bookWith(ClusterProfile $entry): void
     {
-        $book = new ClusterBook();
-        $book->add($entry);
-        $book->makeCurrent($entry->name);
-        $this->book = new StubClusterBook($book);
+        $this->book = new StubAddressBook([
+            new AddressEntry(self::ENTRY, $entry->name, [
+                'k8s' => [
+                    'kubeconfig' => $entry->kubeconfig,
+                    'context' => $entry->context,
+                    'namespace' => $entry->namespace,
+                ],
+            ]),
+        ]);
+        $this->k8sState = new StubKubernetesState();
+        $this->k8sState->makeCurrent(self::ENTRY);
         $this->app = $this->fixture();
     }
 
@@ -424,21 +451,6 @@ final class ClusterBookFlowTest extends TestCase
         $this->app->input->handle($key, $this->app->state, self::NOW);
     }
 
-    private function type(string $text): void
-    {
-        foreach (str_split($text) as $letter) {
-            $this->app->input->handle(KeyPress::character($letter), $this->app->state, self::NOW);
-        }
-    }
-
-    /** Czyści pole tekstowe okna — wartości domyślne bywają wypełnione. */
-    private function clearField(): void
-    {
-        for ($i = 0; $i < 120; ++$i) {
-            $this->app->input->handle(KeyPress::special(Key::Backspace, "\x7f"), $this->app->state, self::NOW);
-        }
-    }
-
     private function pump(int $times): void
     {
         for ($i = 0; $i < $times; ++$i) {
@@ -510,7 +522,8 @@ final class ClusterBookFlowTest extends TestCase
             $directories->get(new DirectoryPath('/'), false),
             $directories,
             kubectl: $this->kubectl,
-            clusterBook: $this->book,
+            kubernetesState: $this->k8sState,
+            addressBook: $this->book,
         );
     }
 }

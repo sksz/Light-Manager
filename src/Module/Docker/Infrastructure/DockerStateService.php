@@ -7,12 +7,7 @@ namespace LightManager\Module\Docker\Infrastructure;
 use LightManager\Application\Port\StateDocumentPort;
 use LightManager\Infrastructure\Config\StateDocumentService;
 use LightManager\Infrastructure\Support\AbstractSingleton;
-use LightManager\Module\Docker\Application\EnvironmentBook;
-use LightManager\Module\Docker\Application\Port\EnvironmentBookPort;
-use LightManager\Module\Docker\Application\Port\LoadedEnvironmentBook;
-use LightManager\Module\Docker\Domain\Exception\InvalidDockerEnvironmentException;
-use LightManager\Module\Docker\Domain\ValueObject\DockerEnvironment;
-use LightManager\Module\Docker\Domain\ValueObject\EnvironmentKind;
+use LightManager\Module\Docker\Application\Port\DockerStatePort;
 
 /**
  * Stan modułu Dockera — sekcja `docker` dokumentu stanu (krok 58; od kroku 59
@@ -28,7 +23,7 @@ use LightManager\Module\Docker\Domain\ValueObject\EnvironmentKind;
  * **Żadna ścieżka nie rzuca** (zasada portu). Wiersz nie do przyjęcia wypada,
  * a sekcja zostaje — jeden zepsuty wpis nie odbiera użytkownikowi całej książki.
  */
-final class DockerStateService extends AbstractSingleton implements EnvironmentBookPort
+final class DockerStateService extends AbstractSingleton implements DockerStatePort
 {
     private const SECTION = 'docker';
 
@@ -37,6 +32,9 @@ final class DockerStateService extends AbstractSingleton implements EnvironmentB
 
     /** Nazwa środowiska bieżącego — wybór przeżywa uruchomienie. */
     private const CURRENT_KEY = 'currentEnvironment';
+
+    /** Znacznik przeniesienia starego spisu do książki adresowej (krok 60). */
+    private const MIGRATED_KEY = 'migrated';
 
     private const NAME_KEY = 'name';
 
@@ -74,48 +72,41 @@ final class DockerStateService extends AbstractSingleton implements EnvironmentB
         $this->sectionRead = false;
     }
 
-    public function load(): LoadedEnvironmentBook
+    public function current(): string
     {
-        $section = $this->section();
+        $current = ($this->section() ?? [])[self::CURRENT_KEY] ?? '';
 
-        if ($section === null) {
-            return new LoadedEnvironmentBook(new EnvironmentBook(), 'module.docker.env.book.unreadable');
-        }
-
-        $stored = $section[self::ENVIRONMENTS_KEY] ?? [];
-        $current = $section[self::CURRENT_KEY] ?? EnvironmentBook::DEFAULT_NAME;
-
-        if (!is_array($stored)) {
-            return new LoadedEnvironmentBook(new EnvironmentBook(), 'module.docker.env.book.unreadable');
-        }
-
-        return new LoadedEnvironmentBook(new EnvironmentBook(
-            self::environmentsFrom($stored),
-            is_string($current) ? $current : EnvironmentBook::DEFAULT_NAME,
-        ));
+        return is_string($current) ? $current : '';
     }
 
-    public function save(EnvironmentBook $book): void
+    public function makeCurrent(string $value): void
     {
         $section = $this->section() ?? [];
-        $section[self::ENVIRONMENTS_KEY] = self::documentOf($book);
-        $section[self::CURRENT_KEY] = $book->current();
+
+        if (($section[self::CURRENT_KEY] ?? null) === $value) {
+            return;
+        }
+
+        $section[self::CURRENT_KEY] = $value;
         $this->section = $section;
         $this->documents()->saveSection(self::SECTION, $section);
     }
 
-    public function location(): string
-    {
-        return $this->documents()->location();
-    }
-
     /**
-     * @param array<mixed> $stored
+     * Stary spis środowisk — **czytany, nigdy niekasowany** (krok 60).
      *
-     * @return list<DockerEnvironment>
+     * Wiersze wychodzą stąd jako tablice napisów i liczb, a nie jako wpisy:
+     * przenosi je do książki **komendami** ten, kto je tu zostawił. Usługa nie
+     * musi przez to znać ani `DockerEnvironment`, ani książki — i nie zna.
      */
-    private static function environmentsFrom(array $stored): array
+    public function legacyEnvironments(): array
     {
+        $stored = ($this->section() ?? [])[self::ENVIRONMENTS_KEY] ?? null;
+
+        if (!is_array($stored)) {
+            return [];
+        }
+
         $environments = [];
 
         foreach ($stored as $item) {
@@ -123,7 +114,7 @@ final class DockerStateService extends AbstractSingleton implements EnvironmentB
                 continue;
             }
 
-            $environment = self::environmentFrom($item);
+            $environment = self::legacyEnvironmentFrom($item);
 
             if ($environment !== null) {
                 $environments[] = $environment;
@@ -133,89 +124,49 @@ final class DockerStateService extends AbstractSingleton implements EnvironmentB
         return $environments;
     }
 
-    /** @param array<mixed> $item */
-    private static function environmentFrom(array $item): ?DockerEnvironment
+    public function isMigrated(): bool
+    {
+        return (($this->section() ?? [])[self::MIGRATED_KEY] ?? false) === true;
+    }
+
+    public function markMigrated(): void
+    {
+        $section = $this->section() ?? [];
+        $section[self::MIGRATED_KEY] = true;
+        $this->section = $section;
+        $this->documents()->saveSection(self::SECTION, $section);
+    }
+
+    /**
+     * @param array<mixed> $item
+     *
+     * @return array<string, string|int>|null
+     */
+    private static function legacyEnvironmentFrom(array $item): ?array
     {
         $name = $item[self::NAME_KEY] ?? null;
         $kind = $item[self::KIND_KEY] ?? null;
 
-        if (!is_string($name) || !is_string($kind)) {
+        if (!is_string($name) || $name === '' || !is_string($kind) || $kind === '') {
             return null;
         }
 
-        $socket = $item[self::SOCKET_KEY] ?? DockerEnvironment::DEFAULT_SOCKET;
-        $target = $item[self::TARGET_KEY] ?? '';
-        $port = $item[self::PORT_KEY] ?? 0;
+        $legacy = [self::NAME_KEY => $name, self::KIND_KEY => $kind];
 
-        try {
-            return match (EnvironmentKind::of($kind)) {
-                EnvironmentKind::LocalSocket => DockerEnvironment::localSocket(
-                    $name,
-                    is_string($socket) ? $socket : DockerEnvironment::DEFAULT_SOCKET,
-                ),
-                EnvironmentKind::SshTunnel => DockerEnvironment::sshTunnel(
-                    $name,
-                    is_string($target) ? $target : '',
-                    is_int($port) && $port > 0 ? $port : DockerEnvironment::DEFAULT_TUNNEL_PORT,
-                    is_string($socket) ? $socket : DockerEnvironment::DEFAULT_SOCKET,
-                ),
-                EnvironmentKind::Tcp => DockerEnvironment::tcp(
-                    $name,
-                    is_string($target) ? $target : '',
-                    is_int($port) && $port > 0 ? $port : DockerEnvironment::DEFAULT_TLS_PORT,
-                    self::pathFrom($item, self::CERT_KEY),
-                    self::pathFrom($item, self::KEY_KEY),
-                    self::pathFrom($item, self::CA_KEY),
-                ),
-                null => null,
-            };
-        } catch (InvalidDockerEnvironmentException) {
-            // Wpis nie do przyjęcia wypada; reszta książki jest w porządku i nie
-            // ma powodu jej tracić. Port nie rzuca (reguła 8).
-            return null;
-        }
-    }
+        foreach ([self::SOCKET_KEY, self::TARGET_KEY, self::PORT_KEY, self::CERT_KEY, self::KEY_KEY, self::CA_KEY] as $key) {
+            $value = $item[$key] ?? null;
 
-    /** @param array<mixed> $item */
-    private static function pathFrom(array $item, string $key): string
-    {
-        $value = $item[$key] ?? null;
-
-        return is_string($value) ? $value : '';
-    }
-
-    /** @return list<array<string, int|string>> */
-    private static function documentOf(EnvironmentBook $book): array
-    {
-        $stored = [];
-
-        foreach ($book->all() as $entry) {
-            $item = [
-                self::NAME_KEY => $entry->name,
-                self::KIND_KEY => $entry->kind->value,
-            ];
-
-            // Pól bez znaczenia dla rodzaju nie zapisujemy — dokument ma się
-            // dać przeczytać oczami (wzorem sekcji `ssh`).
-            if ($entry->kind !== EnvironmentKind::Tcp) {
-                $item[self::SOCKET_KEY] = $entry->socketPath;
+            if ((is_string($value) && $value !== '') || is_int($value)) {
+                $legacy[$key] = $value;
             }
-
-            if ($entry->kind !== EnvironmentKind::LocalSocket) {
-                $item[self::TARGET_KEY] = $entry->target;
-                $item[self::PORT_KEY] = $entry->port;
-            }
-
-            if ($entry->kind === EnvironmentKind::Tcp) {
-                $item[self::CERT_KEY] = $entry->certPath ?? '';
-                $item[self::KEY_KEY] = $entry->keyPath ?? '';
-                $item[self::CA_KEY] = $entry->caPath ?? '';
-            }
-
-            $stored[] = $item;
         }
 
-        return $stored;
+        return $legacy;
+    }
+
+    public function location(): string
+    {
+        return $this->documents()->location();
     }
 
     /**

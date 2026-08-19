@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Ssh\Application;
 
-use LightManager\Module\Ssh\Application\Port\HostBookPort;
 use LightManager\Module\Ssh\Application\Port\RemoteDirectoryPort;
+use LightManager\Module\Ssh\Application\Port\SshStatePort;
 use LightManager\Module\Ssh\Domain\Aggregate\RemoteDirectory;
 use LightManager\Module\Ssh\Domain\Exception\InvalidRemotePathException;
 use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
@@ -56,7 +56,7 @@ final class RemoteBrowser
 
     public function __construct(
         private readonly RemoteDirectoryPort $directories,
-        private readonly HostBookPort $storage,
+        private readonly SshStatePort $storage,
         bool $includeHidden = false,
     ) {
         $this->filter = RemoteNameFilter::none();
@@ -338,22 +338,26 @@ final class RemoteBrowser
         $host = $this->host;
 
         if ($host !== null) {
-            $this->storage->rememberDirectory($host->name, $directory->path->value);
+            $this->storage->rememberDirectory($host->id, $directory->path->value);
         }
     }
 
     /**
-     * Katalog, od którego zaczyna się oglądanie: zapamiętany, z profilu albo
-     * `null` — czyli „niech rozstrzygnie serwer”.
+     * Katalog, od którego zaczyna się oglądanie: zapamiętany albo `null` —
+     * czyli „niech rozstrzygnie serwer”.
      *
-     * Ścieżka **względna zostaje odrzucona po cichu** i jest to świadome:
-     * `remoteDirectory` w pliku stanu prowadzi użytkownik, a wartość, której nie
-     * da się użyć, ma skończyć się katalogiem domowym, a nie komunikatem
-     * o błędzie pliku, którego nikt nie pamięta.
+     * Pamięć jest **kluczowana identyfikatorem wpisu** (krok 60), więc przeżywa
+     * zmianę jego nazwy. Ścieżka **względna zostaje odrzucona po cichu** i jest
+     * to świadome: wartość, której nie da się użyć, ma skończyć się katalogiem
+     * domowym, a nie komunikatem o błędzie zapisu, którego nikt nie pamięta.
+     *
+     * Kandydat jest dziś jeden. Pętla zostaje, bo drugim był do kroku 60
+     * `remoteDirectory` profilu i nie ma powodu zamieniać jej na `if`, dopóki
+     * pytanie „skąd zacząć" ma prawo mieć więcej niż jedną odpowiedź.
      */
     private function startingPath(HostProfile $host): ?RemotePath
     {
-        foreach ([$this->storage->lastDirectory($host->name), $host->remoteDirectory] as $candidate) {
+        foreach ([$this->storage->lastDirectory($host->id)] as $candidate) {
             if ($candidate === null || !str_starts_with($candidate, RemotePath::SEPARATOR)) {
                 continue;
             }

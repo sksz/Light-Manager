@@ -51,6 +51,7 @@ use LightManager\Infrastructure\Terminal\SixelCapabilityService;
 use LightManager\Infrastructure\Terminal\TerminalClipboardService;
 use LightManager\Infrastructure\Terminal\TerminalService;
 use LightManager\Infrastructure\Terminal\TerminalSizeService;
+use LightManager\Module\AddressBook\Presentation\AddressBookModule;
 use LightManager\Module\Audio\Presentation\AudioModule;
 use LightManager\Module\Browser\Presentation\BrowserModule;
 use LightManager\Module\Docker\Presentation\DockerModule;
@@ -483,6 +484,14 @@ final class Bootstrap
             // odrzuca (`RequiresEnvironment`, reguła 11s), a ta linia zostaje
             // ta sama.
             new KubernetesModule($state, $translator, $settings),
+            // Siódma pozycja i **cały koszt książki adresowej w rdzeniu**
+            // (krok 60). Rdzeń nie wie o niej nic ponad tę linię — ani że wpis
+            // ma rozdziały, ani czym są; `ChapterField` jest typem modułu, więc
+            // D42 zostaje nietknięte. Jest przy tym jedynym z siedmiu modułów,
+            // który **nie umie się nie zjawić**: nie deklaruje
+            // `RequiresEnvironment`, bo odrzucony zabrałby wpisy wszystkim
+            // pozostałym naraz.
+            new AddressBookModule($state, $translator),
         ];
     }
 

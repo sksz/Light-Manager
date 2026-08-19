@@ -166,33 +166,19 @@ return [
     'module.ssh.key.move' => 'wybór hosta',
     'module.ssh.key.connect' => 'połącz albo rozłącz',
     'module.ssh.key.connect.short' => 'połącz',
-    'module.ssh.key.auth' => 'zmień sposób uwierzytelnienia',
-    'module.ssh.key.auth.short' => 'sposób',
     'module.ssh.key.refresh' => 'sprawdź stan sesji',
     'module.ssh.key.refresh.short' => 'stan',
-    'module.ssh.key.add' => 'dopisz host',
-    'module.ssh.key.add.short' => 'dopisz',
-    'module.ssh.key.remove' => 'usuń host ze spisu',
-    'module.ssh.key.remove.short' => 'usuń',
 
     // Okna.
-    'module.ssh.prompt.host' => 'Nowy host',
-    'module.ssh.prompt.host.field' => 'użytkownik@host:port ',
-    'module.ssh.prompt.key' => 'Klucz dla {host}',
-    'module.ssh.prompt.key.field' => 'ścieżka klucza ',
     'module.ssh.prompt.password' => 'Hasło do {host}',
     'module.ssh.prompt.password.field' => 'hasło ',
     'module.ssh.progress.connecting' => 'Łączenie z {host}',
-    'module.ssh.confirm.remove' => 'Usunąć wpis „{host}” ze spisu?',
     'module.ssh.confirm.fingerprint' => 'Host {host} jest nieznany. Odcisk klucza: {fingerprint}. Zaufać mu i dopisać do znanych hostów?',
 
     // Zdania w pasku stanu.
     'module.ssh.message.connected' => 'Połączono z {host}.',
     'module.ssh.message.disconnected' => 'Rozłączono z {host}.',
     'module.ssh.message.cancelled' => 'Przerwano łączenie z {host}.',
-    'module.ssh.message.added' => 'Dopisano host „{host}”.',
-    'module.ssh.message.removed' => 'Usunięto host „{host}”.',
-    'module.ssh.message.auth' => 'Host „{host}” uwierzytelnia się teraz przez: {auth}.',
     'module.ssh.message.unknown' => 'Nie ma w spisie hosta „{host}”.',
     'module.ssh.message.nothing' => 'Żadna sesja nie jest otwarta.',
 
@@ -213,7 +199,6 @@ return [
     'module.ssh.problem.interrupted' => 'Łączenie z {host} przerwała inna praca w tle.',
 
     // Profil hosta — powody odmowy samowalidacji.
-    'module.ssh.profile.name.empty' => 'Nazwa hosta jest pusta.',
     'module.ssh.profile.name.invalid' => 'Nazwa „{name}” jest za długa albo zawiera znaki sterujące.',
     'module.ssh.profile.host.invalid' => 'To nie jest poprawna nazwa hosta ani adres: „{host}”.',
     'module.ssh.profile.user.invalid' => 'To nie jest poprawna nazwa użytkownika: „{user}”.',
@@ -221,7 +206,19 @@ return [
     'module.ssh.profile.key.invalid' => 'Ścieżka klucza musi być bezwzględna: „{path}”.',
 
     // Książka hostów.
-    'module.ssh.book.unreadable' => 'Nie udało się przeczytać spisu hostów — zapis go nadpisze.',
+
+    // Pola rozdziału `ssh` książki adresowej (krok 60) — etykiety widzi
+    // książka, a nie ten moduł: klucz wskazuje ten katalog, bo pola deklaruje
+    // ten, kto ich używa.
+    'module.ssh.field.host' => 'Adres',
+    'module.ssh.field.port' => 'Port',
+    'module.ssh.field.user' => 'Użytkownik',
+    'module.ssh.field.auth' => 'Uwierzytelnienie',
+    'module.ssh.field.auth.agent' => 'agent',
+    'module.ssh.field.auth.key' => 'klucz z pliku',
+    'module.ssh.field.auth.password' => 'hasło',
+    'module.ssh.field.keyPath' => 'Klucz prywatny',
+    'module.ssh.header.book' => 'Spis wpisów czyta się z książki adresowej — Ctrl+W ją otwiera.',
 
     // Zdarzenia modułu (krok 46).
     'module.ssh.event.connected' => 'sesja zdalna otwarta',

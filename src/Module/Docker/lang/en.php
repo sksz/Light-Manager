@@ -200,12 +200,6 @@ return [
     'module.docker.env.prompt.path.field' => 'absolute file path',
     'module.docker.env.key.select' => 'choose the current environment',
     'module.docker.env.key.select.short' => 'choose',
-    'module.docker.env.key.add' => 'add an environment',
-    'module.docker.env.key.add.short' => 'add',
-    'module.docker.env.key.edit' => 'change the environment',
-    'module.docker.env.key.edit.short' => 'change',
-    'module.docker.env.key.remove' => 'remove the environment',
-    'module.docker.env.key.remove.short' => 'remove',
     'module.docker.env.key.refresh' => 'refresh the client contexts',
 
     'module.docker.env.book.unreadable' => 'The docker.json file could not be read — the environment list starts afresh.',
@@ -284,4 +278,17 @@ return [
     'module.docker.help.compose' => 'The docker.up and docker.down commands bring a compose project up and down; without an argument they take the file from the directory the browser stands in. F5 narrows the list to a project.',
     'module.docker.help.environments' => 'The letter e opens the environment list: local socket, SSH tunnel and a TCP daemon with TLS. Enter picks the current one and the tunnel rises on choice — after asking whether to authenticate with a key/agent or a password; the password is never stored.',
     'module.docker.help.refresh' => 'Ctrl+R refreshes both lists at once — after your own action it happens by itself.',
+
+    // Pola rozdziału `docker` książki adresowej (krok 60).
+    'module.docker.field.kind' => 'Connection kind',
+    'module.docker.field.kind.local' => 'local socket',
+    'module.docker.field.kind.tunnel' => 'SSH tunnel',
+    'module.docker.field.kind.tcp' => 'TCP with TLS',
+    'module.docker.field.socket' => 'Daemon socket',
+    'module.docker.field.target' => 'Tunnel host',
+    'module.docker.field.port' => 'Port',
+    'module.docker.field.cert' => 'Client certificate',
+    'module.docker.field.key' => 'Client key',
+    'module.docker.field.ca' => 'CA certificate',
+
 ];

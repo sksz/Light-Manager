@@ -281,6 +281,31 @@ enum Scenario: string
      */
     case Environments = 'environments';
 
+    /**
+     * Ekran książki adresowej: **pasek zakładek nad tabelą z nagłówkiem**
+     * (krok 60).
+     *
+     * Powód, dla którego istnieje, jest jeden i da się go nazwać w zdaniu:
+     * **żadna klatka w tej aplikacji nie miała dotąd obu tych rzeczy naraz.**
+     * Zakładki mierzy `settings`, ale tam stoją nad **listą** pozycji; tabelę
+     * z nagłówkiem mierzy `environments`, ale tam nad nią **nic nie stoi**.
+     * Ryzyko siedzi w miejscu ich styku: pasek zabiera tabeli dwa wiersze, więc
+     * to on rozstrzyga, ile wierszy zostaje na treść i czy suwak liczy dobrze.
+     *
+     * **Rozliczenie w parze** (reguła 16b): różnica wobec `environments` to
+     * **pasek zakładek z odstępem** (dwa wiersze mniej dla tabeli) oraz **dwie
+     * kolumny więcej**, przy czym scenariusz książki **nie ma ról wierszy** —
+     * prawdziwy ekran ich nie nadaje, bo kursor wyróżnia `Table`. Suma tych
+     * trzech różnic ma tłumaczyć całą różnicę czasu; gdy przestanie, znaczy to,
+     * że zmienił się któryś z dwóch komponentów.
+     *
+     * Kolumna klucza niesie **zasłonę stałej długości** — tę samą, którą rysuje
+     * prawdziwy ekran dla pola rodzaju `secret`. Nie jest to ozdoba: gwiazdki
+     * są napisem o innym rozkładzie znaków niż ścieżka, a klucz pamięci
+     * podręcznej wierszy buduje się z treści (D34).
+     */
+    case AddressBook = 'address-book';
+
     /** @return list<self> kolejność wydruku: od najtańszego do najbogatszego */
     public static function all(): array
     {
@@ -324,7 +349,7 @@ enum Scenario: string
             self::Command, self::Sections, self::Progress, self::Split,
             self::Background, self::BackgroundMany, self::Columns, self::TextView,
             self::Highlight, self::Settings, self::Tree, self::Marked,
-            self::Marquee, self::Environments => true,
+            self::Marquee, self::Environments, self::AddressBook => true,
             default => false,
         };
     }

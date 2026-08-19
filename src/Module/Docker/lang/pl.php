@@ -227,12 +227,6 @@ return [
     'module.docker.env.prompt.path.field' => 'ścieżka bezwzględna pliku',
     'module.docker.env.key.select' => 'wybierz środowisko bieżące',
     'module.docker.env.key.select.short' => 'wybierz',
-    'module.docker.env.key.add' => 'dodaj środowisko',
-    'module.docker.env.key.add.short' => 'dodaj',
-    'module.docker.env.key.edit' => 'zmień środowisko',
-    'module.docker.env.key.edit.short' => 'zmień',
-    'module.docker.env.key.remove' => 'usuń środowisko',
-    'module.docker.env.key.remove.short' => 'usuń',
     'module.docker.env.key.refresh' => 'odśwież konteksty klienta',
 
     // Powody niepowodzeń wokół środowisk.
@@ -318,4 +312,17 @@ return [
     'module.docker.help.compose' => 'Komendy docker.up i docker.down podnoszą i kładą projekt compose; bez argumentu biorą plik z katalogu, w którym stoi przeglądarka. F5 zawęża listę do projektu.',
     'module.docker.help.environments' => 'Litera e otwiera spis środowisk: gniazdo lokalne, tunel SSH i demon po TCP z TLS. Enter wybiera bieżące, a tunel wstaje na wybór — po pytaniu, czy uwierzytelnić kluczem/agentem, czy hasłem; hasło nie jest nigdzie zapisywane.',
     'module.docker.help.refresh' => 'Ctrl+R odświeża obie listy natychmiast — po własnej czynności robi się to samo z siebie.',
+
+    // Pola rozdziału `docker` książki adresowej (krok 60).
+    'module.docker.field.kind' => 'Rodzaj połączenia',
+    'module.docker.field.kind.local' => 'gniazdo lokalne',
+    'module.docker.field.kind.tunnel' => 'tunel SSH',
+    'module.docker.field.kind.tcp' => 'TCP z TLS',
+    'module.docker.field.socket' => 'Gniazdo demona',
+    'module.docker.field.target' => 'Host tunelu',
+    'module.docker.field.port' => 'Port',
+    'module.docker.field.cert' => 'Certyfikat klienta',
+    'module.docker.field.key' => 'Klucz klienta',
+    'module.docker.field.ca' => 'Certyfikat CA',
+
 ];

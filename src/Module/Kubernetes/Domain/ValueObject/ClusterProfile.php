@@ -32,6 +32,8 @@ final readonly class ClusterProfile
     private const MAXIMUM_LENGTH = 253;
 
     private function __construct(
+        /** Identyfikator wpisu książki — tożsamość miejsca (krok 60). */
+        public string $id,
         public string $name,
         public string $kubeconfig,
         public string $context,
@@ -48,6 +50,7 @@ final readonly class ClusterProfile
         string $context,
         string $namespace = '',
         ?int $timeoutSeconds = null,
+        string $id = '',
     ): self {
         $trimmed = trim($name);
 
@@ -74,6 +77,7 @@ final readonly class ClusterProfile
         // Współrzędne przechodzą przez te same odsiewy, co przy użyciu — wpis,
         // z którego nie da się złożyć polecenia, nie ma prawa powstać.
         return new self(
+            $id,
             $trimmed,
             ClusterPlace::path($kubeconfig),
             ContextName::of($context)->value,
@@ -82,7 +86,50 @@ final readonly class ClusterProfile
         );
     }
 
-    /** Miejsce, które ten wpis wskazuje — dla sesji i wywołań. */
+    /**
+     * Miejsce z wiersza kwerendy `address-book.entries k8s` albo `null`, gdy
+     * wiersz nie opisuje klastra, z którym da się rozmawiać (krok 60).
+     *
+     * **Jedyna droga, którą wpis powstaje z książki**, i idzie wyłącznie przez
+     * napisy i liczby (reguła 15g). Wiersz bez pliku albo bez kontekstu nie
+     * jest błędem: książka jest wspólna, więc wpis może istnieć po to, żeby
+     * nieść pola zupełnie innego rozdziału.
+     *
+     * @param array<string, string|int|bool> $row
+     */
+    public static function fromRow(array $row): ?self
+    {
+        $id = $row['id'] ?? '';
+        $kubeconfig = $row['kubeconfig'] ?? '';
+        $context = $row['context'] ?? '';
+
+        if (!is_string($id) || $id === '' || !is_string($kubeconfig) || $kubeconfig === '') {
+            return null;
+        }
+
+        if (!is_string($context) || $context === '') {
+            return null;
+        }
+
+        $namespace = $row['namespace'] ?? '';
+        $timeout = $row['timeout'] ?? null;
+        $timeout = is_int($timeout) ? $timeout : (int) (is_string($timeout) ? $timeout : 0);
+
+        try {
+            return self::of(
+                is_string($row['name'] ?? null) && $row['name'] !== '' ? $row['name'] : $context,
+                $kubeconfig,
+                $context,
+                is_string($namespace) ? $namespace : '',
+                $timeout > 0 ? $timeout : null,
+                $id,
+            );
+        } catch (InvalidClusterNameException) {
+            // Wpis nie do przyjęcia wypada, a reszta spisu zostaje.
+            return null;
+        }
+    }
+
     public function place(): ClusterPlace
     {
         return ClusterPlace::of($this->kubeconfig, ContextName::of($this->context));

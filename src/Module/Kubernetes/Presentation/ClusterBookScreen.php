@@ -22,8 +22,6 @@ use LightManager\Presentation\Ui\Component\Label;
 use LightManager\Presentation\Ui\Component\Table;
 use LightManager\Presentation\Ui\Component\TableRow;
 use LightManager\Presentation\Ui\KeyBinding;
-use LightManager\Presentation\Ui\Overlay\ConfirmOverlay;
-use LightManager\Presentation\Ui\OverlayOutcome;
 use LightManager\Presentation\Ui\PointerRow;
 use LightManager\Presentation\Ui\ScreenOutcome;
 use LightManager\Presentation\Ui\ScrollWindow;
@@ -65,7 +63,6 @@ final class ClusterBookScreen
 
     public function __construct(
         private readonly Clusters $clusters,
-        private readonly ClusterFlow $flow,
         private readonly TranslatorPort $translator,
         private readonly KubernetesQueries $reader,
     ) {
@@ -121,13 +118,6 @@ final class ClusterBookScreen
         return [
             KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move', 'help.key.move.short'),
             KeyBinding::of([Key::Enter], $this->key('cluster.key.select'), $this->key('cluster.key.select.short')),
-            KeyBinding::of([Key::F4], $this->key('cluster.key.edit'), $this->key('cluster.key.edit.short')),
-            KeyBinding::of([Key::F7], $this->key('cluster.key.add'), $this->key('cluster.key.add.short')),
-            KeyBinding::of(
-                [Key::F8, Key::Delete],
-                $this->key('cluster.key.remove'),
-                $this->key('cluster.key.remove.short'),
-            ),
             KeyBinding::ctrl('r', $this->key('cluster.key.refresh'), $this->key('key.refresh.short')),
             KeyBinding::of([Key::Escape], $this->key('key.back'), $this->key('key.back.short')),
         ];
@@ -170,9 +160,6 @@ final class ClusterBookScreen
             Key::Home => $this->putSelection(0),
             Key::End => $this->putSelection($this->reader->clusters()->count() - 1),
             Key::Enter => $this->activate(),
-            Key::F4 => $this->askToEdit(),
-            Key::F7 => ScreenOutcome::opens($this->flow->add()),
-            Key::F8, Key::Delete => $this->askToRemove(),
             default => ScreenOutcome::stay(),
         };
     }
@@ -202,50 +189,6 @@ final class ClusterBookScreen
         }
 
         return ScreenOutcome::stay(Message::info($this->text('cluster.switched', ['name' => $row->name])));
-    }
-
-    private function askToEdit(): ScreenOutcome
-    {
-        $row = $this->underCursor();
-
-        if ($row === null) {
-            return ScreenOutcome::stay();
-        }
-
-        if ($row->entry === null) {
-            return ScreenOutcome::stay(Message::warning($this->text('cluster.readEntry', ['name' => $row->name])));
-        }
-
-        return ScreenOutcome::opens($this->flow->edit($row->entry));
-    }
-
-    private function askToRemove(): ScreenOutcome
-    {
-        $row = $this->underCursor();
-
-        if ($row === null) {
-            return ScreenOutcome::stay();
-        }
-
-        if ($row->entry === null) {
-            // Wpisu czytanego nie da się skasować (D96 nr 3) — kryterium
-            // przebiegu funkcjonalnego, nie uprzejmość.
-            return ScreenOutcome::stay(Message::warning($this->text('cluster.readEntry', ['name' => $row->name])));
-        }
-
-        $name = $row->entry->name;
-
-        return ScreenOutcome::opens(new ConfirmOverlay(
-            $this->key('cluster.confirm.remove'),
-            ['name' => $name],
-            function () use ($name): OverlayOutcome {
-                $this->clusters->remove($name);
-                $this->clampSelection();
-
-                return OverlayOutcome::close(Message::info($this->text('cluster.removed', ['name' => $name])));
-            },
-            $this->translator,
-        ));
     }
 
     /** @return list<Column> */

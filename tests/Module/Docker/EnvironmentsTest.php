@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace LightManager\Tests\Module\Docker;
 
 use LightManager\Module\Docker\Application\ContextEntry;
-use LightManager\Module\Docker\Application\EnvironmentBook;
 use LightManager\Module\Docker\Application\EnvironmentOrigin;
 use LightManager\Module\Docker\Application\Environments;
 use LightManager\Module\Docker\Application\TunnelStage;
 use LightManager\Module\Docker\Domain\ValueObject\DockerEnvironment;
 use LightManager\Tests\Support\StubContextCatalog;
-use LightManager\Tests\Support\StubEnvironmentBook;
+use LightManager\Tests\Support\StubDockerState;
 use LightManager\Tests\Support\StubTunnel;
 use PHPUnit\Framework\TestCase;
 
@@ -33,7 +32,7 @@ final class EnvironmentsTest extends TestCase
         $rows = $environments->rows();
 
         self::assertCount(1, $rows);
-        self::assertSame(EnvironmentBook::DEFAULT_NAME, $rows[0]->name);
+        self::assertSame(DockerEnvironment::DEFAULT_NAME_LOCAL, $rows[0]->name);
         self::assertSame(EnvironmentOrigin::Default, $rows[0]->origin);
         self::assertTrue($rows[0]->current);
         self::assertSame('/var/run/docker.sock', $environments->endpoint()->socketPath);
@@ -46,9 +45,9 @@ final class EnvironmentsTest extends TestCase
             new ContextEntry('serwer', 'ssh://anna@example.com', false),
         ]);
         $environments = self::environments(
-            new StubEnvironmentBook(new EnvironmentBook([
+            [
                 DockerEnvironment::sshTunnel('serwer', 'anna@example.com'),
-            ])),
+            ],
             $contexts,
         );
         $environments->refresh();
@@ -68,11 +67,12 @@ final class EnvironmentsTest extends TestCase
 
     public function testSelectingATunnelEntryOpensTheTunnelAndSwitches(): void
     {
-        $book = new StubEnvironmentBook(new EnvironmentBook([
-            DockerEnvironment::sshTunnel('serwer', 'anna@example.com', 2222, '/run/docker.sock'),
-        ]));
+        $book = [
+                DockerEnvironment::sshTunnel('serwer', 'anna@example.com', 2222, '/run/docker.sock'),
+        ];
         $tunnel = new StubTunnel(advancesUntilDone: 2);
-        $environments = self::environments($book, tunnel: $tunnel);
+        $state = new StubDockerState();
+        $environments = self::environments($book, tunnel: $tunnel, state: $state);
 
         $problem = $environments->select('serwer', 'anna@example.com', 2222);
 
@@ -81,7 +81,7 @@ final class EnvironmentsTest extends TestCase
         self::assertTrue($environments->takeSwitched());
         self::assertFalse($environments->takeSwitched(), 'znacznik jest zabierany, nie oglądany');
         self::assertSame('serwer', $environments->currentName());
-        self::assertSame('serwer', $book->saved?->current(), 'wybór przeżywa uruchomienie');
+        self::assertSame('serwer', $state->current, 'wybór przeżywa uruchomienie');
 
         // Tunel dopiero wstaje — punkt końcowy mówi dlaczego, zamiast podawać
         // gniazdo, którego jeszcze nie ma.
@@ -96,9 +96,9 @@ final class EnvironmentsTest extends TestCase
 
     public function testATunnelThatDidNotRiseHasItsOwnSentence(): void
     {
-        $book = new StubEnvironmentBook(new EnvironmentBook([
-            DockerEnvironment::sshTunnel('serwer', 'anna@example.com'),
-        ]));
+        $book = [
+                DockerEnvironment::sshTunnel('serwer', 'anna@example.com'),
+        ];
         $environments = self::environments(
             $book,
             tunnel: new StubTunnel(problemKey: 'module.docker.tunnel.rejected'),
@@ -115,9 +115,9 @@ final class EnvironmentsTest extends TestCase
 
     public function testATcpEntryYieldsATlsEndpointAndComposeVariables(): void
     {
-        $book = new StubEnvironmentBook(new EnvironmentBook([
-            DockerEnvironment::tcp('chmura', 'daemon.example.com', 2376, '/c/cert.pem', '/c/key.pem', '/c/ca.pem'),
-        ]));
+        $book = [
+                DockerEnvironment::tcp('chmura', 'daemon.example.com', 2376, '/c/cert.pem', '/c/key.pem', '/c/ca.pem'),
+        ];
         $environments = self::environments($book);
 
         $environments->select('chmura');
@@ -155,42 +155,60 @@ final class EnvironmentsTest extends TestCase
         self::assertFalse($environments->takeSwitched());
     }
 
-    public function testAClientContextCannotBeRemoved(): void
+    /**
+     * **Usuwanie zeszło do książki** (krok 60), więc koordynator nie ma już
+     * czego usuwać — a wpis, który zniknął z książki, po prostu wypada ze spisu
+     * przy najbliższym takcie.
+     *
+     * Sprawdzane jest to, co po nim zostaje: **wskazanie bieżącego**. Wpis
+     * skasowany zostawia wskaźnik pokazujący donikąd, a spis ma wtedy wrócić do
+     * gniazda lokalnego, a nie zniknąć.
+     */
+    public function testAnEntryThatLeftTheBookFallsBackToTheLocalSocket(): void
     {
-        $contexts = new StubContextCatalog([
-            new ContextEntry('default', 'unix:///var/run/docker.sock', true),
-        ]);
-        $book = new StubEnvironmentBook();
-        $environments = self::environments($book, $contexts);
-        $environments->refresh();
-        $environments->tick();
+        $state = new StubDockerState();
+        $environments = self::environments(
+            [DockerEnvironment::localSocket('praca', '/run/praca.sock', 'a1b2c3d4e5f6')],
+            state: $state,
+        );
 
-        self::assertFalse($environments->remove('default'));
-        self::assertSame(0, $book->saveCount, 'odmowa nie dotyka pliku');
+        $environments->select('a1b2c3d4e5f6');
+        self::assertSame('a1b2c3d4e5f6', $environments->currentName());
+
+        // Wpis zniknął z książki — koordynator dostaje w następnym takcie listę
+        // bez niego i nie ma czego pokazać poza gniazdem lokalnym.
+        $environments->useEntries([]);
+
+        self::assertNull($environments->row($environments->currentName()));
+        self::assertSame(
+            DockerEnvironment::DEFAULT_SOCKET,
+            $environments->endpoint()->socketPath,
+            'rozmowa wraca do gniazda lokalnego, a nie do nikąd',
+        );
     }
 
-    public function testRemovingTheCurrentEntryFallsBackToTheDefault(): void
-    {
-        $book = new StubEnvironmentBook(new EnvironmentBook([
-            DockerEnvironment::localSocket('praca', '/run/praca.sock'),
-        ]));
-        $environments = self::environments($book);
-
-        $environments->select('praca');
-        self::assertTrue($environments->remove('praca'));
-
-        self::assertSame(EnvironmentBook::DEFAULT_NAME, $environments->currentName());
-    }
-
+    /**
+     * Koordynator wraz z wpisami — **podanymi z zewnątrz** (krok 60).
+     *
+     * Wpisy własne mieszkają od tamtego kroku w książce adresowej, a koordynator
+     * dostaje je gotową listą raz na takt; test robi więc dokładnie to, co robi
+     * moduł.
+     *
+     * @param list<DockerEnvironment> $entries
+     */
     private static function environments(
-        ?StubEnvironmentBook $book = null,
+        array $entries = [],
         ?StubContextCatalog $contexts = null,
         ?StubTunnel $tunnel = null,
+        ?StubDockerState $state = null,
     ): Environments {
-        return new Environments(
-            $book ?? new StubEnvironmentBook(),
+        $environments = new Environments(
+            $state ?? new StubDockerState(),
             $contexts ?? new StubContextCatalog(),
             $tunnel ?? new StubTunnel(),
         );
+        $environments->useEntries($entries);
+
+        return $environments;
     }
 }

@@ -19,6 +19,11 @@ use LightManager\Module\Docker\Domain\ValueObject\DockerEnvironment;
 final readonly class EnvironmentRow
 {
     public function __construct(
+        /**
+         * Identyfikator wpisu książki; **pusty dla kontekstu klienta**, bo ten
+         * w książce nie stoi i tożsamości poza własną nazwą nie ma (krok 60).
+         */
+        public string $id,
         public string $name,
         /** Rodzaj jako napis: wartość `EnvironmentKind` albo schemat adresu klienta. */
         public string $kind,

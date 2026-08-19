@@ -668,7 +668,7 @@ co w kroku 53**, i z tego samego powodu: prymitywów nie przybywa, słownik
 wejścia nie rośnie, trzy renderery zostają nietknięte. Wysiłek trzyma
 choreografia czynności przechodzącej przez dwa moduły i pracę trwającą minuty.
 
-### Faza XX — Wiele miejsc: środowiska Dockera, klastry Kubernetesa i rejestry obrazów
+### Faza XX — Wiele miejsc: środowiska Dockera, klastry Kubernetesa, książka adresowa i rejestry obrazów
 
 Faza **zaplanowana 2026-08-16**, na polecenie użytkownika
 ([00-decyzje.md](00-decyzje.md), D96). Odwraca założenie, które oba moduły
@@ -685,8 +685,32 @@ Trzy kroki po jednej rzeczy każdy (D96 nr 1), rytmem Faz VII, XIV i XVII; krok
 książki środowisk nie ma gdzie trzymać rejestrów (jeden plik stanu, jeden
 zapis), a bez wybranego klastra nie ma gdzie założyć sekretu.
 
+**Krok czwarty wrócił 2026-08-19, na polecenie użytkownika: współdzielona
+książka adresowa** ([60-ksiazka-adresowa.md](60-ksiazka-adresowa.md),
+rozstrzygnięcia w [00-decyzje.md](00-decyzje.md), D104). Wchodzi **przed**
+rejestrami obrazów i **zajmuje numer wolny po kroku usuniętym** — plan od 61
+wzwyż nie rusza się o nic. Historia jest tu treścią, nie ciekawostką: krok o tym
+numerze **stał już raz i został usunięty z kodu i z planu** (2026-08-19,
+commity `ce65103` i `8e4a3e2`), bo jego rozdziały istniały, ale **były czyjeś** —
+deklaracja szła w dwie strony (komenda tam, kwerenda zwrotna z powrotem), okno
+rozdziałów nie pokazywało, wpis leżał w dwóch sekcjach naraz, a ekran omijał
+własne komendy.
+
+**Zasadą nowego kroku jest jednakowy dostęp** (D104 nr 1 i 2): rozdział nie jest
+niczyją własnością, tylko **nazwaną grupą pól**, a książka czyta i pisze
+**własnymi kwerendami i komendami po wszystkich rozdziałach — tak samo, jak
+robią to moduły**. Jeden zestaw operacji obsługuje wszystko, rozdział jest
+argumentem, a moduły **zwyczajnie deklarują rozdziały i pola, z których będą
+używać** — deklaracja jest zapowiedzią użycia, nie zastrzeżeniem. Książka nie ma
+przy tym drogi uprzywilejowanej: jej własny ekran pyta i zmienia przez ten sam
+rejestr, co każdy moduł, i własny rozdział deklaruje tymi samymi komendami.
+Zakres rośnie z jednego rozdziału do **trzech**: `ssh`, `docker` i `k8s` oddają
+swoje książki, a trzy spisy stają się jednym rejestrem.
+
 **Rdzeń faza kosztuje zero zmian** i to było jej osobne kryterium — założenie
-padło w kroku 59 jawnie (patrz niżej). Poza tym: książki, drogi
+padło w kroku 59 jawnie (patrz niżej), a krok 60 kosztuje ponadto **jedną
+pozycję na liście w `Bootstrapie`**, czyli dokładnie tyle, ile reguła 15
+przewiduje dla nowego modułu. Poza tym: książki, drogi
 transportu i rozmowa z rejestrem są własnością modułów, a wszystko, czego
 potrzebują od rdzenia — port pracy tłowej (26, 51), kwerendy (53, 54), komendy,
 zdarzenia (46) i okna (28, 32) — stoi tam od dawna. Jedno miejsce jest wyjątkiem
@@ -766,6 +790,7 @@ kształt, więc powód pominięcia stoi w `docs/pomiary/README.md`.
 |---|------|------|-----------|-------|---------|--------|
 | 58 | Środowiska Dockera: jeden demon przestaje być założeniem | [58-srodowiska-dockera.md](archiwum/58-srodowiska-dockera.md) | 14, 15, 24, 26, 27, 28, 30, 32, 40, 45, 46, 48, 51, 53, 54 | Opus⁸ | xhigh | Ukończony z zastrzeżeniem |
 | 59 | Klastry Kubernetesa: połączenie przestaje być jednym kontekstem | [59-klastry-kubernetesa.md](archiwum/59-klastry-kubernetesa.md) | 14, 15, 22, 24, 27, 28, 31, 48, 52, 53, 54, 58 | Opus⁸ | high | Ukończony |
+| 60 | Współdzielona książka adresowa: jeden rejestr wpisów, rozdziały deklarowane przez używających | [60-ksiazka-adresowa.md](60-ksiazka-adresowa.md) | 14, 15, 20, 27, 28, 30, 32, 40, 41, 46, 47, 48, 53, 54, 55, 57, 58, 59 | Opus⁸ | xhigh | Ukończony |
 | 61 | Rejestry obrazów: książka, zawartość i sekret w klastrze | [61-rejestry-obrazow.md](61-rejestry-obrazow.md) | 19, 27, 28, 32, 48, 51, 52, 53, 54, 58, 59 | Opus⁸ | xhigh | Nie rozpoczęty |
 
 ⁸ Warunek `Fable` z przypisów ¹ i ² **nie zachodzi w żadnym z czterech kroków**:
@@ -776,10 +801,12 @@ swój uchwyt; kroku 61 — **dwa moduły naraz** i rozmówca, którego aplikacja
 miała (rejestr HTTP z uwierzytelnieniem dwustopniowym). Krok 59 jest z tej czwórki
 **najlżejszy i taki ma być**: nowej drogi nie wnosi, a jego ciężar leży
 w przeliczeniu tożsamości miejsca przez cztery klasy stanu naraz. Wysiłek kroku
-60 trzymają dwie rzeczy, z których żadna nie jest rozmiarem kodu: rusza **trzy
-moduły naraz** (nowy, Ssh i Docker), a żaden z nich nie ma prawa zobaczyć typu
-drugiego, i przeprowadza **dane, które użytkownik już ma**, między sekcjami
-jednego dokumentu stanu.
+60 trzymają trzy rzeczy, z których żadna nie jest rozmiarem kodu: rusza
+**cztery moduły naraz** (nowy, Ssh, Docker i Kubernetes), a żaden z nich nie ma
+prawa zobaczyć typu drugiego; przeprowadza **trzy sekcje danych, które
+użytkownik już ma**; i wnosi **mechanizm wspólnego rejestru pól**, czyli rzecz,
+której poprzednie podejście nie zrobiło dobrze i która ma kosztować tyle samo
+przy szóstym rozdziale, co przy pierwszym.
 
 ### Faza XXI — Dokumentacja: podręcznik, przewodnik, onboarding i obrona przed rozjazdem
 
@@ -1486,7 +1513,11 @@ tej listy). Łańcuchami są ponadto Fazy XV (45–46) i XVII (48–50). Poza pr
     czym wykonać.
 - **58–61** (Faza XX) są **łańcuchem**, i to z powodu prostszego niż w Fazie XIX:
   nie chodzi o mechanizm, którego nie ma, tylko o **jeden dokument i jedno
-  miejsce**. Książka rejestrów mieszka w tym samym pliku stanu, co książka
+  miejsce**. Czwarte ogniwo (**60**, książka adresowa) łańcucha nie zrywa:
+  stoi po trzech pierwszych, bo dopiero one pokazują, że spis miejsc stoi
+  w aplikacji trzy razy, i przed piątym, bo rejestr obrazów jest kolejnym
+  adresem z poświadczeniem — po tym kroku wchodzi rozdziałem, a nie czwartą
+  książką. Książka rejestrów mieszka w tym samym pliku stanu, co książka
   środowisk (dwa niezależne zapisy jednego pliku to wyścig przy pierwszym
   zapisie z dwóch miejsc naraz), a sekret rejestru zakłada się **w wybranym
   klastrze**, więc bez kroku 59 nie ma go gdzie położyć. Faza stoi poza Fazą XIX
@@ -1506,6 +1537,16 @@ tej listy). Łańcuchami są ponadto Fazy XV (45–46) i XVII (48–50). Poza pr
     kwerendy, które zmieniają treść (`k8s.cluster` i `k8s.contexts` dostają nazwę
     wpisu), od **31** drzewo, którego klucze trzeba przeliczyć, od **22** sekcje
     opisu, od **14** migrację dwóch pozycji ustawień do książki.
+  - **60** (książka adresowa) zależy od **48, 58 i 59** materią — to są trzy
+    książki, które się przenoszą — a od **59** ponadto rdzeniową `Book`
+    i sekcjami dokumentu stanu. Od **53 i 54** bierze **oba rejestry**: kwerendy
+    jako jedyną drogę odczytu i rejestr komend w stanie pętli (11x), na którym
+    stoi i jednostronna deklaracja rozdziału, i droga, którą **własny ekran
+    książki** zmienia jej dane. Od **47** bierze `OpensOverlay`,
+    od **46** zdarzenia, od **41** lekcję pustego pola w `PromptOverlay`, od
+    **27, 28, 30, 32 i 40** klocki ekranu, od **55 i 57** wskaźnik i schowek.
+    Modułów Ssh, Docker i Kubernetes dotyka **wyłącznie przez nazwy** komend
+    i kwerend (15g) — i to jest jego główne kryterium.
   - **61** (rejestry) zależy od **54** jako jego dokończenie — `RegistryAuth`,
     `docker.push` i `k8s.deploy-image` powstały tam z jednym rejestrem i bez
     `imagePullSecret` (D94 nr 3). Od **58** bierze plik stanu i jeden port

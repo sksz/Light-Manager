@@ -121,6 +121,8 @@ Kolumna **Stan** mówi, co się z decyzją stało w kodzie:
 | [D101](#d101--rozstrzygnięcia-startowe-kroku-57-kontekst-jako-źródło-ścieżki-prośba-z-terminem-bez-referencji-wklejanie-przy-polu-a-dług-d100-spłacony-do-połowy) | Rozstrzygnięcia startowe kroku 57: kontekst jako źródło ścieżki, prośba z terminem bez referencji, wklejanie przy polu, a dług D100 spłacony do połowy | krok 57 (przez nr 4 — powstaje zarys kroku 77) | 2026-08-17 | Wdrożona |
 | [D102](#d102--rozstrzygnięcia-startowe-kroku-58-gniazdo-tunelu-ma-zapas-w-light-manager-wpis-powstaje-łańcuchem-okien-a-bieżącym-środowiskiem-pierwszego-uruchomienia-jest-gniazdo-lokalne) | Rozstrzygnięcia startowe kroku 58: gniazdo tunelu ma zapas w `~/.light-manager`, wpis powstaje łańcuchem okien, a bieżącym środowiskiem pierwszego uruchomienia jest gniazdo lokalne | krok 58 | 2026-08-18 | Wdrożona |
 | [D103](#d103--rozstrzygnięcia-startowe-kroku-59-przegląd-15e-kończy-się-wspólną-książką-w-rdzeniu-dzieloną-na-sekcje-a-wspólny-zapis-obejmuje-też-rdzeń) | Rozstrzygnięcia startowe kroku 59: przegląd 15e kończy się wspólną książką w rdzeniu, dzieloną na sekcje, a wspólny zapis obejmuje też rdzeń | krok 59 (przez nr 1 i 4 — rdzeniowe: `Book`, `StateDocumentPort`, `StateFile`) | 2026-08-18 | Wdrożona |
+| [D104](#d104--współdzielona-książka-adresowa-wraca-jako-krok-60-rozdział-nie-jest-niczyj-deklaracja-jest-zapowiedzią-użycia-a-trzy-książki-modułów-schodzą-do-jednego-rejestru) | Współdzielona książka adresowa wraca jako krok 60: rozdział nie jest niczyj, deklaracja jest zapowiedzią użycia, a trzy książki modułów schodzą do jednego rejestru | krok 60 (na nowo, po usunięciu poprzedniego) oraz moduły `ssh`, `docker` i `k8s` jako oddające swoje książki | 2026-08-19 | Czeka |
+| [D105](#d105--rozstrzygnięcia-startowe-kroku-60-identyfikator-dwunastoznakowy-pole-deklarowane-jedną-komendą-książka-pilnuje-rodzaju-a-nie-wzorca-a-rozdziały-są-zakładkami-nad-tabelą-wpisów) | Rozstrzygnięcia startowe kroku 60: identyfikator dwunastoznakowy, pole deklarowane jedną komendą, książka pilnuje rodzaju a nie wzorca, a rozdziały są zakładkami nad tabelą wpisów | krok 60 | 2026-08-19 | Czeka |
 
 > **Indeks jest niekompletny od D62 wzwyż.** Wpisy **D62–D76** stoją w treści
 > dziennika, ale wiersza tutaj nie dostały — regułę „nowy wpis to dwie czynności”
@@ -8132,4 +8134,165 @@ i piąty raz — w `SettingsService` i `CommandHistoryService` rdzenia. Pojęcia
   stary plik zostaje na dysku (nikt go już nie czyta, a jego skasowanie nie ma
   odbiorcy — to samo zdanie, co przy migracji ustawień w planie kroku 59).
 
-## Decyzje z zamówienia kroku 60 (2026-08-18)
+## Decyzje z zamówienia kroku 60 (2026-08-19)
+
+### D104 — Współdzielona książka adresowa wraca jako krok 60: rozdział nie jest niczyj, deklaracja jest zapowiedzią użycia, a trzy książki modułów schodzą do jednego rejestru
+
+**Dotyczy:** **kroku 60 postawionego na nowo**
+([60-ksiazka-adresowa.md](60-ksiazka-adresowa.md)) w miejsce kroku o tym samym
+numerze, **usuniętego z kodu i z planu 2026-08-19** (commity `ce65103`
+i `8e4a3e2`); nowego katalogu `src/Module/AddressBook/`; modułów `Ssh`, `Docker`
+i `Kubernetes`, które oddają swoje książki wpisów; sekcji `address-book`
+dokumentu stanu. **Numeracja planu od 61 wzwyż nie rusza się o nic** — numer 60
+został po usuniętym kroku wolny.
+
+**Data:** 2026-08-19, przy zamawianiu kroku — czyli przed jego rozpisaniem, nie
+przed pierwszą linią kodu. Rozstrzygnięcia startowe (postać identyfikatora,
+kształt komendy deklarującej, wzorzec w deklaracji pola, rodzaj `entry`, litera
+skrótu, jeden krok czy trzy) **nie zapadły** i czekają w planie jako siedem
+pytań.
+
+**Decyzje użytkownika:**
+
+1. **Rozdział nie jest niczyją własnością — dostęp jest jednakowy.** Książka
+   czyta i pisze **własnymi kwerendami i komendami po wszystkich rozdziałach,
+   tak samo jak moduły**; jeden zestaw operacji obsługuje wszystko, a rozdział
+   jest **argumentem**, nie osobnym wejściem. Książka nie ma drogi
+   uprzywilejowanej: jej własny ekran pyta i zmienia przez ten sam rejestr, co
+   każdy moduł, i deklaruje własny rozdział tymi samymi komendami. Moduł wolno
+   zapytać o cudzy rozdział i **jest to droga zamierzona** (cel tunelu Dockera
+   czyta rozdział `ssh`), nie obejście.
+2. **Deklaracja rozdziału i pól jest zapowiedzią użycia, nie zastrzeżeniem.**
+   Moduły „zwyczajnie deklarują rozdziały i pola, z których będą używać" — nie
+   zgłaszają własności i nikomu niczego nie zamykają. Deklaracja jest
+   **jednostronna** (dwie komendy, żadnej kwerendy zwrotnej), **idempotentna**
+   (dwa moduły wolno zadeklarować to samo) i **niesprzeczna** (deklaracja pola
+   o zajętym kluczu, ale innym rodzaju, nie przestawia go — pierwsza stoi).
+   Pojęcia „właściciela rozdziału" **nie ma**; rozdział niezadeklarowany w danym
+   uruchomieniu traci wyłącznie **opis pól**, a jego wartości pozostają czytelne
+   i zmienialne.
+3. **Cztery wady poprzedniej książki są treścią nowego kroku** — wszystkie
+   cztery wskazane wprost, wszystkie do zdjęcia:
+   - **deklaracja szła w dwie strony** — moduł wołał komendę, a książka czytała
+     spis pól **z kwerendy zakładającego**; stąd zależność od kolejności
+     składania modułów i milcząca umowa o kształcie cudzego wiersza;
+   - **okno nie pokazywało rozdziałów** — mechanizm istniał, a użytkownik widział
+     tabelę `nazwa | adres | opis` i rozdziały dopiero w łańcuchu okien wpisu;
+   - **dane wpisu rozjechały się po sekcjach** — adres w sekcji `address-book`,
+     poświadczenia w sekcji `ssh`, jeden wpis w dwóch miejscach na dysku;
+   - **operacje omijały komendy i kwerendy** — ekran i łańcuch okien pracowały
+     wprost na obiekcie modelu, czyli istniała druga droga do tych samych
+     czynności.
+4. **Zakres to trzy rozdziały naraz: `ssh`, `docker` i `k8s`.** Wszystkie trzy
+   książki modułów (`HostBook`, `EnvironmentBook`, `ClusterBook`) znikają na
+   rzecz jednego rejestru — to jest pełne znaczenie słowa „współdzielona".
+   Odrzucone: sam `ssh` (najmniejszy krok, ale wzorzec książki stoi dalej dwa
+   razy), `ssh` + `docker` oraz książka pusta, bez ani jednego rozdziału
+   (mechanizm bez odbiorcy, reguła 13).
+5. **Wpis niesie sam z siebie dokładnie dwie rzeczy: nazwę i identyfikator
+   (skrót).** Adres **nie jest** polem wbudowanym — jest polem rozdziału jak
+   każde inne, deklarowanym przez tego, kto go używa. Odrzucone: wpis
+   z wbudowanym adresem (jak w usuniętej wersji) oraz wpis z wbudowanym opisem.
+6. **Sekret jest osobnym rodzajem pola i mieszka w książce** — ścieżki kluczy
+   i certyfikatów leżą przy wpisie, w sekcji książki. Rodzaj `secret` znaczy
+   **zasłonę na ekranie** (wzorem `ModuleSetting::secret()` z kroku 54)
+   i **nieobecność w domyślnych wierszach spisu**; wartość czyta się kwerendą
+   przeznaczoną do tego wprost i **wolno to każdemu** — zasada z punktu 1 nie
+   zna wyjątków. Odrzucone: brak sekretów w książce w ogóle (utrzymanie granicy
+   11w kosztem rozjazdu wpisu na dwie sekcje — wada nr 3) oraz pole bez
+   wyróżnienia (ścieżka klucza prywatnego w każdym spisie).
+
+**Co z tego wynika — i czego krok pilnuje:**
+
+- **Granica reguły 15 biegnie po typach, nie po danych.** Jednakowy dostęp do
+  rozdziałów nie łagodzi 15g o jotę: moduł Dockera wolno zapytać o pola
+  rozdziału `ssh`, ale nadal nie wolno mu zobaczyć `HostProfile`. Rozdział jest
+  wierszem napisów i liczb, jak każda odpowiedź kwerendy.
+- **Rdzeń nie wie o rozdziałach nic — D42 zostaje nietknięte.** Deklaracja pola
+  jest kształtem bliźniacza wobec `ModuleSetting`, ale `ChapterField` jest typem
+  **modułu**, nie rdzenia. Rdzeń rośnie o **jedną pozycję w `Bootstrapie`**
+  i o nic więcej (reguła 15).
+- **Maskowanie nie jest zamkiem i plan mówi to wprost.** Rejestr kwerend nie zna
+  wołającego (reguła kwerendy nr 2), a zasada z punktu 1 mówi, że dostęp jest
+  jednakowy — więc `secret` broni przed **przypadkiem i hałasem**, nie przed
+  modułem. Plik stanu ma prawa `0600` i nie udaje sejfu, tak samo jak
+  `~/.docker/config.json`.
+- **Identyfikator przestaje być ozdobą.** Skoro tożsamością jest skrót, a nie
+  nazwa, zmiana nazwy przestaje psuć cudze odniesienia — i dopiero to czyni
+  sensownym pole rodzaju `entry` (odniesienie do wpisu), którym cel tunelu
+  Dockera wskazuje host zamiast trzymać jego nazwę napisem.
+- **Sprzątanie wartości musi być czynnością.** Skoro deklaracje nie są
+  zapisywane, a rozdział nie ma właściciela, to wartości rozdziału, którego nikt
+  już nie używa, nie mają kto usunąć — stąd komenda `address-book.forget`,
+  pytająca oknem.
+- **Konteksty czytane z cudzych plików nie stają się wpisami książki**
+  (`docker context ls`, `kubeconfig`): aplikacja do tych plików nie pisze
+  i zdanie z kroków 51, 52, 58 i 59 zostaje w mocy.
+- **Krok 61 dostaje tańsze wejście**: rejestr obrazów wchodzi rozdziałem (dwie
+  komendy w takcie), a nie czwartą książką — wzorzec książki **nie staje po raz
+  czwarty**.
+
+## Decyzje ze startu kroku 60 (2026-08-19)
+
+### D105 — Rozstrzygnięcia startowe kroku 60: identyfikator dwunastoznakowy, pole deklarowane jedną komendą, książka pilnuje rodzaju a nie wzorca, a rozdziały są zakładkami nad tabelą wpisów
+
+**Dotyczy:** kroku **60** ([60-ksiazka-adresowa.md](60-ksiazka-adresowa.md));
+nowego modułu `src/Module/AddressBook/`; modułów `Ssh`, `Docker` i `Kubernetes`
+jako deklarujących rozdziały; sekcji `address-book` dokumentu stanu.
+
+**Data:** 2026-08-19, przed pierwszą linią kodu kroku. Pytań było siedem
+(plan kroku); rozstrzygnięto **wszystkie**. Jedno odwraca rekomendację planu
+(nr 3), jedno wychodzi poza podane warianty (nr 5).
+
+**Decyzje użytkownika:**
+
+1. **Identyfikator wpisu to losowy napis szesnastkowy o długości dwunastu
+   znaków** (`random_bytes(6)`). Odrzucone: osiem znaków (jak w usuniętej
+   książce — krótsze w komendzie, ale kolizji trzeba pilnować przy setkach
+   wpisów) i skrót `sha256` z nazwy i czasu (wygląda tak samo, a powstaje
+   drożej).
+2. **Pole rozdziału deklaruje się jedną komendą na pole** (`address-book.field`),
+   z argumentami typowanymi przez `CommandArgument`. Odrzucona deklaracja
+   całego rozdziału jednym upakowanym napisem — byłby to trzeci parser
+   w aplikacji, z własnymi regułami cytowania.
+3. **Książka pilnuje samego rodzaju pola — wzorca ani długości maksymalnej
+   deklaracja nie niesie**; walidacja dziedzinowa zostaje u czytającego
+   (`HostProfile` i tak ją ma). **Odwraca to rekomendację planu**, która chciała
+   `pattern` wzorem `ModuleSetting`. Cena jest znana i przyjęta: zła wartość
+   wychodzi przy próbie użycia, nie przy wpisywaniu.
+4. **Rodzaj pola `entry` — odniesienie do innego wpisu — wchodzi w tym kroku**,
+   z odbiorcą od pierwszego dnia (cel tunelu Dockera). Książka sprawdza, że
+   wskazywany wpis istnieje, a łańcuch okien daje wybór z listy.
+5. **Skrót `Ctrl`+`W`, a rozdziały są zakładkami** — nie przełącznikiem
+   w górnym pasie, jak proponował plan, i nie listą pod osobnym klawiszem.
+   Powodem jest **spójność interfejsu z pozostałymi modułami**: zakładki
+   rysuje rdzeniowy `Tabs` (ekran ustawień, ekran pomocy), więc wygląd
+   i klawisze są te, które użytkownik zna. **Wpisy stoją w tabeli
+   z wyszukiwaniem i sortowaniem.**
+6. **Identyfikator świeżo dopisanego wpisu oddaje kwerenda
+   `address-book.last`** — potrzebna deklarującym przy migracji trzech sekcji.
+   Odrzucone: klucz własny deklarującego w `add` (idempotentna migracja, ale
+   dokłada książce pojęcie i zapis na dysku) i dopasowanie po nazwie (zakłada,
+   że nazwy pozostały unikatowe).
+7. **Krok zostaje jednym numerem i idzie w trzech etapach** (książka + `ssh`,
+   `docker`, `k8s`). Odrzucone rozbicie na trzy kroki — kosztowałoby trzecie
+   przenumerowanie planu od 61 wzwyż.
+
+**Co z tego wynika:**
+
+- **Sortowanie kolumn wchodzi do ekranu, a nie do `Table`.** Pozycja „sortowanie
+  listy po kolumnie" była wyłączona z kroku 27 i tam zostaje: wiersze porządkuje
+  **ekran książki**, zanim poda je komponentowi, a nagłówek dostaje znacznik
+  kolumny i kierunku. Rdzeń nie rośnie o nic, a gdy sortowania zechce drugi
+  ekran, będzie to przegląd z reguły 15e, nie skutek uboczny tego kroku.
+- **Zakładki nic nie kosztują** — `Presentation\Ui\Component\Tabs` stoi
+  w rdzeniu od kroku 18 i ma dziś dwóch użytkowników (ustawienia, pomoc);
+  książka jest trzecim. Kryterium „rdzeń rośnie o jedną pozycję
+  w `Bootstrapie`" zostaje nietknięte.
+- **Bez wzorca w deklaracji książka nadal nie przyjmie wszystkiego**: pilnuje
+  **rodzaju** (liczba jest liczbą, wybór jest z listy, odniesienie wskazuje
+  istniejący wpis) oraz własnej higieny — znaków sterujących i długości, po
+  której klatka przestaje być rysowalna. To nie jest wzorzec dziedzinowy, tylko
+  warunek tego, żeby wartość dała się zapisać i pokazać.
+- **`address-book.last` jest kwerendą `VOLATILE`** i oddaje jeden wiersz
+  z identyfikatorem; pusty, dopóki w tym uruchomieniu nikt nic nie dopisał.

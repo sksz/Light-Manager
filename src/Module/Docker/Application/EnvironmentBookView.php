@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Docker\Application;
 
+use LightManager\Module\Docker\Domain\ValueObject\DockerEnvironment;
+
 /**
  * Migawka spisu środowisk dla ekranu i kwerendy (krok 58).
  *
@@ -26,7 +28,7 @@ final readonly class EnvironmentBookView
 
     public static function empty(): self
     {
-        return new self([], EnvironmentBook::DEFAULT_NAME, '', TunnelState::none(), false, null);
+        return new self([], DockerEnvironment::DEFAULT_NAME_LOCAL, '', TunnelState::none(), false, null);
     }
 
     public function at(int $index): ?EnvironmentRow

@@ -27,7 +27,7 @@ use LightManager\Module\Docker\Application\LogStream;
 use LightManager\Module\Docker\Application\Port\ComposePort;
 use LightManager\Module\Docker\Application\Port\ContextCatalogPort;
 use LightManager\Module\Docker\Application\Port\DockerApiPort;
-use LightManager\Module\Docker\Application\Port\EnvironmentBookPort;
+use LightManager\Module\Docker\Application\Port\DockerStatePort;
 use LightManager\Module\Docker\Application\Port\TunnelPort;
 use LightManager\Module\Docker\Application\PushWork;
 use LightManager\Module\Docker\Infrastructure\BuildContextPacker;
@@ -141,6 +141,8 @@ final class DockerModule implements
     /** Środowiska — „z którym demonem" jako dana, jedna na moduł (krok 58). */
     private ?Environments $environments = null;
 
+    private ?DockerChapter $chapter = null;
+
     private ?EnvironmentScreen $environmentScreen = null;
 
     /**
@@ -157,7 +159,7 @@ final class DockerModule implements
         private readonly ?DockerApiPort $api = null,
         private readonly ?ComposePort $compose = null,
         /** Trzy porty środowisk — wstrzyknięcie istnieje dla testów, jak `$api` (krok 58). */
-        private readonly ?EnvironmentBookPort $environmentBook = null,
+        private readonly ?DockerStatePort $dockerState = null,
         private readonly ?ContextCatalogPort $contexts = null,
         private readonly ?TunnelPort $tunnel = null,
     ) {
@@ -256,6 +258,19 @@ final class DockerModule implements
     }
 
     /**
+     * Rozdział książki — **jeden na moduł** i jedyne miejsce (obok
+     * `DockerQueries`), w którym ten moduł wie, że książka adresowa istnieje.
+     */
+    private function chapter(): DockerChapter
+    {
+        return $this->chapter ??= new DockerChapter(
+            $this->state,
+            $this->reader(),
+            $this->dockerState ?? DockerStateService::getInstance(),
+        );
+    }
+
+    /**
      * Środowiska — **jedne na moduł**, z tego samego powodu, co lista
      * kontenerów: takt posuwa tunel, ekran pokazuje spis, a kwerenda oddaje
      * odpowiedź — trzy obiekty znaczyłyby trzy prawdy o jednym wyborze.
@@ -263,7 +278,7 @@ final class DockerModule implements
     private function environments(): Environments
     {
         return $this->environments ??= new Environments(
-            $this->environmentBook ?? DockerStateService::getInstance(),
+            $this->dockerState ?? DockerStateService::getInstance(),
             $this->contexts ?? DockerContextReader::getInstance(),
             $this->tunnel ?? SocketTunnelService::getInstance(),
         );
@@ -273,7 +288,6 @@ final class DockerModule implements
     {
         return $this->environmentScreen ??= new EnvironmentScreen(
             $this->environments(),
-            new EnvironmentFlow($this->environments(), $this->translator),
             $this->translator,
             $this->reader(),
             $this->state,
@@ -330,10 +344,20 @@ final class DockerModule implements
      */
     public function tick(float $now): void
     {
+        // Zapowiedź użycia rozdziału książki — **raz na uruchomienie**, wraz
+        // z przeniesieniem starego spisu (krok 60, etap 2). Stoi pierwsza, bo
+        // wpisy mają być w książce, zanim koordynator o nie poprosi.
+        $this->chapter()->tick();
+
         // Środowisko idzie **przed pompowaniem**: przełączenie unieważnia
         // wszystko, co przyszło od poprzedniego demona (kryterium kroku 58),
         // a punkt końcowy musi stać, zanim ktokolwiek zada pytanie.
         $environments = $this->environments();
+
+        // Wpisy własne **podaje fasada**, bo mieszkają w cudzej książce, a nie
+        // w tym module (krok 60). Koordynator dostaje gotową listę i nie wie,
+        // skąd się wzięła — tak samo, jak nie wiedział, że czyta ją z pliku.
+        $environments->useEntries($this->reader()->bookEntries());
         $environments->tick();
 
         if ($environments->takeSwitched()) {

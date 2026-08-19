@@ -32,11 +32,6 @@ final class InvalidHostProfileException extends DomainException implements Descr
         parent::__construct($message);
     }
 
-    public static function emptyName(): self
-    {
-        return new self('Host profile name is empty.', 'module.ssh.profile.name.empty', []);
-    }
-
     public static function invalidName(string $name): self
     {
         return new self(

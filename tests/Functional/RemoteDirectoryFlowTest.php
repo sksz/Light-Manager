@@ -9,17 +9,18 @@ use LightManager\Application\Dto\KeyPress;
 use LightManager\Application\Module\ContextOrigin;
 use LightManager\Application\Ui\Primitive\TextRun;
 use LightManager\Application\Ui\Rect;
+use LightManager\Module\AddressBook\Domain\ValueObject\AddressEntry;
 use LightManager\Module\Browser\Domain\ValueObject\DirectoryPath;
 use LightManager\Module\Browser\Domain\ValueObject\Entry;
-use LightManager\Module\Ssh\Application\HostBook;
 use LightManager\Module\Ssh\Domain\ValueObject\HostProfile;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntry;
 use LightManager\Module\Ssh\Domain\ValueObject\RemoteEntryType;
 use LightManager\Tests\Support\InMemoryDirectoryRepository;
 use LightManager\Tests\Support\ScreenFixture;
-use LightManager\Tests\Support\StubHostBook;
+use LightManager\Tests\Support\StubAddressBook;
 use LightManager\Tests\Support\StubRemoteDirectory;
 use LightManager\Tests\Support\StubSshSession;
+use LightManager\Tests\Support\StubSshState;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -47,20 +48,30 @@ final class RemoteDirectoryFlowTest extends TestCase
 
     private const ROWS = 24;
 
+    private const ENTRY = 'a1b2c3d4e5f6';
+
     private ScreenFixture $app;
 
     private StubSshSession $sessions;
 
-    private StubHostBook $hosts;
+    /** Wpisy książki adresowej — od kroku 60 to stąd bierze się spis hostów. */
+    private StubAddressBook $book;
+
+    private StubSshState $sshState;
 
     private StubRemoteDirectory $remote;
 
     protected function setUp(): void
     {
         $this->sessions = new StubSshSession();
-        $this->hosts = new StubHostBook(new HostBook([
-            new HostProfile('biuro', 'example.com', 22, 'anna'),
-        ]));
+        // Host jest **wpisem wspólnej książki** z wartościami rozdziału `ssh`
+        // (krok 60) — moduł sesji zdalnej nie ma już własnego spisu.
+        $this->book = new StubAddressBook([
+            new AddressEntry(self::ENTRY, 'biuro', [
+                'ssh' => ['host' => 'example.com', 'port' => 22, 'user' => 'anna'],
+            ]),
+        ]);
+        $this->sshState = new StubSshState();
         $this->remote = new StubRemoteDirectory([
             '/home/anna' => [
                 new RemoteEntry('dokumenty', RemoteEntryType::Directory, null, 1_786_795_200, 0o755),
@@ -184,14 +195,14 @@ final class RemoteDirectoryFlowTest extends TestCase
         self::assertContains('biuro', $this->drawCurrent(), 'znowu widać spis hostów');
     }
 
-    /** Ostatni katalog przeżywa sesję: zapisuje się pod nazwą wpisu książki. */
+    /** Ostatni katalog przeżywa sesję: zapisuje się pod **identyfikatorem** wpisu. */
     public function testTheLastDirectoryIsRemembered(): void
     {
         $this->connect();
         $this->press(KeyPress::special(Key::Enter, "\r"));
         $this->advanceWork();
 
-        self::assertSame('/home/anna/dokumenty', $this->hosts->directories['biuro'] ?? null);
+        self::assertSame('/home/anna/dokumenty', $this->sshState->directories[self::ENTRY] ?? null);
     }
 
     /** Łączy się i doprowadza ekran do postaci zdalnej. */
@@ -202,12 +213,13 @@ final class RemoteDirectoryFlowTest extends TestCase
         $this->advanceWork();
     }
 
+    /**
+     * Profil taki, jaki złoży sobie moduł z wiersza kwerendy — bo atrapa sesji
+     * porównuje go z tym, z którym stoi połączenie.
+     */
     private function profile(): HostProfile
     {
-        $profile = $this->hosts->load()->book->find('biuro');
-        self::assertNotNull($profile);
-
-        return $profile;
+        return new HostProfile(self::ENTRY, 'biuro', 'example.com', 22, 'anna');
     }
 
     private function press(KeyPress $key): void
@@ -265,8 +277,9 @@ final class RemoteDirectoryFlowTest extends TestCase
             $directories->get(new DirectoryPath('/'), false),
             $directories,
             sessions: $this->sessions,
-            hosts: $this->hosts,
+            sshState: $this->sshState,
             remote: $this->remote,
+            addressBook: $this->book,
         );
     }
 }

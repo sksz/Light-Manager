@@ -434,6 +434,7 @@ return [
     'bench.scenario.marked' => 'lista z zaznaczeniem',
     'bench.scenario.marquee' => 'prostokąt zaznaczenia',
     'bench.scenario.environments' => 'spis środowisk Dockera',
+    'bench.scenario.address-book' => 'ekran książki adresowej',
 
     'bench.transfer.title' => 'Przesył klatki do terminala',
     'bench.transfer.blob' => '  rozmiar klatki:     {kilobytes} kB',

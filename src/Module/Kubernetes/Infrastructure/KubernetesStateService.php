@@ -7,11 +7,7 @@ namespace LightManager\Module\Kubernetes\Infrastructure;
 use LightManager\Application\Port\StateDocumentPort;
 use LightManager\Infrastructure\Config\StateDocumentService;
 use LightManager\Infrastructure\Support\AbstractSingleton;
-use LightManager\Module\Kubernetes\Application\ClusterBook;
-use LightManager\Module\Kubernetes\Application\Port\ClusterBookPort;
-use LightManager\Module\Kubernetes\Application\Port\LoadedClusterBook;
-use LightManager\Module\Kubernetes\Domain\Exception\InvalidClusterNameException;
-use LightManager\Module\Kubernetes\Domain\ValueObject\ClusterProfile;
+use LightManager\Module\Kubernetes\Application\Port\KubernetesStatePort;
 
 /**
  * Stan modułu klastra — sekcja `k8s` dokumentu stanu (krok 59).
@@ -27,7 +23,7 @@ use LightManager\Module\Kubernetes\Domain\ValueObject\ClusterProfile;
  * a sekcja zostaje — jeden zepsuty wpis nie odbiera użytkownikowi całej
  * książki.
  */
-final class KubernetesStateService extends AbstractSingleton implements ClusterBookPort
+final class KubernetesStateService extends AbstractSingleton implements KubernetesStatePort
 {
     private const SECTION = 'k8s';
 
@@ -35,6 +31,9 @@ final class KubernetesStateService extends AbstractSingleton implements ClusterB
 
     /** Nazwa wpisu bieżącego — wybór przeżywa uruchomienie. */
     private const CURRENT_KEY = 'currentCluster';
+
+    /** Znacznik przeniesienia starego spisu do książki adresowej (krok 60). */
+    private const MIGRATED_KEY = 'migrated';
 
     private const NAME_KEY = 'name';
 
@@ -66,75 +65,84 @@ final class KubernetesStateService extends AbstractSingleton implements ClusterB
         $this->sectionRead = false;
     }
 
-    public function load(): LoadedClusterBook
+    public function current(): string
     {
-        $section = $this->section();
+        $current = ($this->section() ?? [])[self::CURRENT_KEY] ?? '';
 
-        if ($section === null) {
-            return new LoadedClusterBook(new ClusterBook(), 'module.k8s.cluster.book.unreadable');
-        }
-
-        $stored = $section[self::CLUSTERS_KEY] ?? null;
-
-        if ($stored === null) {
-            // Sekcji jeszcze nie ma albo nie ma w niej książki — to jest ta
-            // chwila, w której wolno przenieść zapamiętane miejsce z ustawień
-            // (plan, punkt 7).
-            return new LoadedClusterBook(new ClusterBook(), null, fresh: true);
-        }
-
-        if (!is_array($stored)) {
-            return new LoadedClusterBook(new ClusterBook(), 'module.k8s.cluster.book.unreadable');
-        }
-
-        $current = $section[self::CURRENT_KEY] ?? '';
-
-        return new LoadedClusterBook(new ClusterBook(
-            self::profilesFrom($stored),
-            is_string($current) ? $current : '',
-        ));
+        return is_string($current) ? $current : '';
     }
 
-    public function save(ClusterBook $book): void
+    public function makeCurrent(string $value): void
     {
         $section = $this->section() ?? [];
-        $section[self::CLUSTERS_KEY] = self::documentOf($book);
-        $section[self::CURRENT_KEY] = $book->current();
+
+        if (($section[self::CURRENT_KEY] ?? null) === $value) {
+            return;
+        }
+
+        $section[self::CURRENT_KEY] = $value;
         $this->section = $section;
         $this->documents()->saveSection(self::SECTION, $section);
     }
 
-    public function location(): string
-    {
-        return $this->documents()->location();
-    }
-
     /**
-     * @param array<mixed> $stored
+     * Stary spis klastrów — **czytany, nigdy niekasowany** (krok 60).
      *
-     * @return list<ClusterProfile>
+     * Wiersze wychodzą stąd jako tablice napisów i liczb: przenosi je do
+     * książki **komendami** ten, kto je tu zostawił.
      */
-    private static function profilesFrom(array $stored): array
+    public function legacyClusters(): array
     {
-        $profiles = [];
+        $stored = ($this->section() ?? [])[self::CLUSTERS_KEY] ?? null;
+
+        if (!is_array($stored)) {
+            return [];
+        }
+
+        $clusters = [];
 
         foreach ($stored as $item) {
             if (!is_array($item)) {
                 continue;
             }
 
-            $profile = self::profileFrom($item);
+            $cluster = self::legacyClusterFrom($item);
 
-            if ($profile !== null) {
-                $profiles[] = $profile;
+            if ($cluster !== null) {
+                $clusters[] = $cluster;
             }
         }
 
-        return $profiles;
+        return $clusters;
     }
 
-    /** @param array<mixed> $item */
-    private static function profileFrom(array $item): ?ClusterProfile
+    public function isMigrated(): bool
+    {
+        return (($this->section() ?? [])[self::MIGRATED_KEY] ?? false) === true;
+    }
+
+    public function markMigrated(): void
+    {
+        $section = $this->section() ?? [];
+        $section[self::MIGRATED_KEY] = true;
+        $this->section = $section;
+        $this->documents()->saveSection(self::SECTION, $section);
+    }
+
+    public function isFresh(): bool
+    {
+        $section = $this->section();
+
+        return $section === null
+            || (!isset($section[self::CLUSTERS_KEY]) && !isset($section[self::MIGRATED_KEY]));
+    }
+
+    /**
+     * @param array<mixed> $item
+     *
+     * @return array<string, string|int>|null
+     */
+    private static function legacyClusterFrom(array $item): ?array
     {
         $name = $item[self::NAME_KEY] ?? null;
         $kubeconfig = $item[self::KUBECONFIG_KEY] ?? null;
@@ -144,50 +152,30 @@ final class KubernetesStateService extends AbstractSingleton implements ClusterB
             return null;
         }
 
-        $namespace = $item[self::NAMESPACE_KEY] ?? '';
-        $timeout = $item[self::TIMEOUT_KEY] ?? null;
-
-        try {
-            return ClusterProfile::of(
-                $name,
-                $kubeconfig,
-                $context,
-                is_string($namespace) ? $namespace : '',
-                is_int($timeout) && $timeout > 0 ? $timeout : null,
-            );
-        } catch (InvalidClusterNameException) {
-            // Wpis nie do przyjęcia wypada; reszta książki jest w porządku i nie
-            // ma powodu jej tracić. Port nie rzuca (reguła 8).
+        if ($name === '' || $kubeconfig === '' || $context === '') {
             return null;
         }
-    }
 
-    /** @return list<array<string, int|string>> */
-    private static function documentOf(ClusterBook $book): array
-    {
-        $stored = [];
+        $legacy = [
+            self::NAME_KEY => $name,
+            self::KUBECONFIG_KEY => $kubeconfig,
+            self::CONTEXT_KEY => $context,
+        ];
 
-        foreach ($book->all() as $entry) {
-            $item = [
-                self::NAME_KEY => $entry->name,
-                self::KUBECONFIG_KEY => $entry->kubeconfig,
-                self::CONTEXT_KEY => $entry->context,
-            ];
+        foreach ([self::NAMESPACE_KEY, self::TIMEOUT_KEY] as $key) {
+            $value = $item[$key] ?? null;
 
-            // Pól pustych nie zapisujemy: sekcja ma się dać przeczytać oczami,
-            // a `"namespace": ""` w każdym wpisie tylko ją zaśmieca.
-            if ($entry->namespace !== '') {
-                $item[self::NAMESPACE_KEY] = $entry->namespace;
+            if ((is_string($value) && $value !== '') || is_int($value)) {
+                $legacy[$key] = $value;
             }
-
-            if ($entry->timeoutSeconds !== null) {
-                $item[self::TIMEOUT_KEY] = $entry->timeoutSeconds;
-            }
-
-            $stored[] = $item;
         }
 
-        return $stored;
+        return $legacy;
+    }
+
+    public function location(): string
+    {
+        return $this->documents()->location();
     }
 
     /**

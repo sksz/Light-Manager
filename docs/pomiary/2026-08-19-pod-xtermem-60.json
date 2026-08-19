@@ -1,0 +1,63 @@
+{
+    "signature": "1000x600px 166x46 theme=grafit palette=64 textAA=0 strokeAA=1 font=auto",
+    "environment": {
+        "php": "8.3.11",
+        "imageMagick": "ImageMagick 6.9.12-98 Q16 x86_64 18038 https://legacy.imagemagick.org",
+        "font": "DejaVu-Sans-Mono",
+        "recordedAt": "2026-08-19T17:58:15+00:00",
+        "loadPerCore": 0.06
+    },
+    "options": {
+        "widthPixels": 1000,
+        "heightPixels": 600,
+        "columns": 166,
+        "rows": 46,
+        "theme": "grafit",
+        "textAntialias": false,
+        "strokeAntialias": true,
+        "paletteColors": 64,
+        "font": null,
+        "iterations": 15,
+        "warmupIterations": 3,
+        "track": "sixel"
+    },
+    "scenarios": {
+        "address-book": {
+            "draw": 7.866,
+            "quantize": 8.097,
+            "encode": 4.386,
+            "total": 20.381,
+            "bytes": 46625,
+            "unstable": false,
+            "cold": 207.42,
+            "peakBytes": 4194304
+        },
+        "environments": {
+            "draw": 7.543,
+            "quantize": 12.597,
+            "encode": 4.373,
+            "total": 24.586,
+            "bytes": 58687,
+            "unstable": false,
+            "cold": 95.136,
+            "peakBytes": 4194304
+        },
+        "columns": {
+            "draw": 6.461,
+            "quantize": 7.385,
+            "encode": 4.229,
+            "total": 18.066,
+            "bytes": 40145,
+            "unstable": false,
+            "cold": 92.493,
+            "peakBytes": 4194304
+        }
+    },
+    "transfer": {
+        "bytes": 46625,
+        "writeMs": 3.371,
+        "chunks": 7,
+        "roundTripMs": 29.406,
+        "throughputKbPerSecond": 13507
+    }
+}

@@ -17,10 +17,10 @@ use LightManager\Application\Module\RequiresEnvironment;
 use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Application\UseCase\ChangeModuleSettingUseCase;
-use LightManager\Module\Ssh\Application\Port\HostBookPort;
 use LightManager\Module\Ssh\Application\Port\RemoteDirectoryPort;
 use LightManager\Module\Ssh\Application\Port\RemoteTransferPort;
 use LightManager\Module\Ssh\Application\Port\SshSessionPort;
+use LightManager\Module\Ssh\Application\Port\SshStatePort;
 use LightManager\Module\Ssh\Application\RemoteBrowser;
 use LightManager\Module\Ssh\Application\SshEvent;
 use LightManager\Module\Ssh\Application\SshSession;
@@ -35,7 +35,6 @@ use LightManager\Module\Ssh\Presentation\Command\DownloadCommand;
 use LightManager\Module\Ssh\Presentation\Command\HostsCommand;
 use LightManager\Module\Ssh\Presentation\Command\UploadCommand;
 use LightManager\Module\Ssh\Presentation\Query\EntriesQuery;
-use LightManager\Module\Ssh\Presentation\Query\HostsQuery;
 use LightManager\Module\Ssh\Presentation\Query\SessionQuery;
 use LightManager\Module\Ssh\Presentation\Query\TransferQuery;
 use LightManager\Presentation\Cli\LoopState;
@@ -109,12 +108,14 @@ final class SshModule implements
 
     private ?SshQueries $reader = null;
 
+    private ?SshChapter $chapter = null;
+
     /**
      * @param ?SshSessionPort $sessions wstrzyknięcie istnieje dla testów, które nie mają
      *                                  prawa otworzyć połączenia — tak samo, jak testy
      *                                  dźwięku nie mają prawa uruchomić silnika.
      *                                  `null` znaczy „weź usługę na kliencie OpenSSH"
-     * @param ?HostBookPort        $storage     jw. — test nie ma prawa dotknąć pliku w katalogu domowym
+     * @param ?SshStatePort        $storage     jw. — test nie ma prawa dotknąć dokumentu stanu w katalogu domowym
      * @param ?RemoteDirectoryPort  $directories jw. — odczyt katalogu uruchamia proces potomny,
      *                                           więc test dostaje atrapę (krok 49)
      * @param ?RemoteTransferPort   $files       jw. — przesył uruchamia proces potomny **i pisze
@@ -125,7 +126,7 @@ final class SshModule implements
         private readonly TranslatorPort $translator,
         private readonly SettingsPort $settings,
         private readonly ?SshSessionPort $sessions = null,
-        private readonly ?HostBookPort $storage = null,
+        private readonly ?SshStatePort $storage = null,
         private readonly ?RemoteDirectoryPort $directories = null,
         private readonly ?RemoteTransferPort $files = null,
     ) {
@@ -205,7 +206,9 @@ final class SshModule implements
     public function queries(): array
     {
         return [
-            new HostsQuery($this->session()),
+            // `ssh.hosts` **zniknęła w kroku 60**: powtarzałaby cudzą odpowiedź.
+            // Spis wpisów oddaje książka adresowa, a temu modułowi zostaje to,
+            // czego ona nie wie — z kim stoi sesja.
             new SessionQuery($this->session()),
             new EntriesQuery($this->browser(), $this->translator),
             new TransferQuery($this->transfers(), $this->translator),
@@ -305,6 +308,12 @@ final class SshModule implements
      */
     public function tick(float $now): void
     {
+        // Zapowiedź użycia rozdziału książki — **raz na uruchomienie**, wraz
+        // z przeniesieniem starego spisu (krok 60). Stoi przed taktem ekranu,
+        // bo ekran rysuje wpisy, a te mają być w książce, zanim ktokolwiek
+        // o nie zapyta.
+        $this->chapter()->tick();
+
         // Takt idzie przez **ekran**, a nie wprost do sesji, bo od kroku 49 są
         // dwie prace i jedna decyzja: sesja, odczyt katalogu i rozstrzygnięcie,
         // którą postać widać. Rozdzielone znaczyłyby dwa miejsca, które muszą
@@ -335,6 +344,20 @@ final class SshModule implements
     }
 
     /**
+     * Rozdział książki — **jeden na moduł** i jedyne miejsce, w którym ten moduł
+     * wie, że książka adresowa istnieje (poza `SshQueries`).
+     */
+    private function chapter(): SshChapter
+    {
+        return $this->chapter ??= new SshChapter(
+            $this->state,
+            $this->reader(),
+            $this->storage ?? SshStateService::getInstance(),
+            $this->settings,
+        );
+    }
+
+    /**
      * Sesja — **jedna na moduł**.
      *
      * Jedna, bo inaczej takt pilnowałby jednego stanu, ekran pokazywał drugi,
@@ -345,7 +368,6 @@ final class SshModule implements
     {
         return $this->session ??= new SshSession(
             $this->sessions ?? OpenSshSessionService::getInstance(),
-            $this->storage ?? SshStateService::getInstance(),
             $this->settings,
             $this->state->events(),
         );
