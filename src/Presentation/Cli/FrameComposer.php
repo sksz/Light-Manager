@@ -133,34 +133,46 @@ final class FrameComposer
             $this->content($layout, $screen, $state, $header, $ownFrame !== [], $hints),
         ];
 
-        foreach ($this->selection($state, $screen, $planes, $rows, $columns, $overlay !== null) as $plane) {
-            $planes[] = $plane;
-        }
-
+        // Okno nakładane **przed** zaznaczeniem, a nie po nim (krok 77): warstwa
+        // tekstowa ma nieść całą klatkę, a prostokąt zaznaczenia ma się rysować
+        // nad oknem, a nie pod nim.
         if ($overlay !== null) {
             $planes[] = $this->overlay($overlay, $rows, $columns, $state->now());
+        }
+
+        foreach ($this->selection($state, $screen, $planes, $rows, $columns, $overlay?->id()) as $plane) {
+            $planes[] = $plane;
         }
 
         $this->renderer->render(new Frame($planes));
     }
 
     /**
-     * **Czwarta płaszczyzna: zaznaczenie** — składana wyłącznie wtedy, gdy
-     * zaznaczenie istnieje (krok 56).
+     * **Płaszczyzna wierzchnia: zaznaczenie** — składana wyłącznie wtedy, gdy
+     * zaznaczenie istnieje (krok 56, kolejność zmieniona w kroku 77).
      *
-     * Stoi **między treścią a oknem nakładanym**, bo zaznacza się to, co widać,
-     * a okna nakładanego nie zaznacza się wcale: jego otwarcie kasuje
-     * zaznaczenie tą samą regułą, co zmiana ekranu i zmiana rozmiaru okna.
-     * Pytanie o to kasowanie pada tutaj i jest to jedyne miejsce, w którym widać
-     * wszystkie trzy zmiany naraz — ekran, okno i rozmiar przechodzą przez
-     * składanie klatki co takt.
+     * Do kroku 77 stała **między treścią a oknem nakładanym**, a uzasadnienie
+     * brzmiało „okna nakładanego nie zaznacza się wcale”. Zdanie to jest
+     * **odwołane** (D106): treść okna zaznacza się tak samo jak treść ekranu,
+     * więc zaznaczenie musi leżeć **nad** oknem — inaczej prostokąt narysowany
+     * na pytaniu o klucz hosta chowałby się pod nim, a warstwa tekstowa
+     * oddawałaby ekran spod okna, czyli treść, której nikt nie widzi.
+     * Kasowanie zostaje w mocy i jest szersze: klucz klatki niesie
+     * **identyfikator** okna, więc kasuje otwarcie, zamknięcie **i podmianę**.
+     * Pytanie o nie pada tutaj i jest to jedyne miejsce, w którym widać wszystkie
+     * trzy zmiany naraz — ekran, okno i rozmiar przechodzą przez składanie klatki
+     * co takt.
      *
      * Warstwa tekstowa liczy się **dopiero teraz i tylko tutaj**: klatka bez
      * zaznaczenia nie płaci za nią ani jednym przejściem po prymitywach. Buduje
-     * się ją z płaszczyzn **już złożonych**, więc zaznaczenie czyta dokładnie to,
-     * co narysowano — a nie to, co miało być narysowane.
+     * się ją z płaszczyzn **już złożonych** — a od kroku 77 są to **wszystkie**
+     * płaszczyzny klatki — więc zaznaczenie czyta dokładnie to, co narysowano,
+     * a nie to, co miało być narysowane. Płaszczyzna okna jest `opaque`, więc
+     * `FrameText::of()` wymazuje pod nią prostokąt i przepisuje go treścią okna
+     * bez ani jednej nowej gałęzi.
      *
-     * @param list<Plane> $planes płaszczyzny złożone do tej pory
+     * @param list<Plane> $planes    płaszczyzny złożone do tej pory
+     * @param ?string     $overlayId identyfikator okna nakładanego; `null`, gdy go nie ma
      *
      * @return list<Plane>
      */
@@ -170,10 +182,10 @@ final class FrameComposer
         array $planes,
         int $rows,
         int $columns,
-        bool $overlayOpen,
+        ?string $overlayId,
     ): array {
         $selection = $state->selection();
-        $selection->useFrame($screen->id(), $overlayOpen, $rows, $columns);
+        $selection->useFrame($screen->id(), $overlayId, $rows, $columns);
 
         $bounds = $selection->bounds();
 

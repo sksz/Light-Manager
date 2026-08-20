@@ -607,7 +607,7 @@ ma się do czego odnieść) i **klatki pod XTermem nikt jeszcze nie oglądał**.
 | 55 | Mysz: wskaźnik wchodzi do słownika wejścia | [55-mysz-wskaznik.md](archiwum/55-mysz-wskaznik.md) | 6, 9, 14, 15, 18, 19, 21, 24, 32, 33, 34, 35, 40 | Fable⁶ | xhigh | Ukończony z zastrzeżeniem |
 | 56 | Zaznaczanie treści: klatka uczy się mówić, co na niej pisze | [56-zaznaczanie-tresci.md](archiwum/56-zaznaczanie-tresci.md) | 8, 13, 18, 30, 35, 38, 55 | Opus⁷ | xhigh | Ukończony z zastrzeżeniem |
 | 57 | Schowek systemowy: trzy tory, dwie drogi, jedno miejsce | [57-schowek.md](archiwum/57-schowek.md) | 6, 7, 14, 15, 19, 32, 33, 34, 43, 48, 49, 53, 55, 56 | Opus⁷ | high | Ukończony |
-| 77 | Zaznaczanie treści w oknie nakładanym | [77-zaznaczanie-w-oknie.md](77-zaznaczanie-w-oknie.md) | 19, 28, 51, 52, 55, 56, 57 | Opus⁷ | high | Zarys |
+| 77 | Zaznaczanie treści w oknie nakładanym | [77-zaznaczanie-w-oknie.md](archiwum/77-zaznaczanie-w-oknie.md) | 19, 28, 51, 52, 55, 56, 57 | Opus⁷ | high | Ukończony |
 
 **Krok 77 powstał 2026-08-17, na starcie kroku 57** ([00-decyzje.md](00-decyzje.md),
 D101 nr 4), i jest w tej fazie czwarty, choć numer ma najwyższy w planie. Powód
@@ -686,7 +686,7 @@ książki środowisk nie ma gdzie trzymać rejestrów (jeden plik stanu, jeden
 zapis), a bez wybranego klastra nie ma gdzie założyć sekretu.
 
 **Krok czwarty wrócił 2026-08-19, na polecenie użytkownika: współdzielona
-książka adresowa** ([60-ksiazka-adresowa.md](60-ksiazka-adresowa.md),
+książka adresowa** ([60-ksiazka-adresowa.md](archiwum/60-ksiazka-adresowa.md),
 rozstrzygnięcia w [00-decyzje.md](00-decyzje.md), D104). Wchodzi **przed**
 rejestrami obrazów i **zajmuje numer wolny po kroku usuniętym** — plan od 61
 wzwyż nie rusza się o nic. Historia jest tu treścią, nie ciekawostką: krok o tym
@@ -790,7 +790,7 @@ kształt, więc powód pominięcia stoi w `docs/pomiary/README.md`.
 |---|------|------|-----------|-------|---------|--------|
 | 58 | Środowiska Dockera: jeden demon przestaje być założeniem | [58-srodowiska-dockera.md](archiwum/58-srodowiska-dockera.md) | 14, 15, 24, 26, 27, 28, 30, 32, 40, 45, 46, 48, 51, 53, 54 | Opus⁸ | xhigh | Ukończony z zastrzeżeniem |
 | 59 | Klastry Kubernetesa: połączenie przestaje być jednym kontekstem | [59-klastry-kubernetesa.md](archiwum/59-klastry-kubernetesa.md) | 14, 15, 22, 24, 27, 28, 31, 48, 52, 53, 54, 58 | Opus⁸ | high | Ukończony |
-| 60 | Współdzielona książka adresowa: jeden rejestr wpisów, rozdziały deklarowane przez używających | [60-ksiazka-adresowa.md](60-ksiazka-adresowa.md) | 14, 15, 20, 27, 28, 30, 32, 40, 41, 46, 47, 48, 53, 54, 55, 57, 58, 59 | Opus⁸ | xhigh | Ukończony |
+| 60 | Współdzielona książka adresowa: jeden rejestr wpisów, rozdziały deklarowane przez używających | [60-ksiazka-adresowa.md](archiwum/60-ksiazka-adresowa.md) | 14, 15, 20, 27, 28, 30, 32, 40, 41, 46, 47, 48, 53, 54, 55, 57, 58, 59 | Opus⁸ | xhigh | Ukończony |
 | 61 | Rejestry obrazów: książka, zawartość i sekret w klastrze | [61-rejestry-obrazow.md](61-rejestry-obrazow.md) | 19, 27, 28, 32, 48, 51, 52, 53, 54, 58, 59 | Opus⁸ | xhigh | Nie rozpoczęty |
 
 ⁸ Warunek `Fable` z przypisów ¹ i ² **nie zachodzi w żadnym z czterech kroków**:
@@ -1617,10 +1617,9 @@ z tabel powyżej.
 
 Katalog `docs/plans/` trzyma **wyłącznie kroki, przed którymi jeszcze praca**:
 zarysy, nierozpoczęte, w toku i zablokowane. Kroki ukończone przenoszą się do
-[archiwum/](archiwum/) — dziś jest ich 59 z 77, więc bez tego podziału lista
-tego, co zostało do zrobienia (kroki **60–61**, Faza XX, **62–66**, Faza XXI,
-**67–76**, Fazy XXII–XXIV, i **77**, dług Fazy XIX) ginęłaby w historii
-projektu.
+[archiwum/](archiwum/) — dziś jest ich 61 z 77, więc bez tego podziału lista
+tego, co zostało do zrobienia (krok **61**, Faza XX, **62–66**, Faza XXI,
+i **67–76**, Fazy XXII–XXIV) ginęłaby w historii projektu.
 
 Trzy rzeczy, które przy tym **nie** zmieniają miejsca, bo są dokumentami
 żywymi, a nie zamkniętymi: ten indeks, [00-decyzje.md](00-decyzje.md) i tabele

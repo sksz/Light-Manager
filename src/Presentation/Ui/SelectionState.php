@@ -150,21 +150,38 @@ final class SelectionState
      * Klatka, na której zaznaczenie powstało — **i kasowanie, gdy ta klatka
      * przestaje być tą samą**.
      *
-     * Trzy zmiany kasują zaznaczenie i wszystkie trzy widać w jednym miejscu,
-     * bo składanie klatki pyta o nie co takt: **zmiana ekranu**, **otwarcie
-     * okna nakładanego** i **zmiana rozmiaru okna**. Powód jest wspólny:
-     * zaznaczenie jest prostokątem w siatce znakowej, a nie wskazaniem na treść,
-     * więc po każdej z tych zmian wskazywałoby miejsce, którego już nie ma —
-     * czyli kłamałoby, i to cicho.
+     * Zmiany kasujące zaznaczenie widać w jednym miejscu, bo składanie klatki
+     * pyta o nie co takt: **zmiana ekranu**, **zmiana okna nakładanego** i
+     * **zmiana rozmiaru okna**. Powód jest wspólny: zaznaczenie jest prostokątem
+     * w siatce znakowej, a nie wskazaniem na treść, więc po każdej z tych zmian
+     * wskazywałoby miejsce, którego już nie ma — czyli kłamałoby, i to cicho.
      *
-     * Przewijanie **nie kasuje** i jest to ta sama zasada widziana z drugiej
-     * strony: zaznaczenie dotyczy klatki, więc treść przewinięta pod prostokątem
-     * jest nową treścią zaznaczenia. Sięganie poza widok wymagałoby zaznaczenia
-     * w pojęciach ekranu, czyli innego mechanizmu (poza zakresem kroku 56).
+     * **Okno nakładane jest w kluczu identyfikatorem, a nie flagą „jest/nie ma"**
+     * (krok 77, D106 nr 1) — i to jest cała zmiana, którą tamten krok w tej
+     * klasie zrobił. Do niego stała tu odpowiedź logiczna, więc kasowały dwie
+     * zmiany z trzech: otwarcie okna i jego zamknięcie. Trzecia — **podmiana**
+     * jednego okna drugim (`OverlayOutcome::replace()`, krok 41) — przechodziła
+     * niezauważona, bo flaga po obu stronach wynosiła „jest". Łańcuch trzech
+     * okien przy usuwaniu katalogu jest dokładnie takim przypadkiem: prostokąt
+     * obrysowany na oknie liczącym wisiałby nad pytaniem, które stanęło na jego
+     * miejscu, i pokazywał treść, której nikt nie wskazał.
+     *
+     * Zaznaczenie ekranu i zaznaczenie okna są przez to **dwoma prostokątami,
+     * nigdy naraz**: klatka z oknem i klatka bez okna to dwie różne klatki,
+     * a zdanie „zaznaczenie dotyczy klatki” zostaje nietknięte.
+     *
+     * Przewijanie **nie kasuje** — ani w ekranie, ani w liście okna (D106 nr 3)
+     * — i jest to ta sama zasada widziana z drugiej strony: zaznaczenie dotyczy
+     * klatki, więc treść przewinięta pod prostokątem jest nową treścią
+     * zaznaczenia. Sięganie poza widok wymagałoby zaznaczenia w pojęciach
+     * ekranu, czyli innego mechanizmu (poza zakresem kroków 56 i 77).
+     *
+     * @param ?string $overlayId identyfikator okna nakładanego na wierzchu;
+     *                           `null`, gdy żadnego nie ma
      */
-    public function useFrame(string $screen, bool $overlayOpen, int $rows, int $columns): void
+    public function useFrame(string $screen, ?string $overlayId, int $rows, int $columns): void
     {
-        $frame = $screen . '|' . ($overlayOpen ? '1' : '0') . '|' . $rows . 'x' . $columns;
+        $frame = $screen . '|' . ($overlayId ?? '-') . '|' . $rows . 'x' . $columns;
 
         if ($this->frame !== null && $this->frame !== $frame) {
             $this->clear();

@@ -7856,7 +7856,7 @@ a kodem**, a nie wyborem między wariantami.
 
 **Dotyczy:** kroku **57** ([57-schowek.md](archiwum/57-schowek.md)) oraz — przez
 rozstrzygnięcie nr 4 — nowego kroku **77**
-([77-zaznaczanie-w-oknie.md](77-zaznaczanie-w-oknie.md)); klas
+([77-zaznaczanie-w-oknie.md](archiwum/77-zaznaczanie-w-oknie.md)); klas
 `Application\Port\ClipboardPort`, `Application\Dto\ClipboardText`,
 `Infrastructure\Terminal\TerminalClipboardService`,
 `Infrastructure\Terminal\KeySequenceParser`,
@@ -8139,7 +8139,7 @@ i piąty raz — w `SettingsService` i `CommandHistoryService` rdzenia. Pojęcia
 ### D104 — Współdzielona książka adresowa wraca jako krok 60: rozdział nie jest niczyj, deklaracja jest zapowiedzią użycia, a trzy książki modułów schodzą do jednego rejestru
 
 **Dotyczy:** **kroku 60 postawionego na nowo**
-([60-ksiazka-adresowa.md](60-ksiazka-adresowa.md)) w miejsce kroku o tym samym
+([60-ksiazka-adresowa.md](archiwum/60-ksiazka-adresowa.md)) w miejsce kroku o tym samym
 numerze, **usuniętego z kodu i z planu 2026-08-19** (commity `ce65103`
 i `8e4a3e2`); nowego katalogu `src/Module/AddressBook/`; modułów `Ssh`, `Docker`
 i `Kubernetes`, które oddają swoje książki wpisów; sekcji `address-book`
@@ -8236,7 +8236,7 @@ pytań.
 
 ### D105 — Rozstrzygnięcia startowe kroku 60: identyfikator dwunastoznakowy, pole deklarowane jedną komendą, książka pilnuje rodzaju a nie wzorca, a rozdziały są zakładkami nad tabelą wpisów
 
-**Dotyczy:** kroku **60** ([60-ksiazka-adresowa.md](60-ksiazka-adresowa.md));
+**Dotyczy:** kroku **60** ([60-ksiazka-adresowa.md](archiwum/60-ksiazka-adresowa.md));
 nowego modułu `src/Module/AddressBook/`; modułów `Ssh`, `Docker` i `Kubernetes`
 jako deklarujących rozdziały; sekcji `address-book` dokumentu stanu.
 
@@ -8296,3 +8296,92 @@ jako deklarujących rozdziały; sekcji `address-book` dokumentu stanu.
   warunek tego, żeby wartość dała się zapisać i pokazać.
 - **`address-book.last` jest kwerendą `VOLATILE`** i oddaje jeden wiersz
   z identyfikatorem; pusty, dopóki w tym uruchomieniu nikt nic nie dopisał.
+
+## Decyzje ze startu kroku 77 (2026-08-19)
+
+### D106 — Rozstrzygnięcia startowe kroku 77: dwa prostokąty nigdy naraz, okno ustępuje zdolnością, a warstwa tekstowa niesie odtąd całą klatkę
+
+**Dotyczy:** kroku **77** ([77-zaznaczanie-w-oknie.md](archiwum/77-zaznaczanie-w-oknie.md));
+`Presentation\Ui\SelectionState`, nowej zdolności `Presentation\Ui\DragsOwnContentInOverlay`,
+`Presentation\Cli\InputHandler` i `Presentation\Cli\FrameComposer`; reguł 11ź i 11z
+[architektury](../architecture.md).
+
+**Data:** 2026-08-19, przed pierwszą linią kodu kroku. Pytań było cztery (zarys
+kroku); rozstrzygnięto **wszystkie**. Jedno odwraca rekomendację (nr 2) i płaci
+za to nazwaną ceną.
+
+**Stan zastany sprawdzony przed pytaniami** — trzy rzeczy, których zarys nie
+wiedział, a które przestawiły rachunek kosztów:
+
+- **`FrameText` nie widzi dziś okna nakładanego**, choć `FrameText::of()` widzieć
+  je umie. `FrameComposer::compose()` buduje warstwę tekstową z płaszczyzn
+  złożonych **do tej pory**, a płaszczyznę okna dokłada dopiero po płaszczyźnie
+  zaznaczenia. Zdanie zarysu „odczyt treści jest gotowy — nowego rachunku nie
+  trzeba" jest więc prawdziwe o klasie i **nieprawdziwe o składaniu klatki**:
+  bez zmiany kolejności prostokąt czytałby ekran spod okna i rysował się pod nim.
+- **Zamknięcie okna kasuje już dziś.** `SelectionState::useFrame()` ma
+  `overlayOpen` w kluczu klatki, więc „czwarty powód kasowania", który zarys
+  zapowiadał jako nowy, stoi w kodzie od kroku 56.
+- **Zdolności `AcceptsPointerInOverlay` nie deklaruje ani jedno okno poza
+  `MenuOverlay`**; pozostałych jedenaście połyka wskaźnik w `toOverlayPointer()`,
+  zanim którekolwiek zdąży cokolwiek rozstrzygnąć.
+
+**Decyzje użytkownika:**
+
+1. **Dwa prostokąty, nigdy naraz** — otwarcie okna nadal kasuje, zamknięcie
+   kasuje tak samo, a zaznaczenie w oknie zaczyna się od zera. Wybrane wbrew
+   szacunkowi zarysu, który wariant „jeden prostokąt" nazywał tańszym: **jest
+   odwrotnie**, bo klucz klatki niesie `overlayOpen` od kroku 56, więc ten
+   wariant kosztuje w `SelectionState` **zero linii**, a wariant „jeden
+   prostokąt" wymagałby usunięcia znacznika — czyli zniesienia kasowania także
+   przy zamknięciu. Zdanie „zaznaczenie dotyczy klatki" zostaje przez to
+   nietknięte: klatka z oknem i klatka bez okna to dwie różne klatki.
+   **Dołożone przy okazji:** w kluczu staje **identyfikator okna**, a nie flaga
+   „jest/nie ma" — inaczej podmiana okna (`OverlayOutcome::replace()`, krok 41)
+   zostawiałaby prostokąt obrysowany na treści, której już nie ma, a łańcuch
+   trzech okien przy usuwaniu katalogu jest dokładnie takim przypadkiem.
+2. **Okno ustępuje zdolnością, nie skutkiem** — wchodzi
+   `Presentation\Ui\DragsOwnContentInOverlay`, bliźniak `DragsOwnContent`
+   z kroku 56, o który `InputHandler` pyta okno na wierzchu dokładnie tam, gdzie
+   dziś pyta ekran. **Odwraca to rekomendację**, która wskazywała drogę przez
+   `OverlayOutcome::handled === false`, i cena jest nazwana z góry: **żadne
+   z dwunastu okien zdolności dziś nie deklaruje**, więc jest to **trzeci jawny
+   wyjątek od reguły 13** — po `ProgressBar`ze (krok 23) i samym zaznaczaniu
+   (krok 56). Co za nim przemawia i dlaczego wyjątek jest węższy niż tamte dwa:
+   zdolność nie jest nowym mechanizmem, tylko **drugą połową mechanizmu, który
+   odbiorcę ma** — rdzeń pyta o przeciągnięcie ekran (`SplitState`) i nie ma jak
+   zapytać okna, więc pierwsze okno z własnym przeciągnięciem musiałoby ruszyć
+   `InputHandler`a. Odbiorcy nie dorabiamy: sztuczne przeciągnięcie dołożone
+   oknu po to, żeby interfejs miał deklarującego, byłoby funkcją bez użytkownika,
+   czyli tą samą regułą złamaną z drugiej strony.
+   **Skutek uboczny, którego wariant przez `handled` by nie miał:** okno dostaje
+   wskaźnik tak jak dziś, a `select()` dostaje go **zawsze** — czyli dokładnie
+   tak, jak przy ekranie, gdzie `toScreenPointer()` i `select()` widzą to samo
+   zdarzenie. Modalność zostaje nietknięta: pod okno nadal nie schodzi ani
+   stopka, ani ekran, ani menu, ani podwójne kliknięcie.
+3. **Przewijanie listy okna nie kasuje** — reguła 11ź bez wyjątku, ta sama
+   w oknie co w ekranie: treść przewinięta pod prostokątem jest nową treścią
+   zaznaczenia. Zero kodu i zero nowego przypadku w kontrakcie okna.
+4. **`Shift`+przeciągnięcie zostaje ucieczką** do zaznaczania natywnego także
+   nad oknem. Powód jest techniczny, nie porządkowy: w torze terminalowym
+   przechwytuje je **emulator**, zanim aplikacja zobaczy bajt, więc „nad oknem
+   ma być inaczej" dałoby się dowieźć wyłącznie w torze okienkowym — czyli trzy
+   tory zachowywałyby się różnie w rzeczy, którą użytkownik robi ręką.
+
+**Co z tego wynika:**
+
+- **Warstwa tekstowa liczy się odtąd z klatki pełnej, wraz z płaszczyzną okna.**
+  Kolejność w `FrameComposer::compose()` zmienia się na: oprawa → treść → okno
+  nakładane → zaznaczenie. Zaznaczenie jest przez to **zawsze płaszczyzną
+  wierzchnią**, a nie czwartą z pięciu, i zdanie reguły 11ź „stoi między treścią
+  a oknem nakładanym" jest **odwołane**. Rachunku nie przybywa: warstwa tekstowa
+  powstaje nadal wyłącznie wtedy, gdy zaznaczenie istnieje, a płaszczyzna okna
+  jest `opaque`, więc `FrameText::of()` wymazuje pod nią prostokąt i przepisuje
+  go treścią okna — bez ani jednej nowej gałęzi.
+- **Zdanie „kliknięcie w okno zużywa okno" zostaje w mocy co do okna, a przestaje
+  co do zaznaczenia.** Okno nadal zużywa albo przepuszcza wskaźnik po swojemu
+  i nadal połyka wszystko, co pod nim; nowe jest to, że **równolegle** ten sam
+  ruch buduje prostokąt — tak samo jak nad ekranem.
+- **Miara kroku zostaje ta z zarysu** i jest zdaniem o przebiegu, więc sprawdza
+  ją przebieg: odcisk `SHA256:…` z pytania o nieznany klucz hosta i wiersz logu
+  kontenera dają się obrysować myszą i skopiować.

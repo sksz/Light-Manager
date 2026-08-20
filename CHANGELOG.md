@@ -49,29 +49,39 @@ W przygotowaniu: rejestry obrazów — z wypchnięciem, pobraniem i sekretem
 zakładanym w klastrze; rejestr będzie kolejnym rozdziałem książki adresowej,
 a nie czwartym osobnym spisem.
 
-## Niewydane — Kastaniety (Faza XIX): wskaźnik
+## 19.x — Kastaniety (Faza XIX): wskaźnik
 
-- **Schowek systemowy: kopiuj i wklejaj między aplikacją a resztą pulpitu**
-  (2026-08-17). `Alt`+`c` kopiuje — zaznaczoną myszą treść, a bez niej ścieżki
-  zaznaczonych plików albo ścieżkę tego pod kursorem; pasek stanu mówi, co
-  dokładnie poszło do schowka. `Alt`+`v` wkleja do pola, w którym stoi kursor:
-  nazwy pliku, wzorca filtra, wiersza komend. Działa w terminalu i w oknie, także
-  przez SSH; skopiować da się też odcisk klucza hosta z pytania i odpowiedź
-  z okna kwerend. Terminal, który zawartości schowka nie oddaje, mówi o tym po
-  ćwierć sekundy, zamiast milczeć.
-- **Treść ekranu da się zaznaczyć myszą** (2026-08-16). Przeciągnięcie rysuje
-  prostokąt i aplikacja wie, co pod nim pisze — także tam, gdzie obraz jest
-  bitmapą albo rysunkiem w oknie, czyli tam, gdzie zaznaczanie terminala łapało
-  same piksele. Zaznaczenie znika, gdy zmieni się to, co widać: przy zmianie
-  ekranu, otwarciu okna i zmianie rozmiaru. Skopiować jeszcze nie ma jak —
-  schowek przychodzi następnym krokiem.
-- **Mysz robi to, czego się po niej spodziewasz** (2026-08-16). Kliknięcie stawia
-  kursor tam, gdzie patrzysz, kółko przewija, prawy przycisk otwiera menu,
-  granicę między panelami przeciągasz myszą, a podpowiedzi w stopce i zakładki
-  pomocy po prostu się klika. Działa tak samo w terminalu i w oknie.
+Mysz i schowek: aplikacja przestaje być dostępna wyłącznie z klawiatury,
+a zaznaczoną treść da się wynieść na zewnątrz.
 
-W przygotowaniu: zaznaczanie treści **w oknach nakładanych** — dziś treść okna
-da się skopiować klawiszem, ale nie da się jej obrysować myszą.
+- **19.4.0** — 2026-08-19 — **Treść okna też da się zaznaczyć myszą.** Prostokąt
+  przeciąga się odtąd **po oknie nakładanym**, a nie tylko po ekranie pod nim:
+  odcisk `SHA256:…` z pytania o nieznany klucz hosta, wiersz logu kontenera
+  i wiersz odpowiedzi z okna kwerend da się obrysować i skopiować `Alt`+`c`.
+  Jedno przeciągnięcie bierze przy tym okno **razem z ekranem**, jeśli przez oba
+  przeszło. Okno pozostaje modalne — obrysowanie go nie przestawia kursora listy
+  pod spodem i niczego nie uruchamia. Zaznaczenie znika, gdy zmieni się to, co
+  widać: przy otwarciu okna, jego zamknięciu i **zamianie na inne**; przewijanie
+  listy w oknie go nie kasuje. Działa w terminalu, w trybie tekstowym i w oknie.
+- **19.3.0** — 2026-08-17 — **Schowek systemowy: kopiuj i wklejaj między
+  aplikacją a resztą pulpitu.** `Alt`+`c` kopiuje — zaznaczoną myszą treść,
+  a bez niej ścieżki zaznaczonych plików albo ścieżkę tego pod kursorem; pasek
+  stanu mówi, co dokładnie poszło do schowka. `Alt`+`v` wkleja do pola, w którym
+  stoi kursor: nazwy pliku, wzorca filtra, wiersza komend. Działa w terminalu
+  i w oknie, także przez SSH; skopiować da się też odcisk klucza hosta z pytania
+  i odpowiedź z okna kwerend. Terminal, który zawartości schowka nie oddaje,
+  mówi o tym po ćwierć sekundy, zamiast milczeć.
+- **19.2.0** — 2026-08-16 — **Treść ekranu da się zaznaczyć myszą.**
+  Przeciągnięcie rysuje prostokąt i aplikacja wie, co pod nim pisze — także tam,
+  gdzie obraz jest bitmapą albo rysunkiem w oknie, czyli tam, gdzie zaznaczanie
+  terminala łapało same piksele. Zaznaczenie znika, gdy zmieni się to, co widać:
+  przy zmianie ekranu, otwarciu okna i zmianie rozmiaru. Skopiować jeszcze nie ma
+  jak — schowek przychodzi wydaniem wyżej.
+- **19.1.0** — 2026-08-16 — **Mysz robi to, czego się po niej spodziewasz.**
+  Kliknięcie stawia kursor tam, gdzie patrzysz, kółko przewija, prawy przycisk
+  otwiera menu, granicę między panelami przeciągasz myszą, a podpowiedzi
+  w stopce i zakładki pomocy po prostu się klika. Działa tak samo w terminalu
+  i w oknie.
 
 ## 18.x — Fisharmonia (Faza XVIII): kontenery i wspólny język modułów
 

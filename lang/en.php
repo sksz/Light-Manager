@@ -401,6 +401,7 @@ return [
     'bench.scenario.tree' => 'directory tree',
     'bench.scenario.marked' => 'list with marks',
     'bench.scenario.marquee' => 'selection rectangle',
+    'bench.scenario.marquee-popup' => 'selection rectangle over a window',
     'bench.scenario.environments' => 'Docker environment list',
     'bench.scenario.address-book' => 'address book screen',
 

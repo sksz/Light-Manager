@@ -267,6 +267,25 @@ enum Scenario: string
     case Marquee = 'marquee';
 
     /**
+     * Zaznaczenie narysowane **na oknie nakładanym** (krok 77).
+     *
+     * **Rozlicza się w parze z `marquee`** i tylko z nim: klatka jest ta sama,
+     * a różnica między dwiema liczbami to w całości cena tego kroku. Składają
+     * się na nią dwie rzeczy i obie biorą się z odwróconej kolejności płaszczyzn.
+     * Pierwsza: warstwa tekstowa przechodzi po **płaszczyźnie okna także**,
+     * a płaszczyzna okna jest `opaque`, więc `FrameText::of()` najpierw wymazuje
+     * jej prostokąt, a potem przepisuje go treścią okna. Druga: `TextMark`i
+     * zaznaczenia rysują się **nad** oknem, więc nie mają szansy schować się pod
+     * nim i tor sixelowy składa je wszystkie.
+     *
+     * Okno jest tym samym oknem, co w `popup`, i jest to celowe: trzecia para,
+     * jaką ten scenariusz daje za darmo (`popup` → `marquee-popup`), mierzy samo
+     * zaznaczenie przy oknie, tak jak para `chrome-text` → `marquee` mierzy je
+     * bez okna.
+     */
+    case MarqueePopup = 'marquee-popup';
+
+    /**
      * Spis środowisk Dockera: tabela **z nagłówkiem kolumn** i trzema rolami
      * wierszy naraz (krok 58).
      *
@@ -349,7 +368,7 @@ enum Scenario: string
             self::Command, self::Sections, self::Progress, self::Split,
             self::Background, self::BackgroundMany, self::Columns, self::TextView,
             self::Highlight, self::Settings, self::Tree, self::Marked,
-            self::Marquee, self::Environments, self::AddressBook => true,
+            self::Marquee, self::MarqueePopup, self::Environments, self::AddressBook => true,
             default => false,
         };
     }

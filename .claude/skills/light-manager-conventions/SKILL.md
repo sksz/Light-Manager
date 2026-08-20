@@ -883,18 +883,35 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     Jest **prostokątne, nie przepływowe**, i to nie jest uproszczenie: ekran
     składa się z paneli stojących obok siebie, więc zaznaczenie „od punktu do
     punktu” zabrałoby ze sobą obwódkę panelu sąsiedniego i jego treść. Kasuje się
-    przy **zmianie ekranu, otwarciu okna nakładanego i zmianie rozmiaru okna**
+    przy **zmianie ekranu, zmianie okna nakładanego i zmianie rozmiaru okna**
     (pyta o to `FrameComposer`, raz na takt, bo tylko tam widać wszystkie trzy) —
-    a przewijanie go **nie kasuje**, bo treść przewinięta pod prostokątem jest
-    nową treścią zaznaczenia. Kliknięcie od przeciągnięcia odróżnia **ruch, a nie
+    a przewijanie go **nie kasuje**, ani w ekranie, ani w liście okna, bo treść
+    przewinięta pod prostokątem jest nową treścią zaznaczenia.
+    **Od kroku 77 klucz klatki niesie identyfikator okna, a nie flagę
+    „jest/nie ma”** (D106 nr 1): kasuje przez to otwarcie, zamknięcie **i
+    podmianę** jednego okna drugim (`OverlayOutcome::replace()`), która wcześniej
+    przechodziła niezauważona. Zaznaczenie ekranu i zaznaczenie okna są **dwoma
+    prostokątami, nigdy naraz**. Kliknięcie od przeciągnięcia odróżnia **ruch, a nie
     modyfikator** (`Shift`+przeciągnięcie zostaje ucieczką do zaznaczania
     natywnego terminala), a przeciągnięcie zaczęte na granicy podziału należy do
     ekranu: mówi to zdolnością `DragsOwnContent`, o którą `InputHandler` pyta
     w jednym miejscu. Rysuje się `TextMark`ami — **jeden na wiersz**, tło
     `Role::Marquee` (trzynasta rola), pismo `Role::SelectionText` — więc słownik
-    prymitywów zostaje zamknięty (11k). Czwarta płaszczyzna klatki powstaje
+    prymitywów zostaje zamknięty (11k). Płaszczyzna zaznaczenia powstaje
     **wyłącznie wtedy, gdy zaznaczenie istnieje**; klatka bez niego nie płaci ani
     jednym przejściem po prymitywach.
+    **Kolejność płaszczyzn zmienił krok 77, a zdanie „zaznaczenie stoi między
+    treścią a oknem nakładanym” jest odwołane**: składa się oprawa → treść → okno
+    nakładane → **zaznaczenie**, więc warstwa tekstowa niesie całą klatkę wraz
+    z oknem (płaszczyzna okna jest `opaque`, więc `FrameText::of()` wymazuje pod
+    nią prostokąt i przepisuje go treścią okna), a prostokąt rysuje się **nad**
+    oknem, zamiast chować się pod nim. Przeciągnięcie nad oknem buduje
+    zaznaczenie **równolegle** do tego, co okno robi ze wskaźnikiem — modalność
+    zostaje nietknięta, bo pod okno nadal nie schodzi ani stopka, ani ekran, ani
+    menu, ani podwójne kliknięcie. Okno, które przeciągnięcie chce dla siebie,
+    mówi to zdolnością `DragsOwnContentInOverlay` — bliźniakiem
+    `DragsOwnContent`, o który `InputHandler` pyta **wyłącznie** okno na
+    wierzchu, bo ekran mógł zostać w stanie „trzymam granicę podziału”.
 11ż. **Schowek czyta się wyłącznie na polecenie użytkownika, a odczytana treść
     ma jedno miejsce docelowe** (krok 57, D101). `Application\Port\ClipboardPort`
     jest **portem rdzenia** — zdolnością toru wyjścia, jak `ViewportPort`, a nie
@@ -970,6 +987,16 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     kolejności z tytułu fazy. Termin był przez to **jeden krok**, a nie trzy jak
     przy `ProgressBar`ze — i tak samo jak tam, **nie jest to precedens**: trzeci
     wyjątek wymaga trzeciej zgody.
+    **Trzecia zgoda padła w kroku 77 i dotyczy zdolności
+    `DragsOwnContentInOverlay`** (D106 nr 2): nie deklaruje jej ani jedno
+    z dwunastu okien. Wyjątek jest **węższy od dwóch poprzednich** i to jest cała
+    jego obrona: zdolność nie jest nowym mechanizmem, tylko **drugą połową
+    mechanizmu, który odbiorcę ma** — rdzeń pyta o przeciągnięcie ekran
+    (`SplitState`) i bez bliźniaka nie ma jak zapytać okna, więc pierwsze okno
+    z własnym przeciągnięciem musiałoby ruszyć `InputHandler`a. **Terminu ten
+    wyjątek nie ma** i tym różni się od tamtych dwóch; odbiorcy świadomie nie
+    dorobiono, bo przeciągnięcie dołożone oknu po to, żeby interfejs miał
+    deklarującego, byłoby tą samą regułą złamaną z drugiej strony.
 14. PHPStan `level: max`. Zamiast obniżać poziom — punktowy
     `@phpstan-ignore-line` z komentarzem uzasadniającym.
 15. **Nowa funkcja to moduł w `src/Module/`, nie zmiana w rdzeniu** (krok 20).

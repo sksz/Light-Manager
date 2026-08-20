@@ -4,13 +4,13 @@
 > kroku o tym numerze **usuniętego z kodu i z planu** tego samego dnia (commity
 > `ce65103` i `8e4a3e2`, „Usunięcie wadliwej książki adresowej"). Numer **60**
 > zostaje po tamtym wolny i ten go zajmuje; plan od **61** wzwyż nie rusza się
-> o nic. Rozstrzygnięcia zamówienia: [00-decyzje.md](00-decyzje.md), **D104**.
+> o nic. Rozstrzygnięcia zamówienia: [00-decyzje.md](../00-decyzje.md), **D104**.
 
 ## Status
 
 **Ukończony** 2026-08-19. Trzy etapy, pomiar na obu osiach bez regresji,
 klatki obejrzane pod XTermem, dokumentacja domknięta. Rozstrzygnięcia:
-[00-decyzje.md](00-decyzje.md) — **D104** (zamówienie) i **D105**
+[00-decyzje.md](../00-decyzje.md) — **D104** (zamówienie) i **D105**
 (rozstrzygnięcia startowe).
 
 Rozstrzygnięcia zamówienia (D104): cztery wady poprzedniej książki do zdjęcia,
@@ -658,7 +658,7 @@ to po tych samych szwach — patrz pytanie 1):
 ## Rozstrzygnięcia startowe (D105, 2026-08-19)
 
 Siedem pytań planu rozstrzygniętych **przed pierwszą linią kodu**; pełne
-uzasadnienia i odrzucone warianty stoją w [00-decyzje.md](00-decyzje.md), D105.
+uzasadnienia i odrzucone warianty stoją w [00-decyzje.md](../00-decyzje.md), D105.
 
 | # | Pytanie | Rozstrzygnięcie |
 |---|---|---|

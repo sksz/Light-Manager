@@ -433,6 +433,7 @@ return [
     'bench.scenario.tree' => 'drzewo katalogów',
     'bench.scenario.marked' => 'lista z zaznaczeniem',
     'bench.scenario.marquee' => 'prostokąt zaznaczenia',
+    'bench.scenario.marquee-popup' => 'prostokąt zaznaczenia na oknie',
     'bench.scenario.environments' => 'spis środowisk Dockera',
     'bench.scenario.address-book' => 'ekran książki adresowej',
 

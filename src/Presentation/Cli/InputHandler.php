@@ -22,6 +22,7 @@ use LightManager\Presentation\Ui\AcceptsPointerInOverlay;
 use LightManager\Presentation\Ui\CopiesContent;
 use LightManager\Presentation\Ui\CopyContent;
 use LightManager\Presentation\Ui\DragsOwnContent;
+use LightManager\Presentation\Ui\DragsOwnContentInOverlay;
 use LightManager\Presentation\Ui\HintTarget;
 use LightManager\Presentation\Ui\KeyBinding;
 use LightManager\Presentation\Ui\Module\ProvidesScreen;
@@ -253,6 +254,16 @@ final class InputHandler
      * samej czynności rozjeżdżają się przy pierwszej poprawce — to zdanie
      * zapisał krok 32 o menu kontekstowym i obowiązuje ono dalej.
      *
+     * **Pięter jest trzy, ale zaznaczanie stoi obok nich, a nie na nich**
+     * (krok 77). Do tamtego kroku droga przy otwartym oknie kończyła się na
+     * pierwszym piętrze i `select()` nie padał ani razu — czyli treści okna nie
+     * dało się obrysować, choć `Alt`+`c` umiał ją skopiować od kroku 57.
+     * Odtąd okno dostaje wskaźnik jak dawniej, a **zaraz po nim** ten sam ruch
+     * idzie do zaznaczania: tak samo, jak nad ekranem, gdzie `toScreenPointer()`
+     * i `select()` widzą to samo zdarzenie. Modalność zostaje nietknięta i widać
+     * to po tym, czego przy oknie **nie ma**: stopki, ekranu pod spodem, menu
+     * i podwójnego kliknięcia.
+     *
      * @return bool czy użytkownik poprosił o zakończenie aplikacji
      */
     public function pointer(PointerEvent $event, LoopState $state, float $now): bool
@@ -262,7 +273,20 @@ final class InputHandler
         $overlay = $state->overlays()->current();
 
         if ($overlay !== null) {
-            return $this->toOverlayPointer($overlay, $event, $state, $now);
+            if ($this->toOverlayPointer($overlay, $event, $state, $now)) {
+                return true;
+            }
+
+            // Zaznaczanie treści **nad oknem** (krok 77): ten sam ruch, który
+            // okno właśnie zobaczyło, buduje prostokąt — dokładnie tak, jak nad
+            // ekranem, gdzie `toScreenPointer()` i `select()` widzą to samo
+            // zdarzenie. Modalność zostaje nietknięta i widać to po tym, czego
+            // tu **nie ma**: stopki, ekranu pod spodem, menu i podwójnego
+            // kliknięcia. Okno, które przeciągnięcie chce dla siebie, mówi to
+            // zdolnością `DragsOwnContentInOverlay` (D106 nr 2).
+            $this->select($event, $state, $now, $overlay);
+
+            return false;
         }
 
         $binding = $this->hintAt($state, $event);
@@ -477,15 +501,24 @@ final class InputHandler
      * Pierwszeństwo granicy rozstrzyga się **w tym jednym miejscu**, a nie
      * w każdym ekranie z osobna: ekran prowadzący własne przeciągnięcie mówi to
      * zdolnością `DragsOwnContent`, a wszystkie pozostałe milczą (D100 nr 2).
+     * Od kroku 77 to samo zdanie obowiązuje okno nakładane, przez bliźniaczą
+     * `DragsOwnContentInOverlay` — i wtedy pytany jest **wyłącznie** ono.
      *
      * Zdanie o liczbie wierszy pada **po zwolnieniu przycisku**, a nie przy
      * każdym drgnięciu ręki — tą samą regułą, którą krok 55 zapisał dla zapisu
      * proporcji podziału, i z tego samego powodu: przeciągnięcie daje
      * kilkadziesiąt zdarzeń na sekundę, a komunikat wyświetlany tyle razy
      * migotałby zamiast mówić.
+     *
+     * @param ?OverlayInterface $overlay okno nakładane na wierzchu; `null`, gdy
+     *                                   przeciąga się nad samym ekranem
      */
-    private function select(PointerEvent $event, LoopState $state, float $now): void
-    {
+    private function select(
+        PointerEvent $event,
+        LoopState $state,
+        float $now,
+        ?OverlayInterface $overlay = null,
+    ): void {
         if ($event->button !== PointerButton::Left) {
             return;
         }
@@ -494,7 +527,7 @@ final class InputHandler
 
         match ($event->action) {
             PointerAction::Press => $selection->begin($event->row, $event->column),
-            PointerAction::Drag => $this->dragsOwn()
+            PointerAction::Drag => $this->dragsOwn($overlay)
                 ? null
                 : $selection->extendTo($event->row, $event->column),
             PointerAction::Release => $this->released($selection, $state, $now),
@@ -502,9 +535,21 @@ final class InputHandler
         };
     }
 
-    /** Czy ekran na wierzchu prowadzi własne przeciągnięcie — dziś: granicę podziału. */
-    private function dragsOwn(): bool
+    /**
+     * Czy to, co na wierzchu, prowadzi własne przeciągnięcie — dziś: granicę
+     * podziału w ekranie, a w oknie nakładanym **nic** (D106 nr 2).
+     *
+     * Gdy okno stoi, **ekran nie jest pytany w ogóle**, i to nie jest skrót:
+     * okno mogło się otworzyć w środku chwytu granicy, więc ekran odpowiadałby
+     * o przeciągnięciu, którego użytkownik już nie prowadzi — i zabierałby
+     * prostokąt zaznaczeniu robionemu nad oknem.
+     */
+    private function dragsOwn(?OverlayInterface $overlay): bool
     {
+        if ($overlay !== null) {
+            return $overlay instanceof DragsOwnContentInOverlay && $overlay->isDraggingOwn();
+        }
+
         $screen = $this->screens->current();
 
         return $screen instanceof DragsOwnContent && $screen->isDraggingOwn();
@@ -530,6 +575,12 @@ final class InputHandler
      * z jedną różnicą: klawisz nieprzyjęty próbuje jeszcze klawiszy globalnych,
      * a kliknięcie nie ma czego próbować, bo klawiszy globalnych nie da się
      * kliknąć poza stopką, a stopka jest pod oknem.
+     *
+     * **Zdanie „kliknięcie w okno zużywa okno" zostaje w mocy co do okna
+     * i przestaje co do zaznaczenia** (krok 77): tę metodę nadal kończy skutek
+     * okna, ale wołający idzie po niej do `select()`, więc ten sam ruch buduje
+     * równolegle prostokąt. Zaznaczenie nie jest czynnością okna ani ekranu —
+     * dotyczy **klatki** (reguła 11ź), a klatka niesie okno razem z ekranem.
      */
     private function toOverlayPointer(
         OverlayInterface $overlay,

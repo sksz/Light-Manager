@@ -219,7 +219,7 @@ final class ScenarioFactory
         $planes = [new Plane('chrome', $window, $this->chrome($scenario, $layout))];
         $planes[] = new Plane('content', $window, $this->content($scenario, $layout));
 
-        if ($scenario === Scenario::Popup) {
+        if ($scenario === Scenario::Popup || $scenario === Scenario::MarqueePopup) {
             $planes[] = $this->modal($rows, $columns);
         }
 
@@ -227,8 +227,21 @@ final class ScenarioFactory
             $planes[] = $this->commandWindow($layout, $rows, $columns);
         }
 
-        if ($scenario === Scenario::Marquee) {
-            $planes[] = $this->marquee($planes, $layout, $rows, $columns);
+        // Zaznaczenie **po** oknie nakładanym, bo tak składa je `FrameComposer`
+        // od kroku 77: warstwa tekstowa niesie całą klatkę, a prostokąt rysuje
+        // się na wierzchu.
+        if ($scenario === Scenario::Marquee || $scenario === Scenario::MarqueePopup) {
+            $planes[] = $this->marquee(
+                $planes,
+                // Prostokąt obrysowuje **okno**, a nie wiersze obok niego: to
+                // ono jest treścią, po którą sięga ręka (odcisk klucza hosta,
+                // wiersz logu), i to na nim mierzy się cena kroku 77.
+                $scenario === Scenario::MarqueePopup
+                    ? self::modalBounds($rows, $columns)
+                    : $this->listMarquee($layout),
+                $rows,
+                $columns,
+            );
         }
 
         return new ScenarioFrame(new Frame($planes), $rows, $columns);
@@ -244,13 +257,19 @@ final class ScenarioFactory
      *
      * @param list<Plane> $planes płaszczyzny złożone do tej pory
      */
-    private function marquee(array $planes, HudLayout $layout, int $rows, int $columns): Plane
+    private function marquee(array $planes, Rect $area, int $rows, int $columns): Plane
     {
-        $list = HudLayout::contentOf($layout->list, $layout->listIsPanel());
-        $area = $list->rowsFrom(0, min(self::MARQUEE_ROWS, $list->rows));
         $text = FrameText::of(new Frame($planes), $rows, $columns);
 
         return new Plane('selection', $area, Marquee::over($text, $area));
+    }
+
+    /** Pięć wierszy listy — prostokąt scenariusza `marquee` (krok 56). */
+    private function listMarquee(HudLayout $layout): Rect
+    {
+        $list = HudLayout::contentOf($layout->list, $layout->listIsPanel());
+
+        return $list->rowsFrom(0, min(self::MARQUEE_ROWS, $list->rows));
     }
 
     /** @return list<Primitive> */
@@ -971,22 +990,37 @@ final class ScenarioFactory
 
     private function modal(int $rows, int $columns): Plane
     {
+        $dialog = self::popupDialog();
+        $bounds = self::modalBounds($rows, $columns);
+
+        return new Plane('modal', $bounds, $dialog->draw($bounds), opaque: true);
+    }
+
+    /**
+     * Prostokąt okienka — liczony **osobno**, bo od kroku 77 potrzebuje go także
+     * `marquee-popup`, żeby obrysować dokładnie to okno, a nie wiersze obok.
+     */
+    private static function modalBounds(int $rows, int $columns): Rect
+    {
+        $size = self::popupDialog()->size();
+
+        return new Rect(
+            max(0, intdiv($rows - $size->rows, 2)),
+            max(0, intdiv($columns - $size->columns, 2)),
+            min($size->rows, $rows),
+            min($size->columns, $columns),
+        );
+    }
+
+    private static function popupDialog(): Dialog
+    {
         $lines = [];
 
         for ($index = 0; $index < self::POPUP_LINES; ++$index) {
             $lines[] = sprintf('Wiersz okienka numer %d z krótkim opisem.', $index + 1);
         }
 
-        $dialog = new Dialog('plik-0007.txt', $lines);
-        $size = $dialog->size();
-        $bounds = new Rect(
-            max(0, intdiv($rows - $size->rows, 2)),
-            max(0, intdiv($columns - $size->columns, 2)),
-            min($size->rows, $rows),
-            min($size->columns, $columns),
-        );
-
-        return new Plane('modal', $bounds, $dialog->draw($bounds), opaque: true);
+        return new Dialog('plik-0007.txt', $lines);
     }
 
     /**

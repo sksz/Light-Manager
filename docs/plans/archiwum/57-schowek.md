@@ -26,7 +26,7 @@ przy punktach, których dotyczą:
 
 Krok spłaca ponadto **połowę długu z D100**: treść okna nakładanego da się
 skopiować, ale nie da się jej zaznaczyć myszą. Druga połowa ma odtąd właściciela
-— [krok 77](../77-zaznaczanie-w-oknie.md), zarys (D101 nr 4).
+— [krok 77](77-zaznaczanie-w-oknie.md), zarys (D101 nr 4).
 
 ## Cel
 
@@ -361,7 +361,7 @@ i gałąź OSC w parserze wejścia.
 `ConfirmOverlay` (treść pytania — odcisk `SHA256:…` z kroku 48 nie widać nigdzie
 indziej) i `CommandOverlay` (odpowiedź kwerendy, wierszami rozdzielonymi
 tabulatorem). Zaznaczania myszą w oknie to nie dodaje — druga połowa ma
-właściciela i termin: [krok 77](../77-zaznaczanie-w-oknie.md).
+właściciela i termin: [krok 77](77-zaznaczanie-w-oknie.md).
 
 **Granica pomiaru, ta sama co w kroku 55 i warta powtórzenia**: oś `--loop`
 **nie mierzy tego, co ten krok dokłada do wejścia**. `LoopBenchmarkRunner` woła
