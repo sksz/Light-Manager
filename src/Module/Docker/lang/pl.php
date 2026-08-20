@@ -341,6 +341,8 @@ return [
     'module.docker.key.back.short' => 'powrót',
     'module.docker.key.environments' => 'pokaż spis środowisk',
     'module.docker.key.environments.short' => 'środowiska',
+    'module.docker.key.registry' => 'pokaż zawartość rejestru',
+    'module.docker.key.registry.short' => 'rejestr',
 
     // Nazwy zdarzeń — widoczne w oknie odbiorcy (moduł dźwięku).
     'module.docker.event.container.changed' => 'Kontener zmienił stan',

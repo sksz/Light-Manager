@@ -1,15 +1,40 @@
 # Krok 64 — Dokumentacja dewelopera: mapa kodu i przewodniki „jak dodać X"
 
 > **Skąd ten krok.** Powstał 2026-08-16 jako trzeci krok **Fazy XXI**
-> ([00-decyzje.md](00-decyzje.md), D97). Odpowiada na pytanie, na które dziś
+> ([00-decyzje.md](../00-decyzje.md), D97). Odpowiada na pytanie, na które dziś
 > odpowiedzi nie ma nigdzie: **jak dołożyć do tego projektu swoją rzecz.**
 > Architektura mówi, jak jest; dziennik decyzji — dlaczego tak wyszło; ani jedno,
 > ani drugie nie mówi, co kliknąć i w jakiej kolejności.
 
 ## Status
 
-**Nie rozpoczęty.** Rozstrzygnięcia startowe: [00-decyzje.md](00-decyzje.md),
-D97 (nr 1, 3 i 5).
+**Ukończony 2026-08-20.** Rozstrzygnięcia startowe: [00-decyzje.md](../00-decyzje.md),
+D97 (nr 1, 3 i 5) oraz **D110** — cztery pytania mają cztery odpowiedzi, a trzy
+z nich rozstrzygały **sprzeczności wewnątrz samego planu**.
+
+Wszystkie kryteria spełnione, w tym sprawdzane maszynowo: **przewodnik przeszedł
+próbę wykonaniem** (czwarta rzecz dołożona wyłącznie wedle jego kroków — `make qa`
+zielone za pierwszym razem), **README ma 161 wierszy** i ani jednej sekcji
+deweloperskiej ponad odnośnik, para językowa zgodna w **16 plikach**, `examples/`
+przechodzi PHPStan `max`, a 983 odnośniki względne prowadzą do istniejących
+miejsc.
+
+**Krok spłacił przy okazji zastrzeżenie kroku 63**: kryterium „README poniżej 200
+wierszy” było tam odroczone właśnie do tego kroku i jest teraz spełnione.
+
+## Rozstrzygnięcia startowe (2026-08-20)
+
+Pełny zapis wraz z odrzuconymi wariantami: [00-decyzje.md](../00-decyzje.md), D110.
+
+1. **Mikromoduł zostaje poza `Bootstrapem`, a sprawdza go skrypt sesji**
+   budujący go tymi samymi rejestrami, którymi składa go aplikacja. Rozstrzyga
+   sprzeczność między kryterium „sprawdzone wykonaniem” a §7, który umieszcza
+   przykład tam, gdzie nigdy się nie uruchamia.
+2. **Siedem plików wedle gatunku**: `03-` osiem przewodników, `04-` dwa
+   ostrzegawcze, `05-` pułapki. Plan miał **siedem slotów na jedenaście rzeczy**.
+3. **Każda sekcja README tam, gdzie jej gatunek** — struktura do mapy kodu,
+   narzędzia i budowa do workflow, **pomiar do `docs/pomiary/README.md`**.
+4. **Dziesięć pułapek zamiast siedmiu** — trzy dołożone przez Fazy XIX–XXI.
 
 ## Cel
 
@@ -217,4 +242,87 @@ zdania, nie identyfikatory.
 
 ## Dziennik realizacji
 
-*(Krok nie rozpoczęty — wpisy pojawią się przy wykonaniu.)*
+### 2026-08-20 — przewodnik w dwóch językach, mikromoduł, który naprawdę działa, i README skrócone dziesięciokrotnie
+
+**Dowiezione:** szesnaście plików przewodnika —
+[`docs/pl/przewodnik/`](../../pl/przewodnik/README.md) i lustro
+[`docs/en/guide/`](../../en/guide/README.md), po siedem rozdziałów i spisie —
+kompletny mikromoduł w
+[`examples/modul-przykladowy/`](../../../examples/modul-przykladowy/), 160
+wierszy opisu pomiaru przeniesione do
+[`docs/pomiary/README.md`](../../pomiary/README.md) oraz `README.md` skrócone
+z **421 do 161 wierszy**. `make qa` zielone: 2495 testów, 8468 asercji.
+
+### Przewodnik sprawdzony wykonaniem — w obie strony
+
+Kryterium kroku brzmiało: *trzy rzeczy dołożone z samego przewodnika przechodzą
+`make qa` za pierwszym razem, sprawdzone wykonaniem, nie przeczytaniem.*
+Sprawdzenie poszło dwiema drogami, bo jedna nie wystarczała.
+
+**Droga pierwsza — czy mikromoduł naprawdę działa.** Skrypt sesji zbudował go
+**tymi samymi rejestrami, którymi składa go aplikacja** (D110 nr 1) i pokazał
+kolejno: moduł **przyjęty** przez `ModuleRegistry`; komendę w rejestrze wraz
+z zadeklarowanym argumentem nieobowiązkowym; **wykonanie komendy zmieniające
+odpowiedź po zmianie ustawienia** (`message.zwykle` → `message.glosne`);
+kwerendę odpowiadającą wierszem i **bijące pokolenie**; zakładkę ustawień z jedną
+pozycją `Choice` i wartością domyślną; oba katalogi napisów z **zerem kluczy bez
+pary**. Ani jedna linia w `src/` nie została z tego tytułu ruszona.
+
+**Droga druga — czy przewodnik da się wykonać.** Mikromoduł powstał **przed**
+przewodnikiem i przewodnik z niego spisano, więc kolejność była odwrotna do tej,
+którą kryterium zakłada. Sprawdzenie odwrotne: dołożenie **czwartej rzeczy —
+drugiej komendy modułu — wyłącznie wedle sześciu kroków z rozdziału 3**, bez
+zaglądania w kod pierwszej. **`make qa` przeszło za pierwszym razem**, a rejestr
+komend pokazał obie wraz z argumentami. Sprawdzenie zostało po nim **wycofane**,
+żeby przykład został przy jednej komendzie, jednej kwerendzie i jednej pozycji.
+
+### Znalezisko: źródło mówiło co innego niż skrót
+
+Przy pisaniu rozdziału o cyklu klatki wyszło, że **`SKILL.md` niósł sprostowanie,
+którego rozdział architektury nie miał**. Skrót mówi „słownik prymitywów ma
+**siedem** kształtów (liczba sprostowana w kroku 56)”, a rozdział nadal pisał
+o **ósmym prymitywie**. Sprawdzenie zajęło jedno polecenie:
+`grep -rl 'implements Primitive' src/` → **7**.
+
+To jest dokładnie ten rozjazd, który krok 62 zamknął regułą pierwszeństwa:
+**reguła powstaje w rozdziale, a skrót ją streszcza** — więc gdy oba mówią co
+innego, poprawia się **rozdział**. Sprostowanie dopisane do
+[`docs/architektura/02-slownik/klatka-i-komponenty.md`](../../architektura/02-slownik/klatka-i-komponenty.md)
+jako ramka przy narracji kroku 30; reszta tamtego podrozdziału jest prawdziwa, bo
+mówi o **otwarciu słownika**, a nie o liczbie. Przewodnik podaje przy okazji
+polecenie, którym liczbę sprawdza się zamiast pamiętać.
+
+### Trzy odstępstwa od planu, wszystkie z powodem
+
+**1. Siedem slotów na jedenaście rzeczy** (D110 nr 2). Tabela plików planu
+przewiduje `01`…`07`, §3 wymienia osiem przewodników plus dwa ostrzegawcze, §4
+żąda dla pułapek osobnego pliku, a §5 przypina workflow do `06-`. Rozłożenie
+poszło wedle gatunku, nie objętości.
+
+**2. Pomiar wyszedł poza przewodnik** (D110 nr 3). 160 wierszy o osiach,
+wzorcach, progach regresji, porównaniu PNG i złotych klatkach trafiło do
+`docs/pomiary/README.md`, który **już był dokumentem o pomiarze**. Rozdział
+o workflow wskazuje go jednym akapitem i zostawia u siebie to, co dotyczy
+**kolejności pracy**: kiedy się mierzy, o co się prosi przed pomiarem i której
+osi w tym projekcie brakuje. Przy scalaniu wyszedł duplikat — „Złote klatki”
+stały w obu dokumentach — i został scalony do jednego rozdziału.
+
+**3. `examples/modul-przykladowy/` dostał własny wpis `autoload-dev`.** Nazwa
+z tabeli planu nie jest poprawnym segmentem PSR-4 (`LightManager\Examples\` →
+`examples/` wymagałoby katalogu `ModulPrzykladowy`). Wybrano zachowanie nazwy
+kosztem jednej linii w `composer.json`, zamiast przemianowania katalogu wbrew
+planowi.
+
+### Co ten krok zostawia następnym
+
+- **Onboarding (krok 65) ma na co wskazywać.** `03-jak-dodac.md` jest referencją
+  z ośmioma przewodnikami w jednym układzie, `05-pulapki.md` czyta się objawem,
+  a `01-mapa-kodu.md` odpowiada na pierwsze pytanie nowego człowieka. Onboarding
+  ma **wskazywać, nigdy nie powtarzać**.
+- **Krok 66 dostaje szesnaście par językowych** o zgodnych nagłówkach co do
+  liczby i poziomu oraz **dwadzieścia wskazań na `examples/` i `src/`**
+  w postaci ustalonej konwencją z kroku 62 — jest co sprawdzać
+  `DocumentationExamplesTest`.
+- **Pułapka 10 jest zarazem zamówieniem na test.** `StatusHintsFlowTest` pilnuje
+  klawiszy **ogłoszonych**, nie **obsługiwanych**; kierunek odwrotny nie ma
+  strażnika i dlatego litera `r` przeżyła dwa kroki.

@@ -1,15 +1,21 @@
 # Krok 65 — Onboarding: pierwsze trzydzieści minut w projekcie
 
 > **Skąd ten krok.** Powstał 2026-08-16 jako czwarty krok **Fazy XXI**
-> ([00-decyzje.md](00-decyzje.md), D97 nr 1). Dostał własne miejsce obok
+> ([00-decyzje.md](../00-decyzje.md), D97 nr 1). Dostał własne miejsce obok
 > przewodnika, bo to jest **inna praca**: przewodnik jest referencją, do której
 > się wraca, a onboarding — **ścieżką, którą się przechodzi raz** i po której
 > nie wolno się zgubić.
 
 ## Status
 
-**Nie rozpoczęty.** Rozstrzygnięcia startowe: [00-decyzje.md](00-decyzje.md),
-D97 (nr 1, 3 i 5).
+**Ukończony z zastrzeżeniem** (2026-08-20). Ścieżka istnieje w obu językach,
+zadanie ćwiczebne jest sprawdzone wykonaniem, bramka jest zielona. **Czeka
+kryterium pierwsze** — przejście ścieżki w trzydzieści minut przez kogoś, kto
+projektu nie zna; autor onboardingu jest ostatnią osobą, która potrafi to
+sprawdzić.
+
+Rozstrzygnięcia startowe: [00-decyzje.md](../00-decyzje.md), D97 (nr 1, 3 i 5)
+oraz D111 (cztery rozstrzygnięcia wykonawcze).
 
 ## Cel
 
@@ -184,4 +190,64 @@ dla którego rozstrzygnięcie o dwóch językach (D97 nr 3) w ogóle zapadło.
 
 ## Dziennik realizacji
 
-*(Krok nie rozpoczęty — wpisy pojawią się przy wykonaniu.)*
+### 2026-08-20 — ścieżka, zadanie i jedno kryterium, którego autor nie zamknie
+
+**Co powstało.** Pięć przystanków w [`docs/pl/onboarding/`](../../pl/onboarding/README.md)
+i ich lustro w [`docs/en/onboarding/`](../../en/onboarding/README.md), zadanie
+ćwiczebne w [`examples/zadanie-kwerenda/`](../../../examples/zadanie-kwerenda/)
+(plik startowy i rozwiązanie), odnośnik „zaczynasz? tędy" w `README.md` oraz
+onboarding jako wejście dla nowych w mapie dokumentacji.
+
+**Cztery rozstrzygnięcia zapadły przed pierwszym zdaniem** i stoją
+w [00-decyzje.md](../00-decyzje.md), D111: przedmiotem zadania jest **własny
+mikromoduł**, a nie kwerenda dołożona do rdzenia; kwerenda oddaje **czas
+działania**; zmiana **zostaje**, wraz z dopisaniem modułu do spisów
+w dokumentacji; a „jedna strona" z kryterium drugiego znaczy **sekcja, nie
+rozdział** — odnośnik celuje w kotwicę.
+
+**Zadanie zostało ruch po ruchu sprawdzone wykonaniem**, a nie
+przeczytaniem — bo to jedyny sposób, żeby ścieżka nie kłamała:
+
+| Ruch | Co się stało |
+|---|---|
+| `cp -r examples/zadanie-kwerenda/start src/Module/Czas` + `sed` | Katalog i przestrzeń nazw zgadzają się bez ani jednej ręcznej poprawki. |
+| Linia w `createModules()` | Moduł przyjęty przez `ModuleRegistry`, zero odrzuceń. |
+| `make qa` przed uzupełnieniem napisów | **Czerwień, dokładnie jedna**: `TranslatorServiceTest::testEveryModuleCarriesTheSameKeysInEveryLanguage@Czas`. |
+| `lang/en.php` + wypełniona luka w `ask()` | `make qa` zielone: 2496 testów, 8476 asercji. |
+| Zapytanie rejestrem | `czas.dzialanie` oddaje `{"seconds":7}` po 7,4 s; pokolenie 1 → 1 → 2 przy 7,4 → 7,9 → 9,1 s, czyli bije **raz na sekundę**, a nie co klatkę. |
+
+Po sprawdzeniu moduł został z drzewa roboczego zdjęty: w repozytorium projektu
+byłby modułem bez odbiorcy (reguła 13). Materiał zostaje w `examples/`.
+
+**Zaplanowana czerwień bramki jest częścią zadania, nie usterką pliku
+startowego.** Plik startowy ma `lang/pl.php` i nie ma `lang/en.php` — a to
+pierwszy kontakt nowej osoby z regułami tego projektu ma być **komunikatem
+bramki**, a nie spisem reguł. Onboarding uprzedza o tym wprost, żeby czerwień
+nie wyglądała na zepsute repozytorium.
+
+**Kryterium drugie — „żaden przystanek nie odsyła do dokumentu dłuższego niż
+strona" — czytane jest wedle D111 nr 4 i jest spełnione tak:** przystanki 1–4
+odsyłają poza siebie pięć razy, w tym dwa razy do rozdziału dłuższego niż
+strona — i oba te odnośniki celują w **kotwicę sekcji** (66 i 45 wierszy).
+Dwa odnośniki do spisów modułów w podręczniku i przewodniku są **adresami
+edycji**, nie lekturą: onboarding mówi, który wiersz dopisać. Przystanek piąty
+jest mapą i z definicji podaje adresy — w tym dziennik decyzji (8755 wierszy),
+zawsze wraz z krótkim wejściem do niego ([przewodnik, rozdz. 7](../../pl/przewodnik/07-dziennik-jak-czytac.md),
+106 wierszy).
+
+**Czego nie zrobiono i dlaczego.** Kryterium pierwsze — przejście ścieżki
+w trzydzieści minut przez kogoś, kto projektu nie zna — **zostaje otwarte**.
+Autor onboardingu nie jest w stanie zmierzyć czasu, którego sam nie traci;
+wynik (czas, miejsca zawahania) wchodzi tutaj po przejściu.
+
+**Dla kroku 66, sprawdzone przy okazji:** wszystkie dziewięć poleceń `make`
+ze ścieżki (`check-env`, `install`, `install-safe`, `probe`, `qa`, `run`,
+`run-window`, `run-xterm`, `bench-xterm`) istnieje w `Makefile`. Test zgodności
+musi przy tym czytać **bloki kodu, a nie prozę**: naiwne wyrażenie `make \w+`
+łapie w obu językach cztery zdania („jedna rzecz, której make sprawdzić nie
+może", „the actions that make sense") i zgłosiłoby cztery nieistniejące cele.
+
+**Zmiany poza zakresem tabeli:** `composer.json` dostał dwa wpisy
+`autoload-dev` (przestrzenie nazw zadania — konieczne, bo katalog z myślnikiem
+nie mapuje się sam), a `examples/README.md` — sekcję o różnicy między wzorcem
+a ćwiczeniem.

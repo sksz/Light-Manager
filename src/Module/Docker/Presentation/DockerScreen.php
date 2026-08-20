@@ -926,6 +926,7 @@ final class DockerScreen implements
             KeyBinding::of([Key::F7], $this->key('key.build'), $this->key('key.build.short')),
             KeyBinding::of([Key::F8, Key::Delete], $this->key('key.remove'), $this->key('key.remove.short')),
             KeyBinding::character(self::ENVIRONMENTS_KEY, $this->key('key.environments'), $this->key('key.environments.short')),
+            KeyBinding::character(self::REGISTRY_KEY, $this->key('key.registry'), $this->key('key.registry.short')),
             KeyBinding::ctrl(self::REFRESH_KEY, $this->key('key.refresh'), $this->key('key.refresh.short')),
         ];
     }
@@ -940,6 +941,7 @@ final class DockerScreen implements
             KeyBinding::of([Key::F7], $this->key('key.build'), $this->key('key.build.short')),
             KeyBinding::of([Key::F8, Key::Delete], $this->key('key.removeImage'), $this->key('key.remove.short')),
             KeyBinding::character(self::ENVIRONMENTS_KEY, $this->key('key.environments'), $this->key('key.environments.short')),
+            KeyBinding::character(self::REGISTRY_KEY, $this->key('key.registry'), $this->key('key.registry.short')),
             KeyBinding::ctrl(self::REFRESH_KEY, $this->key('key.refresh'), $this->key('key.refresh.short')),
         ];
     }

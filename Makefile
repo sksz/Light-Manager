@@ -1,7 +1,7 @@
 # Light Manager — jedno wejście do procesów projektu.
 #
 # Pełny spis „proces → wejście” wraz z regułą pierwszeństwa narzędzi
-# repozytorium: docs/architecture.md, rozdz. 8 „Procesy projektu”.
+# repozytorium: docs/architektura/08-procesy.md (rozdz. 8 „Procesy projektu”).
 # Rozstrzygnięcia, na których stoi ten plik: docs/plans/00-decyzje.md, D72.
 #
 # Zasada, od której zależy, czy plik zestarzeje się dobrze: **cel nie jest
@@ -43,7 +43,7 @@ COMPOSER_INI_SCAN_DIR ?=
 
 help: ## Wypisuje ten spis
 	@printf 'Light Manager %s — wejścia do procesów projektu.\n' '$(VERSION)'
-	@printf 'Pełny opis: docs/architecture.md, rozdz. 8 „Procesy projektu”.\n'
+	@printf 'Pełny opis: docs/architektura/08-procesy.md („Procesy projektu”).\n'
 	@awk 'BEGIN {FS = ":.*##"} \
 		/^##@/ {printf "\n%s\n", substr($$0, 5)} \
 		/^[a-zA-Z0-9_-]+:.*##/ {printf "  %-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)

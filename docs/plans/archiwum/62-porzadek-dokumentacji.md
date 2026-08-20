@@ -1,7 +1,7 @@
 # Krok 62 — Porządek: jedno źródło, dwa języki, jedna konwencja rysunku
 
 > **Skąd ten krok.** Powstał 2026-08-16 na polecenie użytkownika, jako pierwszy
-> krok **Fazy XXI** ([00-decyzje.md](00-decyzje.md), D97). Stoi przed czterema
+> krok **Fazy XXI** ([00-decyzje.md](../00-decyzje.md), D97). Stoi przed czterema
 > pozostałymi z powodu mechanicznego: **one muszą wiedzieć, gdzie pisać**.
 > Dokumentacji jest dziś 12 797 wierszy i nie ma ani jednego zdania o tym, który
 > dokument za co odpowiada — więc każdy nowy tekst miałby trzy równie dobre
@@ -9,8 +9,33 @@
 
 ## Status
 
-**Nie rozpoczęty.** Rozstrzygnięcia startowe: [00-decyzje.md](00-decyzje.md),
-D97 (nr 1, 2, 3 i 4).
+**Ukończony 2026-08-20.** Wydany w sekcji „Niewydane” Fazy XXI (**Obój**).
+Rozstrzygnięcia startowe: [00-decyzje.md](../00-decyzje.md), D97 (nr 1, 2, 3 i 4)
+oraz **D108** — cztery pytania, których D97 nie rozstrzygnął, mają cztery
+odpowiedzi.
+
+Wszystkie kryteria ukończenia spełnione, w tym te sprawdzane maszynowo:
+**687 odnośników względnych w 112 plikach `.md` prowadzi do istniejących miejsc,
+zepsutych zero**, a `make qa` przechodzi z `examples/` w drzewie analizowanym
+(1042 pliki w PHPStanie, 1040 w PHP-CS-Fixerze, 2495 testów).
+
+## Rozstrzygnięcia startowe (2026-08-20)
+
+Pełny zapis wraz z odrzuconymi wariantami: [00-decyzje.md](../00-decyzje.md), D108.
+
+1. **Nazwa katalogu, pliku i treść — w języku, którego dotyczą.**
+   `docs/pl/podrecznik/01-czym-to-jest.md` ↔ `docs/en/manual/01-what-is-it.md`.
+   Polski zostaje językiem bazowym. Rozstrzyga rozjazd w krokach 63–65, które
+   opisywały drzewo angielskie na trzy sposoby naraz.
+2. **Rozdział 2 dzieli się wedle gatunku**: `slownik.md` trzyma tabele pojęć,
+   a 30 reguł „Słownika interfejsu” rozchodzi się na sześć plików tematycznych.
+   Wychodzi to **poza literę planu**, który o podziale wewnątrz rozdziału
+   milczał.
+3. **`examples/` wchodzi do bramki z prawdziwym przykładem**, bo PHPStan na
+   pustym katalogu kończy się błędem — a konwencja przykładu ma stosować samą
+   siebie od pierwszego dnia.
+4. **Faza XXI wchodzi do `CHANGELOG.md` już przy tym kroku, jako Obój** —
+   instrument, od którego cała orkiestra bierze „a”.
 
 ## Cel
 
@@ -170,7 +195,7 @@ Przykłady przechodzą PHPStan `max` i PHP-CS-Fixer razem z resztą; test z krok
 
 ### 7. Utrzymanie — kto co aktualizuje przy kroku
 
-Rozdział „Śledzenie postępu" w [00-index.md](00-index.md) rośnie o **punkt
+Rozdział „Śledzenie postępu" w [00-index.md](../00-index.md) rośnie o **punkt
 o dokumentacji**: krok, który zmienia klawisz, ustawienie, komendę, kwerendę
 albo moduł, aktualizuje podręcznik i przewodnik **w tym samym kroku** — bo dług
 dokumentacyjny bez właściciela jest długiem, którego nikt nie spłaci (ta sama
@@ -220,4 +245,105 @@ reguła, którą Faza XVI stosowała do kodu).
 
 ## Dziennik realizacji
 
-*(Krok nie rozpoczęty — wpisy pojawią się przy wykonaniu.)*
+### 2026-08-20 — dokumentacja dostaje mapę, a dokument źródłowy szesnaście plików zamiast jednego
+
+**Dowiezione w całości.** Powstały: mapa dokumentacji
+([docs/README.md](../../README.md)), konwencje diagramu i przykładu
+([docs/KONWENCJE.md](../../KONWENCJE.md)), szesnaście plików rozdziałów
+w [docs/architektura/](../../architektura/), dwa drzewa językowe po cztery pliki
+i katalog [`examples/`](../../../examples/) objęty bramką jakości. `make qa`
+zielone: PHP-CS-Fixer 1040 plików, PHPStan `max` 1042 pliki, 2495 testów.
+
+**Miara główna spełniona i sprawdzona maszynowo, nie na oko.** Przebieg po
+**112 plikach `.md`** repozytorium wyłuskał **687 odnośników względnych**
+(w tym 4 z kotwicą) i rozwiązał każdy: **zepsutych zero**. Skrypt sprawdzający
+stoi w katalogu roboczym sesji, a nie w repozytorium — jego miejsce docelowe to
+`DocumentationLinksTest` z kroku 66, a dorabianie drugiego wejścia do procesu,
+który za cztery kroki dostanie własne, byłoby złamaniem reguły 18.
+
+**Zapowiadana strata kotwic nie zaszła — i nie miała jak zajść.** Plan
+przewidywał, że część kotwic (`#1-warstwy`) padnie przy podziale i kazał wypisać
+je w dzienniku jako jawną stratę. **Kotwic do `docs/architecture.md` nie używa
+ani jeden odnośnik w repozytorium.** Odwołania idą **numerem rozdziału**
+(„rozdz. 8”, „§2”), co zamieniło pustą rubrykę straty w zobowiązanie zapisane
+w spisie: **numeracja rozdziałów jest trwała** — rozdział zmienia plik, nie
+numer, a nowy dostaje kolejny wolny.
+
+Jedyna kotwica w całym repozytorium wskazująca w głąb dokumentu
+(`…/01-warstwy-ddd-i-struktura-katalogow.md#tabela-kroki-0512-…`) przeżyła
+przeniesienie rozdziału 9 bez zmian i została sprawdzona osobno — wraz z regułą
+slugów GitHuba, wedle której półpauza w „05–12” **znika**, a znak `→` zostawia
+po sobie dwie spacje, czyli dwie kreski.
+
+### Cztery odstępstwa od planu, wszystkie z powodem
+
+**1. Rozdział 2 to siedem plików, nie jeden** (D108 nr 2). Plan mówił „słownik
+do `docs/architektura/slownik.md`” i o podziale wewnątrz milczał. Rozdział miał
+w dniu wykonania **1699 wierszy — 70% dokumentu** — i nie był jednym gatunkiem:
+29 wierszy tabel pojęć (zagląda się) plus 1670 wierszy trzydziestu reguł
+z uzasadnieniami (czyta się). To jest **ten sam zarzut, który plan stawia całemu
+dokumentowi, piętro niżej**. Podział poszedł wedle tematu, nie wedle kroku,
+w którym reguła powstała: `slownik.md` (pojęcia), `klatka-i-komponenty.md`,
+`wejscie-i-ognisko.md`, `okno-i-tory.md`, `rejestry.md`, `praca-poza-klatka.md`,
+`moduly-i-miejsca.md`. Największy plik dokumentacji spadł z 1699 wierszy do 630.
+
+Rachunek podziału **domknął się co do wiersza**: skrypt przypisał każdy
+z wierszy 290–1905 dokładnie do jednego pliku i sprawdził, że nieprzypisanych
+jest **zero** — bo „przepisanie ręczne 1670 wierszy” to inna nazwa na „zgubienie
+kilku”.
+
+**2. Rozdział 6 został przepisany, a nie przeniesiony.** Trzymał cztery bloki
+kodu i był przez to **jedynym miejscem w dokumentacji, które łamało konwencję
+pisaną w tym samym kroku**. Przy sprawdzeniu okazało się gorzej: **dwa z czterech
+bloków były już nieprawdziwe**. Udokumentowany `InvalidDirectoryPathException`
+nie miał `DescribesProblem`, `problemKey()` ani `problemParameters()` (doszły
+w kroku 15), a `DirectoryRepositoryInterface::get()` nie miał parametru
+`bool $includeHidden` (doszedł wraz z przełączaniem wpisów ukrytych). Nikt tego
+nie zauważył przez kilkanaście kroków, bo **blok w markdownie wygląda tak samo
+poprawnie w dniu, w którym przestaje być prawdą** — i to jest cały dowód tezy
+punktu 6, znaleziony w dokumencie, który tę tezę miał dopiero postawić.
+
+Rozdział wskazuje odtąd **prawdziwe pliki**: `Selection`, `DomainException`,
+`InvalidDirectoryPathException` i `DirectoryRepositoryInterface` w `src/`, a
+wzorce bez odbiorcy w aplikacji — w `examples/`.
+
+**3. Konfiguracje: `composer.json` dostał co innego, niż zapowiadała tabela
+plików.** Plan wskazywał `phpstan.neon.dist` i `composer.json` jako miejsca,
+w których `examples/` wchodzi do analizowanego drzewa. W rzeczywistości ścieżki
+PHP-CS-Fixera stoją w `.php-cs-fixer.dist.php` i tam poszły; `composer.json`
+dostał wpis `autoload-dev` (`LightManager\Examples\` → `examples/`), żeby
+przykład z przestrzenią nazw nie był pułapką dla testów z kroku 66, a
+`composer.lock` — odświeżony `content-hash`, bo `autoload-dev` do niego wchodzi
+i bez tego każde wywołanie `make` ostrzegało o nieaktualnym pliku blokady.
+
+**4. Zaczątki drzew językowych to jeden plik na rodzaj dokumentu, nie jeden na
+plik docelowy.** Plan mówił o „plikach-zaczątkach trzech dokumentów”. Dziewiętnaście
+pustych plików „TODO” na język byłoby szumem, więc każdy katalog dostał
+`README.md`, który **wymienia planowane pliki wraz z zawartością i numerem
+kroku**, oraz granicę własnego gatunku. Drzewa `pl` i `en` mają przez to
+**identyczny kształt** (po cztery pliki) od pierwszego dnia — czyli to, czego
+`DocumentationLanguagePairTest` z kroku 66 będzie szukał.
+
+### Czego ten krok świadomie nie zrobił
+
+- **Nie napisał ani zdania treści podręcznika, przewodnika ani onboardingu** —
+  to kroki 63–65; tu stanął szkielet i granice.
+- **Nie ruszył dziennika decyzji ani planów** — 8578 wierszy historii zostaje
+  tam, gdzie było; mapa mówi tylko, czym one są, a czym nie.
+- **Nie dołożył testów** — pilnowanie należy do kroku 66. Skrypt sprawdzający
+  odnośniki był narzędziem tej sesji, nie wejściem do procesu.
+- **Nie odchudził `README.md` z sekcji deweloperskich** — przeniesienie
+  struktury, narzędzi, pomiaru i budowy do przewodnika jest zapisane w kroku 64
+  i tam należy. Tutaj sekcja „Dokumentacja” wskazuje mapę zamiast trzech plików
+  z osobna, a spis katalogów zna `examples/`.
+
+### Co ten krok zostawia następnym
+
+- **Rozdział 2 jest jednym rozdziałem w siedmiu plikach.** Wejściem jest
+  `02-slownik/slownik.md`; `SkillMatchesArchitectureTest` (krok 66) ma widzieć
+  **jeden** rozdział 2, a nie siedem.
+- **Tabela odpowiedników nazw** — konsekwencja D108 nr 1: skoro nazwy plików są
+  w języku swojego drzewa, test pary językowej porównuje kształt przez tabelę,
+  a nie przez równość nazw.
+- **Numeracja rozdziałów jest zobowiązaniem** wobec 55 miejsc wskazujących
+  `docs/architecture.md`, z których część wskazuje numer rozdziału w środku.

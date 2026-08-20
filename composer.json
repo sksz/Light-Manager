@@ -20,7 +20,11 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "LightManager\\Tests\\": "tests/"
+            "LightManager\\Tests\\": "tests/",
+            "LightManager\\Examples\\": "examples/",
+            "LightManager\\Examples\\ModulPrzykladowy\\": "examples/modul-przykladowy/",
+            "LightManager\\Examples\\ZadanieKwerenda\\Start\\": "examples/zadanie-kwerenda/start/",
+            "LightManager\\Examples\\ZadanieKwerenda\\Rozwiazanie\\": "examples/zadanie-kwerenda/rozwiazanie/"
         }
     },
     "bin": [

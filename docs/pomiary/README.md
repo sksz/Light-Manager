@@ -166,6 +166,10 @@ o wiersz — czyli to, czego nie widać ani w czasach, ani w rozmiarze bloba.
 Regeneracja: `./bin/render-bench --golden-save`, **wyłącznie po przeczytaniu
 różnicy**. Złoty plik odnowiony automatem przestaje być testem.
 
+```bash
+./bin/render-bench --golden-save         # odnów złote klatki — PO przeczytaniu różnicy
+```
+
 ## Czego wzorzec NIE gwarantuje
 
 **Porównywalność między maszynami.** Wynik zależy od procesora, wersji
@@ -185,6 +189,157 @@ Rozrzut wewnątrz przebiegu potrafi być wąski, mimo że cały przebieg jest
 równomiernie wolniejszy od wzorca — wtedy narzędzie pokaże „regresję”, której nie
 ma. Dlatego wynik `--compare` jest **przesłanką, nie werdyktem**; przy
 podejrzeniu regresji powtórz oba przebiegi obok siebie.
+
+## Narzędzie: `bin/render-bench`
+
+`bin/render-bench` mierzy potok renderowania klatki bez uruchamiania aplikacji
+i bez edytowania kodu:
+
+```bash
+make bench                               # tor sixelowy, konfiguracja domyślna
+make bench-window                        # tor okienkowy (OpenGL, okno ukryte)
+make bench-text                          # tor tekstowy (ANSI, tryb zapasowy)
+make bench-loop                          # takt pętli bez renderera
+make bench-xterm                         # pod prawdziwym XTermem — jedyna droga do --transfer
+make bench ARGS='--palette=16 --text-aa' # inna konfiguracja, bez ruszania kodu
+```
+
+Zawężenie jednej osi wolno wołać wprost — cele opakowują to samo narzędzie:
+
+```bash
+./bin/render-bench --help                # pełna lista opcji i scenariuszy
+```
+
+**Pomiar wymaga spokojnej maszyny.** Cele `bench*` nie mają bariery
+technicznej — mają regułę: przed pomiarem zatrzymaj kompilacje, kontenery
+i przeglądarkę. Obciążony host daje rozrzut, przy którym `--save` odmawia
+zapisu wzorca.
+
+**Cztery tory, cztery różne pytania.** Sixelowy i okienkowy mierzą potok
+rysowania; **tekstowy** (krok 38) domyka parytet, bo tryb zapasowy był jedynym
+z trzech tłumaczy słownika prymitywów, o którego koszcie nikt nic nie wiedział;
+**takt pętli** (`--loop`) mierzy drogę od klawisza do prymitywów — odczyt
+wejścia, aktualizację stanu i złożenie klatki przez `FrameComposer` — czyli to,
+co dzieje się **zanim** renderer w ogóle zacznie rysować. Wyniki torów są
+nieporównywalne i pilnuje tego podpis konfiguracji.
+
+Oś `--window` mierzy te same scenariusze **rendererem OpenGL** zamiast potoku
+Sixela, w oknie ukrytym na czas pomiaru. Fazy są tam inne (rysowanie i zamiana
+buforów; kwantyzacji ani bajtów nie ma), a podpis konfiguracji niesie słowo
+`window` — dzięki temu `--compare` nie zestawi ze sobą wyników dwóch różnych
+torów. `--transfer` i `--png` należą wyłącznie do toru terminalowego i w parze
+z `--window` kończą się błędem zamiast cichego pominięcia.
+
+Klatka rozbita jest na trzy fazy — **rysowanie**, **kwantyzację** i **kodowanie
+do Sixela** — mierzone osobno, a każdy scenariusz izoluje inny element klatki
+(sam tekst, same ramki, zaznaczenie, suwak, miniatura, okienko). Dzięki temu
+koszt elementu da się *odjąć*, zamiast zgadywać z sumy.
+
+Dwa scenariusze wyłamują się z tej reguły i robią to celowo. **`background`
+rysuje klatkę co do prymitywu równą `chrome-text`, ale przy uruchomionym procesie
+potomnym**, doglądanym raz na klatkę tak samo, jak dogląda go aplikacja. Odjęcie
+jednego od drugiego daje więc nie koszt elementu interfejsu, lecz cenę pracy
+toczącej się obok pętli — a twierdzenie, że praca tłowa nie kosztuje klatki, jest
+dzięki temu sprawdzalne, a nie deklarowane. **`columns`** rysuje z kolei tę samą
+listę, co `chrome-text`, ale w czterech kolumnach zamiast dwóch — różnica jest
+ceną rozdziału szerokości i dwóch dodatkowych napisów w każdym wierszu.
+**`text-view`** wypełnia panel treścią pliku o zmiennej długości wierszy: różnica
+wobec `chrome-text` jest ceną podglądu tekstu, a osobny scenariusz jest tu
+potrzebny dlatego, że wiersze podglądu zmieniają się przy każdym przewinięciu,
+więc pamięć podręczna wierszy trafia w nie rzadziej niż w listę plików.
+**`highlight`** rysuje tę samą listę, co `columns`, ale z dopasowaniem filtra
+w **każdym** wierszu — przypadek najgorszy z możliwych. Rozlicza się go
+**w parze z `columns`, nie osobno**: różnica między nimi jest ceną podświetlenia,
+a `columns` odpowiada przy okazji na pytanie ważniejsze — czy lista bez filtra
+zdrożała. Nie ma prawa.
+
+### Jak czytać wynik
+
+```
+Scenariusz            Rysowanie  Kwantyzacja  Kodowanie     Razem        Rozrzut     Blob
+ramki z tekstem     314,7 (77%)   87,5 (21%)   7,7 (2%)  410,8 ms    409,0–475,5  23,1 kB
+```
+
+- **mediana**, nie średnia — pojedynczy przebieg zakłócony przez inny proces
+  przesuwa średnią i zostaje niewidoczny;
+- **procent w nawiasie** to udział fazy w klatce;
+- **rozrzut** (min–max) mówi, czy medianie wolno wierzyć; wiersz z „!”
+  przekroczył 1,35× i jest oznaczony jako niewiarygodny;
+- **Blob** to bajty, które trzeba jeszcze wypchnąć na terminal — konfiguracja
+  szybsza w liczeniu, ale dwukrotnie grubsza w zapisie, nie jest szybsza wcale.
+
+Pierwsze przebiegi (domyślnie trzy) są rozgrzewką i nie wchodzą do wyniku:
+pierwsza klatka płaci za wybór fontu i pomiar szerokości napisów.
+
+### Wzorce i porównanie
+
+```bash
+./bin/render-bench --save                # zapisz wzorzec do docs/pomiary/
+./bin/render-bench --compare             # porównaj z najnowszym wzorcem
+```
+
+Przebieg z niestabilnym pomiarem **nie zostanie zapisany** jako wzorzec.
+Ograniczenia porównania (przede wszystkim: to samo obciążenie maszyny) opisuje
+rozdział „Czego wzorzec NIE gwarantuje” wyżej.
+
+### Przesył do terminala
+
+Jedyna faza, której nie da się zmierzyć bez prawdziwego terminala — narzędzie
+nigdy nie podstawia w jej miejsce zapisu do pliku, bo zmierzyłoby wtedy prędkość
+jądra, a nie terminala. Bez terminala mówi wprost, że tej fazy nie zmierzyło.
+
+```bash
+./bin/run-render-bench.sh --transfer     # XTerm z zasobami wymaganymi dla Sixela
+```
+
+Raportuje rozmiar klatki, czas zapisu, liczbę wywołań `fwrite()` (jeden zapis
+rozpada się na kilka), przepustowość oraz **przybliżony** czas do odpowiedzi
+terminala na zapytanie DA1 wysłane zaraz po klatce. Ta ostatnia liczba jest
+oszacowaniem dolnym: terminal może odpowiedzieć, zanim domaluje obraz.
+
+### Zrzut klatki do PNG
+
+Liczby nie pokazują wszystkiego — przy 16 i 32 kolorach kwantyzator zjada
+obwódki paneli, co jest niewidoczne w czasie ani w rozmiarze bloba:
+
+```bash
+./bin/render-bench --png=/tmp/klatka.png --scenario=chrome-text
+```
+
+Zrzut powstaje **przed** kwantyzacją, więc pokazuje, co narysował enkoder.
+Skutki samej palety ogląda się na terminalu, gdzie naprawdę występują.
+
+### Regresja wizualna: porównanie zrzutów
+
+Od kroku 38 obraz jest **miarą**, a nie ilustracją: wzorcowe PNG leżą
+w `docs/pomiary/wzorce-png/`, a porównanie liczy różniące się piksele (metryka
+AE) i przy przekroczeniu progu zapisuje obraz różnicy obok wzorca.
+
+```bash
+./bin/render-bench --png-save            # zapisz wzorcowe zrzuty wybranych scenariuszy
+./bin/render-bench --png-compare         # porównaj z wzorcami (kod wyjścia 1 przy niezgodności)
+./bin/render-bench --png-compare --png-threshold=0.5   # próg w promilach pikseli
+./bin/render-bench --window --png-compare              # to samo dla toru okienkowego
+```
+
+Tor tekstowy zrzutu w narzędziu nie ma — jego klatka to znaki i atrybuty.
+Obraz z niego robi dopiero żywa aplikacja, rasteryzując bufor ANSI.
+
+### Zrzut klatki z żywej aplikacji
+
+Dwie pomyłki podglądu tekstu z kroku 29 wyszły dopiero na zrzucie prawdziwej
+klatki spod XTerma. Komenda `core.dump` daje ten sam dowód bez sprzętu:
+
+```
+:core.dump                 # zapisze następną klatkę do katalogu tymczasowego
+:core.dump /tmp/klatka     # …albo pod wskazaną nazwą
+```
+
+Powstają dwa pliki: `<nazwa>-prymitywy.txt` (co aplikacja kazała narysować)
+i `<nazwa>.png` (jak to wyszło). Obraz jest **wierny torowi**: płótno Imagicka
+w trybie Sixel, bufor karty w oknie GLFW, rasteryzacja bufora ANSI w trybie
+tekstowym. Zapisywana jest **następna** klatka, więc okna komend nie widać na
+zrzucie.
 
 ## Zanim uruchomisz pomiar
 

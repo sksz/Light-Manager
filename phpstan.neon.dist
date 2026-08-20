@@ -4,6 +4,9 @@ parameters:
         - src
         - tests
         - lang
+        # Przykłady wskazywane przez dokumentację (krok 62): są plikami, a nie
+        # blokami w markdownie, właśnie po to, żeby bramka je pilnowała.
+        - examples
     # Stuby PHP-GLFW: analiza ma przechodzić także na maszynie bez załadowanego
     # rozszerzenia `glfw` (krok 34) — pakiet nie autoloaduje się w runtime,
     # więc symbole trzeba wskazać jawnie.

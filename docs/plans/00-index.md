@@ -33,15 +33,22 @@ terminala protokołem Sixel, w architekturze pętli głównej znanej z gier
 ## Dokumentacja architektury (obowiązujące odniesienie od kroku 05)
 
 Ustalenia z Fazy I (kroki 01–04) zostały utrwalone poza samymi plikami
-planu:
+planu, a krok 62 dołożył do nich mapę i granice:
 
-- [docs/architecture.md](../architecture.md) — pełny, spójny dokument
-  źródłowy (warstwy DDD, wzorzec Singleton, standardy PHP, konwencje).
+- [docs/README.md](../README.md) — **mapa dokumentacji**: który dokument za co
+  odpowiada i czego w danym miejscu pisać nie wolno (od kroku 62).
+- [docs/architecture.md](../architecture.md) — dokument źródłowy: **spis
+  rozdziałów**, a rozdziały w [docs/architektura/](../architektura/) (warstwy
+  DDD, słownik, wzorzec Singleton, standardy PHP, konwencje).
 - [.claude/skills/light-manager-conventions/SKILL.md](../../.claude/skills/light-manager-conventions/SKILL.md)
   — operacyjny skrót dla Claude Code, ładowany wg dopasowania opisu przy
-  pracy nad kodem w `src/`/`tests/`.
+  pracy nad kodem w `src/`/`tests/`. **Skrót, nie źródło** (krok 62): reguła
+  powstaje w rozdziale architektury, a gdy oba mówią co innego — rację ma
+  rozdział.
+- [docs/KONWENCJE.md](../KONWENCJE.md) — konwencja diagramu i konwencja
+  przykładu (od kroku 62).
 - [CLAUDE.md](../../CLAUDE.md) — krótki, bezwarunkowo ładowany wskaźnik na
-  powyższe dwa miejsca (zabezpieczenie na wypadek, gdy opis Skilla nie
+  powyższe miejsca (zabezpieczenie na wypadek, gdy opis Skilla nie
   dopasuje się do nietypowego polecenia — [00-decyzje.md](00-decyzje.md), D13).
 
 Kroki od 05 wzwyż mają się kierować tymi materiałami, nie odtwarzać ustaleń od
@@ -853,10 +860,10 @@ poprawiony** (D97 nr 4 i 5).
 
 | # | Krok | Plik | Zależy od | Model | Wysiłek | Status |
 |---|------|------|-----------|-------|---------|--------|
-| 62 | Porządek: jedno źródło, dwa języki, jedna konwencja rysunku | [62-porzadek-dokumentacji.md](62-porzadek-dokumentacji.md) | 4, 15, 39 | Opus⁹ | high | Nie rozpoczęty |
-| 63 | Podręcznik użytkownika: od pierwszego uruchomienia do scenariuszy | [63-podrecznik-uzytkownika.md](63-podrecznik-uzytkownika.md) | 14, 15, 38, 40, 62 | Opus⁹ | xhigh | Nie rozpoczęty |
-| 64 | Dokumentacja dewelopera: mapa kodu i przewodniki „jak dodać X" | [64-dokumentacja-dewelopera.md](64-dokumentacja-dewelopera.md) | 18, 19, 20, 21, 26, 38, 39, 53, 54, 62, 63 | Opus⁹ | xhigh | Nie rozpoczęty |
-| 65 | Onboarding: pierwsze trzydzieści minut w projekcie | [65-onboarding.md](65-onboarding.md) | 39, 62, 63, 64 | Opus⁹ | high | Nie rozpoczęty |
+| 62 | Porządek: jedno źródło, dwa języki, jedna konwencja rysunku | [archiwum/62-porzadek-dokumentacji.md](archiwum/62-porzadek-dokumentacji.md) | 4, 15, 39 | Opus⁹ | high | **Ukończony** |
+| 63 | Podręcznik użytkownika: od pierwszego uruchomienia do scenariuszy | [archiwum/63-podrecznik-uzytkownika.md](archiwum/63-podrecznik-uzytkownika.md) | 14, 15, 38, 40, 62 | Opus⁹ | xhigh | **Ukończony**¹⁰ |
+| 64 | Dokumentacja dewelopera: mapa kodu i przewodniki „jak dodać X" | [archiwum/64-dokumentacja-dewelopera.md](archiwum/64-dokumentacja-dewelopera.md) | 18, 19, 20, 21, 26, 38, 39, 53, 54, 62, 63 | Opus⁹ | xhigh | **Ukończony** |
+| 65 | Onboarding: pierwsze trzydzieści minut w projekcie | [archiwum/65-onboarding.md](archiwum/65-onboarding.md) | 39, 62, 63, 64 | Opus⁹ | high | **Ukończony z zastrzeżeniem**¹¹ |
 | 66 | Diagramy i pilnowanie: dokumentacja, która czerwieni bramkę, gdy kłamie | [66-diagramy-i-pilnowanie.md](66-diagramy-i-pilnowanie.md) | 15, 38, 40, 53, 54, 62, 63, 64, 65 | Opus⁹ | high | Nie rozpoczęty |
 
 ⁹ Warunek `Fable` z przypisów ¹ i ² **nie zachodzi w żadnym z pięciu kroków**:
@@ -867,6 +874,25 @@ językową** wraz z wymaganiem, żeby spisy zgadzały się ze 167 wiązaniami
 w kodzie, a przewodniki były sprawdzone **wykonaniem**, nie przeczytaniem.
 Krok 65 jest najmniejszy objętościowo i **najdroższy w sprawdzeniu**: weryfikuje
 go przejście ścieżki przez kogoś innego niż autor.
+
+¹⁰ **Krok 63 ukończony z zastrzeżeniem — pierwsze spłacone w kroku 64.**
+Kryterium „README ma mniej niż 200 wierszy" nie było spełnione, bo §6 jego
+zakresu zostawiał sekcje deweloperskie (267 wierszy) do kroku 64. README zszedł
+w kroku 63 z 1441 do 422 wierszy (bez ani jednego zdania treści użytkownika),
+a **krok 64 dokończył drogę do 161** ([00-decyzje.md](00-decyzje.md), D109 nr 2
+i D110 nr 3). **Zastrzeżenie drugie zostaje otwarte:** kryterium „pierwszy
+scenariusz sprawdzony na osobie, która aplikacji nie zna" **czeka na przejście
+przez kogoś innego niż autor**.
+
+¹¹ **Krok 65 ukończony z zastrzeżeniem, i jest to zastrzeżenie z tego samego
+rodzaju, co drugie zastrzeżenie kroku 63.** Ścieżka istnieje w obu językach,
+a zadanie ćwiczebne zostało **ruch po ruchu sprawdzone wykonaniem**:
+kopiowanie szkieletu, linia w `Bootstrapie`, luka w `ask()`, zaplanowana
+czerwień bramki na brakującym `lang/en.php`, zieleń po jej naprawieniu i
+odpowiedź kwerendy `czas.dzialanie` przez rejestr ([00-decyzje.md](00-decyzje.md),
+D111). **Czeka jedno kryterium — to, którego autor sprawdzić nie może**:
+przejście całej ścieżki w trzydzieści minut przez kogoś, kto projektu nie zna,
+wraz z zapisem czasu i miejsc zawahania w dzienniku kroku.
 
 ### Fazy XXII–XXIV — Zarządzanie aplikacjami, projektami i zespołem (zarys)
 
@@ -1617,8 +1643,8 @@ z tabel powyżej.
 
 Katalog `docs/plans/` trzyma **wyłącznie kroki, przed którymi jeszcze praca**:
 zarysy, nierozpoczęte, w toku i zablokowane. Kroki ukończone przenoszą się do
-[archiwum/](archiwum/) — dziś jest ich 62 z 77, więc bez tego podziału lista
-tego, co zostało do zrobienia (kroki **62–66**, Faza XXI, i **67–76**,
+[archiwum/](archiwum/) — dziś jest ich 66 z 77, więc bez tego podziału lista
+tego, co zostało do zrobienia (krok **66**, Faza XXI, i **67–76**,
 Fazy XXII–XXIV) ginęłaby w historii projektu.
 
 Trzy rzeczy, które przy tym **nie** zmieniają miejsca, bo są dokumentami
@@ -1637,6 +1663,31 @@ krok ma cel, zarys zakresu, stan zastany i spis pytań, ale **nie ma
 rozstrzygnięć startowych ani planu** — więc nie da się go zacząć, dopóki nie
 zostanie rozpisany. Rozpisanie zamienia jego status na „nie rozpoczęty".
 
+### Dokumentacja idzie w tym samym kroku, nie po nim
+
+**Krok, który zmienia klawisz, ustawienie, komendę, kwerendę albo moduł,
+aktualizuje podręcznik i przewodnik w tym samym kroku** — reguła utrzymania
+z kroku 62 ([00-decyzje.md](00-decyzje.md), D97), obowiązująca **od kroku 63
+wzwyż**, także kroki Faz XIX i XX, jeśli wykonają się później.
+
+Powód jest ten sam, dla którego Faza XVI spłacała długi kodu: **dług
+dokumentacyjny bez właściciela jest długiem, którego nikt nie spłaci.** Gdyby
+reguły nie było, dokumentacja rozjechałaby się w pierwszym kroku po Fazie XXI,
+a testy zgodności z kroku 66 zamieniłyby się z obrony w przeszkodę.
+
+Co dokładnie się aktualizuje: podręcznik ([../pl/podrecznik/](../pl/podrecznik/)
+wraz z lustrem [../en/manual/](../en/manual/)) i przewodnik
+([../pl/przewodnik/](../pl/przewodnik/), [../en/guide/](../en/guide/)); regułę
+albo pojęcie — rozdział w [../architektura/](../architektura/), a nie sam
+`SKILL.md`, bo skrót nie jest źródłem. Gdzie co mieszka:
+[mapa dokumentacji](../README.md).
+
+**Scenariusz podręcznika opisuje tę samą drogę, co przebieg funkcjonalny** —
+gdy przebieg się zmienia, scenariusz kłamie, więc oba wymienia się w tym samym
+kroku planu.
+
+### Po zakończeniu pracy nad krokiem
+
 Każdy plik kroku ma sekcje `## Status` i `## Dziennik realizacji`. Po
 zakończeniu pracy nad krokiem:
 
@@ -1647,7 +1698,13 @@ zakończeniu pracy nad krokiem:
 3. Zaktualizuj kolumnę Status w tabelach powyżej.
 4. Jeśli podjęto nietrywialną decyzję architektoniczną — dopisz ją do
    [00-decyzje.md](00-decyzje.md).
-5. **Przenieś plik kroku do [archiwum/](archiwum/)** i popraw odnośnik w tabeli
+5. **Sprawdź dokumentację**: czy krok zmienił klawisz, ustawienie, komendę,
+   kwerendę albo moduł? Jeśli tak, podręcznik i przewodnik miały się zmienić
+   **razem z nim**, a nie „przy okazji następnego”.
+6. Dopisz wpis do [`CHANGELOG.md`](../../CHANGELOG.md) wedle
+   [konwencji changelogu](../konwencja-changelogu.md) — o ile krok dał
+   użytkownikowi cokolwiek widocznego.
+7. **Przenieś plik kroku do [archiwum/](archiwum/)** i popraw odnośnik w tabeli
    powyżej na `archiwum/NN-nazwa.md`. Odnośniki **wewnątrz** przenoszonego pliku
    trzeba przy tym przeliczyć: do `00-index.md`, `00-decyzje.md` i do kroków
    nieukończonych sięga się odtąd przez `../`, poza katalog planów — przez

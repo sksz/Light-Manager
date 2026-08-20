@@ -7417,10 +7417,10 @@ pytanie.** Sześć faktów:
 ### D97 — Dokumentacja dostaje pięć kroków, dwa języki, diagramy w mermaidzie i obronę w bramce jakości
 
 **Dotyczy:** Fazy XXI w całości — kroków **62**
-([62-porzadek-dokumentacji.md](62-porzadek-dokumentacji.md)), **63**
-([63-podrecznik-uzytkownika.md](63-podrecznik-uzytkownika.md)), **64**
-([64-dokumentacja-dewelopera.md](64-dokumentacja-dewelopera.md)), **65**
-([65-onboarding.md](65-onboarding.md)) i **66**
+([archiwum/62-porzadek-dokumentacji.md](archiwum/62-porzadek-dokumentacji.md)), **63**
+([archiwum/63-podrecznik-uzytkownika.md](archiwum/63-podrecznik-uzytkownika.md)), **64**
+([archiwum/64-dokumentacja-dewelopera.md](archiwum/64-dokumentacja-dewelopera.md)), **65**
+([archiwum/65-onboarding.md](archiwum/65-onboarding.md)) i **66**
 ([66-diagramy-i-pilnowanie.md](66-diagramy-i-pilnowanie.md)); plików
 `docs/architecture.md`, `README.md`, `CLAUDE.md`,
 `.claude/skills/light-manager-conventions/SKILL.md`, `Makefile`,
@@ -8475,3 +8475,370 @@ z krokiem 60:
 - **Migracja trzech pozycji ustawień idzie komendami książki**, nieniszcząco
   i przez właściciela sekcji — tak, jak D103 opisało migrację trzech książek
   modułów, a nie własnym kodem czytającym cudzy plik.
+
+## Decyzje ze startu kroku 62 (2026-08-20)
+
+### D108 — Rozstrzygnięcia startowe kroku 62: nazwa w języku swojego drzewa, słownik rozbity wedle gatunku, przykład broniony bramką od pierwszego dnia, a Faza XXI wchodzi do changeloga jako Obój
+
+**Dotyczy:** kroku **62** ([archiwum/62-porzadek-dokumentacji.md](archiwum/62-porzadek-dokumentacji.md))
+oraz kształtu, który ten krok narzuca krokom **63–66**: drzew `docs/pl/`
+i `docs/en/`, katalogu [`docs/architektura/`](../architektura/), katalogu
+[`examples/`](../../examples/) i sekcji „Niewydane” w
+[`CHANGELOG.md`](../../CHANGELOG.md).
+
+**Data:** 2026-08-20, przed pierwszą zmianą w dokumentach. Pytań były cztery —
+wszystkie o rzeczy, których D97 nie rozstrzygnął albo o których kroki 63–65
+mówią dwie różne wersje. Rozstrzygnięto wszystkie.
+
+**Co rozpoznanie pokazało, zanim padło pierwsze pytanie.** Plan kroku powstał
+2026-08-16; przez cztery dni liczby urosły, a dwie przesłanki zmieniły wagę:
+
+- **Odnośników do `docs/architecture.md` jest 55, nie 51** — 47 w archiwum
+  planów, 3 w `docs/plans`, po jednym w `docs/konwencja-changelogu.md`,
+  `SKILL.md`, `CLAUDE.md`, `README.md` i `Makefile`. Wniosek planu („dokument
+  źródłowy zostaje pod swoim adresem”) stoi tym mocniej.
+- **Kotwic (`#…`) nie używa ani jeden odnośnik w repozytorium.** Zapowiadana
+  w planie „jawna strata kotwic” **nie zaszła i nie miała jak zajść**;
+  odwołania idą **numerem rozdziału** („rozdz. 8”, „§2”), co zamienia się
+  w zobowiązanie: numeracja rozdziałów jest trwała, rozdziału się nie
+  przenumerowuje, a nowy dostaje kolejny wolny numer.
+- **Rozdział 2 urósł do 1699 wierszy — 70% dokumentu.** I nie jest jednym
+  gatunkiem: 29 wierszy to **tabele pojęć** (zagląda się), a 1670 to
+  podrozdział „Słownik interfejsu” — **30 reguł z uzasadnieniami** (czyta się).
+  Zarzut, który plan stawia całemu dokumentowi, powtarza się piętro niżej.
+- **Rozdział 6 był dowodem tezy punktu 6, zanim ktokolwiek napisał konwencję.**
+  Z czterech bloków kodu **dwa były nieprawdziwe**: udokumentowany
+  `InvalidDirectoryPathException` nie miał `DescribesProblem`, `problemKey()`
+  ani `problemParameters()` (doszły w kroku 15), a
+  `DirectoryRepositoryInterface::get()` nie miał parametru `bool $includeHidden`.
+  Nikt tego nie zauważył, bo **blok w markdownie wygląda tak samo poprawnie
+  w dniu, w którym przestaje być prawdą**.
+- **Kroki 63–65 opisują drzewo angielskie na trzy sposoby naraz**: krok 63 raz
+  pisze `docs/en/podrecznik/`, a w tabeli plików `docs/en/manual/01-what-is-it.md`;
+  krok 64 — `docs/en/guide/`; krok 65 — `docs/en/onboarding/`.
+
+**Decyzje użytkownika:**
+
+1. **Nazwa katalogu, nazwa pliku i treść są w tym języku, którego dotyczą.**
+   `docs/pl/podrecznik/01-czym-to-jest.md` ma odpowiednik
+   `docs/en/manual/01-what-is-it.md`, a nie kopię polskiej ścieżki z angielskim
+   środkiem. **Polski pozostaje językiem bazowym** dokumentacji (podtrzymanie
+   D97 nr 3): zmiana treści zaczyna się po polsku. Rozjazd w krokach 63–65 jest
+   tym rozstrzygnięty na rzecz wariantu z tabeli plików kroku 63. Odrzucone:
+   nazwy polskie w obu drzewach (test pary językowej byłby prostszy — samo
+   porównanie dwóch list — ale odbiorca angielski dostawałby ścieżki, których
+   nie przeczyta) oraz wariant mieszany (katalog angielski, plik polski).
+   **Cena nazwana: `DocumentationLanguagePairTest` (krok 66) potrzebuje tabeli
+   odpowiedników nazw, a nie samego porównania.**
+2. **Rozdział 2 rozpada się wedle gatunku, a nie wedle kroku.** `slownik.md`
+   trzyma **tabele pojęć** — rzecz, do której się zagląda — a 30 reguł
+   „Słownika interfejsu” rozchodzi się na **sześć plików tematycznych**
+   w `docs/architektura/02-slownik/`. **Wychodzi to poza literę planu**, który
+   mówił „słownik do `slownik.md`” i o podziale wewnątrz milczał. Powód jest
+   dokładnie ten, dla którego dzielono cały dokument: dwa gatunki w jednej
+   okładce. Skutek uboczny, policzony: największy plik dokumentacji spada
+   z 1699 wierszy do 630. Odrzucone: jeden plik na całe 1699 wierszy (wierność
+   planowi co do joty, przy pozostawieniu problemu, który krok miał usunąć)
+   oraz podział na dwa (tabele + monolit 1670 wierszy).
+3. **`examples/` wchodzi do bramki jakości z prawdziwym przykładem, od
+   pierwszego dnia.** Konwencja przykładu **sama siebie stosuje**:
+   [`docs/KONWENCJE.md`](../KONWENCJE.md) wskazuje ścieżką i zakresem wierszy
+   plik, który istnieje i przechodzi PHPStan `max` oraz PHP-CS-Fixer. Powód
+   techniczny jest twardy: **PHPStan na katalogu bez plików PHP kończy się
+   błędem** („No files found to analyse”), więc `examples/` z samym `.gitkeep`
+   uczyniłby kryterium ukończenia niesprawdzalnym. Odrzucone: szkielet bez kodu
+   z wpisem do PHPStana dopiero w kroku 64 oraz dołożenie zaczątku mikromodułu
+   z kroku 64 (krok 62 zacząłby pisać cudzą treść).
+4. **Faza XXI dostaje sekcję „Niewydane” już przy tym kroku, pod nazwą
+   Obój.** Zgodnie z literą `CLAUDE.md` („ukończony krok planu dopisuj do
+   `CHANGELOG.md`”), mimo że krok nie daje użytkownikowi widocznej zmiany.
+   Nazwa wybrana z trzech propozycji, a jej uzasadnienie jest zarazem
+   streszczeniem fazy: **cała orkiestra bierze „a” od oboju** — jeden
+   instrument, do którego stroją się pozostałe, dokładnie jak `SKILL.md`,
+   `README.md` i `CLAUDE.md` stroją się odtąd do rozdziału architektury.
+   Odrzucone: Klawesyn (dwa manuały = dwa języki — trafia w D97 nr 3, ale mówi
+   o dwujęzyczności zamiast o jednym źródle) i Skrzypce (metafora prowadzenia
+   była już użyta — Flet, Faza XIII).
+
+**Co z tego wynika — i czego pilnują kroki 63–66:**
+
+- **Numeracja rozdziałów architektury jest odtąd zobowiązaniem, nie
+  przypadkiem.** 55 odnośników wskazuje plik, a część z nich wskazuje **numer
+  rozdziału** wewnątrz niego. Rozdział zmienia plik, nie numer.
+- **Rozdział 2 ma siedem plików, ale jeden numer.** Wejściem jest
+  `02-slownik/slownik.md`; części są jego rozwinięciem, nie osobnymi
+  rozdziałami. `SkillMatchesArchitectureTest` (krok 66) ma to zobaczyć jako
+  **jeden** rozdział 2.
+- **Reguła utrzymania obowiązuje od kroku 63 wzwyż** (D97) i stoi odtąd
+  w [00-index.md](00-index.md), rozdz. „Śledzenie postępu”, jako punkt 5 listy
+  domykającej krok — obok archiwizacji, a nie w miejsce niczego.
+- **`examples/` trzyma wyłącznie przykłady dydaktyczne.** Wzorzec, który
+  w aplikacji **jest**, dokumentacja wskazuje w `src/` — bo tam broni go bramka
+  razem z resztą kodu. Przykład dydaktyczny wstawiony do `src/` byłby kodem bez
+  odbiorcy (reguła 13).
+
+## Decyzje ze startu kroku 63 (2026-08-20)
+
+### D109 — Rozstrzygnięcia startowe kroku 63: podręcznik opisuje aplikację, która istnieje; README chudnie o połowę, nie do wizytówki; osiem scenariuszy zamiast sześciu, a znaleziona usterka klawisza zostaje naprawiona w kodzie
+
+**Dotyczy:** kroku **63**
+([archiwum/63-podrecznik-uzytkownika.md](archiwum/63-podrecznik-uzytkownika.md)),
+drzew [`docs/pl/podrecznik/`](../pl/podrecznik/) i [`docs/en/manual/`](../en/manual/),
+pliku [`README.md`](../../README.md) oraz — wyjątkowo — dwóch wiązań klawisza
+w `src/Module/Docker/Presentation/DockerScreen.php`.
+
+**Data:** 2026-08-20, przed pierwszym zdaniem podręcznika. Pytań było cztery
+(zakres wobec Faz XIX i XX, sprzeczność w kryteriach README, liczba scenariuszy,
+miejsce przykładów JSON) plus **piąte, zadane w trakcie** — o usterkę znalezioną
+przy wywodzeniu spisu klawiszy.
+
+**Co rozpoznanie pokazało, zanim padło pierwsze pytanie.** Plan powstał
+2026-08-16; przez cztery dni trzy liczby urosły, a jedna przesłanka upadła:
+
+- **`KeyBinding::` jest 190, nie 167** (w 30 plikach), **przebiegów
+  funkcjonalnych 35, nie 26**, **klas kwerend 53, nie 41**, a **modułów siedem,
+  nie sześć** — książka adresowa weszła krokiem 60, czyli **po** napisaniu planu.
+- **`README.md` urósł do 1441 wierszy**: treści użytkownika około 1128,
+  deweloperskiej 267.
+- **Fazy XIX i XX są ukończone.** Plan zakładał, że mysz, zaznaczanie i schowek
+  „dopiszą swoje kroki" — ale kroki 55–61 i 77 leżą w archiwum i powstały
+  **przed** regułą utrzymania z kroku 62, więc nie dopiszą nic.
+- **Materiał na podręcznik był lepszy, niż plan zakładał.** Katalogi napisów
+  trzymają **pełne opisy modułów** (`module.*.help.*`) w obu językach — te,
+  które aplikacja pokazuje w zakładkach okna pomocy. Podręcznik mógł stanąć na
+  tekście, który projekt już utrzymuje, zamiast pisać drugi obok.
+
+**Decyzje użytkownika:**
+
+1. **Podręcznik opisuje pełny stan dzisiejszy.** Siedem modułów wraz z książką
+   adresową, mysz, zaznaczanie treści, schowek, środowiska Dockera, klastry
+   Kubernetesa i rejestry obrazów. Odrzucone: litera planu (stan po Fazie XVIII
+   — podręcznik **kłamałby przez przemilczenie od pierwszego dnia**, a dług nie
+   miałby właściciela, bo kroki, które miały go spłacić, są zamknięte) oraz
+   wariant pośredni z myszą i schowkiem w jednej wspólnej sekcji. **Cena
+   przyjęta świadomie: objętość razy około półtora, i to razy dwa języki.**
+2. **W sprzeczności między §6 zakresu a kryterium „README poniżej 200 wierszy"
+   wygrywa §6.** Sekcje deweloperskie (struktura, narzędzia, pomiar, budowa)
+   zostają nietknięte do kroku 64; README schodzi z 1441 wierszy do **422**
+   i traci wyłącznie treść użytkownika. **Kryterium „<200" jest jawnie odroczone
+   do kroku 64**, który te sekcje ma w swoim zakresie zapisane wprost. Odrzucone:
+   przeniesienie ich do `docs/pl/przewodnik/` już teraz — krok 63 pisałby treść
+   należącą do 64, i to bez jego układu.
+3. **Scenariuszy jest osiem, nie sześć.** Do sześciu z planu dochodzą: **książka
+   adresowa** (`AddressBookFlowTest`, `ClusterBookFlowTest`) — rzecz, przez którą
+   przechodzi się do trzech modułów naraz — oraz **zaznaczenie treści myszą
+   i schowek** (`ClipboardFlowTest`, `SelectionInOverlayFlowTest`,
+   `PointerFlowTest`). Osiem dróg pokrywa wszystkie siedem modułów i całą Fazę
+   XIX. Odrzucone: sześć wedle planu oraz „jeden scenariusz na moduł" (scenariusz
+   przestałby być zadaniem, a stał się wycieczką po module — czyli powtórzeniem
+   rozdziału 5 innymi słowami).
+4. **Przykładowy `settings.json` zostaje blokiem w podręczniku, a nie plikiem
+   w `examples/`.** Odstępstwo od tabeli plików kroku 63 wprost: ustawienia są
+   **danymi, nie kodem**, a kilkanaście wierszy JSON-a czyta się na miejscu
+   lepiej niż przez odnośnik. Cena nazwana przy pytaniu i przyjęta: to jest ten
+   sam rodzaj kopii, który w rozdziale 6 architektury rozjechał się po cichu.
+   **`examples/` nie rośnie w tym kroku o nic.**
+5. **Usterka znaleziona przy wywodzeniu spisu klawiszy zostaje naprawiona
+   w kodzie — mimo że krok kodu dotykać nie miał.** W module Dockera litera `r`
+   (zawartość rejestru) była **obsługiwana** w widoku kontenerów i obrazów, ale
+   nie miała `KeyBinding`u, więc nie stała ani w pasku stanu, ani w spisie pod
+   `F1`; litera `e` stała. Rozstrzyga kryterium samego kroku: *rozbieżność między
+   spisem a wiązaniami jest usterką tego kroku*. Odrzucone: adnotacja
+   w podręczniku (usterka zostaje, a spis nie zgadza się z `bindings()`) oraz
+   usunięcie `r` z podręcznika (czytelnik traci działającą funkcję, o której
+   README mówiło od kroku 61).
+
+**Co z tego wynika — i czego pilnują kroki 64–66:**
+
+- **Spis klawiszy jest wywiedziony z kodu, nie z pamięci.** Powstał z `bindings()`
+  ekranów zbudowanych przez `ScreenFixture`, z `InputHandler::globalBindings()`
+  i z okien nakładanych, a stany warunkowe (filtr, zaznaczenie, drzewo, widoki
+  Dockera i Kubernetesa) wyciągnięto refleksją z metod składających wiązania.
+  **Sprawdzenie końcowe: zero klawiszy w kodzie bez wiersza w podręczniku.**
+- **Tabela klawiszy ma jeden kształt w całym rozdziale 3** — `Klawisz | Co robi`
+  pod nagłówkiem z nazwą miejsca. Okna nakładane, które w pierwszej wersji miały
+  własny format zbiorczy, zostały do tego kształtu sprowadzone, **żeby test
+  z kroku 66 czytał jedną postać, a nie dwie**.
+- **Nazwy interfejsu w wersji angielskiej pochodzą z `lang/en.php`**, a nie
+  z tłumaczenia na nowo — „File browser", „Address book", „Delete to trash
+  (F8, Delete)" są tam dosłownie takie, jak mówi je aplikacja.
+- **Kryterium „README poniżej 200 wierszy" przechodzi na krok 64** wraz
+  z sekcjami, których dotyczy. To jest jedyny dług, jaki ten krok zostawia.
+
+## Decyzje ze startu kroku 64 (2026-08-20)
+
+### D110 — Rozstrzygnięcia startowe kroku 64: mikromoduł sprawdzany rejestrami zamiast `Bootstrapem`, siedem plików wedle gatunku, każda sekcja README tam, gdzie jej miejsce, i dziesięć pułapek zamiast siedmiu
+
+**Dotyczy:** kroku **64**
+([archiwum/64-dokumentacja-dewelopera.md](archiwum/64-dokumentacja-dewelopera.md)),
+drzew [`docs/pl/przewodnik/`](../pl/przewodnik/) i [`docs/en/guide/`](../en/guide/),
+katalogu [`examples/modul-przykladowy/`](../../examples/modul-przykladowy/),
+pliku [`README.md`](../../README.md) oraz
+[`docs/pomiary/README.md`](../pomiary/README.md).
+
+**Data:** 2026-08-20, przed pierwszym zdaniem przewodnika. Pytań były cztery —
+**trzy z nich rozstrzygały sprzeczności wewnątrz samego planu**, czwarte
+dotyczyło objętości spisu pułapek.
+
+**Co rozpoznanie pokazało, zanim padło pierwsze pytanie.** Plan powstał
+2026-08-16, czyli przed Fazami XIX, XX i XXI; pięć jego liczb zdążyło urosnąć:
+modułów jest **siedem** (nie sześć), klas kwerend **53** (nie 41), przebiegów
+funkcjonalnych **35** (nie 26), komponentów **27** (nie 25), celów `make` **32**
+(nie 29), a wpisów dziennika decyzji **110** (nie 96) w **8666** wierszach.
+`SKILL.md` urósł z 1006 do 1341 wierszy, a podreguły sięgają **11ź**, nie 11y.
+
+**Trzy sprzeczności wewnątrz planu, wszystkie policzone przed pytaniem:**
+
+- **Siedem slotów na jedenaście rzeczy.** Tabela plików mówi
+  `01-mapa-kodu.md` … `07-dziennik-jak-czytac.md`, §3 wymienia **osiem
+  przewodników plus dwa ostrzegawcze**, §4 żąda dla pułapek **osobnego pliku**,
+  a §5 przypina workflow do `06-`.
+- **„Sprawdzone wykonaniem" wobec mikromodułu w `examples/`.** Kryterium żąda,
+  by trzy dołożone rzeczy przeszły `make qa` za pierwszym razem — a §7 umieszcza
+  mikromoduł **poza `Bootstrapem`**, czyli tam, gdzie nigdy się nie uruchamia.
+- **„Sekcje deweloperskie przenoszą się tutaj"** bez wskazania, dokąd
+  konkretnie: 267 wierszy README to cztery różne gatunki (struktura, narzędzia,
+  pomiar, budowa).
+
+**Decyzje użytkownika:**
+
+1. **Mikromoduł zostaje w `examples/`, a sprawdza go skrypt sesji budujący go
+   tymi samymi rejestrami, którymi składa go aplikacja** — `ModuleRegistry`,
+   `CommandRegistry`, `QueryRegistry`, `settingsTab()`. Zero zmian w `src/`
+   z tego tytułu. Odrzucone: rejestracja tymczasowa w `Bootstrapie` (dowód
+   mocniejszy, ale krok dotknąłby pliku, który reguła 15 nazywa **jedynym**
+   kosztem modułu w rdzeniu) oraz moduł przykładowy zostający na stałe (reguła
+   13 mówi wprost, że komponent bez odbiorcy nie powstaje).
+2. **Siedem plików rozkłada się wedle gatunku:** `03-jak-dodac.md` — osiem
+   przewodników, `04-zanim-dolozysz.md` — dwa ostrzegawcze,
+   `05-pulapki.md` — spis pułapek, a `06-` i `07-` tam, gdzie plan je przypina.
+   Trzyma to podział, który plan sam robi w §3: osiem przewodników to jeden
+   gatunek, dwa ostrzegawcze — drugi, bo tam odpowiedź prawie zawsze brzmi
+   „nie”. Odrzucone: podział dziesięciu po połowie na `03-` i `04-` (ostrzeżenia
+   ginęłyby w środku pliku o modułach) oraz każdy przewodnik własnym plikiem
+   (piętnaście plików, złamana numeracja z tabeli planu, podwojona objętość do
+   przetłumaczenia).
+3. **Każda sekcja README idzie tam, gdzie jej gatunek**: **Struktura** →
+   `01-mapa-kodu.md`, **Narzędzia** i **Budowa** → `06-workflow.md`,
+   **Pomiar** (160 wierszy) → `docs/pomiary/README.md`, który już trzymał wzorce
+   pomiarowe i spis scenariuszy. Workflow wskazuje pomiar jednym akapitem.
+   Odrzucone: wszystko do `06-workflow.md` (plik ~330 wierszy, w dwóch trzecich
+   opisujący osie pomiarowe zamiast kolejności pracy) oraz ściśnięcie pomiaru do
+   wskazania na `--help` (160 wierszy opisu osi, wzorców i porównań PNG
+   zniknęłoby z repozytorium).
+4. **Spis pułapek ma dziesięć pozycji, nie siedem.** Do siedmiu z planu
+   dochodzą trzy, które zapłaciły Fazy XIX–XXI: **kwerenda wołana co takt**
+   (krok 61 — materiał uwierzytelnienia trzydzieści razy na sekundę), **kanał
+   „zabierz raz" z dwoma odbiorcami** (krok 61 — drugi nie widzi nic, i to po
+   cichu) oraz **klawisz obsługiwany bez `KeyBinding`u** (krok 63 — działa, ale
+   nie ma go w pasku stanu ani pod `F1`). Odrzucone: dokładnie siedem wedle
+   litery kryterium oraz odłożenie trzech nowych do osobnego kroku — czyli dług
+   bez właściciela, przed którym przestrzega reguła utrzymania z kroku 62.
+
+**Co z tego wynika — i czego pilnują kroki 65–66:**
+
+- **Kryterium „README poniżej 200 wierszy", odroczone w kroku 63, jest
+  spełnione**: README zszedł z 421 do **161** wierszy i nie ma w nim ani jednej
+  sekcji deweloperskiej ponad odnośnik.
+- **Przewodnik został sprawdzony wykonaniem w obie strony.** Mikromoduł powstał
+  **przed** przewodnikiem i przewodnik z niego spisano; sprawdzenie odwrotne
+  polegało na dołożeniu **czwartej rzeczy wyłącznie wedle kroków przewodnika**
+  (druga komenda modułu) — `make qa` przeszło **za pierwszym razem**, a rejestr
+  komend pokazał obie. Sprawdzenie zostało po nim wycofane.
+- **`examples/` ma odtąd dwa gatunki**: wzorce pojedynczych pojęć w korzeniu
+  (`PortNumber`, `InvalidPortNumberException`) i **kompletny mikromoduł**
+  w podkatalogu. Podkatalog dostał **własny wpis `autoload-dev`**, bo
+  `modul-przykladowy` nie jest poprawnym segmentem PSR-4 — nazwa z tabeli planu
+  została zachowana kosztem jednej linii w `composer.json`.
+- **Onboarding (krok 65) wskazuje przewodnik, nigdy go nie powtarza** — a ma na
+  co wskazywać: `03-jak-dodac.md` jest referencją, `05-pulapki.md` czyta się
+  objawem.
+
+### D111 — Rozstrzygnięcia startowe kroku 65: zadaniem jest własny moduł, kwerenda mówi o czasie działania, zmiana zostaje wraz z dokumentacją, a „jedna strona" znaczy sekcję
+
+**Dotyczy:** kroku **65** ([archiwum/65-onboarding.md](archiwum/65-onboarding.md)),
+drzew `docs/pl/onboarding/` i `docs/en/onboarding/`, katalogu
+`examples/zadanie-kwerenda/` oraz `composer.json` (dwa wpisy `autoload-dev`).
+
+**Data:** 2026-08-20, przed napisaniem pierwszego zdania ścieżki. Cztery
+pytania, wszystkie wyznaczające **treść**, a nie sposób wykonania: plan kroku
+mówił „dodaj kwerendę, która oddaje coś, czego aplikacja jeszcze o sobie nie
+mówi" i **nie przesądzał**, gdzie ta kwerenda ma stanąć ani co powiedzieć.
+
+**Co rozstrzygnęło rozpoznanie, zanim padło pierwsze pytanie.** Cztery rzeczy
+policzone w repozytorium:
+
+- **Rdzeń ma trzynaście kwerend `core.*`** i żadna nie mówi, od jak dawna
+  aplikacja działa — a `CoreQueries::all()` jest jednym miejscem, w którym są
+  wyliczone.
+- **Dokumentacja nie zawiera dziś spisu kwerend**, więc dołożenie kwerendy nie
+  czerwieni bramki; spis modułów zawiera — w podręczniku (tabela siedmiu) i w
+  przewodniku (drzewo repozytorium, „siedem modułów").
+- **Katalogi napisów modułów pilnuje test czytający oba języki**
+  (`TranslatorServiceTest::testEveryModuleCarriesTheSameKeysInEveryLanguage`),
+  a **językiem odniesienia jest angielski** — moduł bez `lang/en.php` nie ma
+  z punktu widzenia bramki katalogu w ogóle.
+- **Rozdziały przewodnika mają 106–345 wierszy**, więc kryterium „przystanek nie
+  odsyła do dokumentu dłuższego niż strona" nie da się spełnić przy odnośnikach
+  do całych rozdziałów.
+
+**Decyzje użytkownika:**
+
+1. **Zadaniem ćwiczebnym jest własny mikromoduł od zera**, a nie kwerenda
+   dołożona do rdzenia ani do modułu istniejącego. Nowa osoba przechodzi
+   dokładnie tę drogę, którą projekt uważa za jedyną poprawną: **nowa funkcja
+   to moduł, nie zmiana w rdzeniu** (reguła 15). Cena przyjęta świadomie:
+   zadanie ma pięć plików zamiast trzech i jest najgęstszym przystankiem
+   ścieżki. Odrzucone: kwerenda rdzenia (najtańsza, ale pierwszą zmianą nowej
+   osoby byłaby zmiana w rdzeniu — czyli antywzorzec podany jako wzór)
+   i kwerenda w module istniejącym (tańsza, ale dopisuje do cudzego modułu
+   z własnymi testami).
+2. **Kwerenda oddaje czas działania** (`czas.dzialanie`). Dana jest pod ręką
+   i przychodzi z zewnątrz w sposób, którego projekt trzyma się wszędzie
+   (`Bootstrap` podaje moment startu, pętla — chwilę bieżącą), a **pokolenie
+   liczone w pełnych sekundach uczy `Generation` na żywym przykładzie**:
+   licznik zmian, nie znacznik czasu. Odrzucone: ścieżki plików aplikacji
+   (dana z kilku miejsc, kwerenda przestaje być jednorzeczowa) i rozmiar
+   katalogu napisów (dana testowa, nie użytkownikowa).
+3. **Zmiana zostaje, a zadanie kończy się dopisaniem modułu do spisów
+   w dokumentacji.** Ruch szósty ścieżki wskazuje cztery miejsca: tabelę modułów
+   w podręczniku (pl i en) i „siedem modułów" w mapie kodu przewodnika (pl
+   i en). To jest **naczelna reguła Fazy XXI podana wprost i przeżyta**, a nie
+   przeczytana: zmiana, której nie widać w dokumentacji, nie jest zmianą
+   skończoną. Odrzucone: cofnięcie zmiany na koniec (czyste, ale odbiera
+   ścieżce jej jedyną lekcję o dokumentacji) i zostawienie zmiany bez dopisku
+   (po kroku 66 spis czerwieniłby bramkę, a nowa osoba nie wiedziałaby dlaczego).
+4. **„Jedna strona" z kryterium drugiego znaczy sekcję, nie rozdział.**
+   Odnośnik z przystanku celuje w kotwicę (`03-jak-dodac.md#nowa-kwerenda` — 45
+   wierszy), a nie w cały rozdział. Kryterium dotyczy tego, co czytelnik
+   naprawdę ma przeczytać; kotwic pilnuje `DocumentationLinksTest` z kroku 66.
+   Odrzucone: twardy limit długości pliku docelowego (odcina rozdziały 3 i 5
+   przewodnika, czyli dokładnie to, czego nowa osoba potrzebuje przy zadaniu)
+   i wariant „przystanki nie odsyłają nigdzie poza przystanek piąty" (onboarding
+   zacząłby tłumaczyć to, co przewodnik już tłumaczy).
+
+**Co z tego wynika:**
+
+- **Plik startowy zadania ma jeden zaplanowany brak — `lang/en.php`** — i to
+  jest rozstrzygnięcie dydaktyczne, nie niedbalstwo: pierwszym kontaktem nowej
+  osoby z regułami tego projektu ma być **komunikat bramki**, a nie spis reguł.
+  Onboarding uprzedza o tym wprost, bo czerwień bez uprzedzenia wygląda na
+  zepsute repozytorium. Wybrano brak **całego pliku**, a nie jednego klucza:
+  komunikat jest wtedy jednoznaczny („moduł ma plik języka zapasowego"), zamiast
+  wskazywać język przeciwny do tego, w którym brakuje wpisu.
+- **Luka w kodzie jest jedna i stoi w `ask()`**; `generation()` jest podane
+  gotowe wraz z uzasadnieniem. Zasada: **pokazuje się rzecz subtelną, a prosi
+  o oczywistą** — odwrotnie nowa osoba zgadywałaby najtrudniejszy fragment
+  kontraktu kwerendy.
+- **Moduł z zadania nie wchodzi do repozytorium projektu.** Powstał, przeszedł
+  bramkę i został zdjęty — w spisie `Bootstrapu` byłby modułem bez odbiorcy
+  (reguła 13). W `examples/` zostaje materiał, w klonie nowej osoby — działający
+  moduł.
+- **`examples/` ma odtąd trzeci gatunek**: obok wzorców pojedynczych pojęć
+  i kompletnego mikromodułu stoi **ćwiczenie** — jedyny katalog, w którym ta
+  sama rzecz leży dwa razy (`start/` i `rozwiazanie/`). Oba warianty przechodzą
+  PHPStan `max`, także ten z luką.
+- **Kryterium pierwsze zostaje otwarte.** Przejście ścieżki w trzydzieści minut
+  przez kogoś, kto projektu nie zna, jest jedynym kryterium, którego autor
+  sprawdzić nie może — i dlatego krok jest **ukończony z zastrzeżeniem**, tak
+  samo jak krok 63 wobec swojego scenariusza.

@@ -5,9 +5,27 @@ description: Use whenever writing, reviewing, or reasoning about PHP code in thi
 
 # Light Manager — konwencje kodu
 
-Pełny dokument źródłowy: `docs/architecture.md` (i historia decyzji w
-`docs/plans/00-decyzje.md`). Ten Skill to operacyjny skrót — jeśli
-brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
+**Ten Skill jest skrótem, a nie źródłem.** Reguła powstaje w rozdziale
+architektury; tutaj stoi jej streszczenie wraz z numerem. Gdy skrót i rozdział
+mówią co innego, **rację ma rozdział**, a skrót jest usterką do naprawienia —
+nie drugim zdaniem w sprawie. Zmiana konwencji idzie zawsze w tej kolejności:
+**najpierw rozdział, potem ten plik**, w tym samym kroku planu.
+
+Jeśli brakuje tu szczegółu, sprawdź źródło zamiast zgadywać:
+
+| Gdzie | Co tam jest |
+|---|---|
+| `docs/architecture.md` | Spis rozdziałów dokumentu źródłowego — wejście do wszystkiego poniżej. |
+| `docs/architektura/01-warstwy.md` | Warstwy DDD, reguła „strzałki tylko do środka", drzewo katalogów, jedyny wyjątek — zapis na dysk (reguły 1, 2, 4). |
+| `docs/architektura/02-slownik/` | Pojęcia rdzenia i modułów oraz **słownik interfejsu** w sześciu częściach — tu mieszkają podreguły 11a–11z. |
+| `docs/architektura/03-singleton.md` | Singleton, porty, bootstrap i kolejność sprzątania (reguła 3). |
+| `docs/architektura/04-standardy-php.md` | `strict_types`, PSR-12, PHPStan `max`, dwie grupy testów, złote klatki, pomiar (reguły 5, 9, 14, 16b). |
+| `docs/architektura/05-nazewnictwo.md` | Sufiksy, przynależność nazw do warstw, Value Objects i **dwie hierarchie wyjątków** (reguły 6, 8). |
+| `docs/architektura/06-wzorce-kodu.md` | Wzorce wskazaniem na prawdziwy plik, nie kopią w markdownie. |
+| `docs/architektura/07-napisy.md` | Katalog napisów, sięganie po napis z warstw, wybór języka, liczby (reguła 7). |
+| `docs/architektura/08-procesy.md` | Spis „proces → wejście" i pierwszeństwo narzędzi repozytorium (reguły 17, 18). |
+| `docs/plans/00-decyzje.md` | Dlaczego tak, a nie inaczej — historia, nie instrukcja. |
+| `docs/README.md` | Mapa dokumentacji: gdzie mieszka reguła, historia, podręcznik i przewodnik. |
 
 ## Twarde reguły (nie łam bez jawnej zgody użytkownika)
 
@@ -1339,3 +1357,7 @@ Jeśli zadanie wymaga odstępstwa od powyższego (np. nowa warstwa, inny
 wzorzec DI) — zapytaj użytkownika zamiast cicho odstępować; to są
 świadome decyzje architektoniczne z `docs/plans/00-decyzje.md`, nie
 przypadkowe konwencje.
+
+**Odstępstwo uzgodnione zapisuje się najpierw w rozdziale architektury**, a
+dopiero potem streszcza tutaj — inaczej skrót zaczyna być drugim źródłem, a to
+jest dokładnie ten rozjazd, który krok 62 zamknął.

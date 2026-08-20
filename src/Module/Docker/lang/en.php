@@ -309,6 +309,8 @@ return [
     'module.docker.key.back.short' => 'back',
     'module.docker.key.environments' => 'show the environment list',
     'module.docker.key.environments.short' => 'environments',
+    'module.docker.key.registry' => 'show the registry content',
+    'module.docker.key.registry.short' => 'registry',
 
     'module.docker.event.container.changed' => 'Container changed state',
     'module.docker.event.removed' => 'Container or image removed',

@@ -3,11 +3,19 @@
 Menadżer plików w terminalu (PHP + Imagick + Sixel). Zanim zaczniesz pisać
 lub modyfikować kod w `src/`/`tests/`, zastosuj konwencje z:
 
+- `docs/README.md` — **mapa dokumentacji**: gdzie mieszka reguła, gdzie
+  historia, gdzie podręcznik, a gdzie przewodnik — i czego w danym miejscu
+  pisać nie wolno.
 - `.claude/skills/light-manager-conventions/SKILL.md` — operacyjny skrót
-  (warstwy DDD, wzorzec Singleton, standardy PHP).
-- `docs/architecture.md` — pełny dokument źródłowy.
+  (warstwy DDD, wzorzec Singleton, standardy PHP). **Skrót, nie źródło:**
+  reguła powstaje w rozdziale architektury, a gdy oba mówią co innego, rację
+  ma rozdział.
+- `docs/architecture.md` — dokument źródłowy: spis rozdziałów, a rozdziały
+  w `docs/architektura/`.
 - `docs/plans/00-index.md` i `docs/plans/00-decyzje.md` — status realizacji
   i historia decyzji.
+- `docs/KONWENCJE.md` — konwencja diagramu (mermaid wraz ze zdaniem opisowym)
+  i konwencja przykładu (plik w `examples/`, wskazany, nie skopiowany).
 - `docs/konwencja-changelogu.md` — jak powstaje `CHANGELOG.md` (numeracja,
   nazwy wydań, treść wpisów).
 
@@ -18,7 +26,7 @@ spis, bramka jakości to `make qa`. **Tam, gdzie projekt ma własne narzędzie
 (`bin/render-bench`, `bin/terminal-probe`), używaj jego, zamiast dorabiać
 zastępnik doraźnie.** Zawężenie przebiegu wolno wołać wprost (pojedynczy test
 filtrem, jedna oś pomiaru); zakazana jest równoległa droga do procesu, który
-wejście już ma. Pełny spis „proces → wejście”: `docs/architecture.md`, rozdz. 8.
+wejście już ma. Pełny spis „proces → wejście”: `docs/architektura/08-procesy.md`.
 
 **Ukończony krok planu dopisuj do `CHANGELOG.md` wedle
 `docs/konwencja-changelogu.md`** — tam stoi numeracja, nazewnictwo wydań, zasada
