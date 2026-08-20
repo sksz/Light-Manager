@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LightManager\Module\Docker\Infrastructure;
 
+use JsonException;
 use LightManager\Module\Docker\Application\Port\DockerCatalogPort;
 use LightManager\Module\Docker\Domain\Exception\InvalidContainerIdException;
 use LightManager\Module\Docker\Domain\Exception\InvalidImageRefException;
@@ -251,4 +252,51 @@ final class DockerJsonReader implements DockerCatalogPort
 
         return $entries;
     }
+
+    public function repositories(string $body): array
+    {
+        return $this->names($body, 'repositories');
+    }
+
+    public function registryTags(string $body): array
+    {
+        return $this->names($body, 'tags');
+    }
+
+    /**
+     * Lista napisów spod jednego klucza — wspólny rachunek obu odpowiedzi
+     * rejestru (krok 61).
+     *
+     * **Pole nieobecne i pole puste znaczą to samo i to nie jest uproszczenie**:
+     * `registry:2` na pusty katalog odpowiada `{"repositories":[]}`, a przy
+     * `tags/list` obrazu bez etykiet potrafi oddać `{"name":"x","tags":null}`.
+     * Obie postaci mówią „nic tu nie ma", więc obie dają pustą listę.
+     *
+     * @return list<string>
+     */
+    private function names(string $body, string $key): array
+    {
+        try {
+            $decoded = json_decode($body, true, 16, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return [];
+        }
+
+        if (!is_array($decoded) || !is_array($decoded[$key] ?? null)) {
+            return [];
+        }
+
+        $names = [];
+
+        foreach ($decoded[$key] as $name) {
+            if (is_string($name) && $name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        sort($names);
+
+        return $names;
+    }
+
 }

@@ -114,6 +114,9 @@ final class DockerScreen implements
      */
     private const ENVIRONMENTS_KEY = 'e';
 
+    /** Litera otwierająca zawartość rejestru (krok 61) — `r` jak *registry*. */
+    private const REGISTRY_KEY = 'r';
+
     private DockerView $view = DockerView::Containers;
 
     private readonly ContainerPane $containerPane;
@@ -170,6 +173,8 @@ final class DockerScreen implements
         private readonly CoreReader $core,
         /** Spis środowisk — czwarta postać ekranu (krok 58). */
         private readonly EnvironmentScreen $environments,
+        /** Zawartość rejestru — piąta postać ekranu (krok 61). */
+        private readonly RegistryPane $registryPane,
         /** Proporcja podziału z ustawień modułu wraz z jej zapisem (krok 55). */
         ?SplitState $split = null,
     ) {
@@ -264,6 +269,14 @@ final class DockerScreen implements
             return $this->environments->draw($bounds);
         }
 
+        if ($this->view === DockerView::Registry) {
+            // Zawartość rejestru zajmuje ekran w całości, jak spis środowisk:
+            // nazwy repozytoriów bywają długie, a połowa szerokości je ucina.
+            $this->lastCapacity = max(1, $bounds->rows);
+
+            return $this->registryPane->draw($bounds);
+        }
+
         if ($this->view === DockerView::Logs) {
             $this->lastCapacity = max(1, $bounds->rows);
 
@@ -302,6 +315,7 @@ final class DockerScreen implements
         return match ($this->view) {
             DockerView::Logs => $this->logBindings(),
             DockerView::Environments => $this->environments->bindings(),
+            DockerView::Registry => $this->registryPane->bindings(),
             DockerView::Containers => $this->containerBindings(),
             DockerView::Images => $this->imageBindings(),
         };
@@ -317,6 +331,7 @@ final class DockerScreen implements
         $this->drawn = true;
         $this->logPane->reset();
         $this->environments->reset();
+        $this->registryPane->reset();
     }
 
     /**
@@ -375,6 +390,10 @@ final class DockerScreen implements
             return $this->environments->pointer($event);
         }
 
+        if ($this->view === DockerView::Registry) {
+            return $this->registryPane->pointer($event);
+        }
+
         if ($this->view === DockerView::Logs) {
             if ($event->isScroll()) {
                 $this->logPane->scrollBy($event->scrollRows());
@@ -425,6 +444,13 @@ final class DockerScreen implements
                 $this->environments->refresh();
             }
 
+            // Zawartość rejestru tą samą drogą — i to jest **jedyna** droga, którą
+            // pytanie do rejestru w ogóle pada: wejście w widok niczego nie ściąga,
+            // bo katalog cudzego serwera to ruch, którego nikt nie zamówił.
+            if ($this->view === DockerView::Registry) {
+                return $this->registryPane->refresh();
+            }
+
             return ScreenOutcome::stay();
         }
 
@@ -433,6 +459,7 @@ final class DockerScreen implements
             DockerView::Images => $this->handleImages($key),
             DockerView::Containers => $this->handleContainers($key),
             DockerView::Environments => $this->handleEnvironments($key),
+            DockerView::Registry => $this->handleRegistry($key),
         };
     }
 
@@ -446,6 +473,34 @@ final class DockerScreen implements
         }
 
         return $this->environments->handle($key);
+    }
+
+    /**
+     * `Esc` wraca do kontenerów, reszta należy do panelu.
+     *
+     * Rozmowy z rejestrem **nie przerywamy przy wyjściu** i to jest zamierzone:
+     * posuwa ją takt modułu, więc odpowiedź dojdzie także wtedy, gdy użytkownik
+     * przełączył się na kontenery — a po powrocie zastanie ją gotową. Ta sama
+     * lekcja, którą krok 54 zapłacił za budowę posuwaną własnym oknem.
+     */
+    private function handleRegistry(KeyPress $key): ScreenOutcome
+    {
+        if ($key->key === Key::Escape) {
+            $this->view = DockerView::Containers;
+
+            return ScreenOutcome::stay();
+        }
+
+        return $this->registryPane->handle($key);
+    }
+
+    /** Wejście w zawartość rejestru — **bez pytania**: katalog ściąga się na żądanie. */
+    private function showRegistry(): ScreenOutcome
+    {
+        $this->view = DockerView::Registry;
+        $this->registryPane->reset();
+
+        return ScreenOutcome::stay();
     }
 
     /** Wejście w spis środowisk: świeże konteksty klienta przy każdym otwarciu. */
@@ -479,6 +534,10 @@ final class DockerScreen implements
     {
         if ($key->key === Key::Character && $key->raw === self::ENVIRONMENTS_KEY && !$key->ctrl && !$key->alt) {
             return $this->showEnvironments();
+        }
+
+        if ($key->key === Key::Character && $key->raw === self::REGISTRY_KEY && !$key->ctrl && !$key->alt) {
+            return $this->showRegistry();
         }
 
         $container = $this->reader->containers()->selected();
@@ -521,6 +580,10 @@ final class DockerScreen implements
     {
         if ($key->key === Key::Character && $key->raw === self::ENVIRONMENTS_KEY && !$key->ctrl && !$key->alt) {
             return $this->showEnvironments();
+        }
+
+        if ($key->key === Key::Character && $key->raw === self::REGISTRY_KEY && !$key->ctrl && !$key->alt) {
+            return $this->showRegistry();
         }
 
         if ($key->key === Key::F3) {

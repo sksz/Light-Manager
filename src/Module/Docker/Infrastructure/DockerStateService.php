@@ -36,6 +36,9 @@ final class DockerStateService extends AbstractSingleton implements DockerStateP
     /** Znacznik przeniesienia starego spisu do książki adresowej (krok 60). */
     private const MIGRATED_KEY = 'migrated';
 
+    /** Znacznik migracji trzech pozycji ustawień rejestru (krok 61). */
+    private const REGISTRY_MIGRATED_KEY = 'registryMigrated';
+
     private const NAME_KEY = 'name';
 
     private const KIND_KEY = 'kind';
@@ -133,6 +136,19 @@ final class DockerStateService extends AbstractSingleton implements DockerStateP
     {
         $section = $this->section() ?? [];
         $section[self::MIGRATED_KEY] = true;
+        $this->section = $section;
+        $this->documents()->saveSection(self::SECTION, $section);
+    }
+
+    public function isRegistryMigrated(): bool
+    {
+        return (($this->section() ?? [])[self::REGISTRY_MIGRATED_KEY] ?? false) === true;
+    }
+
+    public function markRegistryMigrated(): void
+    {
+        $section = $this->section() ?? [];
+        $section[self::REGISTRY_MIGRATED_KEY] = true;
         $this->section = $section;
         $this->documents()->saveSection(self::SECTION, $section);
     }

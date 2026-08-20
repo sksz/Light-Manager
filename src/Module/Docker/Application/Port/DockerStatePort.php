@@ -43,6 +43,19 @@ interface DockerStatePort
 
     public function markMigrated(): void;
 
+    /**
+     * Czy trzy pozycje ustawień rejestru przeniesiono już do książki (krok 61).
+     *
+     * Znacznik jest **drugi i osobny** od `isMigrated()`, bo obie migracje mają
+     * różne źródła i różne terminy: tamta przenosi starą książkę środowisk
+     * z pliku stanu, ta — pozycje zakładki. Jeden wspólny znacznik znaczyłby, że
+     * uruchomienie sprzed kroku 61 uznaje rejestr za przeniesiony, bo środowiska
+     * przeniosły się krok wcześniej.
+     */
+    public function isRegistryMigrated(): bool;
+
+    public function markRegistryMigrated(): void;
+
     /** Gdzie leży dokument stanu — do pokazania użytkownikowi. */
     public function location(): string;
 }

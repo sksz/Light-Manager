@@ -49,4 +49,22 @@ interface DockerCatalogPort
      * w kroku 49.
      */
     public function problem(string $body): ?string;
+
+    /**
+     * Nazwy repozytoriów z odpowiedzi `/v2/_catalog` (krok 61, etap 2).
+     *
+     * Rozczytywanie cudzego formatu leży **za portem**, jak rozbiór odpowiedzi
+     * demona: stan spisu jest daną warstwy `Application` i nie ma prawa znać ani
+     * jednej klasy z `Infrastructure` (reguła 4).
+     *
+     * @return list<string>
+     */
+    public function repositories(string $body): array;
+
+    /**
+     * Etykiety z odpowiedzi `/v2/<nazwa>/tags/list`.
+     *
+     * @return list<string>
+     */
+    public function registryTags(string $body): array;
 }

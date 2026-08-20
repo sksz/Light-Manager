@@ -1585,6 +1585,92 @@ odpowiedź dwóch demonów wyglądałaby dla obcego identycznie), a nowa
 `docker.environments` oddaje spis wraz z wyborem i stanem tunelu — **bez celu
 SSH i bez ścieżek kluczy TLS** (reguła 11w).
 
+##### Rejestry obrazów: drugi rozmówca HTTP i pierwszy w internecie (od kroku 61)
+
+**Rejestrów jest wiele i mieszkają w książce adresowej, nie w ustawieniach.**
+Do kroku 61 rejestr był w aplikacji **jeden**, opisany trzema pozycjami zakładki
+(krok 54); odtąd moduł Dockera deklaruje w książce **drugi rozdział** —
+`registry` obok `docker` — a trzy stare pozycje przeniosły się do niego raz,
+komendami książki. Dwa rozdziały, a nie jeden, bo **pola są rozłączne**: demon
+opisuje się gniazdem, celem tunelu i materiałem TLS, rejestr adresem,
+użytkownikiem i tokenem. Wpis książki zostaje przy tym **jeden**, więc maszyna
+ma prawo być naraz demonem i rejestrem albo tylko jednym z nich; wzorzec książki
+nie staje po raz czwarty (D104).
+
+**Rozmowa z rejestrem to ta sama maszyneria i inny rozmówca.** `curl_multi_*`
+w trybie nieblokującym, pompowane taktem modułu — bo reguła nadrzędna Fazy XVII
+(**żadne wywołanie sieciowe nie pada w rysowaniu klatki**) obowiązuje tu mocniej
+niż przy demonie: demon stoi na gnieździe, rejestr w internecie, więc pytanie
+trwa wielokrotność budżetu klatki.
+
+**Rejestr uwierzytelnia dwustopniowo, więc jedna rozmowa to nawet trzy
+żądania.** `GET /v2/…` bez tokenu oddaje `401` z nagłówkiem `WWW-Authenticate:
+Bearer realm=…,service=…,scope=…`; pytanie pod `realm` — z podstawowym
+uwierzytelnieniem — oddaje token; dopiero trzecie wywołanie, podpisane
+`Authorization: Bearer`, przynosi odpowiedź. Wszystkie trzy są nieblokujące,
+więc jest to **maszyna stanu** (`RegistryConversation`), a nie ciąg wywołań:
+kolejny obieg zaczyna się w `pump()`. Trzy rzeczy warte zapamiętania. Rozmowa
+zbiera **nagłówki**, nie tylko treść (`CURLOPT_HEADERFUNCTION`) — bez tego drugi
+obieg nie ma dokąd pytać. Rozbiór wyzwania czyta się **wyrażeniem, nie podziałem
+po przecinkach**, bo `scope` bywa listą (`repository:a:pull,push`) i podział
+rozerwałby go w pół, oddając token na węższe uprawnienie, niż poproszono.
+A `401` **po** tokenie znaczy **złe poświadczenia** i kończy rozmowę — obiegu
+czwartego nie ma, bo ponawianie byłoby pytaniem o to samo trzydzieści razy na
+sekundę.
+
+**Katalog rejestru jest rozszerzeniem opcjonalnym i widok ma dwa zachowania.**
+`/v2/_catalog` należy do API v2 Dockera, ale specyfikacja OCI go **nie
+wymaga**. Piąta postać ekranu modułu (klawisz `r`) pokazuje więc spis
+repozytoriów tam, gdzie katalog jest, a gdzie go nie ma — przechodzi w tryb
+„podaj nazwę obrazu, pokażę etykiety". `404` na katalogu **nie jest awarią**
+i cały panel jest tak napisany, żeby rejestr bez katalogu nie wyglądał na
+zepsuty. Sprawdzone na `registry:2` (cel `make registry-start`): katalog jest
+i odpowiada w **pierwszym** obiegu, bo ten rejestr nie uwierzytelnia; o rejestrach
+publicznych krok niczego nie twierdzi, bo wyjścia w internet nie było.
+
+**Pytanie pada na żądanie, nigdy przy wejściu w widok** (`Ctrl`+`R`) — katalog
+cudzego serwera to ruch, którego nikt nie zamówił; ta sama reguła, którą krok 48
+zapisał dla odświeżania sesji. Posuwa je **takt modułu, nie widok**, więc
+odpowiedź dojdzie także wtedy, gdy użytkownik przełączy postać ekranu — lekcja,
+którą krok 54 zapłacił za budowę posuwaną własnym oknem.
+
+**Sekret rejestru w klastrze: poświadczenie idzie kwerendą, plikiem i nigdy
+wierszem polecenia.** `k8s.deploy-image` ma od kroku 61 drugi wariant: obraz
+z rejestru prywatnego. Moduł Dockera oddaje **gotową treść `.dockerconfigjson`**
+osobną kwerendą (`docker.registry-secret`, `VOLATILE`, pytanie o **jeden** wpis),
+bo format jest pojęciem Dockera; moduł k8s zapisuje ją do pliku o prawach
+**`0600`** w `XDG_RUNTIME_DIR`, stosuje `kubectl apply -f <plik>` i **kasuje
+plik — także po niepowodzeniu**. Pliku nie da się pominąć: `kubectl` nie
+przyjmuje wejścia, więc `apply -f -` jest niewykonalne (reguła 11v).
+
+Zdanie graniczne, które przy tym **upadło i zostało zastąpione**: plan kroku
+chciał, żeby token nie przechodził przez rejestr kwerend. Przesłanka tego
+żądania przestała być prawdą w kroku 60 — `address-book.value` oddaje pole
+rodzaju `secret` **każdemu, kto zapyta**, i mówi to we własnej dokumentacji.
+Przegrody nie ma, więc broni się nie tajemnicy, tylko **przypadkowego wycieku do
+cudzej tabeli**: kwerenda poświadczenia jest osobna od spisu, spis nie niesie
+tokenu ani razu, a do wiersza polecenia nie trafia nic — i ten ostatni zakaz
+jest twardy, bo `ps` widzi wiersz polecenia (krok 48).
+
+**Sekret dopina się łatą strategiczną, nie scalającą, i jest to wynik pomiaru.**
+Sprawdzone na żywym klastrze na wdrożeniu, które **już miało** sekret: łata
+domyślna dała `[nowy, istniejący]` — dopisała; powtórzona **nie zdublowała**
+wpisu (klucz scalania po nazwie), więc kod nie sprawdza, czy sekret już jest;
+`--type=merge` dał **`[nowy]`**, czyli skasował istniejący. Ostatnie jest tą samą
+pułapką, którą krok 54 zapłacił przy kontenerach, a **lekcja jest ogólniejsza,
+niż ją wtedy zapisano**: `--type=merge` podmienia **każdą** tablicę, nie tylko
+tablicę kontenerów — rodzaj łaty dobiera się do **pola**, nie do zasobu. Sekret
+powstaje przy tym **przed** podmianą obrazu, bo wdrożenie przestawione na obraz
+bez poświadczenia kończy się `ImagePullBackOff`.
+
+**Łańcuch sekretu ma własny tor czynności**, osobny od tego, którym posługuje
+się ekran, i jest to warunek działania, a nie porządek: `ClusterActions` prowadzi
+**jedną czynność naraz** (a wdrożenie zamawia sekret i podmianę obrazu w tej
+samej chwili), a skutek zabiera się **raz** — więc wspólny tor znaczyłby, że
+jeden z dwóch odbiorców nigdy niczego nie zobaczy, i to cicho. Reguła ogólna:
+**kanał „zabierz raz" ma jednego odbiorcę; nowy odbiorca to nowy kanał, nie
+podział istniejącego.**
+
 #### Kubernetes: moduł, który nie wie z góry, co pokaże (od kroku 52)
 
 Moduł `src/Module/Kubernetes/` (`Ctrl`+`K`) pokazuje zasoby klastra wskazanego

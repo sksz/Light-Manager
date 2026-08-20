@@ -22,6 +22,9 @@ enum DockerView
     case Logs;
     case Environments;
 
+    /** Zawartość rejestru — piąta postać (krok 61). */
+    case Registry;
+
     public function labelKey(): string
     {
         return 'module.' . DockerSettings::ID . '.view.' . match ($this) {
@@ -29,6 +32,7 @@ enum DockerView
             self::Images => 'images',
             self::Logs => 'logs',
             self::Environments => 'environments',
+            self::Registry => 'registry',
         };
     }
 }

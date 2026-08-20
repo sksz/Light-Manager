@@ -28,8 +28,12 @@ use LightManager\Module\Docker\Application\Port\ComposePort;
 use LightManager\Module\Docker\Application\Port\ContextCatalogPort;
 use LightManager\Module\Docker\Application\Port\DockerApiPort;
 use LightManager\Module\Docker\Application\Port\DockerStatePort;
+use LightManager\Module\Docker\Application\Port\RegistryPort;
 use LightManager\Module\Docker\Application\Port\TunnelPort;
+use LightManager\Module\Docker\Application\PullWork;
 use LightManager\Module\Docker\Application\PushWork;
+use LightManager\Module\Docker\Application\Registries;
+use LightManager\Module\Docker\Application\RegistryBrowse;
 use LightManager\Module\Docker\Infrastructure\BuildContextPacker;
 use LightManager\Module\Docker\Infrastructure\BuildProgressReader;
 use LightManager\Module\Docker\Infrastructure\ComposeCliService;
@@ -38,19 +42,25 @@ use LightManager\Module\Docker\Infrastructure\DockerContextReader;
 use LightManager\Module\Docker\Infrastructure\DockerJsonReader;
 use LightManager\Module\Docker\Infrastructure\DockerStateService;
 use LightManager\Module\Docker\Infrastructure\LogFrameReader;
+use LightManager\Module\Docker\Infrastructure\RegistryApiService;
 use LightManager\Module\Docker\Infrastructure\SocketTunnelService;
 use LightManager\Module\Docker\Presentation\Command\BuildCommand;
 use LightManager\Module\Docker\Presentation\Command\ComposeDownCommand;
 use LightManager\Module\Docker\Presentation\Command\ComposeUpCommand;
 use LightManager\Module\Docker\Presentation\Command\ImagesCommand;
 use LightManager\Module\Docker\Presentation\Command\PsCommand;
+use LightManager\Module\Docker\Presentation\Command\PullCommand;
 use LightManager\Module\Docker\Presentation\Command\PushCommand;
 use LightManager\Module\Docker\Presentation\Query\BuildQuery;
+use LightManager\Module\Docker\Presentation\Query\CatalogQuery;
 use LightManager\Module\Docker\Presentation\Query\ComposeQuery;
 use LightManager\Module\Docker\Presentation\Query\ContainersQuery;
 use LightManager\Module\Docker\Presentation\Query\EnvironmentsQuery;
 use LightManager\Module\Docker\Presentation\Query\ImagesQuery;
+use LightManager\Module\Docker\Presentation\Query\PullQuery;
 use LightManager\Module\Docker\Presentation\Query\PushQuery;
+use LightManager\Module\Docker\Presentation\Query\RegistriesQuery;
+use LightManager\Module\Docker\Presentation\Query\RegistrySecretQuery;
 use LightManager\Presentation\Cli\LoopState;
 use LightManager\Presentation\Cli\Query\CoreReader;
 use LightManager\Presentation\Cli\SplitSetting;
@@ -138,6 +148,16 @@ final class DockerModule implements
 
     private ?DockerQueries $reader = null;
 
+    private ?Registries $registries = null;
+
+    private ?RegistryBrowse $browse = null;
+
+    private ?RegistryPane $registryPane = null;
+
+    private ?PullWork $pullWork = null;
+
+    private ?PullFlow $pulls = null;
+
     /** Środowiska — „z którym demonem" jako dana, jedna na moduł (krok 58). */
     private ?Environments $environments = null;
 
@@ -162,6 +182,8 @@ final class DockerModule implements
         private readonly ?DockerStatePort $dockerState = null,
         private readonly ?ContextCatalogPort $contexts = null,
         private readonly ?TunnelPort $tunnel = null,
+        /** Port rozmowy z rejestrem — wstrzyknięcie dla testów, jak `$api` (krok 61). */
+        private readonly ?RegistryPort $registryApi = null,
     ) {
     }
 
@@ -248,6 +270,7 @@ final class DockerModule implements
             $this->reader(),
             new CoreReader($this->state->queries()),
             $this->environmentScreen(),
+            $this->registryPane(),
             SplitSetting::state(
                 DockerSettings::ID,
                 self::SPLIT_PERCENT,
@@ -267,6 +290,7 @@ final class DockerModule implements
             $this->state,
             $this->reader(),
             $this->dockerState ?? DockerStateService::getInstance(),
+            new CoreReader($this->state->queries()),
         );
     }
 
@@ -302,6 +326,24 @@ final class DockerModule implements
      * odpowiedzi rozpakowuje — i to jest cała odpowiedź na pozorny cykl: fasada
      * nie zna kwerend, zna nazwy.
      */
+    private function registries(): Registries
+    {
+        return $this->registries ??= new Registries();
+    }
+
+    private function browse(): RegistryBrowse
+    {
+        return $this->browse ??= new RegistryBrowse(
+            $this->registryApi ?? RegistryApiService::getInstance(),
+            new DockerJsonReader(),
+        );
+    }
+
+    private function registryPane(): RegistryPane
+    {
+        return $this->registryPane ??= new RegistryPane($this->browse(), $this->translator);
+    }
+
     private function reader(): DockerQueries
     {
         return $this->reader ??= new DockerQueries($this->state->queries());
@@ -325,6 +367,10 @@ final class DockerModule implements
             new BuildQuery($this->work()),
             new PushQuery($this->pushWork()),
             new EnvironmentsQuery($this->environments()),
+            new RegistriesQuery($this->registries()),
+            new CatalogQuery($this->browse()),
+            new PullQuery($this->pullWork()),
+            new RegistrySecretQuery($this->registries(), $this->reader()),
         ];
     }
 
@@ -359,6 +405,28 @@ final class DockerModule implements
         // skąd się wzięła — tak samo, jak nie wiedział, że czyta ją z pliku.
         $environments->useEntries($this->reader()->bookEntries());
         $environments->tick();
+
+        // Rejestry tą samą drogą i z **mocniejszego** powodu: `docker.registries`
+        // nie ma jak zapytać książki sama, bo kwerenda nie woła kwerendy (11w).
+        $registries = $this->registries();
+        $registries->useEntries($this->reader()->registries());
+
+        // Rozmowa z rejestrem posuwa się **taktem**, a nie własnym widokiem —
+        // inaczej stanęłaby, gdy użytkownik przełączy postać ekranu (krok 54).
+        //
+        // Token idzie **domknięciem, nie wartością**, i nie jest to ozdoba:
+        // ten takt pada trzydzieści razy na sekundę, a odczyt materiału
+        // uwierzytelnienia ma paść wyłącznie wtedy, gdy rejestr się zmienił.
+        $preferred = $registries->preferred();
+        $this->browse()->useRegistry(
+            $preferred,
+            fn (): string => $preferred === null ? '' : $this->reader()->registryToken($preferred->id),
+        );
+        $this->browse()->tick();
+
+        // Pobranie posuwa się **taktem**, jak wypchnięcie i budowa (D94 nr 5):
+        // praca zmieniająca dysk nie ma prawa dziać się w rysowaniu klatki.
+        $this->pulls()->advance();
 
         if ($environments->takeSwitched()) {
             $this->containers()->forget();
@@ -459,9 +527,24 @@ final class DockerModule implements
         return $this->pushWork ??= new PushWork($this->api(), new BuildProgressReader());
     }
 
+    private function pullWork(): PullWork
+    {
+        return $this->pullWork ??= new PullWork($this->api(), new BuildProgressReader());
+    }
+
+    private function pulls(): PullFlow
+    {
+        return $this->pulls ??= new PullFlow(
+            $this->pullWork(),
+            $this->translator,
+            $this->registries(),
+            $this->reader(),
+        );
+    }
+
     private function pushes(): PushFlow
     {
-        return $this->pushes ??= new PushFlow($this->pushWork(), $this->translator, $this->settings);
+        return $this->pushes ??= new PushFlow($this->pushWork(), $this->translator, $this->registries(), $this->reader());
     }
 
     private function composeFlow(): ComposeFlow
@@ -491,6 +574,7 @@ final class DockerModule implements
             new ComposeUpCommand($this->composeFlow(), $screen, $this->environments(), $this->translator),
             new ComposeDownCommand($this->composeFlow(), $screen),
             new PushCommand($this->pushes(), $this->reader(), $this->translator),
+            new PullCommand($this->pulls(), $this->translator),
         ];
     }
 }

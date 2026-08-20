@@ -676,6 +676,40 @@ brakuje tu szczegółu, sprawdź `docs/architecture.md` zamiast zgadywać.
     i nie ma powodu, żeby była. Przełączenie środowiska **unieważnia listy, logi
     i budowę** wraz z pytaniami w locie, a kwerendy list niosą nazwę środowiska
     w każdym wierszu; celu SSH i ścieżek kluczy TLS wiersze nie niosą (11w).
+    **Krok 61 dokłada drugiego rozmówcę HTTP — rejestr obrazów — i jest to
+    pierwsza rozmowa tego modułu z internetem** (D107). Rejestry mieszkają
+    w **drugim rozdziale książki adresowej** (`registry` obok `docker`; pola
+    rozłączne, wpis książki jeden, wzorzec książki nie staje po raz czwarty).
+    Rozmowa idzie **tą samą maszynerią** (`curl_multi_*`, takt modułu), a nowe
+    jest to, że **rejestr uwierzytelnia dwustopniowo**: `401` z nagłówkiem
+    `WWW-Authenticate` → token spod `realm` → wywołanie podpisane, czyli
+    **maszyna stanu na trzy obiegi**, nie ciąg wywołań. Trzy pułapki: rozmowa
+    musi zbierać **nagłówki** (`CURLOPT_HEADERFUNCTION`), bo wyzwanie stoi
+    w nagłówku; `scope` **bywa listą z przecinkiem**, więc rozbiór idzie
+    wyrażeniem, nie podziałem; `401` **po** tokenie to odmowa, a nie zaproszenie
+    do czwartego obiegu. **Katalog (`/v2/_catalog`) jest rozszerzeniem
+    opcjonalnym** — `404` przełącza widok w „podaj nazwę obrazu”, zamiast mówić
+    o błędzie. Pytanie pada **na żądanie**, nigdy przy wejściu w widok.
+    **Poświadczenie dla klastra idzie kwerendą, plikiem `0600` i nigdy wierszem
+    polecenia.** Zdanie „token nie opuszcza modułu Dockera” jest **odwołane**:
+    od kroku 60 `address-book.value` oddaje pole rodzaju `secret` każdemu, kto
+    zapyta. Broni się więc nie tajemnicy, tylko **przypadkowego wycieku do cudzej
+    tabeli** — kwerenda poświadczenia jest `VOLATILE`, **osobna** od spisu i pyta
+    o **jeden** wpis; spis tokenu nie niesie ani razu; wiersz polecenia nie
+    dostaje nic (zakaz twardy z kroku 48, bo `ps` go widzi). Plik ginie **także
+    po niepowodzeniu**, a `apply -f -` jest niewykonalne (11v).
+    **Sekret dopina się łatą strategiczną i to jest wynik pomiaru, nie
+    założenie**: zmierzone na żywym klastrze — łata domyślna **dopisuje**,
+    powtórzona **nie dubluje**, a `--type=merge` **kasuje istniejący wpis**.
+    Lekcja kroku 54 jest przez to ogólniejsza, niż ją zapisano: `--type=merge`
+    podmienia **każdą** tablicę, nie tylko kontenery — rodzaj łaty dobiera się
+    do **pola**, nie do zasobu.
+    **Kanał „zabierz raz" ma jednego odbiorcę.** Łańcuch sekretu dostał własny
+    `ClusterActions`, bo ekran już zabiera skutki, a `ClusterActions` prowadzi
+    jedną czynność naraz; wspólny tor znaczyłby, że jeden z dwóch odbiorców
+    nigdy niczego nie zobaczy — i to **cicho**, bo brak skutku jest nie do
+    odróżnienia od pracy, która jeszcze trwa. Nowy odbiorca to **nowy kanał**,
+    nie podział istniejącego.
 11u. **Zamawiając pracę tłową, powiedz, czym jest jej wypis** (krok 52, D91 nr 12).
     `Application\Dto\OutputShape` ma dwie wartości i **przeciwne** reguły wobec
     granicy bufora: `Result` (domyślny) zbiera do granicy i **odrzuca nadmiar** —

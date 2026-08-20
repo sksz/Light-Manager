@@ -57,13 +57,20 @@ final class DockerSettings
 
     public const DEFAULT_LOG_LINES = 2000;
 
-    /** Adres rejestru obrazów — host, ewentualnie z portem. */
+    /**
+     * Trzy klucze rejestru — **już nie pozycje zakładki, tylko źródło migracji**
+     * (krok 61).
+     *
+     * Do kroku 61 opisywały jedyny rejestr aplikacji (krok 54). Rejestrów jest
+     * odtąd wiele i mieszkają w rozdziale książki adresowej, więc deklaracje
+     * z zakładki znikły — klucze zostały, bo `DockerChapter` czyta pod nimi stare
+     * wartości, żeby je raz przenieść. To ta sama droga, którą klucz `track`
+     * modułu dźwięku został jako źródło migracji po wejściu playlisty (11o').
+     */
     public const REGISTRY = 'registry';
 
-    /** Użytkownik rejestru. */
     public const REGISTRY_USER = 'registryUser';
 
-    /** Token rejestru — **pozycja zasłonięta**. */
     public const REGISTRY_TOKEN = 'registryToken';
 
     /**
@@ -92,61 +99,7 @@ final class DockerSettings
     {
         return [
             self::logLinesDeclaration(),
-            self::registryDeclaration(),
-            self::registryUserDeclaration(),
-            self::registryTokenDeclaration(),
         ];
-    }
-
-    public static function registryFrom(Settings $settings): string
-    {
-        $value = self::registryDeclaration()->valueFrom($settings->moduleValue(self::ID, self::REGISTRY));
-
-        return is_string($value) && $value !== '' ? $value : self::DEFAULT_REGISTRY;
-    }
-
-    public static function registryUserFrom(Settings $settings): string
-    {
-        $value = self::registryUserDeclaration()->valueFrom($settings->moduleValue(self::ID, self::REGISTRY_USER));
-
-        return is_string($value) ? $value : '';
-    }
-
-    public static function registryTokenFrom(Settings $settings): string
-    {
-        $value = self::registryTokenDeclaration()->valueFrom($settings->moduleValue(self::ID, self::REGISTRY_TOKEN));
-
-        return is_string($value) ? $value : '';
-    }
-
-    private static function registryDeclaration(): ModuleSetting
-    {
-        return ModuleSetting::text(
-            self::REGISTRY,
-            'module.' . self::ID . '.setting.' . self::REGISTRY,
-            self::DEFAULT_REGISTRY,
-            self::REGISTRY_PATTERN,
-            maxLength: 255,
-        );
-    }
-
-    private static function registryUserDeclaration(): ModuleSetting
-    {
-        return ModuleSetting::text(
-            self::REGISTRY_USER,
-            'module.' . self::ID . '.setting.' . self::REGISTRY_USER,
-            pattern: self::USER_PATTERN,
-            maxLength: 255,
-        );
-    }
-
-    private static function registryTokenDeclaration(): ModuleSetting
-    {
-        return ModuleSetting::secret(
-            self::REGISTRY_TOKEN,
-            'module.' . self::ID . '.setting.' . self::REGISTRY_TOKEN,
-            maxLength: 512,
-        );
     }
 
     public static function logLinesFrom(Settings $settings): int

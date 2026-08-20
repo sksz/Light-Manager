@@ -204,6 +204,10 @@ return [
     'module.k8s.deploy.pushFailed' => 'The image did not reach the registry — without that the cluster cannot pull it.',
     'module.k8s.deploy.pushRefused' => 'The registry did not accept the image: {reason}',
     'module.k8s.deploy.applying' => 'Image swap in {deployment} to {tag} ordered.',
+    'module.k8s.deploy.applyingWithSecret' => 'Creating the registry secret and setting the image of deployment {deployment} to {tag}.',
+    'module.k8s.deploy.noCredentials' => 'The registry has no credentials, so no secret will be created.',
+    'module.k8s.deploy.secretFileFailed' => 'The secret file could not be prepared.',
+    'module.k8s.deploy.secretFailed' => 'The registry secret could not be created in the cluster.',
     'module.k8s.action.done.setImage' => 'Image swapped in: {name}',
 
     'module.k8s.command.noKind' => 'The cluster does not know the kind "{kind}".',

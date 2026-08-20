@@ -18,6 +18,8 @@ final class StubDockerState implements DockerStatePort
 {
     public bool $migrated = false;
 
+    public bool $registryMigrated = false;
+
     public string $current = '';
 
     /** @param list<array<string, string|int>> $legacy stary spis do przeniesienia */
@@ -48,6 +50,16 @@ final class StubDockerState implements DockerStatePort
     public function markMigrated(): void
     {
         $this->migrated = true;
+    }
+
+    public function isRegistryMigrated(): bool
+    {
+        return $this->registryMigrated;
+    }
+
+    public function markRegistryMigrated(): void
+    {
+        $this->registryMigrated = true;
     }
 
     public function location(): string

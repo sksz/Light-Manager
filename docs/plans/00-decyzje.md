@@ -7297,7 +7297,7 @@ faktów, wszystkie sprawdzone przy rozpisywaniu:
 **Dotyczy:** Fazy XX w całości — kroków **58**
 ([58-srodowiska-dockera.md](archiwum/58-srodowiska-dockera.md)), **59**
 ([59-klastry-kubernetesa.md](archiwum/59-klastry-kubernetesa.md)) i **61**
-([61-rejestry-obrazow.md](61-rejestry-obrazow.md)); klas
+([61-rejestry-obrazow.md](archiwum/61-rejestry-obrazow.md)); klas
 `Module/Docker/Infrastructure/DockerApiService`,
 `Module/Docker/Infrastructure/ComposeCliService`,
 `Module/Docker/Presentation/DockerModule`,
@@ -8385,3 +8385,93 @@ wiedział, a które przestawiły rachunek kosztów:
 - **Miara kroku zostaje ta z zarysu** i jest zdaniem o przebiegu, więc sprawdza
   ją przebieg: odcisk `SHA256:…` z pytania o nieznany klucz hosta i wiersz logu
   kontenera dają się obrysować myszą i skopiować.
+
+## Decyzje ze startu kroku 61 (2026-08-19)
+
+### D107 — Rozstrzygnięcia startowe kroku 61: rejestr jest rozdziałem książki, poświadczenie oddaje kwerenda modułu Dockera, a druga miara kroku zostaje odwołana
+
+**Dotyczy:** kroku **61** ([61-rejestry-obrazow.md](archiwum/61-rejestry-obrazow.md));
+modułów `Docker` i `Kubernetes`; rozdziału rejestrów w książce adresowej
+(krok 60); kwerend `docker.registries` i poświadczenia rejestru.
+
+**Data:** 2026-08-19, przed pierwszą linią kodu kroku. Pytań były cztery (dwa
+zastrzeżenia startowe planu, zasięg sprawdzenia katalogu i podział pracy);
+rozstrzygnięto **wszystkie**. Jedno wychodzi poza podane warianty (nr 1)
+i odwołuje miarę powodzenia zapisaną w planie.
+
+**Co plan kroku 61 zakładał, a co przestało być prawdą** — plan powstał
+2026-08-16, czyli **przed** książką adresową, i dwie jego przesłanki upadły wraz
+z krokiem 60:
+
+- **„Rejestry dostają własną książkę w `docker.json`”** (§1 i §2 planu) —
+  odwołane już przez **D104**: rejestr wchodzi **rozdziałem książki adresowej**,
+  bo wzorzec książki nie ma stanąć po raz czwarty. Zależność od kroku 60,
+  opisana w planie jako „do rozstrzygnięcia, nie przesądzona”, jest przesądzona
+  i była nią, zanim ten krok się zaczął.
+- **„Token nie ma prawa opuścić modułu Dockera”** (zastrzeżenie startowe 1) —
+  **nieprawda od kroku 60**. Kwerenda `address-book.value` oddaje wartość pola
+  rodzaju `secret` **każdemu, kto zapyta**, i mówi to wprost we własnej
+  dokumentacji: „Przegrodą to nie jest […] rejestr kwerend nie zna wołającego,
+  a dostęp do rozdziałów jest jednakowy (D104 nr 1)”. Choreografia z plikiem
+  `0600`, którą plan proponował, była projektowana **pod przegrodę, której nie
+  ma**.
+
+**Decyzje użytkownika:**
+
+1. **Poświadczenie oddaje kwerenda modułu Dockera — w całości i w postaci
+   `.dockerconfigjson`.** Uzasadnienie użytkownika jest własnościowe, nie
+   bezpieczeństwowe: *rejestry obrazów są własnością modułu Dockera, więc to on
+   ma dostarczyć całą treść*. Token mieszka w **książce adresowej**, w rozdziale,
+   którym moduł Dockera się posługuje. **Wychodzi to poza trzy podane warianty**
+   (plik `0600` ze ścieżką w kwerendzie / odczyt tokenu przez `address-book.value`
+   po stronie k8s / plik kładziony w takcie) i jest od nich prostsze: nie ma ani
+   nowej komendy, ani pliku wędrującego między modułami.
+   **Konsekwencja nazwana wprost: druga miara powodzenia kroku — „token nie
+   przechodzi przez rejestr kwerend ani przez wiersz polecenia” — zostaje
+   ODWOŁANA w pierwszej połowie i utrzymana w drugiej.** Przez rejestr kwerend
+   token przechodzi, i to świadomie, bo przegrody i tak nie ma; przez wiersz
+   polecenia **nie przechodzi nadal**, a ten zakaz jest twardy i pochodzi
+   z kroku 48 (`ps` widzi wiersz polecenia). Miara kroku brzmi odtąd: **token nie
+   pojawia się w wierszu polecenia ani w domyślnych wierszach spisu rejestrów.**
+   Dwa zobowiązania, które tę cenę równoważą i bez których rozstrzygnięcie nie
+   obowiązuje: kwerenda poświadczenia jest **`VOLATILE`** (odpowiedzi z materiałem
+   uwierzytelnienia nie ma w pamięci rejestru — ta sama reguła, co w `ValueQuery`)
+   i jest **osobna od `docker.registries`**, która tokenu nie niesie i niosła go
+   nie będzie.
+   **Plik nie znika z kroku, tylko zmienia właściciela**: `kubectl` nie przyjmuje
+   wejścia (reguła 11v unieważnia `apply -f -`), więc treść trzeba zapisać na
+   dysk, zanim się ją zastosuje — robi to **moduł k8s**, prawami `0600`, i kasuje
+   ją **także po niepowodzeniu** `apply`. Kryterium ukończenia zostaje w mocy
+   co do słowa.
+2. **Tezę o łacie strategicznej sprawdzamy na lokalnym `minikube`**, który
+   podniesie użytkownik — przed napisaniem kodu etapu trzeciego, jak żąda plan.
+   Klaster lokalny, więc reguła o zdalnych hostach nie zachodzi. Wariant „piszę
+   na tezie i oznaczam ją jako niepotwierdzoną” **odrzucony**: pomyłka w tym
+   miejscu znaczy wdrożenie odcięte od własnego obrazu.
+3. **Katalog sprawdzamy na `registry:2` uruchamianym na maszynie hosta, a jego
+   podnoszenie i zatrzymywanie dostaje cel `make`.** Wyjście w internet
+   **odrzucone** — spis „które rejestry mają `/v2/_catalog`” opiera się na
+   rejestrze lokalnym (katalog jest) i atrapie portu (katalogu nie ma), a nie na
+   odpytywaniu cudzych serwerów. Cel `make` jest tu regułą 18 zastosowaną
+   wprost: proces dostaje wejście, zamiast być uruchamiany doraźnie.
+4. **Krok idzie trzema etapami**, wzorem kroku 60 i pod jednym numerem:
+   (1) rozdział rejestrów w książce, migracja trzech pozycji ustawień i wybór
+   rejestru przy `docker.push`; (2) rozmowa z rejestrem i widok zawartości pod
+   `r`; (3) `docker.pull` i sekret w klastrze. **Każdy etap kończy się zieloną
+   bramką**, więc praca daje się przerwać po każdym.
+
+**Co z tego wynika:**
+
+- **Moduł Dockera deklaruje drugi rozdział**, obok tego, który ma od kroku 58 na
+  środowiska. Powodem jest rozłączność pól, a nie porządek: demon opisuje się
+  gniazdem, celem SSH i ścieżkami TLS, rejestr — użytkownikiem i tokenem, i jedna
+  maszyna ma prawo być naraz jednym i drugim albo tylko jednym. Wpis książki
+  zostaje **jeden**, rozdziały dwa — dokładnie tak, jak D105 opisało wpis będący
+  naraz hostem SSH, demonem i klastrem.
+- **`RegistryBook`, `RegistryBookView` i drugi klucz w `docker.json` nie
+  powstają.** Wiersz o nich w tabeli „Planowane zmiany w plikach” jest skreślony;
+  ich miejsce zajmuje `DockerChapter` rozszerzony o drugi rozdział i kwerendy
+  książki, które moduł już woła.
+- **Migracja trzech pozycji ustawień idzie komendami książki**, nieniszcząco
+  i przez właściciela sekcji — tak, jak D103 opisało migrację trzech książek
+  modułów, a nie własnym kodem czytającym cudzy plik.

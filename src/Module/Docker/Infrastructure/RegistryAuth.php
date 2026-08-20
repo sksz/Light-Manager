@@ -45,4 +45,40 @@ final class RegistryAuth
 
         return rtrim(strtr(base64_encode($json), '+/', '-_'), '=');
     }
+
+    /**
+     * Treść pliku `.dockerconfigjson` — **postać, której oczekuje sekret
+     * Kubernetesa** (krok 61, etap 3).
+     *
+     * Stoi obok `header()`, bo obie są kodowaniem tego samego poświadczenia dla
+     * dwóch różnych odbiorców, i obie należą do modułu Dockera: `.dockerconfigjson`
+     * jest **pojęciem Dockera**, więc składa je ten, kto je zna (D107 nr 1).
+     * Moduł Kubernetesa dostaje gotową treść kwerendą i nie musi wiedzieć, jak
+     * wygląda w środku.
+     *
+     * Pole `auth` to `użytkownik:token` w **zwykłym** base64 — inaczej niż
+     * nagłówek `X-Registry-Auth`, który idzie base64 wedle URL i bez
+     * dopełnienia (krok 54). Dwie różne postaci tego samego kodowania w jednej
+     * klasie wyglądają na pomyłkę i **nie są nią**: czytają je dwa różne
+     * programy, każdy po swojemu.
+     */
+    public static function dockerConfigJson(string $registry, string $user, string $token): string
+    {
+        if ($user === '' || $token === '') {
+            return '';
+        }
+
+        $json = json_encode([
+            'auths' => [
+                $registry => [
+                    'username' => $user,
+                    'password' => $token,
+                    'auth' => base64_encode($user . ':' . $token),
+                ],
+            ],
+        ]);
+
+        return $json === false ? '' : $json;
+    }
+
 }

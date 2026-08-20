@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LightManager\Module\Kubernetes\Presentation\Overlay;
+namespace LightManager\Presentation\Ui\Overlay;
 
 use Closure;
 use LightManager\Application\Dto\Key;

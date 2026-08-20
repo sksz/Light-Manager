@@ -28,10 +28,13 @@ use LightManager\Module\Kubernetes\Application\KubernetesSettings;
 use LightManager\Module\Kubernetes\Application\LogStream;
 use LightManager\Module\Kubernetes\Application\Port\KubectlPort;
 use LightManager\Module\Kubernetes\Application\Port\KubernetesStatePort;
+use LightManager\Module\Kubernetes\Application\Port\SecretFilePort;
+use LightManager\Module\Kubernetes\Application\PullSecretWork;
 use LightManager\Module\Kubernetes\Application\ResourceCache;
 use LightManager\Module\Kubernetes\Application\ResourceDetail;
 use LightManager\Module\Kubernetes\Infrastructure\KubectlService;
 use LightManager\Module\Kubernetes\Infrastructure\KubernetesStateService;
+use LightManager\Module\Kubernetes\Infrastructure\SecretFileService;
 use LightManager\Module\Kubernetes\Presentation\Command\ApplyCommand;
 use LightManager\Module\Kubernetes\Presentation\Command\ContextCommand;
 use LightManager\Module\Kubernetes\Presentation\Command\DeployImageCommand;
@@ -126,6 +129,8 @@ final class KubernetesModule implements
 
     private ?DeployImageFlow $deploy = null;
 
+    private ?PullSecretWork $pullSecrets = null;
+
     private ?LogStream $logs = null;
 
     private ?ClusterActions $actions = null;
@@ -144,6 +149,8 @@ final class KubernetesModule implements
         private readonly ?KubectlPort $kubectl = null,
         /** Wstrzyknięcie książki — **wyłącznie dla testów**, jak port `kubectl`. */
         private readonly ?KubernetesStatePort $stateStorage = null,
+        /** Plik manifestu sekretu — wstrzyknięcie dla testów, jak port `kubectl` (krok 61). */
+        private readonly ?SecretFilePort $secretFiles = null,
     ) {
     }
 
@@ -275,6 +282,12 @@ final class KubernetesModule implements
             $chapter->write($entry, $field, $value);
         }
 
+        // Sekret rejestru posuwa się **taktem**, a nie oknem: łańcuch ma dwa
+        // wywołania `kubectl` po kolei (`apply`, potem łata), a `ClusterActions`
+        // prowadzi jedną czynność naraz. Stoi **przed** ekranem, bo to on
+        // odbiera skutki czynności i ma je zobaczyć w tej samej klatce.
+        $this->pullSecrets()->tick();
+
         $this->screen()->tick($now, KubernetesSettings::refreshFrom($settings));
     }
 
@@ -329,6 +342,21 @@ final class KubernetesModule implements
      * kwerend pyta o cudze dane, przez rejestr komend zamawia cudze czynności.
      * Ani jednego typu z modułu Dockera nie widzi (15g).
      */
+    private function pullSecrets(): PullSecretWork
+    {
+        // **Własny `ClusterActions`, a nie ten od ekranu** — i to nie jest
+        // ostrożność, tylko warunek działania. Dwa powody, każdy wystarczający:
+        // `ClusterActions` prowadzi **jedną czynność naraz**, a wdrożenie
+        // z rejestru prywatnego zamawia sekret i podmianę obrazu w tej samej
+        // chwili (drugie `begin()` porzuciłoby pierwsze); skutek zabiera się
+        // **raz** (`takeOutcome()`), a ekran już go zabiera — więc wspólny tor
+        // znaczyłby, że jeden z dwóch odbiorców nigdy niczego nie zobaczy.
+        return $this->pullSecrets ??= new PullSecretWork(
+            new ClusterActions($this->kubectl(), $this->session()),
+            $this->secretFiles ?? SecretFileService::getInstance(),
+        );
+    }
+
     private function deployFlow(): DeployImageFlow
     {
         return $this->deploy ??= new DeployImageFlow(
@@ -338,6 +366,7 @@ final class KubernetesModule implements
             $this->actions(),
             $this->translator,
             $this->settings,
+            $this->pullSecrets(),
         );
     }
 

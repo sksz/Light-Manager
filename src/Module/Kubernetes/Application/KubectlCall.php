@@ -183,6 +183,39 @@ final readonly class KubectlCall
     }
 
     /**
+     * Dopięcie sekretu rejestru do wdrożenia — **łata strategiczna, nie
+     * scalająca** (krok 61, etap 3).
+     *
+     * Rodzaj łaty jest tu **wynikiem pomiaru, nie założeniem**. Sprawdzone na
+     * żywym klastrze (minikube, serwer v1.25.0) na wdrożeniu, które już miało
+     * jeden sekret:
+     *
+     * - łata **strategiczna** (domyślna) dała `[nowy, istniejący]` — **dopisała**;
+     * - ta sama łata powtórzona **nie zdublowała** wpisu (klucz scalania po nazwie);
+     * - `--type=merge` dał **`[nowy]`** — **skasował istniejący**.
+     *
+     * Trzeci wiersz jest tą samą pułapką, którą krok 54 zapłacił przy
+     * kontenerach, i **lekcja jest ogólniejsza, niż ją wtedy zapisano**:
+     * `--type=merge` podmienia **każdą** tablicę, a nie tylko tablicę
+     * kontenerów. Rodzaj łaty dobiera się do **pola**, nie do zasobu.
+     *
+     * Druga zmierzona własność ma skutek w kodzie: skoro powtórzenie nie
+     * dubluje, **nie sprawdzamy, czy sekret już jest dopięty** — kod, który by
+     * to robił, byłby drugim rachunkiem obok tego, który klaster prowadzi sam.
+     */
+    public static function addPullSecret(ResourceRef $reference, string $secret, ?ClusterPlace $place): self
+    {
+        $patch = json_encode([
+            'spec' => ['template' => ['spec' => ['imagePullSecrets' => [['name' => $secret]]]]],
+        ]);
+
+        return new self(
+            [...self::pointing('patch', $reference), '-p', $patch === false ? '{}' : $patch],
+            $place,
+        );
+    }
+
+    /**
      * Podmiana obrazu kontenera we wdrożeniu (krok 54).
      *
      * `set image` zamiast `patch`, i to jest różnica warta zapisania: `patch`

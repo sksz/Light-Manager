@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LightManager\Module\Kubernetes\Presentation\Overlay;
+namespace LightManager\Presentation\Ui\Overlay;
 
 /**
  * Jedna pozycja okna wyboru — **dana, nie klucz katalogu** (krok 54).

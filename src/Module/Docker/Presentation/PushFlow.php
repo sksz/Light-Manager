@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace LightManager\Module\Docker\Presentation;
 
 use LightManager\Application\Dto\WorkProgress;
-use LightManager\Application\Port\SettingsPort;
 use LightManager\Application\Port\TranslatorPort;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\Docker\Application\DockerSettings;
 use LightManager\Module\Docker\Application\PushStage;
 use LightManager\Module\Docker\Application\PushWork;
+use LightManager\Module\Docker\Application\Registries;
+use LightManager\Module\Docker\Domain\ValueObject\ImageRegistry;
 use LightManager\Module\Docker\Infrastructure\RegistryAuth;
+use LightManager\Presentation\Ui\Overlay\PickItem;
+use LightManager\Presentation\Ui\Overlay\PickOverlay;
 use LightManager\Presentation\Ui\Overlay\ProgressOverlay;
 use LightManager\Presentation\Ui\Overlay\PromptOverlay;
 use LightManager\Presentation\Ui\OverlayOutcome;
@@ -25,6 +28,13 @@ use LightManager\Presentation\Ui\ScreenOutcome;
  * wejścia**, klawisz na liście obrazów i komendę `docker.push`, a dwie kopie
  * kolejności okien rozjechałyby się przy pierwszej poprawce.
  *
+ * **Od kroku 61 łańcuch ma o jedno ogniwo więcej: rejestr → nazwa → postęp.**
+ * Pytanie o rejestr pada **tylko wtedy, gdy jest z czego wybierać** — przy
+ * jednym rejestrze zadawanie go byłoby pytaniem o jedną odpowiedź, a przy
+ * żadnym nie ma o co pytać i wypchnięcie mówi, że książka jest pusta. Pyta
+ * `PickOverlay`, a nie `ChoiceOverlay`: nazwy rejestrów są **daną**, nie
+ * tekstem interfejsu, a lista danych ma się przewijać, zamiast urywać milczkiem.
+ *
  * **Nazwa docelowa proponuje się sama i to jest tu najważniejsza rzecz dla
  * użytkownika.** Obraz zbudowany lokalnie nazywa się `lm/proba:1`, a do rejestru
  * musi pójść jako `ghcr.io/sksz/lm/proba:1` — bez podpowiedzi każde wypchnięcie
@@ -33,10 +43,16 @@ use LightManager\Presentation\Ui\ScreenOutcome;
  */
 final class PushFlow
 {
+    /** Rejestr wybrany dla trwającego łańcucha okien; `null` znaczy „jeszcze nie pytano". */
+    private ?ImageRegistry $chosen = null;
+
     public function __construct(
         private readonly PushWork $work,
         private readonly TranslatorPort $translator,
-        private readonly SettingsPort $settings,
+        /** Spis bierze się z koordynatora — karmi go takt modułu (11w). */
+        private readonly Registries $registries,
+        /** Token bierze się wprost z książki i **wyłącznie** w chwili składania nagłówka. */
+        private readonly DockerQueries $reader,
     ) {
     }
 
@@ -51,7 +67,19 @@ final class PushFlow
             return ScreenOutcome::stay(Message::warning($this->text('push.noImage')));
         }
 
-        return ScreenOutcome::opens($this->targetPrompt($tag));
+        $registries = $this->registries->all();
+
+        if ($registries === []) {
+            return ScreenOutcome::stay(Message::warning($this->text('push.noRegistry')));
+        }
+
+        if (count($registries) === 1) {
+            $this->chosen = $registries[0];
+
+            return ScreenOutcome::opens($this->targetPrompt($tag));
+        }
+
+        return ScreenOutcome::opens($this->registryPick($tag, $registries));
     }
 
     /** To samo w postaci zrozumiałej dla komendy (`OpensOverlay`, krok 47). */
@@ -65,7 +93,19 @@ final class PushFlow
             return OverlayOutcome::close(Message::warning($this->text('push.noImage')));
         }
 
-        return OverlayOutcome::replace($this->targetPrompt($tag));
+        $registries = $this->registries->all();
+
+        if ($registries === []) {
+            return OverlayOutcome::close(Message::warning($this->text('push.noRegistry')));
+        }
+
+        if (count($registries) === 1) {
+            $this->chosen = $registries[0];
+
+            return OverlayOutcome::replace($this->targetPrompt($tag));
+        }
+
+        return OverlayOutcome::replace($this->registryPick($tag, $registries));
     }
 
     /**
@@ -91,15 +131,13 @@ final class PushFlow
      */
     public function suggest(string $tag): string
     {
-        $settings = $this->settings->current();
-        $registry = DockerSettings::registryFrom($settings);
-        $user = DockerSettings::registryUserFrom($settings);
+        $registry = $this->chosen ?? $this->registries->preferred();
 
-        if ($tag === '' || str_starts_with($tag, $registry . '/')) {
+        if ($registry === null || $tag === '' || str_starts_with($tag, $registry->address . '/')) {
             return $tag;
         }
 
-        return $user === '' ? $registry . '/' . $tag : $registry . '/' . $user . '/' . $tag;
+        return $registry->prefix() . '/' . $tag;
     }
 
     /** Posunięcie pracy o takt — wołane przez takt modułu, jak budowa (D94 nr 5). */
@@ -108,14 +146,57 @@ final class PushFlow
         $this->work->tick();
     }
 
+    /**
+     * Nagłówek składany **z wpisu książki**, a nie z ustawień (krok 61).
+     *
+     * Token dokłada się tu i tylko tu — osobnym pytaniem o pole maskowane,
+     * w chwili, gdy jest potrzebny. Rejestr nieznany (książka opróżniona
+     * w międzyczasie) daje nagłówek pusty, bo `PushWork` i tak odmówi.
+     */
     private function auth(): string
     {
-        $settings = $this->settings->current();
+        $registry = $this->chosen ?? $this->registries->preferred();
+
+        if ($registry === null) {
+            return '';
+        }
 
         return RegistryAuth::header(
-            DockerSettings::registryFrom($settings),
-            DockerSettings::registryUserFrom($settings),
-            DockerSettings::registryTokenFrom($settings),
+            $registry->address,
+            $registry->user,
+            $this->reader->registryToken($registry->id),
+        );
+    }
+
+    /**
+     * @param list<ImageRegistry> $registries
+     */
+    private function registryPick(string $tag, array $registries): PickOverlay
+    {
+        $items = array_map(
+            static fn (ImageRegistry $registry): PickItem => new PickItem(
+                $registry->id,
+                $registry->name === '' ? $registry->address : $registry->name,
+                $registry->address,
+            ),
+            $registries,
+        );
+
+        return new PickOverlay(
+            'module.' . DockerSettings::ID . '.push.registry',
+            [],
+            $items,
+            function (PickItem $item) use ($tag, $registries): OverlayOutcome {
+                foreach ($registries as $registry) {
+                    if ($registry->id === $item->id) {
+                        $this->chosen = $registry;
+                    }
+                }
+
+                return OverlayOutcome::replace($this->targetPrompt($tag));
+            },
+            fn (): OverlayOutcome => OverlayOutcome::close(),
+            $this->translator,
         );
     }
 

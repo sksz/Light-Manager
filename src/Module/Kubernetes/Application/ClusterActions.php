@@ -106,6 +106,21 @@ final class ClusterActions
     }
 
     /**
+     * Dopięcie sekretu rejestru do wdrożenia (krok 61, etap 3).
+     *
+     * Łata **strategiczna** — dlaczego akurat ta i co zmierzono, stoi
+     * w `KubectlCall::addPullSecret()`.
+     */
+    public function addPullSecret(ResourceRef $reference, string $secret): void
+    {
+        $this->begin(
+            ClusterAction::AddPullSecret,
+            $reference->name . '/' . $secret,
+            KubectlCall::addPullSecret($reference, $secret, $this->session->place()),
+        );
+    }
+
+    /**
      * Podmiana obrazu kontenera we wdrożeniu — **ostatni etap
      * `k8s.deploy-image`** (krok 54).
      *

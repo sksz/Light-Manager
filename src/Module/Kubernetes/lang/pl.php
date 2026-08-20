@@ -222,6 +222,10 @@ return [
     'module.k8s.deploy.pushFailed' => 'Obraz nie trafił do rejestru — bez tego klaster go nie pobierze.',
     'module.k8s.deploy.pushRefused' => 'Rejestr nie przyjął obrazu: {reason}',
     'module.k8s.deploy.applying' => 'Podmiana obrazu w {deployment} na {tag} zamówiona.',
+    'module.k8s.deploy.applyingWithSecret' => 'Zakładam sekret rejestru i podmieniam obraz we wdrożeniu {deployment} na {tag}.',
+    'module.k8s.deploy.noCredentials' => 'Rejestr nie ma poświadczeń, więc sekret nie powstanie.',
+    'module.k8s.deploy.secretFileFailed' => 'Nie udało się przygotować pliku sekretu.',
+    'module.k8s.deploy.secretFailed' => 'Nie udało się założyć sekretu rejestru w klastrze.',
     'module.k8s.action.done.setImage' => 'Obraz podmieniony w: {name}',
 
     'module.k8s.command.noKind' => 'Klaster nie zna rodzaju „{kind}”.',

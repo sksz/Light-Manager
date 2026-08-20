@@ -2,13 +2,29 @@
 
 Light Manager — menadżer plików działający w terminalu i we własnym oknie.
 
-## Niewydane — Organy (Faza XX): wiele miejsc
+## 20.x — Organy (Faza XX): wiele miejsc
 
 Jeden grający, wiele piszczałek: aplikacja przestaje zakładać, że demon,
 klaster i rejestr są po jednym — miejsca stają się spisami, które prowadzisz.
 
-- **Adresy mieszkają w jednej książce, wspólnej dla wszystkich modułów**
-  (2026-08-19). `Ctrl`+`W` otwiera spis miejsc, do których łączy się aplikacja.
+- **20.4.0** — 2026-08-20 — **Rejestrów obrazów też jest wiele — a klaster
+  dostaje do nich klucz sam.** Rejestry dopisujesz w książce adresowej
+  (`Ctrl`+`W`, zakładka „Rejestr obrazów"): adres, użytkownik i token, a jeden
+  wpis może być naraz
+  demonem Dockera i rejestrem. `docker.push` pyta, **do którego** wypchnąć,
+  a nowe `docker.pull` pobiera obraz i samo dobiera poświadczenie po jego
+  nazwie. Litera **`r`** pokazuje **zawartość rejestru** — spis obrazów, a pod
+  `Enter` ich etykiety; rejestr, który spisu nie wystawia, poprosi o nazwę
+  obrazu zamiast udawać, że jest zepsuty. Najważniejsze na końcu: wdrożenie
+  obrazu z rejestru prywatnego (`k8s.deploy-image`) **zakłada sekret w klastrze
+  samo** — bez ani jednego ręcznego `kubectl create secret` — i **nie kasuje**
+  sekretów, które wdrożenie już miało. Hasło do rejestru nigdy nie przechodzi
+  przez wiersz polecenia. Jedyny rejestr ze starszej wersji przenosi się do
+  książki sam, z poświadczeniami.
+
+- **20.3.0** — 2026-08-19 — **Adresy mieszkają w jednej książce, wspólnej dla
+  wszystkich modułów.** `Ctrl`+`W` otwiera spis miejsc, do których łączy się
+  aplikacja.
   Zakładki u góry to rozdziały: „Wszystkie” pokazuje wpisy, a każda następna —
   kolumny jednego modułu. `F7` dopisuje wpis, `F4` prowadzi po polach zakładki,
   `F8` usuwa, `F6` sortuje, `Ctrl`+`F` szuka. **Jeden wpis może być naraz hostem
@@ -21,8 +37,9 @@ klaster i rejestr są po jednym — miejsca stają się spisami, które prowadzi
   pierwszym uruchomieniu, a stary zapis zostaje nietknięty. Dopisywanie i zmiana
   wpisów zeszły z trzech ekranów do książki; tamte pokazują odtąd to, czego
   książka nie wie: z kim stoi sesja i z którym demonem się rozmawia.
-- **Klaster wybiera się ze spisu, a nie z jednej pozycji ustawień**
-  (2026-08-18). Litera `c` na ekranie Kubernetesa otwiera spis klastrów: obok
+- **20.2.0** — 2026-08-18 — **Klaster wybiera się ze spisu, a nie z jednej
+  pozycji ustawień.** Litera `c` na ekranie Kubernetesa otwiera spis klastrów:
+  obok
   kontekstów czytanych z `~/.kube/config` i ze ścieżek w `KUBECONFIG` stoją
   wpisy własne, wskazujące dowolny plik — także taki, którego moduł wcześniej
   w ogóle nie widział. `Enter` przełącza, `F7` dopisuje, `F4` zmienia, `F8`
@@ -34,7 +51,8 @@ klaster i rejestr są po jednym — miejsca stają się spisami, które prowadzi
   **co poprawić**, zamiast udawać, że klaster nie odpowiada. Zapamiętane
   miejsce ze starszej wersji przenosi się do spisu samo, przy pierwszym
   uruchomieniu.
-- **Docker rozmawia z wybranym środowiskiem** (2026-08-18). Litera `e` na
+- **20.1.0** — 2026-08-18 — **Docker rozmawia z wybranym środowiskiem.** Litera
+  `e` na
   ekranie Dockera otwiera spis środowisk: obok gniazda lokalnego i kontekstów
   klienta `docker` stoją wpisy własne — demon za tunelem SSH (z hasłem albo
   kluczem, do wyboru przy połączeniu) i demon po TCP z certyfikatami. `Enter`
@@ -44,10 +62,6 @@ klaster i rejestr są po jednym — miejsca stają się spisami, które prowadzi
   demona nie traci już modułu, a po wyjściu z aplikacji nie zostaje ani proces
   `ssh`, ani plik gniazda. `docker.up` w środowisku zdalnym uprzedza, że
   montowania i kontekst budowy znaczą tam co innego niż lokalnie.
-
-W przygotowaniu: rejestry obrazów — z wypchnięciem, pobraniem i sekretem
-zakładanym w klastrze; rejestr będzie kolejnym rozdziałem książki adresowej,
-a nie czwartym osobnym spisem.
 
 ## 19.x — Kastaniety (Faza XIX): wskaźnik
 

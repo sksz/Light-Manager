@@ -135,6 +135,13 @@ final class DeployImageFlowTest extends TestCase
             ),
             new \LightManager\Tests\Support\StubTranslator(),
             $this->app->settingsStore,
+            new \LightManager\Module\Kubernetes\Application\PullSecretWork(
+                new \LightManager\Module\Kubernetes\Application\ClusterActions(
+                    $this->app->kubectl,
+                    new \LightManager\Module\Kubernetes\Application\ClusterSession(),
+                ),
+                new \LightManager\Tests\Support\StubSecretFiles(),
+            ),
         );
 
         return $flow->begin()->message?->text;

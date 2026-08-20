@@ -13,12 +13,13 @@ use LightManager\Application\Query\QueryRegistry;
 use LightManager\Domain\ValueObject\Message;
 use LightManager\Module\Kubernetes\Application\ClusterActions;
 use LightManager\Module\Kubernetes\Application\KubernetesSettings;
+use LightManager\Module\Kubernetes\Application\PullSecretWork;
 use LightManager\Module\Kubernetes\Domain\ValueObject\NamespaceName;
 use LightManager\Module\Kubernetes\Domain\ValueObject\ResourceRef;
-use LightManager\Module\Kubernetes\Presentation\Overlay\PickItem;
-use LightManager\Module\Kubernetes\Presentation\Overlay\PickOverlay;
 use LightManager\Module\Kubernetes\Presentation\Query\DeploymentsQuery;
 use LightManager\Presentation\Ui\Command\OpensOverlay;
+use LightManager\Presentation\Ui\Overlay\PickItem;
+use LightManager\Presentation\Ui\Overlay\PickOverlay;
 use LightManager\Presentation\Ui\Overlay\ProgressOverlay;
 use LightManager\Presentation\Ui\OverlayOutcome;
 
@@ -62,6 +63,11 @@ final class DeployImageFlow
 
     private const PUSH_COMMAND = 'docker.push';
 
+    /** Spis rejestrów i poświadczenie — **dwie nazwy, ani jednego cudzego typu** (15g). */
+    private const REGISTRIES_QUERY = 'docker.registries';
+
+    private const SECRET_QUERY = 'docker.registry-secret';
+
     /** Identyfikator pozycji „zbuduj nowy" — nie może zderzyć się z nazwą obrazu. */
     private const BUILD_NEW = "\0build-new";
 
@@ -75,6 +81,8 @@ final class DeployImageFlow
         private readonly ClusterActions $actions,
         private readonly TranslatorPort $translator,
         private readonly SettingsPort $settings,
+        /** Sekret rejestru — drugi wariant czynności (krok 61, etap 3). */
+        private readonly PullSecretWork $secrets,
     ) {
     }
 
@@ -338,16 +346,107 @@ final class DeployImageFlow
             return OverlayOutcome::close(Message::error($this->text('deploy.noDeployments')));
         }
 
-        $this->actions->setImage(
-            ResourceRef::of($kind, $namespace === '' ? null : NamespaceName::of($namespace), $deployment),
-            $container,
-            $image,
-        );
+        $reference = ResourceRef::of($kind, $namespace === '' ? null : NamespaceName::of($namespace), $deployment);
 
-        return OverlayOutcome::close(Message::info($this->text('deploy.applying', [
-            'deployment' => $deployment,
-            'tag' => $image,
-        ])));
+        // **Drugi wariant: obraz z rejestru prywatnego** (krok 61, etap 3).
+        //
+        // Sekret zakłada się **przed** podmianą obrazu i kolejność nie jest
+        // porządkiem, tylko warunkiem: wdrożenie przestawione na obraz, do
+        // którego nie ma poświadczenia, kończy się `ImagePullBackOff` zamiast
+        // działającą aplikacją.
+        //
+        // Rozpoznanie idzie po **adresie w nazwie obrazu**, a nie po pytaniu
+        // użytkownika: skoro wiadomo, z którego rejestru obraz pochodzi, pytanie
+        // byłoby prośbą o powtórzenie tego, co właśnie wybrał. Rejestr nieznany
+        // książce albo bez poświadczeń znaczy **rejestr publiczny** — i wtedy nie
+        // dzieje się nic, bo sekret nie jest do niczego potrzebny.
+        $secret = $this->secretFor($image);
+
+        if ($secret !== null) {
+            $this->secrets->begin($secret['name'], $secret['content'], $reference);
+        }
+
+        $this->actions->setImage($reference, $container, $image);
+
+        return OverlayOutcome::close(Message::info($this->text(
+            $secret === null ? 'deploy.applying' : 'deploy.applyingWithSecret',
+            ['deployment' => $deployment, 'tag' => $image],
+        )));
+    }
+
+    /**
+     * Poświadczenie rejestru, z którego pochodzi obraz — albo `null`.
+     *
+     * `null` znaczy **„nie trzeba"**, a nie „nie udało się": rejestr publiczny
+     * nie wymaga sekretu, a rejestr nieznany książce nie ma czym się
+     * przedstawić. Ani jeden, ani drugi nie jest błędem i żaden nie zatrzymuje
+     * wdrożenia.
+     *
+     * Rejestr rozpoznaje się po **najdłuższym pasującym adresie**, bo
+     * `example.com` i `example.com:5000` to dwa różne rejestry, a nazwa
+     * zaczynająca się od drugiego zaczyna się też od pierwszego.
+     *
+     * Poświadczenie idzie **osobną kwerendą** od spisu (D107 nr 1), więc spis
+     * rejestrów nie niesie tokenu ani razu.
+     *
+     * @return array{name: string, content: string}|null
+     */
+    private function secretFor(string $image): ?array
+    {
+        $registries = $this->queries->ask(self::REGISTRIES_QUERY);
+
+        if ($registries->hasProblem()) {
+            return null;
+        }
+
+        $best = '';
+        $name = '';
+
+        foreach ($registries->rows() as $row) {
+            $address = is_string($row['address'] ?? null) ? $row['address'] : '';
+
+            if ($address === '' || ($row['credentials'] ?? false) !== true) {
+                continue;
+            }
+
+            if (str_starts_with($image, $address . '/') && strlen($address) > strlen($best)) {
+                $best = $address;
+                $name = is_string($row['name'] ?? null) ? $row['name'] : $address;
+            }
+        }
+
+        if ($best === '') {
+            return null;
+        }
+
+        $secret = $this->queries->ask(self::SECRET_QUERY, new CommandInput(['registry' => $best]));
+
+        if ($secret->hasProblem()) {
+            return null;
+        }
+
+        $content = $secret->rows()[0]['dockerconfigjson'] ?? '';
+
+        if (!is_string($content) || $content === '') {
+            return null;
+        }
+
+        return ['name' => self::secretNameOf($name), 'content' => $content];
+    }
+
+    /**
+     * Nazwa sekretu — **stała dla rejestru**, żeby powtórzone wdrożenie nie
+     * mnożyło sekretów w klastrze.
+     *
+     * Nazwa zasobu Kubernetesa musi być etykietą DNS, więc wszystko spoza
+     * alfabetu schodzi na myślnik; przedrostek mówi, skąd sekret się wziął.
+     */
+    private static function secretNameOf(string $registry): string
+    {
+        $slug = strtolower((string) preg_replace('/[^A-Za-z0-9-]+/', '-', $registry));
+        $slug = trim($slug, '-');
+
+        return 'lm-registry-' . ($slug === '' ? 'default' : $slug);
     }
 
     /** @param array<string, string|int|float> $parameters */

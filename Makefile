@@ -243,6 +243,35 @@ minikube-stop: ## Zatrzymuje klaster minikube (zwalnia maszynę przed pomiarem; 
 minikube-status: ## Mówi, czy klaster działa (sprawdź przed pomiarem — węzeł ma być zatrzymany)
 	minikube status || true
 
+# **Rejestr obrazów na maszynie hosta** — do sprawdzeń modułu Dockera (krok 61).
+#
+# Powód, dla którego stoi tu cel, a nie doraźne `docker run` w opisie kroku, jest
+# regułą 18 zastosowaną wprost: proces dostaje wejście, zamiast być uruchamiany
+# z pamięci. Powód, dla którego rejestr jest **lokalny**, jest rozstrzygnięciem
+# użytkownika (D107 nr 3): sprawdzenie „które rejestry wystawiają `/v2/_catalog`”
+# opiera się na rejestrze własnym i na atrapie portu, a **nie** na odpytywaniu
+# cudzych serwerów.
+#
+# `registry:2` wystawia katalog i **nie wymaga uwierzytelnienia** — to jest ta
+# gałąź, której GHCR i Docker Hub nie mają. Drugą gałąź (rejestr bez katalogu)
+# sprawdza atrapa, bo postawienie serwera, który celowo odpowiada `404`, byłoby
+# pisaniem cudzego oprogramowania.
+#
+# Kontener obciąża maszynę tak samo jak węzeł minikube, więc przed `make bench*`
+# ma być **zatrzymany** (reguła 17).
+
+registry-start: ## Podnosi lokalny rejestr obrazów na :5000 do sprawdzeń modułu Dockera
+	docker run -d --rm --name lm-registry -p 5000:5000 registry:2
+
+registry-stop: ## Zatrzymuje lokalny rejestr (zwalnia maszynę i port przed pomiarem)
+	docker stop lm-registry || true
+
+# `|| true` z tego samego powodu, co przy `minikube-status`: „nie ma takiego
+# kontenera" jest odpowiedzią, a nie awarią.
+registry-status: ## Mówi, czy lokalny rejestr działa i czy wystawia katalog
+	docker ps --filter name=lm-registry --format '{{.Names}} {{.Status}}' || true
+	curl -sS http://localhost:5000/v2/_catalog || true
+
 ##@ Budowa i sprzątanie
 
 build: check-env $(AUTOLOAD) ## Buduje build/light-manager-<wersja>.phar wraz z assets/ obok archiwum

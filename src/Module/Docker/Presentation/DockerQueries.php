@@ -13,6 +13,7 @@ use LightManager\Module\Docker\Application\DockerSettings;
 use LightManager\Module\Docker\Application\EnvironmentBookView;
 use LightManager\Module\Docker\Application\ImageView;
 use LightManager\Module\Docker\Domain\ValueObject\DockerEnvironment;
+use LightManager\Module\Docker\Domain\ValueObject\ImageRegistry;
 
 /**
  * Odczyt danych modułu Dockera — **przez rejestr kwerend, jak każdy inny**
@@ -33,6 +34,9 @@ final readonly class DockerQueries
 {
     /** Rozdział, którym ten moduł opisuje wpis książki (krok 60). */
     public const CHAPTER = DockerSettings::ID;
+
+    /** Drugi rozdział: rejestry obrazów (krok 61). */
+    public const REGISTRY_CHAPTER = DockerChapter::REGISTRY_CHAPTER;
 
     private const BOOK_ENTRIES = 'address-book.entries';
 
@@ -67,6 +71,36 @@ final readonly class DockerQueries
         }
 
         return $entries;
+    }
+
+    /**
+     * Rejestry obrazów widziane oczami tego modułu — **drugi rozdział, ta sama
+     * droga** (krok 61).
+     *
+     * Tokenów w wierszach nie ma (pole jest maskowane, więc niesie `set`/`unset`);
+     * dokłada je `registryToken()` w chwili, gdy trzeba złożyć nagłówek.
+     *
+     * @return list<ImageRegistry>
+     */
+    public function registries(): array
+    {
+        $entries = [];
+
+        foreach ($this->rowsOf(self::BOOK_ENTRIES, [], self::REGISTRY_CHAPTER) as $row) {
+            $entry = ImageRegistry::fromRow($row);
+
+            if ($entry !== null) {
+                $entries[] = $entry;
+            }
+        }
+
+        return $entries;
+    }
+
+    /** Token wpisu rejestru — osobne pytanie o pole maskowane, jak przy TLS. */
+    public function registryToken(string $entry): string
+    {
+        return $this->secret($entry, 'token', self::REGISTRY_CHAPTER) ?? '';
     }
 
     /** Ten sam wpis z dołożonym materiałem TLS — trzy osobne pytania o pola maskowane. */
@@ -108,11 +142,11 @@ final readonly class DockerQueries
         return is_string($id) ? $id : '';
     }
 
-    private function secret(string $entry, string $field): ?string
+    private function secret(string $entry, string $field, string $chapter = self::CHAPTER): ?string
     {
         $rows = $this->queries->ask(self::BOOK_VALUE, new CommandInput([
             'entry' => $entry,
-            'chapter' => self::CHAPTER,
+            'chapter' => $chapter,
             'field' => $field,
         ]))->rows();
 

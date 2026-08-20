@@ -28,6 +28,9 @@ enum ClusterAction: string
     /** Podmiana obrazu kontenera we wdrożeniu — ostatni etap `k8s.deploy-image` (krok 54). */
     case SetImage = 'setImage';
 
+    /** Dopięcie sekretu rejestru do wdrożenia (krok 61). */
+    case AddPullSecret = 'addPullSecret';
+
     public function isDestructive(): bool
     {
         return $this === self::Delete;
@@ -50,6 +53,10 @@ enum ClusterAction: string
             // wymagałoby rozszerzenia zamkniętego słownika (11o''), a odbiorca
             // i tak nie odróżniłby jednego od drugiego inaczej niż nazwą.
             self::SetImage => KubernetesEvent::Applied,
+            // Dopięcie sekretu — tym samym zdarzeniem i z tego samego powodu:
+            // jest zmianą zastosowaną w klastrze, a słownik zdarzeń zostaje
+            // zamknięty (11o'').
+            self::AddPullSecret => KubernetesEvent::Applied,
         };
     }
 

@@ -155,6 +155,8 @@ final class ScreenFixture
         /** Sekcja `k8s` w pamięci (krok 60) — dokumentu stanu maszyny test nie dotyka. */
         public readonly StubKubernetesState $kubernetesState = new StubKubernetesState(),
         public readonly StubClipboard $clipboard = new StubClipboard(),
+        /** Rozmowa z rejestrem obrazów atrapą — żaden test nie pyta prawdziwego (krok 61). */
+        public readonly StubRegistryApi $registryApi = new StubRegistryApi(),
         /** Wpisy książki w pamięci (krok 60) — dokumentu stanu maszyny test nie dotyka. */
         public readonly StubAddressBook $addressBook = new StubAddressBook(),
     ) {
@@ -265,6 +267,7 @@ final class ScreenFixture
             $dockerState,
             $contexts,
             $tunnel,
+            $registryApi,
         );
         $this->dockerScreen = $dockerModule->screen();
 

@@ -791,7 +791,7 @@ kształt, więc powód pominięcia stoi w `docs/pomiary/README.md`.
 | 58 | Środowiska Dockera: jeden demon przestaje być założeniem | [58-srodowiska-dockera.md](archiwum/58-srodowiska-dockera.md) | 14, 15, 24, 26, 27, 28, 30, 32, 40, 45, 46, 48, 51, 53, 54 | Opus⁸ | xhigh | Ukończony z zastrzeżeniem |
 | 59 | Klastry Kubernetesa: połączenie przestaje być jednym kontekstem | [59-klastry-kubernetesa.md](archiwum/59-klastry-kubernetesa.md) | 14, 15, 22, 24, 27, 28, 31, 48, 52, 53, 54, 58 | Opus⁸ | high | Ukończony |
 | 60 | Współdzielona książka adresowa: jeden rejestr wpisów, rozdziały deklarowane przez używających | [60-ksiazka-adresowa.md](archiwum/60-ksiazka-adresowa.md) | 14, 15, 20, 27, 28, 30, 32, 40, 41, 46, 47, 48, 53, 54, 55, 57, 58, 59 | Opus⁸ | xhigh | Ukończony |
-| 61 | Rejestry obrazów: książka, zawartość i sekret w klastrze | [61-rejestry-obrazow.md](61-rejestry-obrazow.md) | 19, 27, 28, 32, 48, 51, 52, 53, 54, 58, 59 | Opus⁸ | xhigh | Nie rozpoczęty |
+| 61 | Rejestry obrazów: książka, zawartość i sekret w klastrze | [61-rejestry-obrazow.md](archiwum/61-rejestry-obrazow.md) | 19, 27, 28, 32, 48, 51, 52, 53, 54, 58, 59 | Opus⁸ | xhigh | Ukończony z zastrzeżeniem |
 
 ⁸ Warunek `Fable` z przypisów ¹ i ² **nie zachodzi w żadnym z czterech kroków**:
 prymitywów nie przybywa, słownik wejścia nie rośnie, trzej tłumacze zostają
@@ -1617,9 +1617,9 @@ z tabel powyżej.
 
 Katalog `docs/plans/` trzyma **wyłącznie kroki, przed którymi jeszcze praca**:
 zarysy, nierozpoczęte, w toku i zablokowane. Kroki ukończone przenoszą się do
-[archiwum/](archiwum/) — dziś jest ich 61 z 77, więc bez tego podziału lista
-tego, co zostało do zrobienia (krok **61**, Faza XX, **62–66**, Faza XXI,
-i **67–76**, Fazy XXII–XXIV) ginęłaby w historii projektu.
+[archiwum/](archiwum/) — dziś jest ich 62 z 77, więc bez tego podziału lista
+tego, co zostało do zrobienia (kroki **62–66**, Faza XXI, i **67–76**,
+Fazy XXII–XXIV) ginęłaby w historii projektu.
 
 Trzy rzeczy, które przy tym **nie** zmieniają miejsca, bo są dokumentami
 żywymi, a nie zamkniętymi: ten indeks, [00-decyzje.md](00-decyzje.md) i tabele

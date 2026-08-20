@@ -911,6 +911,38 @@ Wbudowanych jest dziś siedem:
   compose czyta klient po tej stronie, ale montowania `volumes:` wskazują
   ścieżki na maszynie demona, a kontekst budowy jedzie przez sieć.
 
+  **Rejestry obrazów.** Litera **`r`** otwiera zawartość rejestru: spis obrazów,
+  a `Enter` — ich etykiety. Rejestr, który spisu nie wystawia (tak robi
+  większość publicznych), poprosi zamiast tego o **nazwę obrazu** (`F7`)
+  i pokaże jego etykiety. `Ctrl`+`R` pobiera — samo wejście w widok niczego nie
+  ściąga, bo pytanie idzie do cudzego serwera.
+
+  **Jak dodać rejestr prywatny:** w książce adresowej (`Ctrl`+`W`, zakładka
+  „Rejestr obrazów"). `F7` dopisuje wpis, `F4` prowadzi po polach: **adres**
+  (host, ewentualnie z portem — `ghcr.io`, `localhost:5000`), **użytkownik**,
+  **token** (pole zasłonięte), **bez TLS** dla rejestru w sieci lokalnej
+  i **domyślny**, czyli ten proponowany przy wypychaniu. Ten sam wpis książki
+  może być naraz demonem Dockera i rejestrem — rozdziały są dwa, wpis jeden.
+  Rejestr ze starszej wersji (trzy dawne pozycje w ustawieniach modułu)
+  przenosi się do książki sam, przy pierwszym uruchomieniu.
+
+  **Token leży w pliku książki jawnie**, z prawami `0600`. Zasłonięcie na
+  ekranie chroni przed spojrzeniem, nie przed odczytem pliku — książka nie jest
+  magazynem sekretów i nie udaje go.
+
+  `docker.push` pyta, **do którego** rejestru wypchnąć (przy jednym nie pyta),
+  a `docker.pull` pobiera obraz — poświadczenie dobiera po adresie zawartym
+  w jego nazwie.
+
+  **Co trzeba mieć po stronie klastra:** nic. `k8s.deploy-image` wdrażający obraz
+  z rejestru prywatnego **sam zakłada sekret** i dopina go do wdrożenia — bez
+  ręcznego `kubectl create secret`. Sekret ma nazwę stałą dla rejestru
+  (`lm-registry-<nazwa>`), więc powtórzone wdrożenie nie mnoży sekretów,
+  a dopięcie **nie kasuje** sekretów, które wdrożenie już miało. Poświadczenie
+  nie przechodzi przy tym przez wiersz polecenia: idzie plikiem o prawach
+  `0600`, kasowanym zaraz po zastosowaniu — także wtedy, gdy się nie powiodło.
+  Obraz z rejestru publicznego nie wymaga niczego i nic się dla niego nie dzieje.
+
 #### Moduł domyślny
 
 Aplikacja startuje z oknem modułu wskazanego kluczem `startupModule`; domyślnie
