@@ -1,6 +1,6 @@
 # 7. How to read the decision log
 
-> Developer guide, part 7 of 7. [Contents](README.md) ·
+> Developer guide, part 7 of 8. [Contents](README.md) ·
 > [polski](../../pl/przewodnik/07-dziennik-jak-czytac.md)
 
 ## What the log is and what it is not

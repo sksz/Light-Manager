@@ -7421,7 +7421,7 @@ pytanie.** Sześć faktów:
 ([archiwum/63-podrecznik-uzytkownika.md](archiwum/63-podrecznik-uzytkownika.md)), **64**
 ([archiwum/64-dokumentacja-dewelopera.md](archiwum/64-dokumentacja-dewelopera.md)), **65**
 ([archiwum/65-onboarding.md](archiwum/65-onboarding.md)) i **66**
-([66-diagramy-i-pilnowanie.md](66-diagramy-i-pilnowanie.md)); plików
+([archiwum/66-diagramy-i-pilnowanie.md](archiwum/66-diagramy-i-pilnowanie.md)); plików
 `docs/architecture.md`, `README.md`, `CLAUDE.md`,
 `.claude/skills/light-manager-conventions/SKILL.md`, `Makefile`,
 `phpstan.neon.dist`, `phpunit.xml.dist` oraz nowych drzew `docs/architektura/`,
@@ -8842,3 +8842,105 @@ policzone w repozytorium:
   przez kogoś, kto projektu nie zna, jest jedynym kryterium, którego autor
   sprawdzić nie może — i dlatego krok jest **ukończony z zastrzeżeniem**, tak
   samo jak krok 63 wobec swojego scenariusza.
+
+### D112 — Rozstrzygnięcia startowe kroku 66: spis komend i kwerend wchodzi do przewodnika, klawisze pilnowane co do miejsca, prawdę ma kod, a angielski jest pilnowany co do treści
+
+**Dotyczy:** kroku **66**
+([archiwum/66-diagramy-i-pilnowanie.md](archiwum/66-diagramy-i-pilnowanie.md)),
+katalogu `tests/Documentation/`, plików `tests/Support/DocumentationTree.php`,
+`tests/Support/DocumentedPlaces.php`, `tests/Support/DocumentedCatalogues.php`,
+nowego rozdziału `docs/pl/przewodnik/08-spisy.md` (i lustra
+`docs/en/guide/08-lists.md`), `Makefile`, `phpunit.xml.dist`,
+`.claude/skills/light-manager-conventions/SKILL.md`, `docs/README.md`,
+`docs/architektura/08-procesy.md` oraz spisów w podręczniku.
+
+**Data:** 2026-08-21, po rozpoznaniu stanu zastanego, a przed napisaniem
+pierwszego testu. Cztery pytania, wszystkie o **zakres pilnowania**, a nie
+o sposób wykonania — plus piąte, zadane w trakcie, gdy pomiar obalił założenie
+pierwszej odpowiedzi.
+
+**Co rozstrzygnęło rozpoznanie.** Sześć liczb policzonych w repozytorium
+2026-08-21, wszystkie większe od tych z planu (16 sierpnia): **192 wywołania
+`KeyBinding::`** (było 167), **53 kwerendy** (41), **45 komend** (~32),
+**7 modułów** (6), **32 cele `make`** (29), **178 wierszy spisu klawiszy w 29
+tabelach** podręcznika. Do tego trzy obserwacje, które przesądziły o kształcie:
+
+- **Odnośniki i para językowa były już zdrowe**: 151 dokumentów, zero martwych
+  odnośników, zero martwych kotwic, drzewa `pl` i `en` identyczne co do liczby
+  plików i układu nagłówków. Testy zgodności nie miały więc czego naprawiać —
+  miały zamknąć drogę powrotną.
+- **Spisu komend i kwerend w dokumentacji nie było wcale**, i to był wybór
+  kroku 63: podręcznik odsyłał po nie do okna `F12`, bo tam powstają z rejestru.
+  Kryterium ukończenia kroku 66 („dopisanie kwerendy bez wiersza czerwieni
+  bramkę”) było z tym zdaniem **sprzeczne** i jedno z dwóch musiało ustąpić.
+- **`bindings()` zależy od stanu ekranu**, nie od klasy: atrapa aplikacji
+  w stanie zastanym wystawia **71 ze 178** udokumentowanych wierszy, bo bez
+  danych w atrapach Docker nie ma kontenerów, klaster jest nieosiągalny,
+  a sesja zdalna zamknięta.
+
+**Decyzje użytkownika:**
+
+1. **Pełny spis komend i kwerend wchodzi do przewodnika, w obu językach.**
+   Powstaje rozdział 8 („Spisy pod pilnowaniem”) z 45 komendami i 53 kwerendami,
+   porównywany z rejestrami **w obie strony**, wraz z argumentami i opisem
+   z katalogu napisów. Spis stoi w przewodniku, a nie w podręczniku, bo zagląda
+   się do niego **przy pisaniu kodu** — zdanie kroku 63 o oknie `F12` jako
+   źródle prawdy zostaje nietknięte dla użytkownika. Odrzucone: pilnowanie samych
+   nazw wymienionych mimochodem (nie spełnia kryterium kroku) i spis wyłącznie
+   po polsku (łamie zasadę pełnego lustra z D97 nr 3).
+2. **Spis klawiszy pilnowany co do klawisza, miejsca i opisu.** Każda z 29
+   tabel dostaje znacznik z nazwą **miejsca**, a `tests/Support/DocumentedPlaces.php`
+   doprowadza ekran do stanu, który ta tabela opisuje. Odrzucone: porównanie
+   samego zbioru klawiszy bez miejsca — klawisz udokumentowany pod złym ekranem
+   przechodziłby, a to jest rozjazd mylący czytelnika najbardziej.
+3. **Gdy dokumentacja i kod mówią co innego, prawdę ma kod — chyba że to kod się
+   myli.** Poprawki idą domyślnie do dokumentacji; przy podejrzeniu usterki
+   w `src/` krok się zatrzymuje i pyta. Odrzucone: poprawianie kodu przy okazji
+   (decyzja o zachowaniu aplikacji podjęta mimochodem) oraz zgłaszanie rozjazdów
+   bez naprawy (sprzeczne z planem: „wynik do naprawienia w tym kroku, nie do
+   wyciszenia”).
+4. **Tabele w drzewie angielskim pilnowane są co do treści, tak samo jak
+   polskie** — opis idzie przez katalog `en`. To jedyna wersja, w której
+   angielski przestaje cicho zostawać w tyle, czyli po to, po co powstała cała
+   faza. Odrzucone: pilnowanie `en` wyłącznie co do kształtu.
+5. **Miejsce, do którego atrapa nie sięgała, doprowadza się, a nie omija.**
+   Pytanie zadane w trakcie, gdy okazało się, że logi poda wymagają czterech
+   kroków nawigacji i trzech odpowiedzi `kubectl`. Odrzucone: jawny wyjątek
+   w teście wraz z powodem oraz odłożenie tego miejsca do osobnego kroku.
+   Skutek: **29 z 29 miejsc jest doprowadzanych**, a spis klawiszy pilnowany
+   w całości.
+
+**Co z tego wynika:**
+
+- **Trzy rzeczy wyszły na jaw dopiero przy próbie i wszystkie zostały
+  naprawione.** (1) Przykłady z kroku 65 nie były wskazywane z żadnego
+  dokumentu — `DocumentationExamplesTest` złapał je w pierwszym przebiegu.
+  (2) `Esc` w spisie klastrów opisywał się kluczem `module.k8s.key.back`
+  („Zamknij logi”) — usterka **w kodzie**, naprawiona nowym kluczem
+  `module.k8s.cluster.key.back`. (3) W widoku logów `PgUp`/`PgDn`/`Home`
+  obiecywało „początek **i koniec**”, choć `End` ma tam własne wiązanie —
+  naprawione nowym kluczem `help.key.page.start` w obu torach logów.
+- **Zestaw testowy jest odtąd pilnowany razem z aplikacją.** Próba wykazała
+  dziurę w mierze kroku: moduł dopisany do `Bootstrapu`, a nieznany
+  `ScreenFixture`, nie wnosił do rejestrów niczego, więc kwerenda bez wiersza
+  w dokumentacji przechodziła przez zieloną bramkę. Test
+  `testTheFixtureKnowsTheSameModulesAsBootstrap` tę drogę zamyka.
+- **Nie każda kolumna jest pilnowana i jest to zapisane wprost.** Kolumna
+  „Wartości” w spisie ustawień zapisuje osiemdziesiąt jeden przystanków suwaka
+  jako `20–80`, bo tabela jest dla czytelnika. Opis klawisza porównuje się
+  **zawieraniem**, nie równością: podręcznik wolno rozwinąć („— **gdy** podział
+  jest włączony”), skłamać nie wolno.
+- **Blok kodu jest ilustracją, nie obietnicą.** Odnośniki, wskazania na
+  `examples/` i znaczniki spisów czyta się **poza** blokami ```` ``` ````.
+  Powód jest praktyczny i wyszedł w pierwszym przebiegu: rozdział 8 pokazuje
+  w bloku, jak wygląda znacznik spisu, a ilustracja o tej samej nazwie
+  nadpisywała spis prawdziwy — cicho, bo tabela przykładowa jest poprawną tabelą.
+- **Reguła 19 rodzi się w rozdziale architektury, nie w skrócie**: „spis
+  w dokumentacji jest kopią stanu kodu i jest pilnowany maszynowo” stoi
+  w `docs/architektura/08-procesy.md`, a `SKILL.md` ją streszcza — dokładnie tą
+  drogą, którą przewiduje `SkillMatchesArchitectureTest`.
+- **Krok 65 dostaje jeden ruch więcej.** Zadanie ćwiczebne onboardingu dokłada
+  moduł i kwerendę, więc od tego kroku wymaga też wiersza w spisie kwerend
+  (oba języki) i linii w `ScreenFixture`. Onboarding mówi o tym wprost wraz
+  ze zdaniem, które w tym projekcie jest najważniejsze przy pierwszej zmianie:
+  **puść bramkę i popraw to, co zgłosi**.

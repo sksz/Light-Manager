@@ -18,6 +18,7 @@ Lustro angielskie: [../../en/guide/](../../en/guide/README.md).
 | 5 | [Pułapki](05-pulapki.md) | **dziesięć** rzeczy, za które projekt już raz zapłacił |
 | 6 | [Workflow pracy](06-workflow.md) | kolejność procesów, bramka, testy, pomiar, budowa |
 | 7 | [Jak czytać dziennik decyzji](07-dziennik-jak-czytac.md) | 110 wpisów i trzy drogi dojścia do właściwego |
+| 8 | [Spisy pod pilnowaniem](08-spisy.md) | **komendy, kwerendy** i to, co zrobić, gdy test zgodności się czerwieni |
 
 ## Trzy najkrótsze drogi
 

@@ -106,10 +106,23 @@ skończoną.** Dołożyłeś ósmy moduł, więc cztery zdania przestały być p
   bez tego „—” (moduł bez ekranu nie ma skrótu i niczego nie wymaga).
 - [`docs/en/manual/05-modules.md`](../../en/manual/05-modules.md) — to samo
   po angielsku, nazwa **Uptime**.
+- [`docs/pl/przewodnik/08-spisy.md`](../przewodnik/08-spisy.md#kwerendy)
+  i [`docs/en/guide/08-lists.md`](../../en/guide/08-lists.md#queries) — wiersz
+  w spisie kwerend: nazwa `czas.dzialanie`, argumenty „—”, opis **taki sam jak
+  w katalogu napisów**.
 - [`docs/pl/przewodnik/01-mapa-kodu.md`](../przewodnik/01-mapa-kodu.md) —
   „siedem modułów” w drzewie repozytorium jest już nieprawdą.
 - [`docs/en/guide/01-code-map.md`](../../en/guide/01-code-map.md) — „seven
   modules”, tak samo.
+
+Jedna rzecz jest przy tym nieoczywista i bramka powie o niej wprost: **zestaw
+testowy musi znać ten sam spis modułów, co `Bootstrap`**. Dopisz swój moduł do
+listy w `tests/Support/ScreenFixture.php` — bez tego testy zgodności pilnowałyby
+aplikacji, której nie ma, a twoja kwerenda przeszłaby przez zieloną bramkę
+niezauważona.
+
+**Nie musisz tego zapamiętywać.** Puść `make qa` i poprawiaj to, co zgłosi —
+każdy z tych plików zgłosi się sam, po nazwie.
 
 Zasada, z której to wynika, jest jedna i obowiązuje wszystkich: **krok, który
 zmienia klawisz, ustawienie, komendę, kwerendę albo moduł, aktualizuje

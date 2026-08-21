@@ -1381,7 +1381,7 @@ final class ClusterScreen implements
     {
         return [
             KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.scroll'),
-            KeyBinding::of([Key::PageUp, Key::PageDown, Key::Home], 'help.key.page', 'help.key.page.short'),
+            KeyBinding::of([Key::PageUp, Key::PageDown, Key::Home], 'help.key.page.start', 'help.key.page.start.short'),
             KeyBinding::of([Key::End], $this->key('key.follow'), $this->key('key.follow.short')),
             KeyBinding::of([Key::Escape], $this->key('key.back'), $this->key('key.back.short')),
         ];

@@ -1,6 +1,6 @@
 # 6. Workflow
 
-> Developer guide, part 6 of 7. [Contents](README.md) ·
+> Developer guide, part 6 of 8. [Contents](README.md) ·
 > [polski](../../pl/przewodnik/06-workflow.md)
 
 ## The order you keep to

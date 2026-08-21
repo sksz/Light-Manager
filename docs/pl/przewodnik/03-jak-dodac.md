@@ -1,6 +1,6 @@
 # 3. Jak dodać swoją rzecz
 
-> Przewodnik dewelopera, część 3 z 7. [Spis](README.md) ·
+> Przewodnik dewelopera, część 3 z 8. [Spis](README.md) ·
 > [English](../../en/guide/03-how-to-add.md)
 
 Osiem przewodników, każdy w tym samym układzie: **kiedy tego użyć / kroki /
@@ -9,6 +9,23 @@ przykład / co sprawdzi bramka / czego nie robić**.
 Zanim zaczniesz: jeśli twoja rzecz to **nowy prymityw** albo **zmiana
 w rdzeniu zamiast modułu**, przeczytaj najpierw
 [rozdz. 4](04-zanim-dolozysz.md) — tam odpowiedź prawie zawsze brzmi „nie”.
+
+**Trzy rejestry, trzy pytania.** Rdzeń trzyma trzy spisy i to one są całą
+rozmową modułu ze światem: `CommandRegistry` odpowiada na „zrób to" (nazwa
+z przedrostkiem właściciela), `QueryRegistry` na „powiedz, co u ciebie"
+(**jedyna droga odczytu danych**), a `EventRegistry` na „stało się coś, co może
+kogoś obchodzić" (zamknięty słownik zdarzeń). Czwartej drogi nie ma — a to, co
+wygląda na jej potrzebę, jest zwykle błędem w podziale na moduły.
+
+```mermaid
+flowchart LR
+    modul["twój moduł"] -->|"zrób to"| komendy["CommandRegistry"]
+    modul -->|"powiedz, co u ciebie"| kwerendy["QueryRegistry"]
+    modul -->|"ogłaszam"| zdarzenia["EventRegistry"]
+    komendy --> outcome(["CommandOutcome"])
+    kwerendy --> result(["QueryResult"])
+    zdarzenia --> sluchacze(["ListensToEvents u innych"])
+```
 
 ---
 
@@ -268,6 +285,25 @@ okno; `SelectionInOverlayFlowTest` — czy treść okna da się zaznaczyć i sko
 
 **Kiedy.** Gdy robota trwa dłużej niż klatka: cudzy program (`ssh`, `kubectl`,
 `du`, `docker compose`) albo własne przejście po dużym drzewie.
+
+**Praca tłowa jest maszyną stanu, a pętla tylko ją posuwa.** `BackgroundStage`
+ma cztery stany i przejścia między nimi robią się **w takcie**, nie w oczekiwaniu:
+`begin()` przenosi z `Idle` do `Running`, każdy takt woła `pump()`, a wynik
+kończy się `Done` albo `Failed` — i jedno, i drugie jest zwykłym stanem, nie
+wyjątkiem. Klatka nie czeka ani chwili, a przy wyjściu **żaden proces potomny
+nie zostaje**: sprząta je `Bootstrap::shutdown()` i zarejestrowana funkcja
+zamknięcia procesu.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Running: begin()
+    Running --> Running: pump() co takt
+    Running --> Done: kod wyjścia 0
+    Running --> Failed: kod wyjścia inny albo limit czasu
+    Done --> [*]
+    Failed --> [*]
+```
 
 **Kroki.**
 

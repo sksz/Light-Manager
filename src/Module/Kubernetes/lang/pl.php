@@ -282,6 +282,8 @@ return [
     'module.k8s.cluster.readEntry' => 'Wpis {name} pochodzi z cudzego pliku — moduł do kubeconfig nie pisze.',
     'module.k8s.cluster.book.unreadable' => 'Spisu klastrów nie da się przeczytać — plik stanu jest uszkodzony.',
     'module.k8s.cluster.problem.unknown' => 'Nie ma klastra o nazwie {name}.',
+    'module.k8s.cluster.key.back' => 'Zamknij spis',
+    'module.k8s.cluster.key.back.short' => 'wróć',
     'module.k8s.cluster.key.select' => 'Wybierz klaster',
     'module.k8s.cluster.key.select.short' => 'wybierz',
     'module.k8s.cluster.key.refresh' => 'Przeczytaj pliki od nowa',

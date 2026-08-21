@@ -1,6 +1,6 @@
 # 7. Jak czytać dziennik decyzji
 
-> Przewodnik dewelopera, część 7 z 7. [Spis](README.md) ·
+> Przewodnik dewelopera, część 7 z 8. [Spis](README.md) ·
 > [English](../../en/guide/07-decision-log.md)
 
 ## Czym dziennik jest, a czym nie

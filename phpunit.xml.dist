@@ -12,14 +12,25 @@
         Granica jest tu **po to, żeby dało się ją wywołać osobno** — krok 39
         opiera na niej cele `test-unit` i `test-functional`. Domyślne
         uruchomienie bez argumentów robi jedno i drugie.
+
+        Od kroku 66 grupy są **trzy**. `documentation` sprawdza, czy dokumentacja
+        nie kłamie: spisy wobec rejestrów, klawisze wobec wiązań, odnośniki wobec
+        plików, para językowa wobec samej siebie. Stoi osobno, bo pyta o co
+        innego niż dwie pozostałe — o **tekst**, a nie o aplikację — i dlatego
+        opłaca się umieć wywołać ją samą (`make docs-check`) w sekundę zamiast
+        czekać na pełny przebieg.
     -->
     <testsuites>
         <testsuite name="unit">
             <directory>tests</directory>
             <exclude>tests/Functional</exclude>
+            <exclude>tests/Documentation</exclude>
         </testsuite>
         <testsuite name="functional">
             <directory>tests/Functional</directory>
+        </testsuite>
+        <testsuite name="documentation">
+            <directory>tests/Documentation</directory>
         </testsuite>
     </testsuites>
     <source>

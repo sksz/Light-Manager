@@ -1,6 +1,6 @@
 # 1. Code map
 
-> Developer guide, part 1 of 7. [Contents](README.md) ·
+> Developer guide, part 1 of 8. [Contents](README.md) ·
 > [polski](../../pl/przewodnik/01-mapa-kodu.md)
 
 ## Three sentences that settle most arguments about placement
@@ -23,6 +23,24 @@ than similarity of names.
    crosses the port**. That is why components sit in `Presentation/Ui` and
    primitives in `Application/Ui` — a renderer implements a port from
    `Application` and has no right to see a class from `Presentation`.
+
+**What the second sentence looks like in practice.** The only action in the
+application that crosses two modules is `k8s.deploy-image`: the cluster module
+builds an image and pushes it, while knowing **nothing about Docker beyond three
+strings**. It asks the core — `CommandRegistry` for the action, `QueryRegistry`
+for the answer — and the core holds registries somebody else wrote into.
+A switched-off Docker module breaks nothing in the process: the registry returns
+a reason instead, and the user gets a sentence.
+
+```mermaid
+flowchart LR
+    k8s["DeployImageFlow (k8s module)"] -->|"asks for images"| kwerendy["QueryRegistry"]
+    k8s -->|"orders the build and the push"| komendy["CommandRegistry"]
+    kwerendy -->|"docker.images · docker.build"| docker["Docker module"]
+    komendy -->|"docker.build · docker.push"| docker
+    docker -->|"event: the image is ready"| zdarzenia["EventRegistry"]
+    zdarzenia --> k8s
+```
 
 ## The repository tree
 
@@ -83,6 +101,30 @@ src/Module/AddressBook/
     Presentation/Command/  the module's commands — they get the loop state
     Presentation/Query/    the module's queries
     lang/                  pl.php and en.php, merged with the core catalogue
+```
+
+**The module contract is identity alone, and everything a module brings is
+a separate capability.** `ModuleInterface` asks for five things — the
+identifier, the name key, the description key, the shortcut and the message
+directory; the rest are interfaces a module implements when it really brings
+something. The layer boundary is **the type in the signature**: capabilities
+that speak in data live in `Application/Module`, and those naming a type from
+`Presentation` live in `Presentation/Ui/Module`. The core learns about a module
+from **one line in `Bootstrap`** and knows none of its classes.
+
+```mermaid
+flowchart TB
+    bootstrap["Bootstrap: one line"] --> kontrakt["ModuleInterface"]
+    kontrakt --> dane["Application/Module"]
+    kontrakt --> widok["Presentation/Ui/Module"]
+    dane --> komendy["ProvidesCommands"]
+    dane --> kwerendy["ProvidesQueries"]
+    dane --> ustawienia["ProvidesSettingsTab"]
+    dane --> zdarzenia["DeclaresEvents · ListensToEvents"]
+    dane --> takt["NeedsTick · RequiresEnvironment"]
+    widok --> ekran["ProvidesScreen"]
+    widok --> pomoc["ProvidesHelpTab"]
+    widok --> kontekst["ReadsContext"]
 ```
 
 **A module need not exist in every layer.** The example module

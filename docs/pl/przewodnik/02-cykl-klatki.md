@@ -1,6 +1,6 @@
 # 2. Cykl życia klatki
 
-> Przewodnik dewelopera, część 2 z 7. [Spis](README.md) ·
+> Przewodnik dewelopera, część 2 z 8. [Spis](README.md) ·
 > [English](../../en/guide/02-frame-cycle.md)
 
 ## Jedna droga od bajtu do piksela
@@ -130,7 +130,21 @@ jest `SIGKILL`, którego przechwycić się nie da.
 
 Kolejność sprzątania ma znaczenie i jest zapisana w `Bootstrap::shutdown()`:
 zasoby GL idą **przed** kontekstem, procesy potomne przed portami, terminal na
-końcu.
+końcu. Powód każdej z tych kolejności jest ten sam — **zwalniany zasób musi
+jeszcze mieć kim być zwolniony**: tekstura oddana po zamknięciu kontekstu OpenGL
+nie ma już do czego wrócić, a proces potomny ubity po zamknięciu portu zostawia
+sierotę.
+
+```mermaid
+flowchart TB
+    wyjscie(["F10 · sygnał · niezłapany wyjątek"]) --> shutdown["Bootstrap::shutdown()"]
+    shutdown --> gl["zasoby GL"]
+    gl --> kontekst["kontekst OpenGL i okno GLFW"]
+    kontekst --> procesy["procesy potomne (BackgroundProcessPort)"]
+    procesy --> porty["porty i usługi"]
+    porty --> terminal["TerminalService::restore()"]
+    terminal --> koniec(["terminal jak przed uruchomieniem"])
+```
 
 ## Dokąd dalej
 

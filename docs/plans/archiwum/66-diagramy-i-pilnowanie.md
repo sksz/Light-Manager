@@ -1,15 +1,19 @@
 # Krok 66 — Diagramy i pilnowanie: dokumentacja, która czerwieni bramkę, gdy kłamie
 
 > **Skąd ten krok.** Powstał 2026-08-16 jako piąty i ostatni krok **Fazy XXI**
-> ([00-decyzje.md](00-decyzje.md), D97). Zamyka fazę dwiema rzeczami, których
+> ([00-decyzje.md](../00-decyzje.md), D97). Zamyka fazę dwiema rzeczami, których
 > nie da się zrobić wcześniej: **kompletem diagramów przekrojowych** (bo
 > potrzebują wszystkich dokumentów, żeby wiedzieć, gdzie stanąć) i **testami
 > zgodności** (bo nie mają czego pilnować, dopóki nie ma tekstu).
 
 ## Status
 
-**Nie rozpoczęty.** Rozstrzygnięcia startowe: [00-decyzje.md](00-decyzje.md),
-D97 (nr 2, 4 i 5).
+**Ukończony** (2026-08-21). Siedem testów zgodności w `tests/Documentation/`,
+osiem diagramów przekrojowych, cztery rodzaje spisów pod znacznikiem, cel
+`make docs-check` i reguła 19. Wszystkie miary kroku sprawdzone **próbą**.
+
+Rozstrzygnięcia startowe: [00-decyzje.md](../00-decyzje.md), D97 (nr 2, 4 i 5)
+oraz D112 (pięć rozstrzygnięć wykonawczych).
 
 ## Cel
 
@@ -203,4 +207,79 @@ warstw.
 
 ## Dziennik realizacji
 
-*(Krok nie rozpoczęty — wpisy pojawią się przy wykonaniu.)*
+### 2026-08-21 — dokumentacja przestaje być obietnicą
+
+**Co powstało.** Osiem plików w `tests/Documentation/` i `tests/Support/`
+(siedem testów plus wspólny odczyt drzewa, katalog miejsc i katalogi napisów
+obu języków), rozdział `docs/pl/przewodnik/08-spisy.md` wraz z lustrem
+`docs/en/guide/08-lists.md`, siedem nowych diagramów przekrojowych, znaczniki
+`<!-- spis:… -->` wokół **czterdziestu dwóch tabel** w obu językach, cel
+`make docs-check`, trzeci zestaw w `phpunit.xml.dist` oraz reguła 19
+w `docs/architektura/08-procesy.md`, streszczona w `SKILL.md` i w mapie
+dokumentacji.
+
+**Liczby na wejściu były większe niż w planie** (policzone 2026-08-21, plan
+liczył 16 sierpnia): 192 wywołania `KeyBinding::` zamiast 167, 53 kwerendy
+zamiast 41, 45 komend, 7 modułów, 32 cele `make`, 178 wierszy spisu klawiszy
+w 29 tabelach.
+
+**Miary kroku sprawdzone próbą, nie założeniem** — cztery mutacje, każda cofnięta
+po sprawdzeniu:
+
+| Próba | Co się stało |
+|---|---|
+| Usunięcie `KeyBinding`u odwracającego zaznaczenie | Czerwień w **obu** językach: „`*` — miejsce nie obiecuje tego klawisza”. |
+| Moduł z kwerendą dopisany do `Bootstrapu` | Czerwień: „ScreenFixture rozjechał się ze spisem modułów w Bootstrapie”. |
+| Ten sam moduł znany też zestawowi, bez wierszy w spisach | Czerwień w **czterech** miejscach naraz: spis kwerend (pl, en) i spis modułów (pl, en). |
+| Zepsuty odnośnik i nagłówek dołożony tylko po angielsku | Czerwień: „odnośniki donikąd” oraz „inny układ nagłówków”. |
+
+**Trzy rzeczy wyszły przy pierwszym przebiegu i wszystkie zostały naprawione**
+([00-decyzje.md](../00-decyzje.md), D112):
+
+1. **Przykłady z kroku 65 nie miały odbiorcy** — trzy pliki
+   `examples/zadanie-kwerenda/` nie były wskazywane z żadnego dokumentu.
+   `README` zadania dostał tabelę wskazań.
+2. **`Esc` w spisie klastrów mówił „Zamknij logi”** — usterka w kodzie, nie
+   w podręczniku. Nowy klucz `module.k8s.cluster.key.back` („Zamknij spis” /
+   „Close the list”) i jedna linia w `ClusterBookScreen`.
+3. **Widok logów obiecywał klawisz, którego w zestawie nie było** —
+   `PgUp`/`PgDn`/`Home` opisywało się rdzeniowym `help.key.page` („początek
+   **i koniec**”), choć `End` ma tam własne wiązanie. Nowy klucz
+   `help.key.page.start` w torze Dockera i Kubernetesa.
+
+**Dziura w mierze kroku, znaleziona próbą.** Pierwsza mutacja „dopisz kwerendę”
+**przeszła przez zieloną bramkę**: testy czytają rejestry z `ScreenFixture`,
+a moduł dopisany wyłącznie do `Bootstrapu` nie wnosił do nich niczego. Stąd
+`testTheFixtureKnowsTheSameModulesAsBootstrap` — spis modułów w zestawie
+testowym porównywany ze spisem w `Bootstrapie`. Bez niego cztery pozostałe testy
+pilnowałyby aplikacji, której nie ma.
+
+**Najdroższa część kroku to katalog miejsc**, i nie było to widać z planu.
+`bindings()` zależy od **stanu ekranu**, a nie od klasy: atrapa w stanie zastanym
+wystawia **71 ze 178** udokumentowanych wierszy. Pozostałe 107 mieszka za danymi
+w atrapach i za sekwencją klawiszy — więc `DocumentedPlaces` doprowadza ekrany
+do **29 stanów**: kontenery, obrazy, logi, środowiska i rejestr Dockera; drzewo
+zasobów, logi poda, spis klastrów i klaster nieosiągalny; spis hostów i zdalny
+katalog; playlista i efekty; podział paneli, drzewo, filtr i stos cofnięć. Trzy
+z nich wymagały prawdziwego pliku na dysku, kubeconfiga i szerokiej klatki.
+Najtrudniejsze były **logi poda**: `l` odpowiadało „to nie jest pod”, dopóki nie
+okazało się, że panel opisu otwiera dopiero `Enter` **na zasobie**, a nie na jego
+rodzaju.
+
+**Granice pilnowania nazwane wprost**, żeby nikt nie szukał w nich dziury:
+kolumna „Wartości” w spisie ustawień zostaje człowiekowi (osiemdziesiąt jeden
+przystanków suwaka zapisuje się jako `20–80`), opis klawisza porównuje się
+**zawieraniem** (podręcznik wolno rozwinąć, skłamać nie wolno), a blok kodu jest
+**ilustracją, nie obietnicą** — inaczej przykładowy znacznik z rozdziału 8
+nadpisywałby spis prawdziwy.
+
+**Zmiany poza tabelą planu:** rozdział 8 przewodnika (plan przewidywał spisy, ale
+nie osobny rozdział), stopki „część N z 8” w czternastu plikach przewodnika,
+`tests/Support/DocumentedCatalogues.php` (dwa języki naraz, czego
+`TranslatorService` nie umie z założenia) oraz jeden ruch więcej w zadaniu
+ćwiczebnym onboardingu — od tego kroku kwerenda wymaga wiersza w spisie.
+
+**Czego nie zrobiono i dlaczego.** Składni diagramów nikt nie renderuje (test
+pilnuje zdania opisowego i domknięcia bloku — „Poza zakresem” tego kroku),
+tłumaczy człowiek, a dziennik decyzji i plany sprawdzane są wyłącznie co do
+odnośników.

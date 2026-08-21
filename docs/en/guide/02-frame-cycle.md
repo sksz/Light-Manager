@@ -1,6 +1,6 @@
 # 2. The frame lifecycle
 
-> Developer guide, part 2 of 7. [Contents](README.md) ·
+> Developer guide, part 2 of 8. [Contents](README.md) ·
 > [polski](../../pl/przewodnik/02-cykl-klatki.md)
 
 ## One road from a byte to a pixel
@@ -132,7 +132,21 @@ uncaught exception included) and an explicit `restore()`. The only exception is
 
 The cleanup order matters and is written down in `Bootstrap::shutdown()`: GL
 resources go **before** the context, child processes before the ports, the
-terminal last.
+terminal last. The reason behind each of those orders is the same — **a resource
+being released still needs somebody to release it**: a texture handed back after
+the OpenGL context is gone has nowhere to return to, and a child process killed
+after its port is closed leaves an orphan.
+
+```mermaid
+flowchart TB
+    wyjscie(["F10 · a signal · an uncaught exception"]) --> shutdown["Bootstrap::shutdown()"]
+    shutdown --> gl["GL resources"]
+    gl --> kontekst["the OpenGL context and the GLFW window"]
+    kontekst --> procesy["child processes (BackgroundProcessPort)"]
+    procesy --> porty["ports and services"]
+    porty --> terminal["TerminalService::restore()"]
+    terminal --> koniec(["the terminal as before the run"])
+```
 
 ## Where to go next
 

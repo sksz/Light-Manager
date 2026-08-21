@@ -17,13 +17,13 @@ Jeśli brakuje tu szczegółu, sprawdź źródło zamiast zgadywać:
 |---|---|
 | `docs/architecture.md` | Spis rozdziałów dokumentu źródłowego — wejście do wszystkiego poniżej. |
 | `docs/architektura/01-warstwy.md` | Warstwy DDD, reguła „strzałki tylko do środka", drzewo katalogów, jedyny wyjątek — zapis na dysk (reguły 1, 2, 4). |
-| `docs/architektura/02-slownik/` | Pojęcia rdzenia i modułów oraz **słownik interfejsu** w sześciu częściach — tu mieszkają podreguły 11a–11z. |
-| `docs/architektura/03-singleton.md` | Singleton, porty, bootstrap i kolejność sprzątania (reguła 3). |
+| `docs/architektura/02-slownik/` | Pojęcia rdzenia i modułów oraz **słownik interfejsu** w sześciu częściach — tu mieszkają podreguły 11a–11z (reguły 10, 11, 12, 15). |
+| `docs/architektura/03-singleton.md` | Singleton, porty, bootstrap i kolejność sprzątania (reguły 3, 16). |
 | `docs/architektura/04-standardy-php.md` | `strict_types`, PSR-12, PHPStan `max`, dwie grupy testów, złote klatki, pomiar (reguły 5, 9, 14, 16b). |
 | `docs/architektura/05-nazewnictwo.md` | Sufiksy, przynależność nazw do warstw, Value Objects i **dwie hierarchie wyjątków** (reguły 6, 8). |
-| `docs/architektura/06-wzorce-kodu.md` | Wzorce wskazaniem na prawdziwy plik, nie kopią w markdownie. |
+| `docs/architektura/06-wzorce-kodu.md` | Wzorce wskazaniem na prawdziwy plik, nie kopią w markdownie; wzorzec bez odbiorcy w aplikacji (reguła 13). |
 | `docs/architektura/07-napisy.md` | Katalog napisów, sięganie po napis z warstw, wybór języka, liczby (reguła 7). |
-| `docs/architektura/08-procesy.md` | Spis „proces → wejście" i pierwszeństwo narzędzi repozytorium (reguły 17, 18). |
+| `docs/architektura/08-procesy.md` | Spis „proces → wejście", pierwszeństwo narzędzi repozytorium i pilnowanie dokumentacji (reguły 17, 18, 19). |
 | `docs/plans/00-decyzje.md` | Dlaczego tak, a nie inaczej — historia, nie instrukcja. |
 | `docs/README.md` | Mapa dokumentacji: gdzie mieszka reguła, historia, podręcznik i przewodnik. |
 
@@ -1308,6 +1308,18 @@ Jeśli brakuje tu szczegółu, sprawdź źródło zamiast zgadywać:
     wejście już ma. Makefile sam też jej nie dorabia: definicje poleceń jakości
     zostają w `composer.json`, podział testów w `phpunit.xml.dist`, zasoby
     XTerma w `bin/run*.sh`.
+
+19. **Spis w dokumentacji jest kopią stanu kodu i jest pilnowany maszynowo**
+    (krok 66). Klawisze, komendy, kwerendy, moduły i pozycje ustawień stoją
+    w podręczniku i w przewodniku jako tabele objęte znacznikiem
+    `<!-- spis:… -->`, a `tests/Documentation/` porównuje je z `KeyBinding`ami
+    i rejestrami — **w obu językach naraz**. Zmiana klawisza, komendy, kwerendy,
+    modułu albo pozycji ustawień jest **niekompletna**, dopóki bramka nie jest
+    zielona; osobno woła się ją `make docs-check`. To ta sama reguła, którą
+    projekt stosuje do napisów od kroku 15, i ten sam powód: rozjazd jest
+    niewidoczny, bo wiersz, do którego nic nie dopisano, wygląda tak samo jak
+    wiersz, do którego nie było czego dopisać. Jak dopisać własny spis i co
+    zrobić, gdy test się czerwieni — `docs/pl/przewodnik/08-spisy.md`.
 
 ## Nazewnictwo (skrót)
 

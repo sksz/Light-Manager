@@ -1,6 +1,6 @@
 # 4. Before you add
 
-> Developer guide, part 4 of 7. [Contents](README.md) ·
+> Developer guide, part 4 of 8. [Contents](README.md) ·
 > [polski](../../pl/przewodnik/04-zanim-dolozysz.md)
 
 Two things in this project have a chapter of their own, not because they are

@@ -1,6 +1,6 @@
 # 4. Zanim dołożysz
 
-> Przewodnik dewelopera, część 4 z 7. [Spis](README.md) ·
+> Przewodnik dewelopera, część 4 z 8. [Spis](README.md) ·
 > [English](../../en/guide/04-before-you-add.md)
 
 Dwie rzeczy w tym projekcie mają własny rozdział nie dlatego, że są trudne, tylko

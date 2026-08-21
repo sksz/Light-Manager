@@ -11,6 +11,7 @@ i własne komendy z przedrostkiem swojego identyfikatora.
 i to jest zachowanie normalne, nie awaria. Powód widać w pasku stanu przy
 starcie i na zakładce „Moduły" w ustawieniach.
 
+<!-- spis:moduly -->
 | Moduł | Skrót | Wymaga | Bez tego |
 |---|---|---|---|
 | Przeglądarka plików | `Ctrl`+`B` | — | nie da się jej wyłączyć |
@@ -20,6 +21,7 @@ starcie i na zakładce „Moduły" w ustawieniach.
 | Sesja zdalna | `Ctrl`+`S` | klient OpenSSH | modułu nie ma na liście |
 | Docker | `Ctrl`+`O` | rozszerzenie `curl` | modułu nie ma na liście |
 | Kubernetes | `Ctrl`+`K` | `kubectl` | moduł jest, ale nie ma z kim rozmawiać |
+<!-- /spis -->
 
 ## Przeglądarka plików (`browser`, `Ctrl`+`B`)
 

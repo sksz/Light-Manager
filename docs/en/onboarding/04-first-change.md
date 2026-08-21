@@ -115,10 +115,23 @@ true:
   without it "—" (a module without a screen has no shortcut and needs nothing).
 - [`docs/en/manual/05-modules.md`](../manual/05-modules.md) — the same in
   English, name **Uptime**.
+- [`docs/pl/przewodnik/08-spisy.md`](../../pl/przewodnik/08-spisy.md#kwerendy)
+  and [`docs/en/guide/08-lists.md`](../guide/08-lists.md#queries) — a row in the
+  query list: the name `czas.dzialanie`, arguments "—", and the description
+  **exactly as it stands in the message catalogue**.
 - [`docs/pl/przewodnik/01-mapa-kodu.md`](../../pl/przewodnik/01-mapa-kodu.md) —
   "siedem modułów" in the repository tree is no longer true.
 - [`docs/en/guide/01-code-map.md`](../guide/01-code-map.md) — "seven modules",
   likewise.
+
+One thing here is not obvious and the gate says it outright: **the test fixture
+must know the same list of modules as `Bootstrap`**. Add your module to the list
+in `tests/Support/ScreenFixture.php` — without it the compliance tests would be
+guarding an application that does not exist, and your query would pass through
+a green gate unnoticed.
+
+**You do not have to memorise any of this.** Run `make qa` and fix what it
+reports — every one of those files will announce itself, by name.
 
 The rule behind this is one and it applies to everyone: **a step that changes a
 key, a setting, a command, a query or a module updates the documentation in that

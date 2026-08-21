@@ -863,8 +863,8 @@ poprawiony** (D97 nr 4 i 5).
 | 62 | Porządek: jedno źródło, dwa języki, jedna konwencja rysunku | [archiwum/62-porzadek-dokumentacji.md](archiwum/62-porzadek-dokumentacji.md) | 4, 15, 39 | Opus⁹ | high | **Ukończony** |
 | 63 | Podręcznik użytkownika: od pierwszego uruchomienia do scenariuszy | [archiwum/63-podrecznik-uzytkownika.md](archiwum/63-podrecznik-uzytkownika.md) | 14, 15, 38, 40, 62 | Opus⁹ | xhigh | **Ukończony**¹⁰ |
 | 64 | Dokumentacja dewelopera: mapa kodu i przewodniki „jak dodać X" | [archiwum/64-dokumentacja-dewelopera.md](archiwum/64-dokumentacja-dewelopera.md) | 18, 19, 20, 21, 26, 38, 39, 53, 54, 62, 63 | Opus⁹ | xhigh | **Ukończony** |
-| 65 | Onboarding: pierwsze trzydzieści minut w projekcie | [archiwum/65-onboarding.md](archiwum/65-onboarding.md) | 39, 62, 63, 64 | Opus⁹ | high | **Ukończony z zastrzeżeniem**¹¹ |
-| 66 | Diagramy i pilnowanie: dokumentacja, która czerwieni bramkę, gdy kłamie | [66-diagramy-i-pilnowanie.md](66-diagramy-i-pilnowanie.md) | 15, 38, 40, 53, 54, 62, 63, 64, 65 | Opus⁹ | high | Nie rozpoczęty |
+| 65 | Onboarding: pierwsze trzydzieści minut w projekcie | [archiwum/65-onboarding.md](archiwum/65-onboarding.md) | 39, 62, 63, 64 | Opus⁹ | high | **Ukończony**¹¹ |
+| 66 | Diagramy i pilnowanie: dokumentacja, która czerwieni bramkę, gdy kłamie | [archiwum/66-diagramy-i-pilnowanie.md](archiwum/66-diagramy-i-pilnowanie.md) | 15, 38, 40, 53, 54, 62, 63, 64, 65 | Opus⁹ | high | **Ukończony** |
 
 ⁹ Warunek `Fable` z przypisów ¹ i ² **nie zachodzi w żadnym z pięciu kroków**:
 prymitywów nie przybywa, słownik wejścia nie rośnie, trzej tłumacze zostają
@@ -884,15 +884,16 @@ i D110 nr 3). **Zastrzeżenie drugie zostaje otwarte:** kryterium „pierwszy
 scenariusz sprawdzony na osobie, która aplikacji nie zna" **czeka na przejście
 przez kogoś innego niż autor**.
 
-¹¹ **Krok 65 ukończony z zastrzeżeniem, i jest to zastrzeżenie z tego samego
-rodzaju, co drugie zastrzeżenie kroku 63.** Ścieżka istnieje w obu językach,
-a zadanie ćwiczebne zostało **ruch po ruchu sprawdzone wykonaniem**:
-kopiowanie szkieletu, linia w `Bootstrapie`, luka w `ask()`, zaplanowana
-czerwień bramki na brakującym `lang/en.php`, zieleń po jej naprawieniu i
-odpowiedź kwerendy `czas.dzialanie` przez rejestr ([00-decyzje.md](00-decyzje.md),
-D111). **Czeka jedno kryterium — to, którego autor sprawdzić nie może**:
-przejście całej ścieżki w trzydzieści minut przez kogoś, kto projektu nie zna,
-wraz z zapisem czasu i miejsc zawahania w dzienniku kroku.
+¹¹ **Krok 65 ukończony 2026-08-21, po zamknięciu zastrzeżenia z 20 sierpnia.**
+Zadanie ćwiczebne zostało **ruch po ruchu sprawdzone wykonaniem**: kopiowanie
+szkieletu, linia w `Bootstrapie`, luka w `ask()`, zaplanowana czerwień bramki na
+brakującym `lang/en.php`, zieleń po jej naprawieniu i odpowiedź kwerendy
+`czas.dzialanie` przez rejestr ([00-decyzje.md](00-decyzje.md), D111).
+Kryterium pierwsze — przejście ścieżki przez kogoś innego niż autor tekstu —
+zamknął **użytkownik, przechodząc ją w całości i przyjmując**. Czasu ani miejsc
+zawahania przy tym nie mierzono, a przechodzący zna projekt; pomiar na osobie,
+która go nie zna, zostaje możliwością na później, nie długiem tego kroku
+(dziennik kroku, wpis z 2026-08-21).
 
 ### Fazy XXII–XXIV — Zarządzanie aplikacjami, projektami i zespołem (zarys)
 
@@ -1643,9 +1644,9 @@ z tabel powyżej.
 
 Katalog `docs/plans/` trzyma **wyłącznie kroki, przed którymi jeszcze praca**:
 zarysy, nierozpoczęte, w toku i zablokowane. Kroki ukończone przenoszą się do
-[archiwum/](archiwum/) — dziś jest ich 66 z 77, więc bez tego podziału lista
-tego, co zostało do zrobienia (krok **66**, Faza XXI, i **67–76**,
-Fazy XXII–XXIV) ginęłaby w historii projektu.
+[archiwum/](archiwum/) — dziś jest ich 67 z 77, więc bez tego podziału lista
+tego, co zostało do zrobienia (**67–76**, Fazy XXII–XXIV) ginęłaby w historii
+projektu.
 
 Trzy rzeczy, które przy tym **nie** zmieniają miejsca, bo są dokumentami
 żywymi, a nie zamkniętymi: ten indeks, [00-decyzje.md](00-decyzje.md) i tabele

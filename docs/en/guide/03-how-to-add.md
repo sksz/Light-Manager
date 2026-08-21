@@ -1,6 +1,6 @@
 # 3. How to add your own thing
 
-> Developer guide, part 3 of 7. [Contents](README.md) ·
+> Developer guide, part 3 of 8. [Contents](README.md) ·
 > [polski](../../pl/przewodnik/03-jak-dodac.md)
 
 Eight guides, each in the same shape: **when to use it / steps / example / what
@@ -9,6 +9,24 @@ the gate checks / what not to do**.
 Before you start: if your thing is **a new primitive** or **a change in the core
 instead of a module**, read [ch. 4](04-before-you-add.md) first — there the
 answer is almost always "no".
+
+**Three registries, three questions.** The core holds three lists and they are
+the whole conversation between a module and the world: `CommandRegistry` answers
+"do this" (a name with its owner's prefix), `QueryRegistry` answers "tell me
+what you have" (**the only path to reading data**), and `EventRegistry` answers
+"something happened that may concern somebody" (a closed vocabulary of events).
+There is no fourth road — and what looks like a need for one is usually a fault
+in how the modules were cut.
+
+```mermaid
+flowchart LR
+    modul["your module"] -->|"do this"| komendy["CommandRegistry"]
+    modul -->|"tell me what you have"| kwerendy["QueryRegistry"]
+    modul -->|"I announce"| zdarzenia["EventRegistry"]
+    komendy --> outcome(["CommandOutcome"])
+    kwerendy --> result(["QueryResult"])
+    zdarzenia --> sluchacze(["ListensToEvents elsewhere"])
+```
 
 ---
 
@@ -276,6 +294,25 @@ selected and copied.
 
 **When.** When the work takes longer than a frame: somebody else's program
 (`ssh`, `kubectl`, `du`, `docker compose`) or your own walk over a large tree.
+
+**Background work is a state machine and the loop only pushes it along.**
+`BackgroundStage` has four states and the transitions happen **on the tick**,
+not in a wait: `begin()` moves from `Idle` to `Running`, every tick calls
+`pump()`, and the result ends in `Done` or `Failed` — both of which are ordinary
+states, not exceptions. The frame never waits, and on the way out **no child
+process is left behind**: `Bootstrap::shutdown()` and the registered shutdown
+function clean them up.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Running: begin()
+    Running --> Running: pump() on every tick
+    Running --> Done: exit code 0
+    Running --> Failed: another exit code or a timeout
+    Done --> [*]
+    Failed --> [*]
+```
 
 **Steps.**
 

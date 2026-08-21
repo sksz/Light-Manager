@@ -2,61 +2,72 @@
 
 Light Manager — menadżer plików działający w terminalu i we własnym oknie.
 
-## Niewydane — Obój (Faza XXI): dokumentacja
+## 21.x — Obój (Faza XXI): dokumentacja
 
 Cała orkiestra bierze „a” od oboju — jeden instrument, do którego stroją się
 pozostałe. Faza daje dokumentacji jedno źródło i pisze ją dla dwóch czytelników
 osobno: tego, kto aplikacji używa, i tego, kto ją rozwija — po polsku
 i po angielsku.
 
-- **2026-08-20** — **Kto siada do tego projektu pierwszy raz, ma wreszcie
-  drogę.** Pięć przystanków, trzydzieści minut, po polsku i po angielsku: od
-  `git clone` i sprawdzenia maszyny, przez pierwsze uruchomienie i wycieczkę po
-  aplikacji, aż po **własną zmianę z zieloną bramką jakości**. Zadanie ćwiczebne
-  jest prawdziwe, a nie na niby: dokładasz aplikacji to jedno, czego jeszcze
-  o sobie nie mówi — **od jak dawna działa** — i oglądasz odpowiedź w oknie
-  komend. Plik startowy i gotowe rozwiązanie leżą w repozytorium, więc nikt nie
-  utknie w ciszy. Do tego dwie rzeczy, których nowa osoba nie ma skąd wiedzieć:
-  **mapa środowiska** mówiąca przy każdym składniku, co się stanie bez niego
-  (brak jest tu zwykle degradacją, nie awarią), i **rysunek tego, co się dzieje
-  przy starcie** — bo pierwsze pytanie brzmi „co się w ogóle uruchomiło".
-  `README.md` zaczyna teraz od zdania „zaczynasz? tędy".
+- **21.5.0** — 2026-08-21 — **Dokumentacja przestała być obietnicą.** Spisy
+  klawiszy, komend, kwerend, modułów i ustawień **porównują się z aplikacją
+  przy każdym uruchomieniu testów** — w obu językach naraz. Zniknięcie klawisza
+  z programu, dołożona komenda, zmieniona wartość domyślna, zepsuty odnośnik
+  czy strona dopisana tylko po angielsku **zatrzymują wydanie**, dopóki tekst
+  nie zostanie poprawiony. Przy pierwszym uruchomieniu ta obrona od razu
+  znalazła dwie usterki i obie są już naprawione: w spisie klastrów `Esc`
+  podpisywał się jako „zamknij logi”, a w widoku logów podpowiedź obiecywała
+  klawisz `End`, który robi tam co innego. Do tego **osiem rysunków**
+  pokazujących, jak aplikacja jest zbudowana — warstwy, anatomia modułu, trzy
+  tory obrazu, praca w tle, rozmowa modułów — każdy wraz ze zdaniem mówiącym to
+  samo słowami, bo dokumentację tego programu czyta się często w terminalu.
 
-- **2026-08-20** — **Kto chce dołożyć coś do tej aplikacji, ma wreszcie skąd.**
-  Przewodnik dewelopera, po polsku i po angielsku: gdzie co leży w kodzie, jak
-  kręci się pętla rysująca ekran, **osiem instrukcji „jak dodać X"** — moduł,
-  komenda, kwerenda, ustawienie, komponent, okno, praca w tle, napisy — i dwa
-  ostrzeżenia o rzeczach, na które odpowiedź prawie zawsze brzmi „nie". Do tego
-  **spis dziesięciu pułapek**, za które projekt już raz zapłacił: każda
-  z objawem, przyczyną i miejscem, gdzie przyszedł rachunek. Przykłady nie są
-  przepisane do tekstu — to **działający mikromoduł**, który przechodzi bramkę
-  jakości razem z resztą kodu. `README.md` schudł do stu sześćdziesięciu
-  wierszy: mówi, czym to jest, jak zainstalować i dokąd iść dalej.
+- **21.4.0** — 2026-08-21 — **Kto siada do tego projektu pierwszy raz, ma
+  wreszcie drogę.** Pięć przystanków, trzydzieści minut, po polsku i po
+  angielsku: od `git clone` i sprawdzenia maszyny, przez pierwsze uruchomienie
+  i wycieczkę po aplikacji, aż po **własną zmianę z zieloną bramką jakości**.
+  Zadanie ćwiczebne jest prawdziwe, a nie na niby: dokładasz aplikacji to
+  jedno, czego jeszcze o sobie nie mówi — **od jak dawna działa** — i oglądasz
+  odpowiedź w oknie komend. Plik startowy i gotowe rozwiązanie leżą w
+  repozytorium, więc nikt nie utknie w ciszy. Do tego dwie rzeczy, których nowa
+  osoba nie ma skąd wiedzieć: **mapa środowiska** mówiąca przy każdym
+  składniku, co się stanie bez niego (brak jest tu zwykle degradacją, nie
+  awarią), i **rysunek tego, co się dzieje przy starcie** — bo pierwsze pytanie
+  brzmi „co się w ogóle uruchomiło". `README.md` zaczyna teraz od zdania
+  „zaczynasz? tędy".
 
-- **2026-08-20** — **Aplikacja dostaje podręcznik — po polsku i po angielsku.**
-  Siedem rozdziałów: czym to jest, jak zainstalować i uruchomić, **pełny spis
-  klawiszy** pogrupowany tak samo jak pasek stanu, praca z plikami, opis
-  wszystkich siedmiu modułów, ustawienia wraz z tym, co i gdzie leży na dysku,
-  oraz **osiem scenariuszy** — prawdziwych zadań od początku do końca, każde
-  z tym, co widać i co może pójść nie tak. Osobna sekcja „Gdy coś nie działa"
-  jest pisana **objawem**, bo objaw jest tym, co widzisz: obraz nie wchodzi,
-  `Alt`+`c` nie działa, modułu nie ma na liście. `README.md` schudł
-  z tysiąca czterystu wierszy do czterystu i odsyła dalej. Przy okazji wyszła
+- **21.3.0** — 2026-08-20 — **Kto chce dołożyć coś do tej aplikacji, ma
+  wreszcie skąd.** Przewodnik dewelopera, po polsku i po angielsku: gdzie co
+  leży w kodzie, jak kręci się pętla rysująca ekran, **osiem instrukcji „jak
+  dodać X"** — moduł, komenda, kwerenda, ustawienie, komponent, okno, praca w
+  tle, napisy — i dwa ostrzeżenia o rzeczach, na które odpowiedź prawie zawsze
+  brzmi „nie". Do tego **spis dziesięciu pułapek**, za które projekt już raz
+  zapłacił: każda z objawem, przyczyną i miejscem, gdzie przyszedł rachunek.
+  Przykłady nie są przepisane do tekstu — to **działający mikromoduł**, który
+  przechodzi bramkę jakości razem z resztą kodu. `README.md` schudł do stu
+  sześćdziesięciu wierszy: mówi, czym to jest, jak zainstalować i dokąd iść
+  dalej.
+
+- **21.2.0** — 2026-08-20 — **Aplikacja dostaje podręcznik — po polsku i po
+  angielsku.** Siedem rozdziałów: czym to jest, jak zainstalować i uruchomić,
+  **pełny spis klawiszy** pogrupowany tak samo jak pasek stanu, praca z
+  plikami, opis wszystkich siedmiu modułów, ustawienia wraz z tym, co i gdzie
+  leży na dysku, oraz **osiem scenariuszy** — prawdziwych zadań od początku do
+  końca, każde z tym, co widać i co może pójść nie tak. Osobna sekcja „Gdy coś
+  nie działa" jest pisana **objawem**, bo objaw jest tym, co widzisz: obraz nie
+  wchodzi, `Alt`+`c` nie działa, modułu nie ma na liście. `README.md` schudł z
+  tysiąca czterystu wierszy do czterystu i odsyła dalej. Przy okazji wyszła
   usterka: litera **`r`** (zawartość rejestru w module Dockera) działała, ale
   nie było jej ani w pasku stanu, ani w spisie pod `F1` — już jest.
 
-- **2026-08-20** — **Dokumentacja dostaje mapę.** Jeden plik
+- **21.1.0** — 2026-08-20 — **Dokumentacja dostaje mapę.** Jeden plik
   (`docs/README.md`) mówi, gdzie leży reguła, gdzie historia projektu, gdzie
   instrukcja obsługi, a gdzie przewodnik dla programisty — i czego w danym
   miejscu **nie** ma. Opis architektury, który urósł do dwóch i pół tysiąca
-  wierszy w jednym pliku, rozpadł się na szesnaście rozdziałów, ale **został pod
-  tym samym adresem**: żaden dotychczasowy odnośnik nie przestał działać, co
-  sprawdzono po wszystkich 687 odnośnikach w repozytorium. Ruszył też szkielet
-  dokumentacji po angielsku.
-
-Przed nami w tej fazie: podręcznik użytkownika, przewodnik dla programisty,
-onboarding i testy, które czerwienią bramkę jakości, gdy dokumentacja zaczyna
-kłamać.
+  wierszy w jednym pliku, rozpadł się na szesnaście rozdziałów, ale **został
+  pod tym samym adresem**: żaden dotychczasowy odnośnik nie przestał działać,
+  co sprawdzono po wszystkich 687 odnośnikach w repozytorium. Ruszył też
+  szkielet dokumentacji po angielsku.
 
 ## 20.x — Organy (Faza XX): wiele miejsc
 

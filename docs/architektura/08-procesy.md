@@ -69,3 +69,34 @@ Dwie rzeczy, które z postaci archiwum wynikają i o których trzeba wiedzieć:
   rozszerzeniem C i pliku spod `phar://` nie przeczyta. W zbudowanej aplikacji
   utwór wskazuje się **ścieżką bezwzględną** w ustawieniach modułu audio;
   ścieżka względna liczy się od korzenia projektu, którego dystrybucja nie ma.
+
+## Dokumentacja jest pilnowana tak samo, jak reguły warstw (od kroku 66)
+
+**Spis w dokumentacji jest kopią stanu kodu, a nie opisem zamiaru** — i jest
+pilnowany maszynowo. Klawisze, komendy, kwerendy, moduły i pozycje ustawień
+stoją w podręczniku i w przewodniku jako tabele objęte znacznikiem
+`<!-- spis:… -->`; zestaw `tests/Documentation/` porównuje je z `KeyBinding`ami
+i z rejestrami, **w obu językach naraz**, a przy okazji sprawdza odnośniki,
+kotwice, wskazania na `examples/` i kształt pary językowej.
+
+Wynika z tego reguła utrzymania, obowiązująca każdy krok planu: **zmiana
+klawisza, komendy, kwerendy, modułu albo pozycji ustawień jest niekompletna,
+dopóki bramka nie jest zielona.** To ta sama reguła, którą projekt stosuje do
+napisów od kroku 15, i ten sam powód: rozjazd jest niewidoczny, bo wiersz, do
+którego nic nie dopisano, wygląda tak samo poprawnie jak wiersz, do którego nie
+było czego dopisać.
+
+| Proces | Wejście |
+|---|---|
+| Sprawdzenie samej dokumentacji | `make docs-check` |
+| Bramka jakości (woła to samo razem z resztą testów) | `make qa` |
+
+Trzy granice tego pilnowania są nazwane wprost, żeby nikt nie szukał w nich
+dziury: **składni diagramów nikt nie renderuje** (test pilnuje zdania
+opisowego i domknięcia bloku), **tłumaczy człowiek** (test wykrywa rozjazd
+kształtu pary językowej, nie jakość przekładu), a **dziennik decyzji i plany
+sprawdzane są wyłącznie co do odnośników** — to dokumenty historyczne, których
+się nie przepisuje.
+
+Jak dopisać własny spis pod pilnowanie i co zrobić, gdy test zgodności się
+czerwieni: [`docs/pl/przewodnik/08-spisy.md`](../pl/przewodnik/08-spisy.md).

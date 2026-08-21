@@ -1,6 +1,6 @@
 # 5. Traps
 
-> Developer guide, part 5 of 7. [Contents](README.md) ·
+> Developer guide, part 5 of 8. [Contents](README.md) ·
 > [polski](../../pl/przewodnik/05-pulapki.md)
 
 Ten things the project has **already paid for once** — with a benchmark, a live

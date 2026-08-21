@@ -48,7 +48,7 @@ raz. Dlatego onboarding niczego nie tłumaczy sam, tylko prowadzi i wskazuje.
 | [`README.md`](../README.md) w korzeniu | Wizytówka repozytorium — wymagania, uruchomienie, odnośniki dalej | pl |
 | [`CLAUDE.md`](../CLAUDE.md) | Wskaźnik dla Claude Code — trzydzieści kilka wierszy i tak ma zostać | pl |
 | [pl/podrecznik/](pl/podrecznik/README.md) · [en/manual/](en/manual/README.md) | **Podręcznik użytkownika** — siedem rozdziałów, od pierwszego uruchomienia po scenariusze | pl **i** en |
-| [pl/przewodnik/](pl/przewodnik/README.md) · [en/guide/](en/guide/README.md) | **Przewodnik dewelopera** — mapa kodu, cykl klatki, osiem przewodników „jak dodać X", dziesięć pułapek, workflow | pl **i** en |
+| [pl/przewodnik/](pl/przewodnik/README.md) · [en/guide/](en/guide/README.md) | **Przewodnik dewelopera** — mapa kodu, cykl klatki, osiem przewodników „jak dodać X", dziesięć pułapek, workflow, spisy pod pilnowaniem | pl **i** en |
 | [pl/onboarding/](pl/onboarding/README.md) · [en/onboarding/](en/onboarding/README.md) | **Onboarding** — pięć przystanków od `git clone` do własnej zmiany z zieloną bramką; **wejście dla nowych** | pl **i** en |
 
 ## Dwa języki — i co z tego wynika
@@ -83,7 +83,15 @@ jest usterką do naprawienia, nie drugim zdaniem w sprawie. Pełne uzasadnienie:
 **Krok planu, który zmienia klawisz, ustawienie, komendę, kwerendę albo moduł,
 aktualizuje podręcznik i przewodnik w tym samym kroku.** Dług dokumentacyjny bez
 właściciela jest długiem, którego nikt nie spłaci — ta sama reguła, którą Faza
-XVI stosowała do kodu. Rozwinięcie: [plans/00-index.md](plans/00-index.md),
+XVI stosowała do kodu.
+
+**Od kroku 66 nie jest to już prośba.** Spis w dokumentacji jest kopią stanu
+kodu i pilnuje go bramka: `tests/Documentation/` porównuje tabele z rejestrami
+i z wiązaniami klawiszy **w obu językach naraz**, sprawdza odnośniki, kotwice,
+wskazania na [`examples/`](../examples/) i kształt pary językowej. Zmiana
+wymieniona zdaniem wyżej jest **niekompletna**, dopóki bramka nie jest zielona;
+samą dokumentację sprawdza `make docs-check`. Jak dopisać własny spis pod
+pilnowanie — [pl/przewodnik/08-spisy.md](pl/przewodnik/08-spisy.md). Rozwinięcie: [plans/00-index.md](plans/00-index.md),
 rozdział „Śledzenie postępu”.
 
 ## Gdzie to napisać — jednym akapitem

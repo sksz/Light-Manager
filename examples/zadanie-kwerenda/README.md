@@ -8,10 +8,14 @@ Materiał do przystanku czwartego onboardingu:
 w którym katalogu leży — żeby ktoś, kto trafił tu z listy katalogów, wiedział,
 na co patrzy.
 
-| Katalog | Co w nim jest |
+| Plik | Co w nim jest |
 |---|---|
-| [`start/`](start/) | Punkt wyjścia: moduł gotowy, kwerenda z **jedną luką** (`ask()`), katalog napisów **tylko po polsku**. |
-| [`rozwiazanie/`](rozwiazanie/) | To samo z wypełnioną luką i z `en.php` obok. Do porównania — albo gdy utkniesz. |
+| [`start/Presentation/CzasModule.php`](start/Presentation/CzasModule.php) | Moduł gotowy: tożsamość i jedna zdolność (`ProvidesQueries`). Bez luki. |
+| [`start/Presentation/Query/CzasDzialaniaQuery.php`](start/Presentation/Query/CzasDzialaniaQuery.php) | Kwerenda z **jedyną luką zadania** — `ask()`. |
+| [`start/lang/pl.php`](start/lang/pl.php) | Napisy po polsku. `en.php` obok **nie ma i to jest część zadania**. |
+| [`rozwiazanie/Presentation/CzasModule.php`](rozwiazanie/Presentation/CzasModule.php) | Ten sam moduł — nie zmienił się ani o znak. |
+| [`rozwiazanie/Presentation/Query/CzasDzialaniaQuery.php`](rozwiazanie/Presentation/Query/CzasDzialaniaQuery.php) | Kwerenda z wypełnioną luką: jedno ciało metody. |
+| [`rozwiazanie/lang/pl.php`](rozwiazanie/lang/pl.php) i [`en.php`](rozwiazanie/lang/en.php) | Oba katalogi, o te same klucze. |
 
 ## Dlaczego akurat czas działania
 

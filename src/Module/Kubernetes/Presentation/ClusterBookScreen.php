@@ -119,7 +119,7 @@ final class ClusterBookScreen
             KeyBinding::of([Key::ArrowUp, Key::ArrowDown], 'help.key.move', 'help.key.move.short'),
             KeyBinding::of([Key::Enter], $this->key('cluster.key.select'), $this->key('cluster.key.select.short')),
             KeyBinding::ctrl('r', $this->key('cluster.key.refresh'), $this->key('key.refresh.short')),
-            KeyBinding::of([Key::Escape], $this->key('key.back'), $this->key('key.back.short')),
+            KeyBinding::of([Key::Escape], $this->key('cluster.key.back'), $this->key('cluster.key.back.short')),
         ];
     }
 

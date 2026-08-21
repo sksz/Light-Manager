@@ -97,6 +97,7 @@ i czynność.
 
 ### Wszędzie
 
+<!-- spis:klawisze:globalne -->
 | Klawisz | Co robi |
 |---|---|
 | `F1` | pomoc |
@@ -106,9 +107,11 @@ i czynność.
 | `F11` | pełny ekran — **tylko w trybie okienkowym** |
 | `F12` | okno komend |
 | `Alt`+`C` | skopiuj do schowka |
+<!-- /spis -->
 
 ### Skróty modułów
 
+<!-- spis:klawisze:moduly -->
 | Klawisz | Co robi |
 |---|---|
 | `Ctrl`+`B` | Przeglądarka plików |
@@ -118,9 +121,11 @@ i czynność.
 | `Ctrl`+`O` | Docker |
 | `Ctrl`+`K` | Kubernetes |
 | `Ctrl`+`W` | Książka adresowa |
+<!-- /spis -->
 
 ### Lista plików
 
+<!-- spis:klawisze:lista-plikow -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | zmiana zaznaczenia |
@@ -143,6 +148,7 @@ i czynność.
 | `Alt`+`U` | cofnięcie ostatniej operacji |
 | `Esc` | zdjęcie filtra — **gdy** filtr jest założony |
 | `Esc` | zdjęcie zaznaczenia — **gdy** filtra nie ma, a zaznaczenie jest |
+<!-- /spis -->
 
 `F8` i `Shift`+`F8` zamieniają się rolami, gdy wyłączysz pozycję „Usuwaj do
 kosza": klawisz goły robi zawsze to, co mówi ustawienie, a `Shift` — zawsze to
@@ -151,6 +157,7 @@ klawisz naprawdę zrobi.
 
 ### Panel przełączony na drzewo
 
+<!-- spis:klawisze:drzewo -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | zmiana zaznaczenia |
@@ -158,6 +165,7 @@ klawisz naprawdę zrobi.
 | `←` | zwinięcie gałęzi lub poziom wyżej |
 | `Enter` | wejście do katalogu |
 | `Backspace` | katalog wyżej |
+<!-- /spis -->
 
 Pozostałe klawisze listy (`.`, `/`, `Ctrl`+`T`, `F4`–`F8`, `Alt`+`U`, `F3`)
 działają tak samo. Zaznaczenia wielokrotnego drzewo **nie pokazuje i na nim nie
@@ -165,22 +173,30 @@ działa** — powrót do listy zastaje zbiór takim, jaki był.
 
 ### Pole filtra
 
+<!-- spis:klawisze:filtr -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | zmiana zaznaczenia na zawężonej liście |
 | `Enter` | zostaw listę zawężoną |
 | `Esc` | zdejmij filtr i wróć do wpisu |
+| `←` / `→` / `Home` / `End` | ruch karetki w wierszu |
+| `Backspace` / `Del` | kasowanie znaku |
+| `Alt`+`V` | wklej ze schowka |
+<!-- /spis -->
 
 ### Stos cofnięć (`F3`)
 
+<!-- spis:klawisze:cofniecia -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | wybór operacji |
 | `Enter` | cofnięcie wybranej operacji |
 | `Esc` | zamknięcie okna |
+<!-- /spis -->
 
 ### Opis pliku
 
+<!-- spis:klawisze:opis-pliku -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | zmiana zaznaczenia (sekcje) albo przewinięcie podglądu o linijkę |
@@ -192,9 +208,11 @@ działa** — powrót do listy zastaje zbiór takim, jaki był.
 | `s` | policz sumę kontrolną |
 | `d` | policz zajętość katalogu |
 | `Esc` | powrót do listy plików |
+<!-- /spis -->
 
 ### Dźwięk — playlista
 
+<!-- spis:klawisze:playlista -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | zmiana zaznaczenia |
@@ -206,9 +224,11 @@ działa** — powrót do listy zastaje zbiór takim, jaki był.
 | `Shift`+`↑` / `Shift`+`↓` | przestaw pozycję w liście — **gdy** playlista nie jest pusta |
 | `Tab` | przejdź do drugiego panelu (efekty) |
 | `Esc` | powrót do listy plików |
+<!-- /spis -->
 
 ### Dźwięk — efekty specjalne
 
+<!-- spis:klawisze:efekty -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | zmiana zaznaczenia |
@@ -216,9 +236,11 @@ działa** — powrót do listy zastaje zbiór takim, jaki był.
 | `F7` | przypisz plik, wpisując ścieżkę |
 | `Space` | wycisz albo włącz z powrotem — **gdy** zdarzenie ma plik |
 | `F8` / `Del` | zabierz zdarzeniu plik — **gdy** zdarzenie ma plik |
+<!-- /spis -->
 
 ### Książka adresowa
 
+<!-- spis:klawisze:ksiazka -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | przejdź po wpisach |
@@ -228,17 +250,21 @@ działa** — powrót do listy zastaje zbiór takim, jaki był.
 | `F7` | dopisz wpis |
 | `F8` | usuń wpis |
 | `Ctrl`+`F` | zawęź spis |
+<!-- /spis -->
 
 ### Sesja zdalna — spis hostów
 
+<!-- spis:klawisze:hosty -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | wybór hosta |
 | `Enter` | połącz albo rozłącz |
 | `F5` | sprawdź stan sesji |
+<!-- /spis -->
 
 ### Sesja zdalna — zdalny katalog
 
+<!-- spis:klawisze:zdalny-katalog -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | zmiana zaznaczenia |
@@ -251,9 +277,11 @@ działa** — powrót do listy zastaje zbiór takim, jaki był.
 | `Ctrl`+`H` | pokaż albo schowaj wpisy ukryte |
 | `/` | zawęź listę nazwą |
 | `Esc` | zdejmij filtr — **gdy** filtr jest założony |
+<!-- /spis -->
 
 ### Docker — kontenery
 
+<!-- spis:klawisze:docker-kontenery -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | zmiana zaznaczenia |
@@ -268,9 +296,11 @@ działa** — powrót do listy zastaje zbiór takim, jaki był.
 | `e` | pokaż spis środowisk |
 | `r` | pokaż zawartość rejestru |
 | `Ctrl`+`R` | odśwież listy |
+<!-- /spis -->
 
 ### Docker — obrazy
 
+<!-- spis:klawisze:docker-obrazy -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | zmiana zaznaczenia |
@@ -281,27 +311,33 @@ działa** — powrót do listy zastaje zbiór takim, jaki był.
 | `e` | pokaż spis środowisk |
 | `r` | pokaż zawartość rejestru |
 | `Ctrl`+`R` | odśwież listy |
+<!-- /spis -->
 
 ### Docker — logi
 
+<!-- spis:klawisze:docker-logi -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | przewijanie |
 | `PgUp` / `PgDn` / `Home` | strona w górę lub w dół, początek |
 | `End` | wróć na koniec logu |
 | `Esc` / `F3` | wróć do listy kontenerów |
+<!-- /spis -->
 
 ### Docker — środowiska (`e`)
 
+<!-- spis:klawisze:docker-srodowiska -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | zmiana zaznaczenia |
 | `Enter` | wybierz środowisko bieżące |
 | `Ctrl`+`R` | odśwież konteksty klienta |
 | `Esc` | wróć do listy kontenerów |
+<!-- /spis -->
 
 ### Docker — rejestr obrazów (`r`)
 
+<!-- spis:klawisze:docker-rejestr -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | zmiana zaznaczenia |
@@ -309,9 +345,11 @@ działa** — powrót do listy zastaje zbiór takim, jaki był.
 | `F7` | podaj nazwę obrazu |
 | `Ctrl`+`R` | pobierz ponownie |
 | `Esc` | wróć do listy kontenerów |
+<!-- /spis -->
 
 ### Kubernetes — drzewo zasobów i opis
 
+<!-- spis:klawisze:k8s-zasoby -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | zmiana zaznaczenia |
@@ -328,61 +366,73 @@ działa** — powrót do listy zastaje zbiór takim, jaki był.
 | `F5` | zastosuj plik |
 | `F8` / `Del` | usuń zasób |
 | `Ctrl`+`R` | odśwież spis i listę |
+<!-- /spis -->
 
 ### Kubernetes — logi poda (`l`)
 
+<!-- spis:klawisze:k8s-logi -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | przewijanie |
 | `PgUp` / `PgDn` / `Home` | strona w górę lub w dół, początek |
 | `End` | wróć na koniec logu |
 | `Esc` | zamknij logi |
+<!-- /spis -->
 
 ### Kubernetes — spis klastrów (`c`)
 
+<!-- spis:klawisze:k8s-klastry -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | zmiana zaznaczenia |
 | `Enter` | wybierz klaster |
 | `Ctrl`+`R` | przeczytaj pliki od nowa |
 | `Esc` | zamknij spis |
+<!-- /spis -->
 
 ### Kubernetes — klaster nieosiągalny
 
+<!-- spis:klawisze:k8s-nieosiagalny -->
 | Klawisz | Co robi |
 |---|---|
 | `c` | spis klastrów |
 | `k` | zmień kontekst w tym pliku |
 | `Enter` / `F5` | spytaj klaster jeszcze raz |
+<!-- /spis -->
 
 ### Ustawienia
 
+<!-- spis:klawisze:ustawienia -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | zmiana zaznaczenia |
-| `PgUp` / `PgDn` / `Home` / `End` | strona w górę lub w dół, pierwsza i ostatnia pozycja |
+| `PgUp` / `PgDn` / `Home` / `End` | strona w górę lub w dół, początek i koniec |
 | `←` / `→` / `Enter` | na pasku zakładek: zmiana zakładki; na pozycji: zmiana wartości |
 | `Enter` | edycja wartości — **gdy** pozycja jest tekstowa |
 | `Enter` | przywróć ustawienia domyślne — **gdy** kursor stoi na przycisku |
 | `Esc` | powrót do listy plików |
+<!-- /spis -->
 
 W trakcie edycji wartości tekstowej `Enter` **zatwierdza**, a `Esc` **porzuca
 zmianę** — nie zamyka ekranu; mówi o tym samo wiązanie w pasku stanu.
 
 ### Pomoc (`F1`)
 
+<!-- spis:klawisze:pomoc -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | przewijanie |
 | `←` / `→` | zmiana zakładki |
 | `Enter` | zwiń lub rozwiń sekcję |
 | `Esc` | powrót do listy plików |
+<!-- /spis -->
 
 ### Okno komend (`F12`)
 
+<!-- spis:klawisze:okno-komend -->
 | Klawisz | Co robi |
 |---|---|
-| znaki | wpisywanie nazwy; lista filtruje się w locie |
+| *znaki* | wpisywanie nazwy; lista filtruje się w locie |
 | `Tab` | uzupełnij nazwę; przy pustym wierszu — przełącz na kwerendy i z powrotem |
 | `↑` / `↓` | wybór z listy |
 | `Enter` | uruchom komendę |
@@ -390,14 +440,17 @@ zmianę** — nie zamyka ekranu; mówi o tym samo wiązanie w pasku stanu.
 | `Backspace` / `Del` | kasowanie znaku |
 | `Alt`+`V` | wklej ze schowka |
 | `Esc` | zamknij okno |
+<!-- /spis -->
 
 ### Menu kontekstowe (`F9`)
 
+<!-- spis:klawisze:menu -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | wybór z listy |
 | `Enter` | wykonaj działanie |
 | `Esc` | zamknij menu |
+<!-- /spis -->
 
 ### Okna pytań
 
@@ -406,22 +459,27 @@ nie robi i ich nie zamyka.
 
 **Pytanie tak/nie**
 
+<!-- spis:klawisze:pytanie -->
 | Klawisz | Co robi |
 |---|---|
 | `←` / `→` / `Tab` | zmień odpowiedź |
 | `Enter` | potwierdź |
 | `Esc` | odmów |
+<!-- /spis -->
 
 **Wybór z kilku**
 
+<!-- spis:klawisze:wybor -->
 | Klawisz | Co robi |
 |---|---|
 | `↑` / `↓` | wybór z listy |
 | `Enter` | odpowiedz |
 | `Esc` | wycofaj się |
+<!-- /spis -->
 
 **Wpisanie tekstu**
 
+<!-- spis:klawisze:wpisanie -->
 | Klawisz | Co robi |
 |---|---|
 | `Enter` | zatwierdź wpisaną nazwę |
@@ -429,12 +487,15 @@ nie robi i ich nie zamyka.
 | `←` / `→` / `Home` / `End` | ruch karetki w wierszu |
 | `Backspace` / `Del` | kasowanie znaku |
 | `Alt`+`V` | wklej ze schowka |
+<!-- /spis -->
 
 **Postęp pracy**
 
+<!-- spis:klawisze:postep -->
 | Klawisz | Co robi |
 |---|---|
 | `Esc` | przerwij pracę |
+<!-- /spis -->
 
 W pytaniu groźnym — usunięcie trwałe, przywrócenie ustawień domyślnych, nieznany
 klucz hosta — ognisko startuje **na odmowie**, więc przytrzymany `Enter` trafia

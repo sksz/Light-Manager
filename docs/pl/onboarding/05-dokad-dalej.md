@@ -30,7 +30,7 @@ wybrano, **co odrzucono i dlaczego**. Jak go czytać, żeby się nie utopić —
 [przewodnik, rozdz. 7](../przewodnik/07-dziennik-jak-czytac.md).
 
 **Gdzie jest przewodnik?** W [`docs/pl/przewodnik/`](../przewodnik/README.md) —
-siedem rozdziałów dla tego, kto dokłada swoją rzecz. Zacznij od tych trzech:
+osiem rozdziałów dla tego, kto dokłada swoją rzecz. Zacznij od tych trzech:
 
 | Chcę… | Idź do |
 |---|---|

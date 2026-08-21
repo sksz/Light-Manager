@@ -262,6 +262,8 @@ return [
     'module.k8s.cluster.readEntry' => 'Entry {name} comes from someone else\'s file — the module never writes to kubeconfig.',
     'module.k8s.cluster.book.unreadable' => 'The cluster list cannot be read — the state file is damaged.',
     'module.k8s.cluster.problem.unknown' => 'There is no cluster named {name}.',
+    'module.k8s.cluster.key.back' => 'Close the list',
+    'module.k8s.cluster.key.back.short' => 'back',
     'module.k8s.cluster.key.select' => 'Select cluster',
     'module.k8s.cluster.key.select.short' => 'select',
     'module.k8s.cluster.key.refresh' => 'Read the files again',

@@ -1,6 +1,6 @@
 # 1. Mapa kodu
 
-> Przewodnik dewelopera, część 1 z 7. [Spis](README.md) ·
+> Przewodnik dewelopera, część 1 z 8. [Spis](README.md) ·
 > [English](../../en/guide/01-code-map.md)
 
 ## Trzy zdania, które rozstrzygają najwięcej sporów o miejsce
@@ -22,6 +22,23 @@ podobieństwo nazw.
    portu**. Dlatego komponenty siedzą w `Presentation/Ui`, a prymitywy
    w `Application/Ui` — renderer implementuje port z `Application` i nie ma
    prawa zobaczyć klasy z `Presentation`.
+
+**Jak wygląda zdanie drugie w praktyce.** Jedyna czynność w aplikacji, która
+przechodzi przez dwa moduły, to `k8s.deploy-image`: moduł klastra buduje obraz
+i wypycha go, choć o Dockerze nie wie **nic poza trzema napisami**. Prosi rdzeń
+— `CommandRegistry` o czynność, `QueryRegistry` o odpowiedź — a rdzeń trzyma
+rejestry, do których wpisał się ktoś inny. Wyłączony moduł Dockera niczego przy
+tym nie wywraca: rejestr oddaje wtedy powód, a użytkownik dostaje zdanie.
+
+```mermaid
+flowchart LR
+    k8s["DeployImageFlow (moduł k8s)"] -->|"pyta o obrazy"| kwerendy["QueryRegistry"]
+    k8s -->|"zamawia budowę i wypchnięcie"| komendy["CommandRegistry"]
+    kwerendy -->|"docker.images · docker.build"| docker["moduł Dockera"]
+    komendy -->|"docker.build · docker.push"| docker
+    docker -->|"zdarzenie: obraz gotowy"| zdarzenia["EventRegistry"]
+    zdarzenia --> k8s
+```
 
 ## Drzewo repozytorium
 
@@ -82,6 +99,30 @@ src/Module/AddressBook/
     Presentation/Command/  komendy modułu — dostają stan pętli
     Presentation/Query/    kwerendy modułu
     lang/                  pl.php i en.php, scalane z katalogiem rdzenia
+```
+
+**Kontrakt modułu to sama tożsamość, a wszystko, co moduł wnosi, jest osobną
+zdolnością.** `ModuleInterface` pyta o pięć rzeczy — identyfikator, klucz nazwy,
+klucz opisu, skrót i katalog napisów; reszta to interfejsy, które moduł
+implementuje wtedy, gdy naprawdę coś wnosi. Granicą warstwy jest **typ
+w sygnaturze**: zdolności mówiące danymi leżą w `Application/Module`, a te,
+które wymieniają typ z `Presentation`, w `Presentation/Ui/Module`. Rdzeń
+dowiaduje się o module z **jednej linii w `Bootstrapie`** i nie zna ani jednej
+jego klasy.
+
+```mermaid
+flowchart TB
+    bootstrap["Bootstrap: jedna linia"] --> kontrakt["ModuleInterface"]
+    kontrakt --> dane["Application/Module"]
+    kontrakt --> widok["Presentation/Ui/Module"]
+    dane --> komendy["ProvidesCommands"]
+    dane --> kwerendy["ProvidesQueries"]
+    dane --> ustawienia["ProvidesSettingsTab"]
+    dane --> zdarzenia["DeclaresEvents · ListensToEvents"]
+    dane --> takt["NeedsTick · RequiresEnvironment"]
+    widok --> ekran["ProvidesScreen"]
+    widok --> pomoc["ProvidesHelpTab"]
+    widok --> kontekst["ReadsContext"]
 ```
 
 **Modułu nie musi być w każdej warstwie.** Moduł przykładowy

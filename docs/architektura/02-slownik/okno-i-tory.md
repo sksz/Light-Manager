@@ -5,6 +5,26 @@
 
 Rozmiar okna jako wielkość zmienna w czasie, prezentacja poza terminalem i renderer, który tłumaczy ten sam słownik prymitywów na OpenGL.
 
+**Trzy tory wyjścia, jeden słownik.** `FrameComposer` składa klatkę wyłącznie
+z ośmiu prymitywów z `Application/Ui/Primitive` i nie wie, czym zostanie
+narysowana; dopiero implementacja `FrameRendererPort` tłumaczy ten sam słownik
+na swój sposób — `SixelFrameRenderer` na obraz Imagicka wypychany sekwencją
+Sixela, `TextFrameRenderer` na znaki i sekwencje ANSI, `OpenGlFrameRenderer` na
+wywołania OpenGL w oknie GLFW. Dopisanie prymitywu kosztuje więc **trzy
+tłumaczenia**, a nie jedno, i pilnuje tego `PrimitiveTranslationTableTest`.
+
+```mermaid
+flowchart LR
+    kompozytor["FrameComposer"] --> prymitywy["osiem prymitywów z Application/Ui/Primitive"]
+    prymitywy --> port["FrameRendererPort"]
+    port --> sixel["SixelFrameRenderer"]
+    port --> tekst["TextFrameRenderer"]
+    port --> opengl["OpenGlFrameRenderer"]
+    sixel --> terminal(["terminal: obraz Sixelem"])
+    tekst --> ansi(["terminal: znaki ANSI"])
+    opengl --> okno(["okno GLFW"])
+```
+
 ## Rozmiar okna terminala nie jest stałą uruchomienia (od kroku 33)
 
 **O rozmiar okna pyta się co klatkę i niczego się z niego nie zapamiętuje.**

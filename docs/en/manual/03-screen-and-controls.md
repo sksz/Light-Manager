@@ -98,6 +98,7 @@ the row gives the key and the action.
 
 ### Everywhere
 
+<!-- spis:klawisze:globalne -->
 | Key | What it does |
 |---|---|
 | `F1` | help |
@@ -107,9 +108,11 @@ the row gives the key and the action.
 | `F11` | fullscreen — **windowed mode only** |
 | `F12` | command window |
 | `Alt`+`C` | copy to the clipboard |
+<!-- /spis -->
 
 ### Module shortcuts
 
+<!-- spis:klawisze:moduly -->
 | Key | What it does |
 |---|---|
 | `Ctrl`+`B` | File browser |
@@ -119,9 +122,11 @@ the row gives the key and the action.
 | `Ctrl`+`O` | Docker |
 | `Ctrl`+`K` | Kubernetes |
 | `Ctrl`+`W` | Address book |
+<!-- /spis -->
 
 ### File list
 
+<!-- spis:klawisze:lista-plikow -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | move the selection |
@@ -144,6 +149,7 @@ the row gives the key and the action.
 | `Alt`+`U` | undo the last operation |
 | `Esc` | drop the filter — **when** a filter is set |
 | `Esc` | drop the marks — **when** there is no filter but there are marks |
+<!-- /spis -->
 
 `F8` and `Shift`+`F8` swap roles when you switch off "Delete to trash": the bare
 key always does what the setting says and `Shift` always does the other thing.
@@ -152,6 +158,7 @@ key will really do.
 
 ### A pane switched to a tree
 
+<!-- spis:klawisze:drzewo -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | move the selection |
@@ -159,6 +166,7 @@ key will really do.
 | `←` | collapse the branch or go one level up |
 | `Enter` | enter the directory |
 | `Backspace` | parent directory |
+<!-- /spis -->
 
 The remaining list keys (`.`, `/`, `Ctrl`+`T`, `F4`–`F8`, `Alt`+`U`, `F3`) work
 the same. The tree **neither shows nor acts on** multiple marks — going back to
@@ -166,22 +174,30 @@ the list finds the set as it was.
 
 ### The filter field
 
+<!-- spis:klawisze:filtr -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | move the selection on the narrowed list |
 | `Enter` | keep the list narrowed |
 | `Esc` | drop the filter and go back |
+| `←` / `→` / `Home` / `End` | move the caret |
+| `Backspace` / `Del` | erase a character |
+| `Alt`+`V` | paste from the clipboard |
+<!-- /spis -->
 
 ### The undo stack (`F3`)
 
+<!-- spis:klawisze:cofniecia -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | choose an operation |
 | `Enter` | undo the chosen operation |
 | `Esc` | close the window |
+<!-- /spis -->
 
 ### File info
 
+<!-- spis:klawisze:opis-pliku -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | move between sections, or scroll the preview by one row |
@@ -193,9 +209,11 @@ the list finds the set as it was.
 | `s` | compute the checksum |
 | `d` | measure the directory disk usage |
 | `Esc` | back to the file list |
+<!-- /spis -->
 
 ### Audio — playlist
 
+<!-- spis:klawisze:playlista -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | move the selection |
@@ -203,13 +221,15 @@ the list finds the set as it was.
 | `Space` | stop or resume — **when** the playlist is not empty |
 | `F5` | add the entry selected in the browser |
 | `F7` | add a track by typing its path |
-| `F8` / `Del` | remove the position — **when** the playlist is not empty |
+| `F8` / `Del` | remove the position from the playlist — **when** the playlist is not empty |
 | `Shift`+`↑` / `Shift`+`↓` | move the position within the list — **when** the playlist is not empty |
 | `Tab` | go to the other panel (effects) |
 | `Esc` | back to the file list |
+<!-- /spis -->
 
 ### Audio — sound effects
 
+<!-- spis:klawisze:efekty -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | move the selection |
@@ -217,9 +237,11 @@ the list finds the set as it was.
 | `F7` | assign a file by typing its path |
 | `Space` | mute it or switch it back on — **when** the event has a file |
 | `F8` / `Del` | take the file away from the event — **when** the event has a file |
+<!-- /spis -->
 
 ### Address book
 
+<!-- spis:klawisze:ksiazka -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | move between entries |
@@ -229,17 +251,21 @@ the list finds the set as it was.
 | `F7` | add entry |
 | `F8` | remove entry |
 | `Ctrl`+`F` | narrow the list |
+<!-- /spis -->
 
 ### Remote session — host book
 
+<!-- spis:klawisze:hosty -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | choose host |
 | `Enter` | connect or disconnect |
 | `F5` | check session state |
+<!-- /spis -->
 
 ### Remote session — remote directory
 
+<!-- spis:klawisze:zdalny-katalog -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | move the selection |
@@ -252,9 +278,11 @@ the list finds the set as it was.
 | `Ctrl`+`H` | show or hide hidden entries |
 | `/` | narrow the list by name |
 | `Esc` | drop the filter — **when** a filter is set |
+<!-- /spis -->
 
 ### Docker — containers
 
+<!-- spis:klawisze:docker-kontenery -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | move the selection |
@@ -269,9 +297,11 @@ the list finds the set as it was.
 | `e` | show the environment list |
 | `r` | show the registry content |
 | `Ctrl`+`R` | refresh both lists |
+<!-- /spis -->
 
 ### Docker — images
 
+<!-- spis:klawisze:docker-obrazy -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | move the selection |
@@ -282,27 +312,33 @@ the list finds the set as it was.
 | `e` | show the environment list |
 | `r` | show the registry content |
 | `Ctrl`+`R` | refresh both lists |
+<!-- /spis -->
 
 ### Docker — logs
 
+<!-- spis:klawisze:docker-logi -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | scroll |
 | `PgUp` / `PgDn` / `Home` | page up or down, start |
 | `End` | back to the end of the log |
 | `Esc` / `F3` | back to the container list |
+<!-- /spis -->
 
 ### Docker — environments (`e`)
 
+<!-- spis:klawisze:docker-srodowiska -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | move the selection |
 | `Enter` | choose the current environment |
 | `Ctrl`+`R` | refresh the client contexts |
 | `Esc` | back to the container list |
+<!-- /spis -->
 
 ### Docker — image registry (`r`)
 
+<!-- spis:klawisze:docker-rejestr -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | move the selection |
@@ -310,9 +346,11 @@ the list finds the set as it was.
 | `F7` | give an image name |
 | `Ctrl`+`R` | fetch again |
 | `Esc` | back to the container list |
+<!-- /spis -->
 
 ### Kubernetes — resource tree and details
 
+<!-- spis:klawisze:k8s-zasoby -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | move the selection |
@@ -329,61 +367,73 @@ the list finds the set as it was.
 | `F5` | apply a file |
 | `F8` / `Del` | delete the resource |
 | `Ctrl`+`R` | refresh the catalogue and the list |
+<!-- /spis -->
 
 ### Kubernetes — pod logs (`l`)
 
+<!-- spis:klawisze:k8s-logi -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | scroll |
 | `PgUp` / `PgDn` / `Home` | page up or down, start |
 | `End` | back to the end of the log |
 | `Esc` | close the logs |
+<!-- /spis -->
 
 ### Kubernetes — cluster list (`c`)
 
+<!-- spis:klawisze:k8s-klastry -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | move the selection |
 | `Enter` | select cluster |
 | `Ctrl`+`R` | read the files again |
 | `Esc` | close the list |
+<!-- /spis -->
 
 ### Kubernetes — cluster unreachable
 
+<!-- spis:klawisze:k8s-nieosiagalny -->
 | Key | What it does |
 |---|---|
 | `c` | cluster list |
 | `k` | change context in this file |
 | `Enter` / `F5` | ask the cluster again |
+<!-- /spis -->
 
 ### Settings
 
+<!-- spis:klawisze:ustawienia -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | move the selection |
-| `PgUp` / `PgDn` / `Home` / `End` | page up or down, first and last position |
+| `PgUp` / `PgDn` / `Home` / `End` | page up or down, first and last |
 | `←` / `→` / `Enter` | on the tab bar: switch tab; on a position: change value |
 | `Enter` | edit the value — **when** the position is textual |
 | `Enter` | restore default settings — **when** the cursor is on the button |
 | `Esc` | back to the file list |
+<!-- /spis -->
 
 While editing a textual value `Enter` **commits** and `Esc` **discards the
 change** — it does not close the screen; the binding in the status bar says so.
 
 ### Help (`F1`)
 
+<!-- spis:klawisze:pomoc -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | scroll |
 | `←` / `→` | switch tab |
 | `Enter` | collapse or expand the section |
 | `Esc` | back to the file list |
+<!-- /spis -->
 
 ### The command window (`F12`)
 
+<!-- spis:klawisze:okno-komend -->
 | Key | What it does |
 |---|---|
-| characters | typing the name; the list filters as you go |
+| *characters* | typing the name; the list filters as you go |
 | `Tab` | complete the name; on an empty line — switch to queries and back |
 | `↑` / `↓` | pick from the list |
 | `Enter` | run the command |
@@ -391,14 +441,17 @@ change** — it does not close the screen; the binding in the status bar says so
 | `Backspace` / `Del` | erase a character |
 | `Alt`+`V` | paste from the clipboard |
 | `Esc` | close the window |
+<!-- /spis -->
 
 ### The context menu (`F9`)
 
+<!-- spis:klawisze:menu -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | pick from the list |
 | `Enter` | run the action |
 | `Esc` | close the menu |
+<!-- /spis -->
 
 ### Question overlays
 
@@ -407,22 +460,27 @@ not close them.
 
 **Yes/no question**
 
+<!-- spis:klawisze:pytanie -->
 | Key | What it does |
 |---|---|
 | `←` / `→` / `Tab` | change the answer |
 | `Enter` | confirm |
 | `Esc` | refuse |
+<!-- /spis -->
 
 **Choice of several**
 
+<!-- spis:klawisze:wybor -->
 | Key | What it does |
 |---|---|
 | `↑` / `↓` | pick from the list |
 | `Enter` | answer |
 | `Esc` | back out |
+<!-- /spis -->
 
 **Typing text**
 
+<!-- spis:klawisze:wpisanie -->
 | Key | What it does |
 |---|---|
 | `Enter` | accept the name |
@@ -430,12 +488,15 @@ not close them.
 | `←` / `→` / `Home` / `End` | move the caret |
 | `Backspace` / `Del` | erase a character |
 | `Alt`+`V` | paste from the clipboard |
+<!-- /spis -->
 
 **Work progress**
 
+<!-- spis:klawisze:postep -->
 | Key | What it does |
 |---|---|
 | `Esc` | stop the work |
+<!-- /spis -->
 
 In a dangerous question — permanent deletion, restoring default settings, an
 unknown host key — the focus starts **on the refusal**, so a held `Enter` hits

@@ -38,9 +38,10 @@ once.
 
 ## Core settings
 
+<!-- spis:ustawienia:rdzen -->
 | Tab | Position | Values | Default |
 |---|---|---|---|
-| Appearance | Language | Automatic, Polski, English | Automatic |
+| Appearance | Language | Automatic, Polski, English | Automatic (`auto`) |
 | Appearance | Theme | grafit, nordyk, papier, indygo | grafit |
 | Appearance | Mouse | yes / no | **yes** |
 | Graphics | Text antialiasing | yes / no | no |
@@ -52,6 +53,7 @@ once.
 | Resources | Concurrent background jobs | 1, 2, 4, 8, 16 | 8 |
 | Modules | Module opened at startup | ids of modules that bring a screen | `browser` |
 | Modules | *(each module)* | enabled / disabled | enabled |
+<!-- /spis -->
 
 The window size may also be set **outside the list** — by dragging the corner in
 `--window` mode; anything from 20×5 to 1000×400 cells is accepted, and an arrow
@@ -66,6 +68,7 @@ application warns about it.
 
 ### File browser
 
+<!-- spis:ustawienia:browser -->
 | Position | Values | Default |
 |---|---|---|
 | Show hidden entries | yes / no | no |
@@ -79,9 +82,11 @@ application warns about it.
 | Trash directory (empty: system) | text | *(empty)* |
 | Undo stack depth (F3) | 5, 10, 20, 50, 100 | 20 |
 | Left pane width (%) | 20–80 | 50 |
+<!-- /spis -->
 
 ### File info
 
+<!-- spis:ustawienia:file-info -->
 | Position | Values | Default |
 |---|---|---|
 | Command timeout (s) | 1, 2, 5, 10 | 2 |
@@ -96,9 +101,11 @@ application warns about it.
 | Line numbers in the preview | yes / no | no |
 | Wrap lines in the preview | yes / no | **yes** |
 | Description pane width (%) | 20–80 | 50 |
+<!-- /spis -->
 
 ### Audio
 
+<!-- spis:ustawienia:audio -->
 | Position | Values | Default |
 |---|---|---|
 | After a track | list, once, repeat | list |
@@ -107,25 +114,31 @@ application warns about it.
 | Sound effects | yes / no | **yes** |
 | Effects volume (%) | 0–100 by 10 | 70 |
 | Effects pane width (%) | 20–80 | 50 |
+<!-- /spis -->
 
 ### Remote session
 
+<!-- spis:ustawienia:ssh -->
 | Position | Values | Default |
 |---|---|---|
 | Connection timeout (s) | 5, 10, 15, 20, 30, 60 | 10 |
 | Authentication method | agent, key, password | agent |
 | Remember fingerprints of new hosts | yes / no | **yes** |
 | Show hidden entries | yes / no | no |
+<!-- /spis -->
 
 ### Docker
 
+<!-- spis:ustawienia:docker -->
 | Position | Values | Default |
 |---|---|---|
 | Log lines kept in memory | 500, 1000, 2000, 5000, 10000 | 2000 |
 | List pane width (%) | 20–80 | 50 |
+<!-- /spis -->
 
 ### Kubernetes
 
+<!-- spis:ustawienia:k8s -->
 | Position | Values | Default |
 |---|---|---|
 | Call timeout (s) | 2, 5, 10, 30, 60 | 10 |
@@ -133,12 +146,15 @@ application warns about it.
 | Log lines kept | 500, 1000, 2000, 5000 | 1000 |
 | Build wait limit (s) | 60, 300, 600, 1800 | 600 |
 | Resource tree width (%) | 20–80 | 40 |
+<!-- /spis -->
 
 ### Address book
 
+<!-- spis:ustawienia:address-book -->
 | Position | Values | Default |
 |---|---|---|
 | List order | added, name | added |
+<!-- /spis -->
 
 ## Files on disk
 

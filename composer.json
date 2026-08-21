@@ -3,7 +3,7 @@
     "description": "Menadżer plików w terminalu — cała klatka ekranu rysowana przez Imagick i wypychana protokołem Sixel.",
     "type": "project",
     "license": "proprietary",
-    "version": "20.4.0",
+    "version": "21.5.0",
     "require": {
         "php": "^8.3",
         "ext-imagick": "*",

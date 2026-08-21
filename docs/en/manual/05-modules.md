@@ -11,6 +11,7 @@ has its own screen under `Ctrl`+a letter, its own settings tab, its own help tab
 reason** — and that is normal behaviour, not a failure. The reason is visible in
 the status bar at startup and on the "Modules" tab in the settings.
 
+<!-- spis:moduly -->
 | Module | Shortcut | Needs | Without it |
 |---|---|---|---|
 | File browser | `Ctrl`+`B` | — | it cannot be switched off |
@@ -20,6 +21,7 @@ the status bar at startup and on the "Modules" tab in the settings.
 | Remote session | `Ctrl`+`S` | an OpenSSH client | the module is not on the list |
 | Docker | `Ctrl`+`O` | the `curl` extension | the module is not on the list |
 | Kubernetes | `Ctrl`+`K` | `kubectl` | the module is there but has nobody to talk to |
+<!-- /spis -->
 
 ## File browser (`browser`, `Ctrl`+`B`)
 

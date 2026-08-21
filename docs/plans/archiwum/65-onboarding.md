@@ -8,11 +8,10 @@
 
 ## Status
 
-**Ukończony z zastrzeżeniem** (2026-08-20). Ścieżka istnieje w obu językach,
-zadanie ćwiczebne jest sprawdzone wykonaniem, bramka jest zielona. **Czeka
-kryterium pierwsze** — przejście ścieżki w trzydzieści minut przez kogoś, kto
-projektu nie zna; autor onboardingu jest ostatnią osobą, która potrafi to
-sprawdzić.
+**Ukończony** (2026-08-21). Ścieżka istnieje w obu językach, zadanie ćwiczebne
+jest sprawdzone wykonaniem, bramka jest zielona, a **kryterium pierwsze zostało
+zamknięte przejściem**: użytkownik przeszedł ścieżkę w całości i ją przyjął
+(2026-08-21). Zastrzeżenie z 20 sierpnia przestaje obowiązywać.
 
 Rozstrzygnięcia startowe: [00-decyzje.md](../00-decyzje.md), D97 (nr 1, 3 i 5)
 oraz D111 (cztery rozstrzygnięcia wykonawcze).
@@ -235,10 +234,33 @@ jest mapą i z definicji podaje adresy — w tym dziennik decyzji (8755 wierszy)
 zawsze wraz z krótkim wejściem do niego ([przewodnik, rozdz. 7](../../pl/przewodnik/07-dziennik-jak-czytac.md),
 106 wierszy).
 
-**Czego nie zrobiono i dlaczego.** Kryterium pierwsze — przejście ścieżki
-w trzydzieści minut przez kogoś, kto projektu nie zna — **zostaje otwarte**.
-Autor onboardingu nie jest w stanie zmierzyć czasu, którego sam nie traci;
-wynik (czas, miejsca zawahania) wchodzi tutaj po przejściu.
+**Czego nie zrobiono tego dnia i dlaczego.** Kryterium pierwsze — przejście
+ścieżki przez kogoś innego niż autor — zostało **otwarte**, bo autor onboardingu
+nie jest w stanie zmierzyć czasu, którego sam nie traci. Wynik wszedł do
+dziennika następnego dnia (wpis niżej).
+
+### 2026-08-21 — ścieżka przeszła próbę
+
+**Użytkownik przeszedł onboarding w całości i go przyjął.** Zastrzeżenie
+z 20 sierpnia jest tym samym zamknięte, a krok — ukończony bez warunków.
+
+Dwie rzeczy warto przy tym zapisać, żeby nikt nie czytał tego wpisu szerzej,
+niż mówi:
+
+- **Czasu przejścia ani miejsc zawahania nie odnotowano.** Kryterium wymieniało
+  je jako wynik pomiaru; przejście odbyło się bez stopera, a przyjęcie ścieżki
+  jest oceną jej autora zamawiającego, nie liczbą.
+- **Przechodzącym był użytkownik, czyli osoba znająca projekt.** Zdanie
+  z celu kroku („pomiar robi się na kimś, kto tego nie pisał") jest spełnione
+  wobec **autora tekstu**, nie wobec projektu. Prawdziwy pomiar na kimś, kto
+  aplikacji nie zna, zostaje możliwością na później — nie jako dług tego kroku,
+  tylko jako rzecz, która ścieżkę jeszcze poprawi, gdy taka osoba się pojawi.
+
+**Krok 66 dołożył ścieżce jeden ruch** i jest to zmiana widoczna w przystanku
+czwartym: od chwili, gdy spisy komend i kwerend są pilnowane maszynowo, zadanie
+ćwiczebne wymaga także wiersza w spisie kwerend (oba języki) i linii
+w `ScreenFixture`. Onboarding mówi o tym wprost — wraz ze zdaniem, które przy
+pierwszej zmianie znaczy najwięcej: **puść bramkę i popraw to, co zgłosi**.
 
 **Dla kroku 66, sprawdzone przy okazji:** wszystkie dziewięć poleceń `make`
 ze ścieżki (`check-env`, `install`, `install-safe`, `probe`, `qa`, `run`,

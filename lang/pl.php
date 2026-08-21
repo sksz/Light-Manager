@@ -83,6 +83,9 @@ return [
     'help.key.change' => 'zmiana wartości',
     'help.key.scroll' => 'przewijanie',
     'help.key.page' => 'strona w górę lub w dół, początek i koniec',
+    // Widok, w którym `End` ma **własne** wiązanie (logi kontenera i poda):
+    // podpowiedź nie ma prawa obiecywać klawisza, którego w tym zestawie nie ma.
+    'help.key.page.start' => 'strona w górę lub w dół, początek',
     'help.key.tab' => 'zmiana zakładki',
     'help.key.restore' => 'przywróć ustawienia domyślne',
     'help.key.commands' => 'okno komend',
@@ -99,6 +102,7 @@ return [
     // Klucza bez pary `.short` nie brakuje — znaczy „ten opis jest już krótki”.
     'help.key.move.short' => 'zaznaczenie',
     'help.key.page.short' => 'strona',
+    'help.key.page.start.short' => 'strona',
     'help.key.back.short' => 'powrót',
     'help.key.change.short' => 'wartość',
     'help.key.tab.short' => 'zakładka',

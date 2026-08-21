@@ -31,7 +31,7 @@ their statuses ([`00-index.md`](../../plans/00-index.md)) and the decision log
 was chosen, **what was rejected and why**. How to read it without drowning —
 [guide, ch. 7](../guide/07-decision-log.md).
 
-**Where is the guide?** In [`docs/en/guide/`](../guide/README.md) — seven
+**Where is the guide?** In [`docs/en/guide/`](../guide/README.md) — eight
 chapters for whoever is adding their own thing. Start with these three:
 
 | I want to… | Go to |

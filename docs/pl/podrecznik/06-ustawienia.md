@@ -36,9 +36,10 @@ uruchomieniu, bo mapa skrótów i lista zakładek powstają raz.
 
 ## Ustawienia rdzenia
 
+<!-- spis:ustawienia:rdzen -->
 | Zakładka | Pozycja | Wartości | Domyślnie |
 |---|---|---|---|
-| Wygląd | Język | Automatyczny, Polski, English | Automatyczny |
+| Wygląd | Język | Automatyczny, Polski, English | Automatyczny (`auto`) |
 | Wygląd | Motyw | grafit, nordyk, papier, indygo | grafit |
 | Wygląd | Mysz | tak / nie | **tak** |
 | Grafika | Wygładzanie tekstu | tak / nie | nie |
@@ -50,6 +51,7 @@ uruchomieniu, bo mapa skrótów i lista zakładek powstają raz.
 | Zasoby | Prace w tle naraz | 1, 2, 4, 8, 16 | 8 |
 | Moduły | Moduł otwierany przy starcie | identyfikatory modułów z oknem | `browser` |
 | Moduły | *(każdy moduł)* | włączony / wyłączony | włączony |
+<!-- /spis -->
 
 Rozmiar okna wolno przy tym ustawić **spoza listy** — przeciągnięciem rogu
 w trybie `--window`; przyjmowane jest wszystko od 20×5 do 1000×400 komórek,
@@ -63,6 +65,7 @@ nawiasy narożne. Ustawienie jest dostępne, ale aplikacja o tym ostrzega.
 
 ### Przeglądarka plików
 
+<!-- spis:ustawienia:browser -->
 | Pozycja | Wartości | Domyślnie |
 |---|---|---|
 | Pokazuj wpisy ukryte | tak / nie | nie |
@@ -76,9 +79,11 @@ nawiasy narożne. Ustawienie jest dostępne, ale aplikacja o tym ostrzega.
 | Katalog kosza (pusty: systemowy) | tekst | *(puste)* |
 | Głębokość stosu cofnięć (F3) | 5, 10, 20, 50, 100 | 20 |
 | Szerokość lewego panelu (%) | 20–80 | 50 |
+<!-- /spis -->
 
 ### Opis pliku
 
+<!-- spis:ustawienia:file-info -->
 | Pozycja | Wartości | Domyślnie |
 |---|---|---|
 | Limit czasu polecenia (s) | 1, 2, 5, 10 | 2 |
@@ -93,9 +98,11 @@ nawiasy narożne. Ustawienie jest dostępne, ale aplikacja o tym ostrzega.
 | Numery wierszy w podglądzie | tak / nie | nie |
 | Zawijanie wierszy w podglądzie | tak / nie | **tak** |
 | Szerokość panelu opisu (%) | 20–80 | 50 |
+<!-- /spis -->
 
 ### Dźwięk
 
+<!-- spis:ustawienia:audio -->
 | Pozycja | Wartości | Domyślnie |
 |---|---|---|
 | Po utworze | list, once, repeat | list |
@@ -104,25 +111,31 @@ nawiasy narożne. Ustawienie jest dostępne, ale aplikacja o tym ostrzega.
 | Efekty specjalne | tak / nie | **tak** |
 | Głośność efektów (%) | 0–100 co 10 | 70 |
 | Szerokość panelu efektów (%) | 20–80 | 50 |
+<!-- /spis -->
 
 ### Sesja zdalna
 
+<!-- spis:ustawienia:ssh -->
 | Pozycja | Wartości | Domyślnie |
 |---|---|---|
 | Limit czasu połączenia (s) | 5, 10, 15, 20, 30, 60 | 10 |
 | Sposób uwierzytelnienia | agent, key, password | agent |
 | Zapamiętuj odciski nowych hostów | tak / nie | **tak** |
 | Pokazuj wpisy ukryte | tak / nie | nie |
+<!-- /spis -->
 
 ### Docker
 
+<!-- spis:ustawienia:docker -->
 | Pozycja | Wartości | Domyślnie |
 |---|---|---|
 | Wierszy logu w pamięci | 500, 1000, 2000, 5000, 10000 | 2000 |
 | Szerokość listy (%) | 20–80 | 50 |
+<!-- /spis -->
 
 ### Kubernetes
 
+<!-- spis:ustawienia:k8s -->
 | Pozycja | Wartości | Domyślnie |
 |---|---|---|
 | Limit czasu wywołania (s) | 2, 5, 10, 30, 60 | 10 |
@@ -130,12 +143,15 @@ nawiasy narożne. Ustawienie jest dostępne, ale aplikacja o tym ostrzega.
 | Wierszy logu w pamięci | 500, 1000, 2000, 5000 | 1000 |
 | Limit czekania na budowę (s) | 60, 300, 600, 1800 | 600 |
 | Szerokość drzewa zasobów (%) | 20–80 | 40 |
+<!-- /spis -->
 
 ### Książka adresowa
 
+<!-- spis:ustawienia:address-book -->
 | Pozycja | Wartości | Domyślnie |
 |---|---|---|
 | Kolejność spisu | added, name | added |
+<!-- /spis -->
 
 ## Pliki na dysku
 

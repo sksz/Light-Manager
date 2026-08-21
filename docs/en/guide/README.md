@@ -18,6 +18,7 @@ Polish original: [../../pl/przewodnik/](../../pl/przewodnik/README.md).
 | 5 | [Traps](05-traps.md) | **ten** things the project has already paid for |
 | 6 | [Workflow](06-workflow.md) | the order of processes, the gate, tests, benchmarks, the build |
 | 7 | [How to read the decision log](07-decision-log.md) | 110 entries and three ways to the right one |
+| 8 | [Guarded lists](08-lists.md) | **commands, queries** and what to do when a compliance test goes red |
 
 ## The three shortest routes
 

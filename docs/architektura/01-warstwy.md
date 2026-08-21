@@ -144,15 +144,22 @@ Rdzeń o zbiorze wie dokładnie tyle, ile mówi `ModuleContext` (trzy liczby),
 i tyle, ile widzi port: **listę ścieżek**. Skąd ta lista się wzięła — z zaznaczeń
 czy z kursora — port nie wie i wiedzieć nie ma prawa.
 
-**Reguła zależności** — strzałki tylko „do środka”:
+**Reguła zależności** — strzałki tylko „do środka”: `Presentation` sięga do
+`Application`, `Application` do `Domain`, a `Infrastructure` do obu, ale
+**wyłącznie przez implementację** ich interfejsów (`Domain/Repository`,
+`Application/Port`). `Module` stoi na zewnątrz wszystkiego i wolno mu sięgnąć do
+każdej warstwy rdzenia; strzałki w drugą stronę nie ma i nie będzie — rdzeń nie
+zna ani jednego typu modułu.
 
-```
-Presentation → Application → Domain
-Infrastructure → Domain (implementuje Domain/Repository)
-Infrastructure → Application (implementuje Application/Port)
-Module → Presentation → Application → Domain
-Module → Application → Domain
-Module → Domain
+```mermaid
+flowchart RL
+    modul["Module"] --> prezentacja["Presentation"]
+    modul --> aplikacja["Application"]
+    modul --> domena["Domain"]
+    prezentacja --> aplikacja
+    aplikacja --> domena
+    infrastruktura["Infrastructure"] -.->|"implementuje Application/Port"| aplikacja
+    infrastruktura -.->|"implementuje Domain/Repository"| domena
 ```
 
 `Domain` nie zależy od niczego innego w projekcie — żadnych bibliotek

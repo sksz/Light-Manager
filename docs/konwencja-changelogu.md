@@ -58,7 +58,7 @@ a wersja w `composer.json` skacze na najwyższy z nich.
 ## Wersja w `composer.json`
 
 Pole `version` w [`composer.json`](../composer.json) ma się zgadzać
-z **najwyższym wydanym numerem** w `CHANGELOG.md` — dziś `18.4.0`. Sekcja
+z **najwyższym wydanym numerem** w `CHANGELOG.md` — dziś `21.5.0`. Sekcja
 „Niewydane” tego pola nie rusza.
 
 ## Jak pisać wpisy

@@ -1,6 +1,6 @@
 # 5. Pułapki
 
-> Przewodnik dewelopera, część 5 z 7. [Spis](README.md) ·
+> Przewodnik dewelopera, część 5 z 8. [Spis](README.md) ·
 > [English](../../en/guide/05-traps.md)
 
 Dziesięć rzeczy, za które projekt **już raz zapłacił** — pomiarem, żywym

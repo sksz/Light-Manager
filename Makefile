@@ -33,7 +33,7 @@ ARGS ?=
 COMPOSER_INI_SCAN_DIR ?=
 
 .PHONY: help check-env install install-safe cs cs-check stan qa qa-full \
-        test test-unit test-functional coverage \
+        test test-unit test-functional docs-check coverage \
         bench bench-window bench-text bench-loop bench-xterm \
         run run-window run-xterm probe probe-xterm \
         minikube-start minikube-stop minikube-status \
@@ -164,6 +164,9 @@ test-unit: $(AUTOLOAD) ## PHPUnit — grupa `unit` (klasy)
 
 test-functional: $(AUTOLOAD) ## PHPUnit — grupa `functional` (przebiegi użytkownika)
 	$(COMPOSER) test -- --testsuite functional $(ARGS)
+
+docs-check: $(AUTOLOAD) ## PHPUnit — grupa `documentation` (czy dokumentacja nie kłamie)
+	$(COMPOSER) test -- --testsuite documentation $(ARGS)
 
 coverage: $(AUTOLOAD) ## Pokrycie testami do build/coverage/ (wymaga Xdebuga albo PCOV-u)
 	@if ! $(PHP) -r "exit(extension_loaded('xdebug') || extension_loaded('pcov') ? 0 : 1);"; then \

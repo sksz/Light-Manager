@@ -1,6 +1,6 @@
 # 6. Workflow pracy
 
-> Przewodnik dewelopera, część 6 z 7. [Spis](README.md) ·
+> Przewodnik dewelopera, część 6 z 8. [Spis](README.md) ·
 > [English](../../en/guide/06-workflow.md)
 
 ## Kolejność, której się trzyma
